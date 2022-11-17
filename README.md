@@ -9,7 +9,7 @@
 </p><br>
 
 <p align="center">
-☁️ Jetpack Compose animation library that allows you to implement animations such as shared element transition.
+☁️ Jetpack Compose blur process library, which supports all Android versions.
 </p><br>
 
 > <p align="center">The `blur` modifier supports only Android 12 and higher, and `RenderScript` APIs are deprecated starting in Android 12.
