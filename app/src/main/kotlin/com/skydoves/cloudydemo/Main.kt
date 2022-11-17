@@ -15,7 +15,7 @@
  */
 package com.skydoves.cloudydemo
 
-import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -45,7 +45,6 @@ import com.skydoves.cloudydemo.model.MockUtil
 import com.skydoves.landscapist.glide.GlideImage
 import com.skydoves.landscapist.glide.GlideImageState
 import com.skydoves.landscapist.glide.rememberGlideImageState
-import kotlinx.coroutines.delay
 
 @Composable
 fun Main() {
@@ -58,16 +57,15 @@ fun Main() {
   ) {
     var animationPlayed by remember { mutableStateOf(false) }
     val radius by animateIntAsState(
-      targetValue = if (animationPlayed) 10 else 0,
+      targetValue = if (animationPlayed) 15 else 0,
       animationSpec = tween(
-        durationMillis = 3000,
-        delayMillis = 100,
-        easing = LinearOutSlowInEasing
+        durationMillis = 1000,
+        delayMillis = 1000,
+        easing = FastOutLinearInEasing
       )
     )
 
     LaunchedEffect(Unit) {
-      delay(1000)
       animationPlayed = true
     }
 
