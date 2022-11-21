@@ -60,7 +60,7 @@ fun Main() {
       targetValue = if (animationPlayed) 15 else 0,
       animationSpec = tween(
         durationMillis = 1000,
-        delayMillis = 1000,
+        delayMillis = 500,
         easing = FastOutLinearInEasing
       )
     )

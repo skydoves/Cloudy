@@ -15,7 +15,6 @@
  */
 package com.skydoves.cloudy
 
-import android.app.Activity
 import android.graphics.Bitmap
 import android.graphics.Rect
 import android.os.Build
@@ -47,6 +46,7 @@ import androidx.core.view.drawToBitmap
 import com.skydoves.cloudy.internals.CloudyModifier
 import com.skydoves.cloudy.internals.InternalLaunchedEffect
 import com.skydoves.cloudy.internals.LayoutInfo
+import com.skydoves.cloudy.internals.getActivity
 import com.skydoves.cloudy.internals.render.RenderScriptToolkit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -182,7 +182,7 @@ private fun Modifier.cloudy(
     properties["cloudy"] = radius
   },
   factory = {
-    val window = (LocalContext.current as Activity).window
+    val window = LocalContext.current.getActivity()!!.window
     var blurredBitmap: Bitmap? by remember(key1 = key1, key2 = key2, key3 = key3) {
       mutableStateOf(initialBitmap)
     }
