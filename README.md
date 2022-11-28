@@ -129,6 +129,10 @@ Cloudy(
 }
 ```
 
+## Blur Effect with Network Images
+
+You can easily implement blur effect with [Landscapist](https://github.com/skydoves/landscapist), which is a Jetpack Compose image loading library that fetches and displays network images with Glide, Coil, and Fresco. For more information, see the [Transformation](https://github.com/skydoves/landscapist#transformation) section.
+
 ## Find this repository useful? :heart:
 Support it by joining __[stargazers](https://github.com/skydoves/cloudy/stargazers)__ for this repository. :star: <br>
 Also, __[follow me](https://github.com/skydoves)__ on GitHub for my next creations! 🤩
