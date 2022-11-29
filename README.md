@@ -10,7 +10,7 @@
 </p><br>
 
 <p align="center">
-☁️ Jetpack Compose blur process library, which supports all Android versions.
+☁️ Jetpack Compose blur effect library, which falls back on to a CPU-based implementation to support older API levels.
 </p><br>
 
 > <p align="center">The `blur` modifier supports only Android 12 and higher, and `RenderScript` APIs are deprecated starting in Android 12.
