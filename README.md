@@ -5,11 +5,12 @@
   <a href="https://android-arsenal.com/api?level=21"><img alt="API" src="https://img.shields.io/badge/API-21%2B-brightgreen.svg?style=flat"/></a>
   <a href="https://github.com/skydoves/cloudy/actions/workflows/android.yml"><img alt="Build Status" 
   src="https://github.com/skydoves/cloudy/actions/workflows/android.yml/badge.svg"/></a>
+  <a href="https://androidweekly.net/issues/issue-545"><img alt="Android Weekly" src="https://skydoves.github.io/badges/android-weekly.svg"/></a>
   <a href="https://github.com/skydoves"><img alt="Profile" src="https://skydoves.github.io/badges/skydoves.svg"/></a>
 </p><br>
 
 <p align="center">
-☁️ Jetpack Compose blur process library, which supports all Android versions.
+☁️ Compose blur effect library, which falls back on to a CPU-based implementation to support older API levels.
 </p><br>
 
 > <p align="center">The `blur` modifier supports only Android 12 and higher, and `RenderScript` APIs are deprecated starting in Android 12.
@@ -127,6 +128,10 @@ Cloudy(
   )
 }
 ```
+
+## Blur Effect with Network Images
+
+You can easily implement blur effect with [Landscapist](https://github.com/skydoves/landscapist), which is a Jetpack Compose image loading library that fetches and displays network images with Glide, Coil, and Fresco. For more information, see the [Transformation](https://github.com/skydoves/landscapist#transformation) section.
 
 ## Find this repository useful? :heart:
 Support it by joining __[stargazers](https://github.com/skydoves/cloudy/stargazers)__ for this repository. :star: <br>
