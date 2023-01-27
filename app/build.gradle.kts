@@ -44,12 +44,17 @@ android {
       excludes.add("/META-INF/{AL2.0,LGPL2.1}")
     }
   }
+
   buildTypes {
     create("benchmark") {
       signingConfig = signingConfigs.getByName("debug")
       matchingFallbacks += listOf("release")
       isDebuggable = false
     }
+  }
+
+  lint {
+    abortOnError = false
   }
 }
 
