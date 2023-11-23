@@ -40,9 +40,7 @@ android {
   }
 
   packagingOptions {
-    resources {
-      excludes.add("/META-INF/{AL2.0,LGPL2.1}")
-    }
+    pickFirsts.add("lib/*/librenderscript-toolkit.so")
   }
 
   buildTypes {
@@ -62,6 +60,7 @@ dependencies {
   implementation(project(":cloudy"))
 
   implementation(libs.landscapist.glide)
+  implementation(libs.landscapist.transformation)
 
   implementation(libs.material)
   implementation(libs.androidx.activity.compose)
