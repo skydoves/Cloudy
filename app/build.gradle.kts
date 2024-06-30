@@ -19,10 +19,12 @@ import com.skydoves.cloudy.Configuration
 plugins {
   id(libs.plugins.android.application.get().pluginId)
   id(libs.plugins.kotlin.android.get().pluginId)
+  id(libs.plugins.compose.compiler.get().pluginId)
 }
 
 android {
   compileSdk = Configuration.compileSdk
+  namespace = "com.skydoves.cloudydemo"
   defaultConfig {
     applicationId = "com.skydoves.cloudydemo"
     minSdk = Configuration.minSdk
@@ -33,10 +35,6 @@ android {
 
   buildFeatures {
     compose = true
-  }
-
-  composeOptions {
-    kotlinCompilerExtensionVersion = libs.versions.androidxComposeCompiler.get()
   }
 
   packagingOptions {
