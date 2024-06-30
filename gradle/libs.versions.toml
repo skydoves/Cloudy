@@ -1,23 +1,22 @@
 [versions]
-agp = "7.4.1"
-kotlin = "1.8.10"
-dokka = "1.8.10"
-javaRelease = "8"
-jvmTarget = "1.8"
-material = "1.6.1"
+agp = "8.4.2"
+kotlin = "2.0.0"
+dokka = "1.9.20"
+javaRelease = "11"
+jvmTarget = "11"
+material = "1.12.0"
 mavenPublish = "1.3.0"
-binaryCompatibility = "0.13.0"
-androidxActivity = "1.4.0"
-androidxComposeBom = "2023.03.00"
-androidxComposeCompiler = "1.4.4"
-androidxComposeConstraintLayout = "1.0.0"
-androidxCore = "1.8.0"
-androidxTest = "1.4.0"
+binaryCompatibility = "0.14.0"
+androidxActivity = "1.9.0"
+androidxComposeBom = "2024.06.00"
+androidxComposeConstraintLayout = "1.0.1"
+androidxCore = "1.13.1"
+androidxTest = "1.6.1"
 androidxJunit = "1.1.3"
-androidxMacroBenchmark = "1.2.0-alpha12"
-androidxProfileinstaller = "1.3.0"
-androidxUiAutomator = "2.3.0-alpha02"
-landscapist = "2.1.9"
+androidxMacroBenchmark = "1.2.4"
+androidxProfileinstaller = "1.3.1"
+androidxUiAutomator = "2.3.0"
+landscapist = "2.3.5"
 spotless = "6.7.0"
 
 [plugins]
@@ -25,6 +24,7 @@ android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
+compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 nexusPlugin = { id = "io.github.gradle-nexus.publish-plugin", version.ref = "mavenPublish" }
 spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
 kotlinBinaryCompatibilityValidator = { id = "org.jetbrains.kotlinx.binary-compatibility-validator", version.ref = "binaryCompatibility" }

@@ -19,6 +19,7 @@ import com.skydoves.cloudy.Configuration
 plugins {
   id(libs.plugins.android.library.get().pluginId)
   id(libs.plugins.kotlin.android.get().pluginId)
+  id(libs.plugins.compose.compiler.get().pluginId)
 }
 
 rootProject.extra.apply {
@@ -31,9 +32,9 @@ apply(from ="${rootDir}/scripts/publish-module.gradle")
 
 android {
   compileSdk = Configuration.compileSdk
+  namespace = "com.skydoves.cloudy"
   defaultConfig {
     minSdk = Configuration.minSdk
-    targetSdk = Configuration.targetSdk
     externalNativeBuild {
       cmake {
         cppFlags += "-std=c++17"
@@ -48,10 +49,6 @@ android {
 
   buildFeatures {
     compose = true
-  }
-
-  composeOptions {
-    kotlinCompilerExtensionVersion = libs.versions.androidxComposeCompiler.get()
   }
 
   packagingOptions {
