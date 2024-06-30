@@ -15,16 +15,16 @@
  */
 package com.skydoves.cloudy.internals
 
+import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
-import androidx.core.app.ComponentActivity
 
 /** Returns an activity from Context. */
 @JvmSynthetic
-internal fun Context.getActivity(): ComponentActivity? {
+internal fun Context.getActivity(): Activity? {
   var context = this
   while (context is ContextWrapper) {
-    if (context is ComponentActivity) {
+    if (context is Activity) {
       return context
     }
     context = context.baseContext
