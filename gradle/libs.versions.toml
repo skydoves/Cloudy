@@ -32,7 +32,7 @@ kotlinBinaryCompatibilityValidator = { id = "org.jetbrains.kotlinx.binary-compat
 [libraries]
 material = { module = "com.google.android.material:material", version.ref = "material" }
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "androidxComposeBom" }
-androidx-compose-ui = { group = "androidx.compose.ui", name = "ui" }
+androidx-compose-ui = { group = "androidx.compose.ui", name = "ui", version = "1.7.0-beta04" }
 androidx-compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
 androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
 androidx-compose-material = { group = "androidx.compose.material", name = "material" }

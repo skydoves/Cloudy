@@ -20,11 +20,17 @@ public final class com/skydoves/cloudy/CloudyState$Error : com/skydoves/cloudy/C
 public final class com/skydoves/cloudy/CloudyState$Loading : com/skydoves/cloudy/CloudyState {
 	public static final field $stable I
 	public static final field INSTANCE Lcom/skydoves/cloudy/CloudyState$Loading;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
 }
 
 public final class com/skydoves/cloudy/CloudyState$Nothing : com/skydoves/cloudy/CloudyState {
 	public static final field $stable I
 	public static final field INSTANCE Lcom/skydoves/cloudy/CloudyState$Nothing;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
 }
 
 public final class com/skydoves/cloudy/CloudyState$Success : com/skydoves/cloudy/CloudyState {

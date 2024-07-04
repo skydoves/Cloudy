@@ -21,10 +21,10 @@ import android.graphics.Bitmap
 public sealed interface CloudyState {
 
   /** Represents the state of [Cloudy] process doesn't started. */
-  public object Nothing : CloudyState
+  public data object Nothing : CloudyState
 
   /** Represents the state of [Cloudy] process is ongoing. */
-  public object Loading : CloudyState
+  public data object Loading : CloudyState
 
   /** Represents the state of [Cloudy] process is successful. */
   public data class Success(public val bitmap: Bitmap?) : CloudyState
