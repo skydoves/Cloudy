@@ -39,12 +39,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.skydoves.cloudy.Cloudy
-import com.skydoves.cloudy.CloudyState
+import com.skydoves.cloudy.internals.cloudy
 import com.skydoves.cloudydemo.model.MockUtil
 import com.skydoves.landscapist.glide.GlideImage
-import com.skydoves.landscapist.glide.GlideImageState
-import com.skydoves.landscapist.glide.rememberGlideImageState
 
 @Composable
 fun Main() {
@@ -62,7 +59,8 @@ fun Main() {
         durationMillis = 1000,
         delayMillis = 500,
         easing = FastOutLinearInEasing
-      )
+      ),
+      label = "Blur Animation"
     )
 
     LaunchedEffect(Unit) {
@@ -70,43 +68,33 @@ fun Main() {
     }
 
     val poster = remember { MockUtil.getMockPoster() }
-    var glideState by rememberGlideImageState()
-    Cloudy(
-      radius = radius,
-      key1 = glideState,
-      allowAccumulate = { it is CloudyState.Success && glideState is GlideImageState.Success }
-    ) {
-      GlideImage(
-        modifier = Modifier.size(400.dp),
-        imageModel = { poster.image },
-        onImageStateChanged = { glideState = it }
+
+    GlideImage(
+      modifier = Modifier
+        .size(400.dp)
+        .cloudy(radius = radius),
+      imageModel = { poster.image }
+    )
+
+    Column(modifier = Modifier.cloudy(radius = radius)) {
+      Text(
+        modifier = Modifier
+          .fillMaxWidth()
+          .padding(8.dp),
+        text = poster.name,
+        fontSize = 40.sp,
+        color = MaterialTheme.colors.onBackground,
+        textAlign = TextAlign.Center
       )
-    }
 
-    Cloudy(
-      radius = radius,
-      allowAccumulate = { true }
-    ) {
-      Column {
-        Text(
-          modifier = Modifier
-            .fillMaxWidth()
-            .padding(8.dp),
-          text = poster.name,
-          fontSize = 40.sp,
-          color = MaterialTheme.colors.onBackground,
-          textAlign = TextAlign.Center
-        )
-
-        Text(
-          modifier = Modifier
-            .fillMaxWidth()
-            .padding(8.dp),
-          text = poster.description,
-          color = MaterialTheme.colors.onBackground,
-          textAlign = TextAlign.Center
-        )
-      }
+      Text(
+        modifier = Modifier
+          .fillMaxWidth()
+          .padding(8.dp),
+        text = poster.description,
+        color = MaterialTheme.colors.onBackground,
+        textAlign = TextAlign.Center
+      )
     }
   }
 }
