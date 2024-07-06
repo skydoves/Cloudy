@@ -23,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
@@ -70,7 +71,7 @@ public fun Cloudy(
   content: @Composable BoxScope.() -> Unit
 ) {
   val context = LocalContext.current
-  var initialBitmap by remember { mutableStateOf<Bitmap?>(null) }
+  var initialBitmap by rememberSaveable(key1, key2) { mutableStateOf<Bitmap?>(null) }
   AndroidView(factory = { ComposeView(context) }, update = {
     it.composeCloudy(
       modifier = modifier,
@@ -181,7 +182,7 @@ private fun Modifier.cloudy(
     properties["cloudy"] = radius
   },
   factory = {
-    var blurredBitmap: Bitmap? by remember(key1 = key1, key2 = key2, key3 = key3) {
+    var blurredBitmap: Bitmap? by rememberSaveable(key1, key2, key3) {
       mutableStateOf(initialBitmap)
     }
 

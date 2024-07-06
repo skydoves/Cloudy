@@ -49,6 +49,10 @@ public final class com/skydoves/cloudy/RememberCloudyStateKt {
 	public static final fun rememberCloudyState (Lcom/skydoves/cloudy/CloudyState;Ljava/lang/Object;Landroidx/compose/runtime/Composer;II)Landroidx/compose/runtime/MutableState;
 }
 
+public final class com/skydoves/cloudy/internals/CloudyModifierNodeKt {
+	public static final fun cloudy (Landroidx/compose/ui/Modifier;ILkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
+}
+
 public final class com/skydoves/cloudy/internals/render/Range2d {
 	public static final field $stable I
 	public fun <init> (IIII)V
