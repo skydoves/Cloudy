@@ -35,7 +35,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.constraintlayout.compose.ConstraintLayout
-import com.skydoves.cloudy.Cloudy
+import com.skydoves.cloudy.internals.cloudy
 import com.skydoves.cloudydemo.model.MockUtil
 import com.skydoves.cloudydemo.model.Poster
 import com.skydoves.cloudydemo.theme.PosterTheme
@@ -53,16 +53,12 @@ fun HomePosters(
     applyBlur = true
   }
 
-  Cloudy(
-    radius = 20,
-    key1 = applyBlur
+  LazyVerticalGrid(
+    modifier = Modifier.cloudy(radius = 20),
+    columns = GridCells.Fixed(2)
   ) {
-    LazyVerticalGrid(
-      columns = GridCells.Fixed(2)
-    ) {
-      items(key = { it.id }, items = posters) {
-        HomePoster(poster = it)
-      }
+    items(key = { it.id }, items = posters) {
+      HomePoster(poster = it)
     }
   }
 }
