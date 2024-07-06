@@ -42,7 +42,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.skydoves.cloudy.internals.CloudyModifier
 import com.skydoves.cloudy.internals.InternalLaunchedEffect
 import com.skydoves.cloudy.internals.LayoutInfo
-import com.skydoves.cloudy.internals.render.RenderScriptToolkit
+import com.skydoves.cloudy.internals.render.iterativeBlur
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -54,7 +54,7 @@ import kotlinx.coroutines.withContext
  * History: The [blur] modifier supports only Android 12 and higher, and [RenderScript] was also deprecated.
  *
  * @param modifier Adjust the drawing layout or drawing decoration of the content.
- * @param radius Radius of the blur along both the x and y axis. It must be in 0 to 25.
+ * @param radius Radius of the blur along both the x and y axis.
  * @param key1 Key value for trigger recomposition.
  * @param key2 Key value for trigger recomposition.
  * @param onStateChanged Lambda function that will be invoked when the blur process has been updated.
@@ -63,7 +63,7 @@ import kotlinx.coroutines.withContext
 @Composable
 public fun Cloudy(
   modifier: Modifier = Modifier,
-  @androidx.annotation.IntRange(from = 0, to = 25) radius: Int = 10,
+  radius: Int = 10,
   key1: Any? = null,
   key2: Any? = null,
   allowAccumulate: (CloudyState) -> Boolean = { false },
@@ -105,7 +105,7 @@ public fun Cloudy(
  */
 private fun ComposeView.composeCloudy(
   modifier: Modifier,
-  @androidx.annotation.IntRange(from = 0, to = 25) radius: Int,
+  radius: Int,
   key1: Any? = null,
   key2: Any? = null,
   key3: Any? = null,
@@ -173,7 +173,7 @@ private fun Modifier.cloudy(
   key3: Any? = null,
   initialBitmap: Bitmap? = null,
   graphicsLayer: GraphicsLayer,
-  @androidx.annotation.IntRange(from = 0, to = 25) radius: Int,
+  radius: Int,
   layoutInfo: LayoutInfo,
   onStateChanged: (CloudyState) -> Unit
 ): Modifier = composed(
@@ -194,8 +194,8 @@ private fun Modifier.cloudy(
             val targetBitmap = blurredBitmap ?: graphicsLayer.toImageBitmap().asAndroidBitmap()
               .copy(Bitmap.Config.ARGB_8888, true)
 
-            blurredBitmap = RenderScriptToolkit.blur(
-              inputBitmap = targetBitmap,
+            blurredBitmap = iterativeBlur(
+              androidBitmap = targetBitmap,
               radius = radius
             )
           }

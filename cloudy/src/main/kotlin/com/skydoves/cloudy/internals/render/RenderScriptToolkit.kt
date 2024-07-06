@@ -314,3 +314,23 @@ internal fun vectorSize(bitmap: Bitmap): Int {
     )
   }
 }
+
+internal fun iterativeBlur(
+  androidBitmap: Bitmap,
+  radius: Int
+): Bitmap? {
+  val iterate = (radius + 1) / 25
+  var bitmap: Bitmap? = RenderScriptToolkit.blur(
+    inputBitmap = androidBitmap,
+    radius = (radius + 1) % 25
+  )
+
+  for (i in 0 until iterate) {
+    bitmap = RenderScriptToolkit.blur(
+      inputBitmap = bitmap,
+      radius = 25
+    )
+  }
+
+  return bitmap
+}

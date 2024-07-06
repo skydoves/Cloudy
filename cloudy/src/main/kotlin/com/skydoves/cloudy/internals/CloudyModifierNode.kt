@@ -16,7 +16,6 @@
 package com.skydoves.cloudy.internals
 
 import android.graphics.Bitmap
-import androidx.annotation.IntRange
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
@@ -37,12 +36,12 @@ import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.offset
 import com.skydoves.cloudy.CloudyState
-import com.skydoves.cloudy.internals.render.RenderScriptToolkit
+import com.skydoves.cloudy.internals.render.iterativeBlur
 import kotlinx.coroutines.runBlocking
 
 @Composable
 public fun Modifier.cloudy(
-  @IntRange(from = 0, to = 25) radius: Int = 10,
+  radius: Int = 10,
   onStateChanged: (CloudyState) -> Unit = {}
 ): Modifier {
   return this then CloudyModifierNodeElement(
@@ -54,7 +53,7 @@ public fun Modifier.cloudy(
 
 private data class CloudyModifierNodeElement(
   private val graphicsLayer: GraphicsLayer,
-  @IntRange(from = 0, to = 25) val radius: Int = 10,
+  val radius: Int = 10,
   val onStateChanged: (CloudyState) -> Unit = {}
 ) : ModifierNodeElement<CloudyModifierNode>() {
 
@@ -76,7 +75,7 @@ private data class CloudyModifierNodeElement(
 
 private class CloudyModifierNode(
   val graphicsLayer: GraphicsLayer,
-  @IntRange(from = 0, to = 25) var radius: Int = 10,
+  var radius: Int = 10,
   private val onStateChanged: (CloudyState) -> Unit = {}
 ) : LayoutModifierNode, GlobalPositionAwareModifierNode, DrawModifierNode, Modifier.Node() {
 
@@ -111,13 +110,13 @@ private class CloudyModifierNode(
     onStateChanged.invoke(CloudyState.Loading)
 
     try {
-      val targetBitmap: Bitmap? = runBlocking {
+      val targetBitmap: Bitmap = runBlocking {
         graphicsLayer.toImageBitmap().asAndroidBitmap()
           .copy(Bitmap.Config.ARGB_8888, true)
-      }
+      } ?: throw RuntimeException("Couldn't capture a bitmap from the composable tree")
 
-      val blurredBitmap = RenderScriptToolkit.blur(
-        inputBitmap = targetBitmap,
+      val blurredBitmap = iterativeBlur(
+        androidBitmap = targetBitmap,
         radius = radius
       )?.apply {
         drawImage(this.asImageBitmap())

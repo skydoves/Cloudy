@@ -54,7 +54,7 @@ fun Main() {
   ) {
     var animationPlayed by remember { mutableStateOf(false) }
     val radius by animateIntAsState(
-      targetValue = if (animationPlayed) 15 else 0,
+      targetValue = if (animationPlayed) 45 else 0,
       animationSpec = tween(
         durationMillis = 1000,
         delayMillis = 500,
