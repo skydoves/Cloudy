@@ -42,10 +42,11 @@ import kotlinx.coroutines.runBlocking
 @Composable
 public fun Modifier.cloudy(
   radius: Int = 10,
+  graphicsLayer: GraphicsLayer = rememberGraphicsLayer(),
   onStateChanged: (CloudyState) -> Unit = {}
 ): Modifier {
   return this then CloudyModifierNodeElement(
-    graphicsLayer = rememberGraphicsLayer(),
+    graphicsLayer = graphicsLayer,
     radius = radius,
     onStateChanged = onStateChanged
   )

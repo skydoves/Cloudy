@@ -18,8 +18,10 @@ package com.skydoves.cloudydemo.posters
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
@@ -31,6 +33,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.layer.GraphicsLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -53,19 +58,28 @@ fun HomePosters(
     applyBlur = true
   }
 
+  val state = rememberLazyGridState()
+  val graphicsLayer = rememberGraphicsLayer()
+
   LazyVerticalGrid(
-    modifier = Modifier.cloudy(radius = 20),
+    state = state,
     columns = GridCells.Fixed(2)
   ) {
-    items(key = { it.id }, items = posters) {
-      HomePoster(poster = it)
+    itemsIndexed(key = { index, item -> item.id }, items = posters) { index, item ->
+      HomePoster(
+        poster = item,
+        state = state,
+        graphicsLayer = graphicsLayer
+      )
     }
   }
 }
 
 @Composable
 private fun HomePoster(
+  state: LazyGridState,
   modifier: Modifier = Modifier,
+  graphicsLayer: GraphicsLayer = rememberGraphicsLayer(),
   poster: Poster
 ) {
   Surface(
@@ -78,6 +92,7 @@ private fun HomePoster(
       val (image, title, content) = createRefs()
       GlideImage(
         modifier = Modifier
+          .cloudy(radius = 15, graphicsLayer = graphicsLayer)
           .aspectRatio(0.8f)
           .constrainAs(image) {
             centerHorizontallyTo(parent)
@@ -94,6 +109,7 @@ private fun HomePoster(
           }
           .padding(8.dp),
         text = poster.name,
+        color = Color.White,
         style = MaterialTheme.typography.h2,
         textAlign = TextAlign.Center
       )
@@ -106,6 +122,7 @@ private fun HomePoster(
           }
           .padding(horizontal = 8.dp)
           .padding(bottom = 12.dp),
+        color = Color.White,
         text = poster.playtime,
         style = MaterialTheme.typography.body1,
         textAlign = TextAlign.Center
@@ -119,7 +136,8 @@ private fun HomePoster(
 private fun HomePosterPreviewLight() {
   PosterTheme(darkTheme = false) {
     HomePoster(
-      poster = MockUtil.getMockPoster()
+      poster = MockUtil.getMockPoster(),
+      state = rememberLazyGridState()
     )
   }
 }
@@ -129,7 +147,8 @@ private fun HomePosterPreviewLight() {
 private fun HomePosterPreviewDark() {
   PosterTheme(darkTheme = true) {
     HomePoster(
-      poster = MockUtil.getMockPoster()
+      poster = MockUtil.getMockPoster(),
+      state = rememberLazyGridState()
     )
   }
 }
