@@ -13,32 +13,42 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.skydoves.cloudy.internals
+package com.skydoves.cloudy
 
 import android.graphics.Bitmap
+import android.renderscript.RenderScript
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
-import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.MeasureResult
 import androidx.compose.ui.layout.MeasureScope
-import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.node.DrawModifierNode
-import androidx.compose.ui.node.GlobalPositionAwareModifierNode
 import androidx.compose.ui.node.LayoutModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.offset
-import com.skydoves.cloudy.CloudyState
 import com.skydoves.cloudy.internals.render.iterativeBlur
 import kotlinx.coroutines.runBlocking
 
+/**
+ * `Modifier.cloudy()` is a replacement of the [blur] modifier (compatible with under Android 12),
+ * which blurs with the given [radius].
+ *
+ * History: The [blur] modifier supports only Android 12 and higher, and [RenderScript] was also deprecated.
+ *
+ * @param radius Radius of the blur along both the x and y axis.
+ * @param graphicsLayer The graphic layer that records the original content and get the bitmap information.
+ * This parameter should be used when you need to remain with the same graphic layer for the dynamically
+ * updated Composable functions, such as Lazy Lists.
+ * @param onStateChanged Lambda function that will be invoked when the blur process has been updated.
+ */
 @Composable
 public fun Modifier.cloudy(
   radius: Int = 10,
@@ -78,18 +88,7 @@ private class CloudyModifierNode(
   val graphicsLayer: GraphicsLayer,
   var radius: Int = 10,
   private val onStateChanged: (CloudyState) -> Unit = {}
-) : LayoutModifierNode, GlobalPositionAwareModifierNode, DrawModifierNode, Modifier.Node() {
-
-  private var layoutInfo = LayoutInfo()
-
-  override fun onGloballyPositioned(coordinates: LayoutCoordinates) {
-    layoutInfo = LayoutInfo(
-      xOffset = coordinates.positionInWindow().x.toInt(),
-      yOffset = coordinates.positionInWindow().y.toInt(),
-      width = coordinates.size.width,
-      height = coordinates.size.height
-    )
-  }
+) : LayoutModifierNode, DrawModifierNode, Modifier.Node() {
 
   override fun MeasureScope.measure(
     measurable: Measurable,

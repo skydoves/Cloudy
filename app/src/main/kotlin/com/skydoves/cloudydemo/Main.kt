@@ -39,7 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.skydoves.cloudy.internals.cloudy
+import com.skydoves.cloudy.cloudy
 import com.skydoves.cloudydemo.model.MockUtil
 import com.skydoves.landscapist.glide.GlideImage
 

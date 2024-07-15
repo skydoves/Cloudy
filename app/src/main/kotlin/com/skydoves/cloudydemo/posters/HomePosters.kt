@@ -40,7 +40,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.constraintlayout.compose.ConstraintLayout
-import com.skydoves.cloudy.internals.cloudy
+import com.skydoves.cloudy.cloudy
 import com.skydoves.cloudydemo.model.MockUtil
 import com.skydoves.cloudydemo.model.Poster
 import com.skydoves.cloudydemo.theme.PosterTheme
