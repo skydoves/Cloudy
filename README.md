@@ -30,103 +30,105 @@
 Add the dependency below to your **module**'s `build.gradle` file:
 ```gradle
 dependencies {
-    implementation "com.github.skydoves:cloudy:0.1.2"
+    implementation "com.github.skydoves:cloudy:0.2.0"
 }
 ```
 
 ## Usage
 
-You can implement blur effect with `Cloudy` composable function as seen in the below:
+You can implement blur effect with `Modifiy.cloudy()` composable function as seen in the below:
 
 ```kotlin
-Cloudy {
-    Text(text = "This text is blurred")
-}
+Text(
+  modifier = Modifier.cloudy(),
+  text = "This text is blurred"
+)
 ```
 
 <img align="right" src="preview/img2.png" width="290"/>
 
-You can change the degree of the blur effect by changing the `radius` parameter of `Cloudy` composable function. You can only set between **0..25** integer values.
+You can change the degree of the blur effect by changing the `radius` parameter of `Modifier.cloudy()` composable function.
 
 ```kotlin
-Cloudy(radius = 15) {
-    Column {
-        Image(..)
-
-        Text(
-          modifier = Modifier
-            .fillMaxWidth()
-            .padding(8.dp),
-          text = posterModel.name,
-          fontSize = 40.sp,
-          color = MaterialTheme.colors.onBackground,
-          textAlign = TextAlign.Center
-        )
-
-        Text(
-          modifier = Modifier
-            .fillMaxWidth()
-            .padding(8.dp),
-          text = posterModel.description,
-          color = MaterialTheme.colors.onBackground,
-          textAlign = TextAlign.Center
-        )
-    }
-}
-```
-
-### Blur Effects Depending on States
-
-If you need to load your network image or do something heavy business logic first, you should re-execute the blur effect depending on your state. 
-Basically, you can re-execute the blur calculation by changing the `radius` value, but you can also re-execute the blurring process by giving the `key1` parameter to trigger internal processes.
-
-```kotlin
-var glideState by rememberGlideImageState()
-Cloudy(
-  radius = 15,
-  key1 = glideState, // re-execute the blurring process whenever the state value is changed.
+Column(
+  modifier = Modifier.cloudy(radius = 15)
 ) {
-  GlideImage(
-    modifier = Modifier.size(400.dp),
-    imageModel = { poster.image },
-    onImageStateChanged = { glideState = it }
+  Image(..)
+
+  Text(
+    modifier = Modifier
+      .fillMaxWidth()
+      .padding(8.dp),
+    text = posterModel.name,
+    fontSize = 40.sp,
+    color = MaterialTheme.colors.onBackground,
+    textAlign = TextAlign.Center
+  )
+
+  Text(
+    modifier = Modifier
+      .fillMaxWidth()
+      .padding(8.dp),
+    text = posterModel.description,
+    color = MaterialTheme.colors.onBackground,
+    textAlign = TextAlign.Center
   )
 }
 ```
 
-You can also utilize the `key2` parameter to trigger the blurring process.
+## Observing Blurring Status
 
-### Accumulate Blur Radius
-
-You can accumulate the blur radius and keep adding the degree of blur effect whenever you change the `radius` parameter by giving the `allowAccumulate` condition. 
-For example, if you want to accumulate the degree of blur gradually, you can set the condition of the `allowAccumulate` parameter depending on your states like the below:
-
-<img align="right" src="preview/gif0.gif" width="268"/>
+You can monitor the status of the blurring effect by using the `onStateChanged` parameter, which provides `CloudyState`. This allows you to observe and respond to changes in the blurring effect's state effectively.
 
 ```kotlin
-var animationPlayed by remember { mutableStateOf(false) }
-val radius by animateIntAsState(
-  targetValue = if (animationPlayed) 10 else 0,
-  animationSpec = tween(
-    durationMillis = 3000,
-    delayMillis = 100,
-    easing = LinearOutSlowInEasing
-  )
-)
+GlideImage(
+  modifier = Modifier
+    .size(400.dp)
+    .cloudy(
+      radius = 25,
+      onStateChanged = {
+        // ..
+      }
+    ),
+..
+```
 
-// Accumulate the degree of blur gradually for the network image.
-var glideState by rememberGlideImageState()
-Cloudy(
-  radius = radius,
-  key1 = glideState,
-  allowAccumulate = { it is CloudyState.Success && glideState is GlideImageState.Success }
+## Maintaining Blurring Effect on Responsive Composable
+
+The `Modifier.cloudy` captures the bitmap of the composable node under the hood. If you need to use the cloudy modifier as an item in lists or similar structures, you should provide the same [graphic layer](https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/layer/GraphicsLayer) to ensure consistent rendering and performance.
+
+```kotlin
+val graphicsLayer = rememberGraphicsLayer()
+
+LazyVerticalGrid(
+  state = rememberLazyGridState(),
+  columns = GridCells.Fixed(2)
 ) {
-  GlideImage(
-    modifier = Modifier.size(400.dp),
-    imageModel = { poster.image },
-    onImageStateChanged = { glideState = it }
-  )
+  itemsIndexed(key = { index, item -> item.id }, items = posters) { index, item ->
+    HomePoster(
+      poster = item,
+      graphicsLayer = graphicsLayer
+    )
+  }
 }
+
+@Composable
+private fun HomePoster(
+  graphicsLayer: GraphicsLayer = rememberGraphicsLayer(),
+  poster: Poster
+) {
+
+    ConstraintLayout {
+      val (image, title, content) = createRefs()
+      GlideImage(
+        modifier = Modifier
+          .cloudy(radius = 15, graphicsLayer = graphicsLayer)
+          .aspectRatio(0.8f)
+          .constrainAs(image) {
+            centerHorizontallyTo(parent)
+            top.linkTo(parent.top)
+          }
+          ..
 ```
 
 ## Blur Effect with Network Images
