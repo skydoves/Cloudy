@@ -1,5 +1,5 @@
-public final class com/skydoves/cloudy/CloudyKt {
-	public static final fun Cloudy (Landroidx/compose/ui/Modifier;ILjava/lang/Object;Ljava/lang/Object;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
+public final class com/skydoves/cloudy/CloudyModifierNodeKt {
+	public static final fun cloudy (Landroidx/compose/ui/Modifier;ILandroidx/compose/ui/graphics/layer/GraphicsLayer;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
 }
 
 public abstract interface class com/skydoves/cloudy/CloudyState {
@@ -47,10 +47,6 @@ public final class com/skydoves/cloudy/CloudyState$Success : com/skydoves/cloudy
 
 public final class com/skydoves/cloudy/RememberCloudyStateKt {
 	public static final fun rememberCloudyState (Lcom/skydoves/cloudy/CloudyState;Ljava/lang/Object;Landroidx/compose/runtime/Composer;II)Landroidx/compose/runtime/MutableState;
-}
-
-public final class com/skydoves/cloudy/internals/CloudyModifierNodeKt {
-	public static final fun cloudy (Landroidx/compose/ui/Modifier;ILkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
 }
 
 public final class com/skydoves/cloudy/internals/render/Range2d {
