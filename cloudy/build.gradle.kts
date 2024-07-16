@@ -51,23 +51,23 @@ android {
     compose = true
   }
 
-  packagingOptions {
+  packaging {
     resources {
       excludes.add("/META-INF/{AL2.0,LGPL2.1}")
     }
   }
 }
 
-tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
-  kotlinOptions.freeCompilerArgs += listOf(
-    "-Xexplicit-api=strict"
-  )
+kotlin {
+  compilerOptions {
+    freeCompilerArgs.addAll(
+      listOf("-Xexplicit-api=strict")
+    )
+  }
 }
 
 dependencies {
   implementation(platform(libs.androidx.compose.bom))
   implementation(libs.androidx.compose.ui)
-  implementation(libs.androidx.compose.material)
   implementation(libs.androidx.compose.runtime)
-  implementation(libs.androidx.core.ktx)
 }
