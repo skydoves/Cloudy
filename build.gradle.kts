@@ -4,13 +4,11 @@ plugins {
   alias(libs.plugins.android.library) apply false
   alias(libs.plugins.kotlin.android) apply false
   alias(libs.plugins.compose.compiler) apply false
-  alias(libs.plugins.nexusPlugin)
+  alias(libs.plugins.nexus.plugin)
   alias(libs.plugins.spotless)
   alias(libs.plugins.dokka)
   alias(libs.plugins.kotlinBinaryCompatibilityValidator)
 }
-
-apply(from ="${rootDir}/scripts/publish-root.gradle")
 
 apiValidation {
   ignoredProjects.addAll(listOf("app"))
