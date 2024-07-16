@@ -32,10 +32,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.constraintlayout.compose.ConstraintLayout
+import com.skydoves.cloudy.cloudy
+import com.skydoves.cloudydemo.R
 import com.skydoves.cloudydemo.custom.StaggeredVerticalGrid
 import com.skydoves.cloudydemo.model.MockUtil
 import com.skydoves.cloudydemo.model.Poster
@@ -73,7 +76,8 @@ private fun LibraryPoster(
   Surface(
     modifier = modifier
       .fillMaxWidth()
-      .padding(4.dp),
+      .padding(4.dp)
+      .cloudy(radius = 5),
     color = MaterialTheme.colors.onBackground,
     elevation = 8.dp,
     shape = RoundedCornerShape(8.dp)
@@ -82,6 +86,7 @@ private fun LibraryPoster(
       val (image, title, content) = createRefs()
       GlideImage(
         imageModel = { poster.image },
+        previewPlaceholder = painterResource(id = R.drawable.poster),
         modifier = Modifier
           .constrainAs(image) {
             centerHorizontallyTo(parent)

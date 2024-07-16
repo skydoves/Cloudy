@@ -32,7 +32,9 @@ import androidx.compose.ui.node.DrawModifierNode
 import androidx.compose.ui.node.LayoutModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.platform.InspectorInfo
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.offset
 import com.skydoves.cloudy.internals.render.iterativeBlur
 import kotlinx.coroutines.runBlocking
@@ -55,6 +57,11 @@ public fun Modifier.cloudy(
   graphicsLayer: GraphicsLayer = rememberGraphicsLayer(),
   onStateChanged: (CloudyState) -> Unit = {}
 ): Modifier {
+  // This local inspection preview only works over Android 12.
+  if (LocalInspectionMode.current) {
+    return this.blur(radius = radius.dp)
+  }
+
   return this then CloudyModifierNodeElement(
     graphicsLayer = graphicsLayer,
     radius = radius,

@@ -18,7 +18,6 @@ package com.skydoves.cloudydemo.posters
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
@@ -36,11 +35,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.constraintlayout.compose.ConstraintLayout
 import com.skydoves.cloudy.cloudy
+import com.skydoves.cloudydemo.R
 import com.skydoves.cloudydemo.model.MockUtil
 import com.skydoves.cloudydemo.model.Poster
 import com.skydoves.cloudydemo.theme.PosterTheme
@@ -58,17 +59,15 @@ fun HomePosters(
     applyBlur = true
   }
 
-  val state = rememberLazyGridState()
   val graphicsLayer = rememberGraphicsLayer()
 
   LazyVerticalGrid(
-    state = state,
+    state = rememberLazyGridState(),
     columns = GridCells.Fixed(2)
   ) {
     itemsIndexed(key = { index, item -> item.id }, items = posters) { index, item ->
       HomePoster(
         poster = item,
-        state = state,
         graphicsLayer = graphicsLayer
       )
     }
@@ -77,7 +76,6 @@ fun HomePosters(
 
 @Composable
 private fun HomePoster(
-  state: LazyGridState,
   modifier: Modifier = Modifier,
   graphicsLayer: GraphicsLayer = rememberGraphicsLayer(),
   poster: Poster
@@ -98,6 +96,7 @@ private fun HomePoster(
             centerHorizontallyTo(parent)
             top.linkTo(parent.top)
           },
+        previewPlaceholder = painterResource(id = R.drawable.poster),
         imageModel = { poster.image }
       )
 
@@ -135,10 +134,7 @@ private fun HomePoster(
 @Preview(name = "HomePoster Light Theme")
 private fun HomePosterPreviewLight() {
   PosterTheme(darkTheme = false) {
-    HomePoster(
-      poster = MockUtil.getMockPoster(),
-      state = rememberLazyGridState()
-    )
+    HomePoster(poster = MockUtil.getMockPoster())
   }
 }
 
@@ -146,9 +142,6 @@ private fun HomePosterPreviewLight() {
 @Preview(name = "HomePoster Dark Theme")
 private fun HomePosterPreviewDark() {
   PosterTheme(darkTheme = true) {
-    HomePoster(
-      poster = MockUtil.getMockPoster(),
-      state = rememberLazyGridState()
-    )
+    HomePoster(poster = MockUtil.getMockPoster())
   }
 }

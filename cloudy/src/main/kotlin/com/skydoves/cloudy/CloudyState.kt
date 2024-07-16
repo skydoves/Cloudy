@@ -16,19 +16,21 @@
 package com.skydoves.cloudy
 
 import android.graphics.Bitmap
+import androidx.compose.runtime.Stable
 
-/** Represents the state of [Cloudy] composable function. */
+/** Represents the state of [cloudy] composable function. */
+@Stable
 public sealed interface CloudyState {
 
-  /** Represents the state of [Cloudy] process doesn't started. */
+  /** Represents the state of [cloudy] process doesn't started. */
   public data object Nothing : CloudyState
 
-  /** Represents the state of [Cloudy] process is ongoing. */
+  /** Represents the state of [cloudy] process is ongoing. */
   public data object Loading : CloudyState
 
-  /** Represents the state of [Cloudy] process is successful. */
+  /** Represents the state of [cloudy] process is successful. */
   public data class Success(public val bitmap: Bitmap?) : CloudyState
 
-  /** Represents the state of [Cloudy] process is failed. */
+  /** Represents the state of [cloudy] process is failed. */
   public data class Error(val throwable: Throwable) : CloudyState
 }

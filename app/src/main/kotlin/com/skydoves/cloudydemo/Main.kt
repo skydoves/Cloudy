@@ -36,13 +36,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.skydoves.cloudy.cloudy
 import com.skydoves.cloudydemo.model.MockUtil
 import com.skydoves.landscapist.glide.GlideImage
 
+@Preview
 @Composable
 fun Main() {
   Column(
@@ -72,7 +75,8 @@ fun Main() {
     GlideImage(
       modifier = Modifier
         .size(400.dp)
-        .cloudy(radius = radius),
+        .cloudy(radius = radiusq),
+      previewPlaceholder = painterResource(id = R.drawable.poster),
       imageModel = { poster.image }
     )
 
