@@ -25,12 +25,29 @@
 ## Download
 [![Maven Central](https://img.shields.io/maven-central/v/com.github.skydoves/cloudy.svg?label=Maven%20Central)](https://search.maven.org/search?q=g:%22com.github.skydoves%22%20AND%20a:%22cloudy%22)
 
-### Gradle
+### Version Catalog
 
-Add the dependency below to your **module**'s `build.gradle` file:
+If you're using Version Catalog, you can configure the dependency by adding it to your `libs.versions.toml` file as follows:
+
+```toml
+[versions]
+#...
+cloudy = "0.2.0"
+
+[libraries]
+#...
+compose-cloudy = { module = "com.github.skydoves:cloudy", version.ref = "cloudy" }
+```
+
+### Gradle
+Add the dependency below to your **module**'s `build.gradle.kts` file:
+
 ```gradle
 dependencies {
-    implementation "com.github.skydoves:cloudy:0.2.0"
+    implementation("com.github.skydoves:cloudy:0.2.0")
+    
+    // if you're using Version Catalog
+    implementation(libs.compose.cloudy)
 }
 ```
 
