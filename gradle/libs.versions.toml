@@ -1,14 +1,14 @@
 [versions]
-agp = "8.5.1"
-kotlin = "2.0.0"
+agp = "8.5.2"
+kotlin = "2.0.10"
 dokka = "1.9.20"
 javaRelease = "11"
 jvmTarget = "11"
 material = "1.12.0"
 nexusPlugin = "0.29.0"
-binaryCompatibility = "0.14.0"
-androidxActivity = "1.9.0"
-androidxComposeBom = "2024.06.00"
+binaryCompatibility = "0.16.3"
+androidxActivity = "1.9.1"
+androidxCompose = "1.7.0-beta07"
 androidxComposeConstraintLayout = "1.0.1"
 androidxCore = "1.13.1"
 androidxTest = "1.6.1"
@@ -31,13 +31,12 @@ kotlinBinaryCompatibilityValidator = { id = "org.jetbrains.kotlinx.binary-compat
 
 [libraries]
 material = { module = "com.google.android.material:material", version.ref = "material" }
-androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "androidxComposeBom" }
-androidx-compose-ui = { group = "androidx.compose.ui", name = "ui", version = "1.7.0-beta04" }
-androidx-compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
-androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
-androidx-compose-material = { group = "androidx.compose.material", name = "material" }
-androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation" }
-androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime" }
+androidx-compose-ui = { group = "androidx.compose.ui", name = "ui", version.ref = "androidxCompose" }
+androidx-compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling", version.ref = "androidxCompose" }
+androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview", version.ref = "androidxCompose" }
+androidx-compose-material = { group = "androidx.compose.material", name = "material", version.ref = "androidxCompose" }
+androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "androidxCompose" }
+androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime", version.ref = "androidxCompose" }
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "androidxActivity" }
 androidx-compose-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout-compose", version.ref = "androidxComposeConstraintLayout" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "androidxCore" }
