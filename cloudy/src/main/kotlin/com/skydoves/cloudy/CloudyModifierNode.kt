@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.offset
 import com.skydoves.cloudy.internals.render.iterativeBlur
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 
 /**
@@ -123,7 +124,7 @@ private class CloudyModifierNode(
     onStateChanged.invoke(CloudyState.Loading)
 
     try {
-      val targetBitmap: Bitmap = runBlocking {
+      val targetBitmap: Bitmap = runBlocking(Dispatchers.IO) {
         graphicsLayer.toImageBitmap().asAndroidBitmap()
           .copy(Bitmap.Config.ARGB_8888, true)
       } ?: throw RuntimeException("Couldn't capture a bitmap from the composable tree")
