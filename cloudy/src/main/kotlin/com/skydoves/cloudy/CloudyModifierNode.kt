@@ -46,6 +46,7 @@ import kotlinx.coroutines.runBlocking
  * History: The [blur] modifier supports only Android 12 and higher, and [RenderScript] was also deprecated.
  *
  * @param radius Radius of the blur along both the x and y axis.
+ * @param enabled Enabling the blur effects.
  * @param graphicsLayer The graphic layer that records the original content and get the bitmap information.
  * This parameter should be used when you need to remain with the same graphic layer for the dynamically
  * updated Composable functions, such as Lazy Lists.
@@ -54,9 +55,14 @@ import kotlinx.coroutines.runBlocking
 @Composable
 public fun Modifier.cloudy(
   radius: Int = 10,
+  enabled: Boolean = true,
   graphicsLayer: GraphicsLayer = rememberGraphicsLayer(),
   onStateChanged: (CloudyState) -> Unit = {}
 ): Modifier {
+  if (!enabled) {
+    return this
+  }
+
   // This local inspection preview only works over Android 12.
   if (LocalInspectionMode.current) {
     return this.blur(radius = radius.dp)

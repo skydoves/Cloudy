@@ -1,5 +1,5 @@
 public final class com/skydoves/cloudy/CloudyModifierNodeKt {
-	public static final fun cloudy (Landroidx/compose/ui/Modifier;ILandroidx/compose/ui/graphics/layer/GraphicsLayer;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
+	public static final fun cloudy (Landroidx/compose/ui/Modifier;IZLandroidx/compose/ui/graphics/layer/GraphicsLayer;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
 }
 
 public abstract interface class com/skydoves/cloudy/CloudyState {
