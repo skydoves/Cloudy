@@ -124,17 +124,17 @@ private class CloudyModifierNode(
     onStateChanged.invoke(CloudyState.Loading)
 
     try {
-      val targetBitmap: Bitmap = runBlocking(Dispatchers.IO) {
-        graphicsLayer.toImageBitmap().asAndroidBitmap()
+      val blurredBitmap: Bitmap = runBlocking(Dispatchers.IO) {
+        val targetBitmap: Bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
           .copy(Bitmap.Config.ARGB_8888, true)
-      } ?: throw RuntimeException("Couldn't capture a bitmap from the composable tree")
 
-      val blurredBitmap = iterativeBlur(
-        androidBitmap = targetBitmap,
-        radius = radius
-      )?.apply {
-        drawImage(this.asImageBitmap())
-      }
+        iterativeBlur(
+          androidBitmap = targetBitmap,
+          radius = radius
+        )?.apply {
+          drawImage(this.asImageBitmap())
+        }
+      } ?: throw RuntimeException("Couldn't capture a bitmap from the composable tree")
 
       onStateChanged.invoke(CloudyState.Success(blurredBitmap))
     } catch (e: Exception) {
