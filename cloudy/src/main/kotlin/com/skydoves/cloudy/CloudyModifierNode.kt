@@ -17,7 +17,11 @@ package com.skydoves.cloudy
 
 import android.graphics.Bitmap
 import android.renderscript.RenderScript
+import android.util.Log
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.asAndroidBitmap
@@ -31,11 +35,13 @@ import androidx.compose.ui.layout.MeasureScope
 import androidx.compose.ui.node.DrawModifierNode
 import androidx.compose.ui.node.LayoutModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.requireGraphicsContext
 import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.offset
+import androidx.tracing.trace
 import com.skydoves.cloudy.internals.render.iterativeBlur
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
@@ -88,7 +94,6 @@ private data class CloudyModifierNodeElement(
   }
 
   override fun create(): CloudyModifierNode = CloudyModifierNode(
-    graphicsLayer = graphicsLayer,
     radius = radius,
     onStateChanged = onStateChanged
   )
@@ -99,10 +104,15 @@ private data class CloudyModifierNodeElement(
 }
 
 private class CloudyModifierNode(
-  val graphicsLayer: GraphicsLayer,
   var radius: Int = 10,
   private val onStateChanged: (CloudyState) -> Unit = {}
 ) : LayoutModifierNode, DrawModifierNode, Modifier.Node() {
+
+  private var cachedOutput: Bitmap? by mutableStateOf(null)
+
+  init {
+    Log.d("CloudyModifierNode", "$this instance created")
+  }
 
   override fun MeasureScope.measure(
     measurable: Measurable,
@@ -115,30 +125,42 @@ private class CloudyModifierNode(
   }
 
   override fun ContentDrawScope.draw() {
-    // call record to capture the content in the graphics layer
-    graphicsLayer.record {
-      // draw the contents of the composable into the graphics layer
-      this@draw.drawContent()
-    }
+    val gl = requireGraphicsContext().createGraphicsLayer()
+    gl.record { this@draw.drawContent() }
 
     onStateChanged.invoke(CloudyState.Loading)
 
     try {
       val blurredBitmap: Bitmap = runBlocking(Dispatchers.IO) {
-        val targetBitmap: Bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
-          .copy(Bitmap.Config.ARGB_8888, true)
+        trace("blurScope") {
+          var targetBitmap: Bitmap = trace("renderImage") { gl.toImageBitmap().asAndroidBitmap() }
+          targetBitmap = trace("fetchBitmap") { targetBitmap.copy(Bitmap.Config.ARGB_8888, false) }
 
-        iterativeBlur(
-          androidBitmap = targetBitmap,
-          radius = radius
-        )?.apply {
-          drawImage(this.asImageBitmap())
-        }
-      } ?: throw RuntimeException("Couldn't capture a bitmap from the composable tree")
+          val out = if (cachedOutput == null || cachedOutput?.width != targetBitmap.width || cachedOutput?.height != targetBitmap.height) {
+            createCompatibleBitmap(targetBitmap).also { cachedOutput = it }
+          } else
+            cachedOutput!!
+
+          trace("iterativeBlur") {
+            iterativeBlur(
+              androidBitmap = targetBitmap,
+              outputBitmap = out,
+              radius = radius
+            )
+          }
+        } ?: throw RuntimeException("Couldn't capture a bitmap from the composable tree")
+      }
+
+      drawImage(blurredBitmap.asImageBitmap())
 
       onStateChanged.invoke(CloudyState.Success(blurredBitmap))
     } catch (e: Exception) {
       onStateChanged.invoke(CloudyState.Error(e))
     }
+
+    requireGraphicsContext().releaseGraphicsLayer(gl)
   }
+
+  private fun createCompatibleBitmap(inputBitmap: Bitmap) =
+    Bitmap.createBitmap(inputBitmap.width, inputBitmap.height, inputBitmap.config!!)
 }
