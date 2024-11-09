@@ -16,14 +16,33 @@
 package com.skydoves.cloudydemo
 
 import android.os.Bundle
+import android.view.Choreographer
+import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.runtime.Recomposer
 import com.skydoves.cloudydemo.theme.PosterTheme
 
 class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-
+    launchIdlenessTracking()
     setContent { PosterTheme { Main() } }
   }
 }
+
+private fun ComponentActivity.launchIdlenessTracking() {
+  val contentView: View = findViewById(android.R.id.content)
+  val callback: Choreographer.FrameCallback = object : Choreographer.FrameCallback {
+    override fun doFrame(frameTimeNanos: Long) {
+      if (Recomposer.runningRecomposers.value.any { it.hasPendingWork }) {
+        contentView.contentDescription = "COMPOSE-BUSY"
+      } else {
+        contentView.contentDescription = "COMPOSE-IDLE"
+      }
+      Choreographer.getInstance().postFrameCallback(this)
+    }
+  }
+  Choreographer.getInstance().postFrameCallback(callback)
+}
+

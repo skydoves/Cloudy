@@ -18,6 +18,7 @@
 package com.skydoves.cloudy.internals.render
 
 import android.graphics.Bitmap
+import androidx.tracing.trace
 
 // This string is used for error messages.
 private const val externalName = "RenderScript Toolkit"
@@ -138,9 +139,10 @@ public object RenderScriptToolkit {
   @JvmOverloads
   public fun blur(
     inputBitmap: Bitmap?,
+    outputBitmap: Bitmap,
     @androidx.annotation.IntRange(from = 0, to = 25) radius: Int = 5,
     restriction: Range2d? = null
-  ): Bitmap? {
+  ): Bitmap? = trace("blur") {
     inputBitmap ?: return null
     validateBitmap("blur", inputBitmap)
     if (radius == 0) return inputBitmap
@@ -149,8 +151,8 @@ public object RenderScriptToolkit {
     }
     validateRestriction("blur", inputBitmap.width, inputBitmap.height, restriction)
 
-    val outputBitmap = createCompatibleBitmap(inputBitmap)
-    nativeBlurBitmap(nativeHandle, inputBitmap, outputBitmap, radius, restriction)
+//    val outputBitmap = createCompatibleBitmap(inputBitmap)
+    trace("nativeBlurBitmap") { nativeBlurBitmap(nativeHandle, inputBitmap, outputBitmap, radius, restriction) }
     return outputBitmap
   }
 
@@ -317,20 +319,23 @@ internal fun vectorSize(bitmap: Bitmap): Int {
 
 internal fun iterativeBlur(
   androidBitmap: Bitmap,
-  radius: Int
+  radius: Int,
+  outputBitmap: Bitmap
 ): Bitmap? {
   val iterate = (radius + 1) / 25
   var bitmap: Bitmap? = RenderScriptToolkit.blur(
     inputBitmap = androidBitmap,
+    outputBitmap = outputBitmap,
     radius = (radius + 1) % 25
   )
 
   for (i in 0 until iterate) {
     bitmap = RenderScriptToolkit.blur(
       inputBitmap = bitmap,
+      outputBitmap = outputBitmap,
       radius = 25
     )
   }
 
-  return bitmap
+  return outputBitmap
 }
