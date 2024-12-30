@@ -17,6 +17,7 @@ package com.skydoves.cloudy
 
 import android.graphics.Bitmap
 import android.renderscript.RenderScript
+import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -26,17 +27,11 @@ import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
-import androidx.compose.ui.layout.Measurable
-import androidx.compose.ui.layout.MeasureResult
-import androidx.compose.ui.layout.MeasureScope
 import androidx.compose.ui.node.DrawModifierNode
-import androidx.compose.ui.node.LayoutModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.platform.LocalInspectionMode
-import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.offset
 import com.skydoves.cloudy.internals.render.iterativeBlur
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -103,17 +98,7 @@ private class CloudyModifierNode(
   val graphicsLayer: GraphicsLayer,
   var radius: Int = 10,
   private val onStateChanged: (CloudyState) -> Unit = {}
-) : LayoutModifierNode, DrawModifierNode, Modifier.Node() {
-
-  override fun MeasureScope.measure(
-    measurable: Measurable,
-    constraints: Constraints
-  ): MeasureResult {
-    val placeable = measurable.measure(constraints.offset())
-    return layout(placeable.width, placeable.height) {
-      placeable.placeRelative(0, 0)
-    }
-  }
+) : DrawModifierNode, Modifier.Node() {
 
   override fun ContentDrawScope.draw() {
     // call record to capture the content in the graphics layer
@@ -140,6 +125,7 @@ private class CloudyModifierNode(
 
         onStateChanged.invoke(CloudyState.Success(blurredBitmap))
       } catch (e: Exception) {
+        Log.e("Test", "exception: $e")
         onStateChanged.invoke(CloudyState.Error(e))
       }
     }

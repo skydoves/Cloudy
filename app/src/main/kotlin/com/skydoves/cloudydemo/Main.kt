@@ -75,12 +75,12 @@ fun Main() {
     GlideImage(
       modifier = Modifier
         .size(400.dp)
-        .cloudy(radius = radius),
+        .cloudy(radius = 30),
       previewPlaceholder = painterResource(id = R.drawable.poster),
       imageModel = { poster.image }
     )
 
-    Column(modifier = Modifier.cloudy(radius = radius)) {
+    Column(modifier = Modifier.cloudy(radius = 30)) {
       Text(
         modifier = Modifier
           .fillMaxWidth()
