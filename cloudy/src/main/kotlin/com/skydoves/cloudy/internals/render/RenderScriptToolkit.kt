@@ -18,6 +18,7 @@
 package com.skydoves.cloudy.internals.render
 
 import android.graphics.Bitmap
+import kotlinx.coroutines.coroutineScope
 
 // This string is used for error messages.
 private const val externalName = "RenderScript Toolkit"
@@ -315,10 +316,10 @@ internal fun vectorSize(bitmap: Bitmap): Int {
   }
 }
 
-internal fun iterativeBlur(
+internal suspend fun iterativeBlur(
   androidBitmap: Bitmap,
   radius: Int
-): Bitmap? {
+): Bitmap? = coroutineScope {
   val iterate = (radius + 1) / 25
   var bitmap: Bitmap? = RenderScriptToolkit.blur(
     inputBitmap = androidBitmap,
@@ -332,5 +333,5 @@ internal fun iterativeBlur(
     )
   }
 
-  return bitmap
+  bitmap
 }

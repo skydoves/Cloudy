@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.layer.GraphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.MeasureResult
@@ -38,7 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.offset
 import com.skydoves.cloudy.internals.render.iterativeBlur
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.launch
 
 /**
  * `Modifier.cloudy()` is a replacement of the [blur] modifier (compatible with under Android 12),
@@ -121,24 +122,26 @@ private class CloudyModifierNode(
       this@draw.drawContent()
     }
 
+    drawLayer(graphicsLayer)
+
     onStateChanged.invoke(CloudyState.Loading)
 
-    try {
-      val blurredBitmap: Bitmap = runBlocking(Dispatchers.IO) {
+    coroutineScope.launch(Dispatchers.Main.immediate) {
+      try {
         val targetBitmap: Bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
           .copy(Bitmap.Config.ARGB_8888, true)
 
-        iterativeBlur(
+        val blurredBitmap = iterativeBlur(
           androidBitmap = targetBitmap,
           radius = radius
         )?.apply {
           drawImage(this.asImageBitmap())
-        }
-      } ?: throw RuntimeException("Couldn't capture a bitmap from the composable tree")
+        } ?: throw RuntimeException("Couldn't capture a bitmap from the composable tree")
 
-      onStateChanged.invoke(CloudyState.Success(blurredBitmap))
-    } catch (e: Exception) {
-      onStateChanged.invoke(CloudyState.Error(e))
+        onStateChanged.invoke(CloudyState.Success(blurredBitmap))
+      } catch (e: Exception) {
+        onStateChanged.invoke(CloudyState.Error(e))
+      }
     }
   }
 }
