@@ -119,7 +119,7 @@ private class CloudyModifierNode(
         val blurredBitmap = iterativeBlur(
           androidBitmap = targetBitmap,
           radius = radius
-        )?.apply {
+        ).await()?.apply {
           drawImage(this.asImageBitmap())
         } ?: throw RuntimeException("Couldn't capture a bitmap from the composable tree")
 
