@@ -19,16 +19,18 @@ import android.graphics.Bitmap
 import android.renderscript.RenderScript
 import android.util.Log
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
-import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
-import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.node.DrawModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.requireGraphicsContext
 import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.unit.dp
@@ -53,7 +55,6 @@ import kotlinx.coroutines.launch
 public fun Modifier.cloudy(
   radius: Int = 10,
   enabled: Boolean = true,
-  graphicsLayer: GraphicsLayer = rememberGraphicsLayer(),
   onStateChanged: (CloudyState) -> Unit = {}
 ): Modifier {
   if (!enabled) {
@@ -66,14 +67,12 @@ public fun Modifier.cloudy(
   }
 
   return this then CloudyModifierNodeElement(
-    graphicsLayer = graphicsLayer,
     radius = radius,
     onStateChanged = onStateChanged
   )
 }
 
 private data class CloudyModifierNodeElement(
-  private val graphicsLayer: GraphicsLayer,
   val radius: Int = 10,
   val onStateChanged: (CloudyState) -> Unit = {}
 ) : ModifierNodeElement<CloudyModifierNode>() {
@@ -84,7 +83,6 @@ private data class CloudyModifierNodeElement(
   }
 
   override fun create(): CloudyModifierNode = CloudyModifierNode(
-    graphicsLayer = graphicsLayer,
     radius = radius,
     onStateChanged = onStateChanged
   )
@@ -95,12 +93,15 @@ private data class CloudyModifierNodeElement(
 }
 
 private class CloudyModifierNode(
-  val graphicsLayer: GraphicsLayer,
   var radius: Int = 10,
   private val onStateChanged: (CloudyState) -> Unit = {}
 ) : DrawModifierNode, Modifier.Node() {
 
+  private var cachedOutput: Bitmap? by mutableStateOf(null)
+
   override fun ContentDrawScope.draw() {
+    val graphicsLayer = requireGraphicsContext().createGraphicsLayer()
+
     // call record to capture the content in the graphics layer
     graphicsLayer.record {
       // draw the contents of the composable into the graphics layer
@@ -116,8 +117,16 @@ private class CloudyModifierNode(
         val targetBitmap: Bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
           .copy(Bitmap.Config.ARGB_8888, true)
 
+        val out =
+          if (cachedOutput == null || cachedOutput?.width != targetBitmap.width || cachedOutput?.height != targetBitmap.height) {
+            createCompatibleBitmap(targetBitmap).also { cachedOutput = it }
+          } else {
+            cachedOutput!!
+          }
+
         val blurredBitmap = iterativeBlur(
           androidBitmap = targetBitmap,
+          outputBitmap = out,
           radius = radius
         ).await()?.apply {
           drawImage(this.asImageBitmap())
@@ -127,7 +136,12 @@ private class CloudyModifierNode(
       } catch (e: Exception) {
         Log.e("Test", "exception: $e")
         onStateChanged.invoke(CloudyState.Error(e))
+      } finally {
+        requireGraphicsContext().releaseGraphicsLayer(graphicsLayer)
       }
     }
   }
 }
+
+private fun createCompatibleBitmap(inputBitmap: Bitmap) =
+  Bitmap.createBitmap(inputBitmap.width, inputBitmap.height, inputBitmap.config!!)
