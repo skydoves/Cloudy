@@ -33,8 +33,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.layer.GraphicsLayer
-import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -59,16 +57,13 @@ fun HomePosters(
     applyBlur = true
   }
 
-  val graphicsLayer = rememberGraphicsLayer()
-
   LazyVerticalGrid(
     state = rememberLazyGridState(),
     columns = GridCells.Fixed(2)
   ) {
     itemsIndexed(key = { index, item -> item.id }, items = posters) { index, item ->
       HomePoster(
-        poster = item,
-        graphicsLayer = graphicsLayer
+        poster = item
       )
     }
   }
@@ -77,7 +72,6 @@ fun HomePosters(
 @Composable
 private fun HomePoster(
   modifier: Modifier = Modifier,
-  graphicsLayer: GraphicsLayer = rememberGraphicsLayer(),
   poster: Poster
 ) {
   Surface(
@@ -90,7 +84,7 @@ private fun HomePoster(
       val (image, title, content) = createRefs()
       GlideImage(
         modifier = Modifier
-          .cloudy(radius = 15, graphicsLayer = graphicsLayer)
+          .cloudy(radius = 15)
           .aspectRatio(0.8f)
           .constrainAs(image) {
             centerHorizontallyTo(parent)

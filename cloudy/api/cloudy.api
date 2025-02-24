@@ -1,5 +1,5 @@
 public final class com/skydoves/cloudy/CloudyModifierNodeKt {
-	public static final fun cloudy (Landroidx/compose/ui/Modifier;IZLandroidx/compose/ui/graphics/layer/GraphicsLayer;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
+	public static final fun cloudy (Landroidx/compose/ui/Modifier;IZLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
 }
 
 public abstract interface class com/skydoves/cloudy/CloudyState {
@@ -70,11 +70,11 @@ public final class com/skydoves/cloudy/internals/render/Range2d {
 public final class com/skydoves/cloudy/internals/render/RenderScriptToolkit {
 	public static final field $stable I
 	public static final field INSTANCE Lcom/skydoves/cloudy/internals/render/RenderScriptToolkit;
-	public final fun blur (Landroid/graphics/Bitmap;)Landroid/graphics/Bitmap;
-	public final fun blur (Landroid/graphics/Bitmap;I)Landroid/graphics/Bitmap;
-	public final fun blur (Landroid/graphics/Bitmap;ILcom/skydoves/cloudy/internals/render/Range2d;)Landroid/graphics/Bitmap;
+	public final fun blur (Landroid/graphics/Bitmap;Landroid/graphics/Bitmap;)Landroid/graphics/Bitmap;
+	public final fun blur (Landroid/graphics/Bitmap;Landroid/graphics/Bitmap;I)Landroid/graphics/Bitmap;
+	public final fun blur (Landroid/graphics/Bitmap;Landroid/graphics/Bitmap;ILcom/skydoves/cloudy/internals/render/Range2d;)Landroid/graphics/Bitmap;
 	public final fun blur$cloudy_release ([BIII)[B
 	public final fun blur$cloudy_release ([BIIII)[B
-	public static synthetic fun blur$default (Lcom/skydoves/cloudy/internals/render/RenderScriptToolkit;Landroid/graphics/Bitmap;ILcom/skydoves/cloudy/internals/render/Range2d;ILjava/lang/Object;)Landroid/graphics/Bitmap;
+	public static synthetic fun blur$default (Lcom/skydoves/cloudy/internals/render/RenderScriptToolkit;Landroid/graphics/Bitmap;Landroid/graphics/Bitmap;ILcom/skydoves/cloudy/internals/render/Range2d;ILjava/lang/Object;)Landroid/graphics/Bitmap;
 }
 

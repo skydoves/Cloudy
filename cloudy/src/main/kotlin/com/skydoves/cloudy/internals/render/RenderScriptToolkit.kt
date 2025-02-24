@@ -141,6 +141,7 @@ public object RenderScriptToolkit {
   @JvmOverloads
   public fun blur(
     inputBitmap: Bitmap?,
+    outputBitmap: Bitmap,
     @androidx.annotation.IntRange(from = 0, to = 25) radius: Int = 5,
     restriction: Range2d? = null
   ): Bitmap? {
@@ -152,7 +153,6 @@ public object RenderScriptToolkit {
     }
     validateRestriction("blur", inputBitmap.width, inputBitmap.height, restriction)
 
-    val outputBitmap = createCompatibleBitmap(inputBitmap)
     nativeBlurBitmap(nativeHandle, inputBitmap, outputBitmap, radius, restriction)
     return outputBitmap
   }
@@ -320,17 +320,20 @@ internal fun vectorSize(bitmap: Bitmap): Int {
 
 internal fun CoroutineScope.iterativeBlur(
   androidBitmap: Bitmap,
+  outputBitmap: Bitmap,
   radius: Int
 ): Deferred<Bitmap?> = async {
   val iterate = (radius + 1) / 25
   var bitmap: Bitmap? = RenderScriptToolkit.blur(
     inputBitmap = androidBitmap,
+    outputBitmap = outputBitmap,
     radius = (radius + 1) % 25
   )
 
   for (i in 0 until iterate) {
     bitmap = RenderScriptToolkit.blur(
       inputBitmap = bitmap,
+      outputBitmap = outputBitmap,
       radius = 25
     )
   }
