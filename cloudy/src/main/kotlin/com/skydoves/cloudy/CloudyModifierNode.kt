@@ -17,7 +17,6 @@ package com.skydoves.cloudy
 
 import android.graphics.Bitmap
 import android.renderscript.RenderScript
-import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -134,7 +133,6 @@ private class CloudyModifierNode(
 
         onStateChanged.invoke(CloudyState.Success(blurredBitmap))
       } catch (e: Exception) {
-        Log.e("Test", "exception: $e")
         onStateChanged.invoke(CloudyState.Error(e))
       } finally {
         requireGraphicsContext().releaseGraphicsLayer(graphicsLayer)
