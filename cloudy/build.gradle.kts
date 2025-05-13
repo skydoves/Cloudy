@@ -15,7 +15,6 @@
  */
 import com.skydoves.cloudy.Configuration
 
-@Suppress("DSL_SCOPE_VIOLATION")
 plugins {
   id(libs.plugins.android.library.get().pluginId)
   id(libs.plugins.kotlin.android.get().pluginId)
@@ -47,6 +46,7 @@ android {
     externalNativeBuild {
       cmake {
         cppFlags += "-std=c++17"
+        arguments += listOf("-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON")
       }
     }
   }
