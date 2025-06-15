@@ -1,4 +1,5 @@
-@Suppress("DSL_SCOPE_VIOLATION")
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
   alias(libs.plugins.android.application) apply false
   alias(libs.plugins.android.library) apply false
@@ -16,24 +17,28 @@ apiValidation {
 
 subprojects {
   tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().all {
-    kotlinOptions.freeCompilerArgs += listOf(
-      "-P",
-      "plugin:androidx.compose.compiler.plugins.kotlin:reportsDestination=" +
-        project.buildDir.absolutePath + "/compose_metrics"
+    compilerOptions.freeCompilerArgs.addAll(
+      listOf(
+        "-P",
+        "plugin:androidx.compose.compiler.plugins.kotlin:reportsDestination=" +
+          project.layout.buildDirectory.asFile.get().absolutePath + "/compose_metrics"
+      )
     )
-    kotlinOptions.freeCompilerArgs += listOf(
-      "-P",
-      "plugin:androidx.compose.compiler.plugins.kotlin:metricsDestination=" +
-        project.buildDir.absolutePath + "/compose_metrics"
+    compilerOptions.freeCompilerArgs.addAll(
+      listOf(
+        "-P",
+        "plugin:androidx.compose.compiler.plugins.kotlin:metricsDestination=" +
+          project.layout.buildDirectory.asFile.get().absolutePath + "/compose_metrics"
+      )
     )
-    kotlinOptions.jvmTarget = JavaVersion.VERSION_1_8.toString()
+    compilerOptions.jvmTarget.set(JvmTarget.JVM_1_8)
   }
 
   apply(plugin = rootProject.libs.plugins.spotless.get().pluginId)
   configure<com.diffplug.gradle.spotless.SpotlessExtension> {
     kotlin {
       target("**/*.kt")
-      targetExclude("$buildDir/**/*.kt")
+      targetExclude("${layout.buildDirectory.asFile.get()}/**/*.kt")
       ktlint().setUseExperimental(true).editorConfigOverride(
         mapOf(
           "indent_size" to "2",
@@ -46,7 +51,7 @@ subprojects {
     }
     format("kts") {
       target("**/*.kts")
-      targetExclude("$buildDir/**/*.kts")
+      targetExclude("${layout.buildDirectory.asFile.get()}/**/*.kts")
       licenseHeaderFile(rootProject.file("spotless/copyright.kt"), "(^(?![\\/ ]\\*).*$)")
       trimTrailingWhitespace()
       endWithNewline()
