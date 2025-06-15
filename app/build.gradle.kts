@@ -15,7 +15,6 @@
  */
 import com.skydoves.cloudy.Configuration
 
-@Suppress("DSL_SCOPE_VIOLATION")
 plugins {
   id(libs.plugins.android.application.get().pluginId)
   id(libs.plugins.kotlin.android.get().pluginId)
@@ -37,8 +36,8 @@ android {
     compose = true
   }
 
-  packagingOptions {
-    pickFirsts.add("lib/*/librenderscript-toolkit.so")
+  packaging {
+    jniLibs.pickFirsts.add("lib/*/librenderscript-toolkit.so")
   }
 
   buildTypes {
