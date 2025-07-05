@@ -15,7 +15,6 @@
  */
 package com.skydoves.cloudy
 
-import android.graphics.Bitmap
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
 
@@ -33,7 +32,7 @@ public sealed interface CloudyState {
 
   /** Represents the state of [cloudy] process is successful. */
   @Immutable
-  public data class Success(public val bitmap: Bitmap?) : CloudyState
+  public data class Success(public val bitmap: Any?) : CloudyState
 
   /** Represents the state of [cloudy] process is failed. */
   @Immutable
