@@ -16,7 +16,6 @@
 package com.skydoves.cloudy
 
 import android.graphics.Bitmap
-import android.renderscript.RenderScript
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -48,10 +47,10 @@ import kotlinx.coroutines.launch
  * @param onStateChanged Lambda function that will be invoked when the blur process has been updated.
  */
 @Composable
-public fun Modifier.cloudy(
-  radius: Int = 10,
-  enabled: Boolean = true,
-  onStateChanged: (CloudyState) -> Unit = {}
+public actual fun Modifier.cloudy(
+  radius: Int,
+  enabled: Boolean,
+  onStateChanged: (CloudyState) -> Unit
 ): Modifier {
   if (!enabled) {
     return this
