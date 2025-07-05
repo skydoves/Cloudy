@@ -13,65 +13,107 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import com.skydoves.cloudy.Arch
 import com.skydoves.cloudy.Configuration
+import com.skydoves.cloudy.activeArch
 
 plugins {
+  id(libs.plugins.kotlin.multiplatform.get().pluginId)
   id(libs.plugins.android.library.get().pluginId)
-  id(libs.plugins.kotlin.android.get().pluginId)
+  id(libs.plugins.compose.multiplatform.get().pluginId)
   id(libs.plugins.compose.compiler.get().pluginId)
   id(libs.plugins.nexus.plugin.get().pluginId)
 }
 
 apply(from = "${rootDir}/scripts/publish-module.gradle.kts")
 
-mavenPublishing {
-  val artifactId = "cloudy"
-  coordinates(
-    Configuration.artifactGroup,
-    artifactId,
-    rootProject.extra.get("libVersion").toString()
-  )
-
-  pom {
-    name.set(artifactId)
-    description.set("Jetpack Compose blur effect library, which falls back onto a CPU-based implementation to support older API levels.")
-  }
-}
-
-android {
-  compileSdk = Configuration.compileSdk
-  namespace = "com.skydoves.cloudy"
-  defaultConfig {
-    minSdk = Configuration.minSdk
-    externalNativeBuild {
-      cmake {
-        cppFlags += "-std=c++17"
-        arguments += listOf("-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON")
-      }
-    }
-  }
-  externalNativeBuild {
-    cmake {
-      path = file("src/main/cpp/CMakeLists.txt")
-    }
-  }
-
-  buildFeatures {
-    compose = true
-  }
-
-  packaging {
-    resources {
-      excludes.add("/META-INF/{AL2.0,LGPL2.1}")
-    }
-  }
-}
-
 kotlin {
   compilerOptions {
     freeCompilerArgs.addAll(
-      listOf("-Xexplicit-api=strict")
+      listOf(
+        "-Xexplicit-api=strict",
+        "-Xexpect-actual-classes"
+      )
     )
+  }
+
+  applyDefaultHierarchyTemplate()
+
+  androidTarget()
+  when (activeArch) {
+    Arch.ARM -> {
+      iosSimulatorArm64()
+      iosArm64()
+    }
+
+    Arch.ARM_SIMULATOR_DEBUG -> {
+      iosSimulatorArm64()
+    }
+
+    Arch.X86_64 -> iosX64()
+    Arch.ALL -> {
+      iosArm64()
+      iosX64()
+      iosSimulatorArm64()
+    }
+  }
+
+  android {
+    compileSdk = Configuration.compileSdk
+    namespace = "com.skydoves.cloudy"
+    defaultConfig {
+      minSdk = Configuration.minSdk
+      externalNativeBuild {
+        cmake {
+          cppFlags += "-std=c++17"
+          arguments += listOf("-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON")
+        }
+      }
+    }
+    externalNativeBuild {
+      cmake {
+        path = file("src/main/cpp/CMakeLists.txt")
+      }
+    }
+
+    buildFeatures {
+      compose = true
+    }
+
+    packaging {
+      resources {
+        excludes.add("/META-INF/{AL2.0,LGPL2.1}")
+      }
+    }
+
+    sourceSets {
+      getByName("main") {
+        assets.srcDirs("src/androidMain/assets")
+        java.srcDirs("src/androidMain/kotlin")
+        res.srcDirs("src/androidMain/res")
+      }
+      getByName("test") {
+        assets.srcDirs("src/androidUnitTest/assets")
+        java.srcDirs("src/androidUnitTest/kotlin")
+        res.srcDirs("src/androidUnitTest/res")
+      }
+    }
+  }
+
+  sourceSets {
+    androidMain.dependencies {
+      implementation(libs.androidx.compose.ui)
+      implementation(libs.androidx.compose.runtime)
+      implementation(libs.kotlinx.coroutines.android)
+    }
+
+    commonMain.dependencies {
+      implementation(libs.compose.runtime)
+      implementation(libs.compose.foundation)
+      implementation(libs.compose.ui)
+      implementation(libs.compose.resources)
+      implementation(libs.compose.ui.tooling.preview)
+    }
   }
 }
 
