@@ -16,11 +16,11 @@
 package com.skydoves.cloudy
 
 import androidx.compose.runtime.Immutable
-import platform.UIKit.UIImage
 import platform.CoreGraphics.CGSizeMake
 import platform.UIKit.UIGraphicsBeginImageContextWithOptions
 import platform.UIKit.UIGraphicsEndImageContext
 import platform.UIKit.UIGraphicsGetImageFromCurrentImageContext
+import platform.UIKit.UIImage
 import kotlin.math.roundToInt
 
 /**
@@ -33,13 +33,13 @@ public actual class PlatformBitmap(
    */
   public val image: UIImage
 ) {
-  
+
   public actual val width: Int
     get() = (image.size.useContents { width } * image.scale).roundToInt()
-    
+
   public actual val height: Int
     get() = (image.size.useContents { height } * image.scale).roundToInt()
-    
+
   public actual val isRecyclable: Boolean
     get() = true // UIImage doesn't have a direct recyclable concept
 }
@@ -52,7 +52,7 @@ public actual fun PlatformBitmap.createCompatible(): PlatformBitmap {
   UIGraphicsBeginImageContextWithOptions(size, false, image.scale)
   val newImage = UIGraphicsGetImageFromCurrentImageContext()
   UIGraphicsEndImageContext()
-  
+
   return PlatformBitmap(newImage ?: image)
 }
 

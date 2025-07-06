@@ -112,13 +112,11 @@ private class CloudyModifierNode(
         val targetBitmap: Bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
           .copy(Bitmap.Config.ARGB_8888, true)
 
-        val out = if (cachedOutput == null || 
-          cachedOutput?.width != targetBitmap.width || 
-          cachedOutput?.height != targetBitmap.height) {
-          
+        val out = if (cachedOutput == null || cachedOutput?.width != targetBitmap.width || cachedOutput?.height != targetBitmap.height
+        ) {
           // Dispose previous cached output
           cachedOutput?.dispose()
-          
+
           targetBitmap.toPlatformBitmap().createCompatible().also { cachedOutput = it }
         } else {
           cachedOutput!!

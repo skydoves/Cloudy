@@ -27,12 +27,12 @@ public expect class PlatformBitmap {
    * The width of the bitmap in pixels.
    */
   public val width: Int
-  
+
   /**
    * The height of the bitmap in pixels.
    */
   public val height: Int
-  
+
   /**
    * Whether this bitmap is recyclable/mutable.
    */
