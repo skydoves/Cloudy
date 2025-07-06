@@ -11,15 +11,9 @@
     
     <application
         android:allowBackup="true"
-        android:theme="@style/Theme.Material3.DayNight.NoActionBar">
+        android:theme="@android:style/Theme.Material.Light.NoActionBar">
         
-        <!-- Activity for Dropshots testing -->
-        <activity
-            android:name="androidx.activity.ComponentActivity"
-            android:exported="false"
-            android:theme="@style/Theme.Material3.DayNight.NoActionBar"
-            android:hardwareAccelerated="true"
-            tools:replace="android:exported,android:theme" />
+        <!-- No custom activity needed - tests will use MainActivity from main manifest -->
             
     </application>
 </manifest>
