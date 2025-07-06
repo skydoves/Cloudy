@@ -27,6 +27,14 @@ import androidx.compose.ui.Modifier
  * @param enabled Enabling the blur effects.
  * @param onStateChanged Lambda function that will be invoked when the blur process has been updated.
  */
+/**
+ * Applies a cross-platform blur effect to the current modifier.
+ *
+ * @param radius The blur radius in pixels for both the x and y axes. Must be non-negative. On Android, values above 25 may impact performance due to iterative passes.
+ * @param enabled If false, disables the blur effect.
+ * @param onStateChanged Callback invoked when the blur state changes.
+ * @return A [Modifier] with the blur effect applied.
+ */
 @Composable
 public expect fun Modifier.cloudy(
   @androidx.annotation.IntRange(from = 0) radius: Int = 10,

@@ -40,7 +40,11 @@ public actual class PlatformBitmap(
 }
 
 /**
- * Creates a compatible Android bitmap with the same dimensions and configuration.
+ * Creates a new `PlatformBitmap` with the same width, height, and configuration as the original.
+ *
+ * If the original bitmap's configuration is null, the new bitmap uses `ARGB_8888` as the default configuration.
+ *
+ * @return A new `PlatformBitmap` instance compatible with the original.
  */
 public actual fun PlatformBitmap.createCompatible(): PlatformBitmap {
   return PlatformBitmap(
@@ -49,7 +53,7 @@ public actual fun PlatformBitmap.createCompatible(): PlatformBitmap {
 }
 
 /**
- * Recycles the Android bitmap to free up memory.
+ * Releases the memory used by the underlying Android bitmap if it has not already been recycled.
  */
 public actual fun PlatformBitmap.dispose() {
   if (!bitmap.isRecycled) {
@@ -58,11 +62,15 @@ public actual fun PlatformBitmap.dispose() {
 }
 
 /**
- * Converts Android [Bitmap] to [PlatformBitmap].
+ * Wraps this Android [Bitmap] in a [PlatformBitmap] for platform-agnostic bitmap handling.
+ *
+ * @return A [PlatformBitmap] instance containing this [Bitmap].
  */
 public fun Bitmap.toPlatformBitmap(): PlatformBitmap = PlatformBitmap(this)
 
 /**
- * Converts [PlatformBitmap] to Android [Bitmap].
+ * Returns the underlying Android [Bitmap] from this [PlatformBitmap] instance.
+ *
+ * @return The wrapped Android [Bitmap].
  */
 public fun PlatformBitmap.toAndroidBitmap(): Bitmap = bitmap
