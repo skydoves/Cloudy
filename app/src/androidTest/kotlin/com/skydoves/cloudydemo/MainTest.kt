@@ -15,9 +15,15 @@
  */
 package com.skydoves.cloudydemo
 
+import android.Manifest
+import android.content.Intent
 import android.os.Build
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.test.core.app.ActivityScenario
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.rule.GrantPermissionRule
+import androidx.test.uiautomator.UiDevice
 import com.dropbox.dropshots.Dropshots
 import org.junit.Before
 import org.junit.Rule
@@ -28,20 +34,44 @@ import org.junit.runner.RunWith
 class MainTest {
 
   @get:Rule
-  val composeTestRule = createAndroidComposeRule<MainActivity>()
+  val grantPermissionRule = GrantPermissionRule.grant(
+    Manifest.permission.WRITE_EXTERNAL_STORAGE,
+    Manifest.permission.READ_EXTERNAL_STORAGE
+  )
 
   @get:Rule
   val dropshots = Dropshots()
 
   @Before
   fun setup() {
-    // Wait for activity to be ready using proper synchronization
-    composeTestRule.waitForIdle()
+    // Grant permissions for all API levels
+    val context = InstrumentationRegistry.getInstrumentation().targetContext
+    val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
 
-    // Ensure animations are disabled for consistent screenshots
-    composeTestRule.activity.runOnUiThread {
-      // Disable animations if needed
-      composeTestRule.mainClock.autoAdvance = false
+    // Grant permissions via shell command for all API levels
+    val permissions = arrayOf(
+      Manifest.permission.WRITE_EXTERNAL_STORAGE,
+      Manifest.permission.READ_EXTERNAL_STORAGE
+    )
+
+    permissions.forEach { permission ->
+      try {
+        device.executeShellCommand("pm grant ${context.packageName} $permission")
+        println("Granted permission: $permission")
+      } catch (e: Exception) {
+        println("Warning: Could not grant permission $permission: ${e.message}")
+      }
+    }
+
+    // Additional permissions for API 30+ (Android 11+)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+      try {
+        // Grant all files access for API 30+
+        device.executeShellCommand("appops set ${context.packageName} MANAGE_EXTERNAL_STORAGE allow")
+        println("Granted MANAGE_EXTERNAL_STORAGE for API 30+")
+      } catch (e: Exception) {
+        println("Warning: Could not grant MANAGE_EXTERNAL_STORAGE: ${e.message}")
+      }
     }
   }
 
@@ -75,68 +105,147 @@ class MainTest {
   }
 
   private fun captureCloudyMainScreen(apiSuffix: String) {
-    // MainActivity already has content set, no need to call setContent
-    // Just wait for the existing content to be ready
+    // Launch MainActivity with proper error handling
+    val intent = Intent(ApplicationProvider.getApplicationContext(), MainActivity::class.java)
 
-    // Wait for animations and blur to complete
-    composeTestRule.waitForIdle()
+    try {
+      ActivityScenario.launch<MainActivity>(intent).use { scenario ->
+        scenario.onActivity { activity ->
+          // Wait for activity to be fully loaded and Compose to render
+          // Use multiple shorter sleeps instead of one long sleep
+          repeat(6) { i ->
+            Thread.sleep(500)
+            println("Waiting for Compose to render... (${i + 1}/6)")
+          }
 
-    // Advance clock to ensure animations complete
-    composeTestRule.mainClock.advanceTimeBy(1500) // Animation duration + buffer
-    composeTestRule.waitForIdle()
+          // Additional wait for any background operations
+          Thread.sleep(1000)
 
-    // For native blur processing, implement a callback or use IdlingResource
-    composeTestRule.waitUntil(timeoutMillis = 5000) {
-      // Check if blur rendering is complete
-      // This requires exposing a state from the Cloudy library
-      true // Placeholder - implement actual completion check
+          // Capture screenshot with error handling
+          try {
+            dropshots.assertSnapshot(
+              view = activity.findViewById(android.R.id.content),
+              name = "cloudy_main_screen_$apiSuffix"
+            )
+            println("Successfully captured screenshot: cloudy_main_screen_$apiSuffix")
+          } catch (e: Exception) {
+            println("Error capturing screenshot: ${e.message}")
+            // Try one more time after additional wait
+            Thread.sleep(2000)
+            try {
+              dropshots.assertSnapshot(
+                view = activity.findViewById(android.R.id.content),
+                name = "cloudy_main_screen_$apiSuffix"
+              )
+              println("Successfully captured screenshot on retry: cloudy_main_screen_$apiSuffix")
+            } catch (retryException: Exception) {
+              println("Error on retry: ${retryException.message}")
+              throw retryException
+            }
+          }
+        }
+      }
+    } catch (e: Exception) {
+      println("Error in captureCloudyMainScreen: ${e.message}")
+      throw e
     }
-
-    // Capture and save screenshot
-    dropshots.assertSnapshot(
-      view = composeTestRule.activity.findViewById(android.R.id.content),
-      name = "cloudy_main_screen_$apiSuffix"
-    )
   }
 
   @Test
   fun testCloudyBlurStates() {
     // Test different blur states by waiting for animation to complete
-    // MainActivity already has blur animation, just capture at different times
+    val intent = Intent(ApplicationProvider.getApplicationContext(), MainActivity::class.java)
 
-    // Wait for initial state (no blur)
-    composeTestRule.waitForIdle()
-    dropshots.assertSnapshot(
-      view = composeTestRule.activity.findViewById(android.R.id.content),
-      name = "cloudy_blur_initial_api${Build.VERSION.SDK_INT}"
-    )
+    try {
+      ActivityScenario.launch<MainActivity>(intent).use { scenario ->
+        scenario.onActivity { activity ->
+          // Wait for initial state (no blur) with progressive waiting
+          repeat(4) { i ->
+            Thread.sleep(500)
+            println("Waiting for initial state... (${i + 1}/4)")
+          }
 
-    // Wait for animation to complete (full blur)
-    composeTestRule.mainClock.advanceTimeBy(2000)
-    composeTestRule.waitForIdle()
-    dropshots.assertSnapshot(
-      view = composeTestRule.activity.findViewById(android.R.id.content),
-      name = "cloudy_blur_complete_api${Build.VERSION.SDK_INT}"
-    )
+          try {
+            dropshots.assertSnapshot(
+              view = activity.findViewById(android.R.id.content),
+              name = "cloudy_blur_initial_api${Build.VERSION.SDK_INT}"
+            )
+            println("Captured initial blur state for API ${Build.VERSION.SDK_INT}")
+          } catch (e: Exception) {
+            println("Error capturing initial blur state: ${e.message}")
+            throw e
+          }
+
+          // Wait for animation to complete (full blur) with progressive waiting
+          repeat(6) { i ->
+            Thread.sleep(500)
+            println("Waiting for blur animation... (${i + 1}/6)")
+          }
+
+          try {
+            dropshots.assertSnapshot(
+              view = activity.findViewById(android.R.id.content),
+              name = "cloudy_blur_complete_api${Build.VERSION.SDK_INT}"
+            )
+            println("Captured complete blur state for API ${Build.VERSION.SDK_INT}")
+          } catch (e: Exception) {
+            println("Error capturing complete blur state: ${e.message}")
+            throw e
+          }
+        }
+      }
+    } catch (e: Exception) {
+      println("Error in testCloudyBlurStates: ${e.message}")
+      throw e
+    }
   }
 
   @Test
   fun testCloudyAnimationStates() {
-    // MainActivity already has animation, just capture different states
+    // Launch MainActivity and capture different animation states
+    val intent = Intent(ApplicationProvider.getApplicationContext(), MainActivity::class.java)
 
-    // Initial state
-    composeTestRule.waitForIdle()
-    dropshots.assertSnapshot(
-      view = composeTestRule.activity.findViewById(android.R.id.content),
-      name = "cloudy_animation_start_api${Build.VERSION.SDK_INT}"
-    )
+    try {
+      ActivityScenario.launch<MainActivity>(intent).use { scenario ->
+        scenario.onActivity { activity ->
+          // Initial state with progressive waiting
+          repeat(4) { i ->
+            Thread.sleep(500)
+            println("Waiting for animation start... (${i + 1}/4)")
+          }
 
-    // Final state after animation
-    composeTestRule.mainClock.advanceTimeBy(2000)
-    composeTestRule.waitForIdle()
-    dropshots.assertSnapshot(
-      view = composeTestRule.activity.findViewById(android.R.id.content),
-      name = "cloudy_animation_end_api${Build.VERSION.SDK_INT}"
-    )
+          try {
+            dropshots.assertSnapshot(
+              view = activity.findViewById(android.R.id.content),
+              name = "cloudy_animation_start_api${Build.VERSION.SDK_INT}"
+            )
+            println("Captured animation start for API ${Build.VERSION.SDK_INT}")
+          } catch (e: Exception) {
+            println("Error capturing animation start: ${e.message}")
+            throw e
+          }
+
+          // Final state after animation with progressive waiting
+          repeat(6) { i ->
+            Thread.sleep(500)
+            println("Waiting for animation end... (${i + 1}/6)")
+          }
+
+          try {
+            dropshots.assertSnapshot(
+              view = activity.findViewById(android.R.id.content),
+              name = "cloudy_animation_end_api${Build.VERSION.SDK_INT}"
+            )
+            println("Captured animation end for API ${Build.VERSION.SDK_INT}")
+          } catch (e: Exception) {
+            println("Error capturing animation end: ${e.message}")
+            throw e
+          }
+        }
+      }
+    } catch (e: Exception) {
+      println("Error in testCloudyAnimationStates: ${e.message}")
+      throw e
+    }
   }
 }
