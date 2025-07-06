@@ -81,8 +81,9 @@ jobs:
           ram-size: 3072M
           heap-size: 1024M
           force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -partition-size 4096
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -partition-size 4096 -accel off -no-snapshot
           disable-animations: true
+          emulator-boot-timeout: 900
           script: echo "Generated AVD snapshot for caching."
 
       # Emulator optimization settings for Cloudy Native library
@@ -95,11 +96,13 @@ jobs:
           ram-size: 3072M
           heap-size: 1024M
           force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -partition-size 4096
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -partition-size 4096 -accel off -no-snapshot
           disable-animations: true
+          emulator-boot-timeout: 900
           script: |
-            # Wait for emulator to fully boot
-            adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed | tr -d '\''\r'\'') ]]; do sleep 1; done'
+            # Wait for emulator to fully boot with longer timeout
+            adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed | tr -d '\''\r'\'') ]]; do sleep 2; done'
+            sleep 10
             adb shell input keyevent 82
 
             # Set fixed screen resolution (for screenshot consistency)
@@ -108,12 +111,8 @@ jobs:
 
             echo "Emulator is ready. Starting Dropshots tests..."
 
-            # Execute Dropshots tests
-            ./gradlew :app:connectedDebugAndroidTest \
-              --no-daemon \
-              --no-build-cache \
-              -Pandroid.testInstrumentationRunnerArguments.class=com.skydoves.cloudydemo.MainTest \
-              || echo "Tests completed with issues"
+            # Execute Dropshots tests with proper command formatting
+            ./gradlew :app:connectedDebugAndroidTest --no-daemon --no-build-cache -Pandroid.testInstrumentationRunnerArguments.class=com.skydoves.cloudydemo.MainTest || echo "Tests completed with issues"
 
             # Check screenshot directory
             adb shell find /sdcard -name "*.png" -type f 2>/dev/null || echo "No PNG files found"
