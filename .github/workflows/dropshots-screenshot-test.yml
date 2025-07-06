@@ -76,12 +76,12 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.api-level }}
-          target: ${{ matrix.api-level == 27 && 'default' || 'google_apis' }}
+          target: default
           arch: ${{ matrix.api-level == 27 && 'x86_64' || (runner.arch == 'ARM64' && 'arm64-v8a' || 'x86_64') }}
-          ram-size: 3072M
-          heap-size: 1024M
+          ram-size: ${{ matrix.api-level == 30 && '2048M' || matrix.api-level == 33 && '2560M' || '3072M' }}
+          heap-size: ${{ matrix.api-level == 30 && '512M' || matrix.api-level == 33 && '768M' || '1024M' }}
           force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -partition-size 4096 -accel off -no-snapshot
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -partition-size 2048 -accel off -no-snapshot -memory 2048
           disable-animations: true
           emulator-boot-timeout: 900
           script: echo "Generated AVD snapshot for caching."
@@ -91,12 +91,12 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.api-level }}
-          target: ${{ matrix.api-level == 27 && 'default' || 'google_apis' }}
+          target: default
           arch: ${{ matrix.api-level == 27 && 'x86_64' || (runner.arch == 'ARM64' && 'arm64-v8a' || 'x86_64') }}
-          ram-size: 3072M
-          heap-size: 1024M
+          ram-size: ${{ matrix.api-level == 30 && '2048M' || matrix.api-level == 33 && '2560M' || '3072M' }}
+          heap-size: ${{ matrix.api-level == 30 && '512M' || matrix.api-level == 33 && '768M' || '1024M' }}
           force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -partition-size 4096 -accel off -no-snapshot
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -partition-size 2048 -accel off -no-snapshot -memory 2048
           disable-animations: true
           emulator-boot-timeout: 900
           script: |
