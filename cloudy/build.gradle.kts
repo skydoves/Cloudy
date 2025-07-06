@@ -114,5 +114,23 @@ kotlin {
       implementation(libs.compose.resources)
       implementation(libs.compose.ui.tooling.preview)
     }
+
+    commonTest.dependencies {
+      implementation(libs.kotlin.test)
+      implementation(libs.kotlinx.coroutines.test)
+    }
+
+    androidUnitTest.dependencies {
+      implementation(libs.kotlin.test)
+      implementation(libs.kotlinx.coroutines.test)
+      implementation(libs.androidx.compose.ui.test)
+      implementation(libs.androidx.compose.ui.test.junit4)
+      implementation(libs.junit4)
+    }
+
+    iosTest.dependencies {
+      implementation(libs.kotlin.test)
+      implementation(libs.kotlinx.coroutines.test)
+    }
   }
 }
