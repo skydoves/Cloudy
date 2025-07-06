@@ -338,15 +338,15 @@ jobs:
           fi
 
       - name: Setup Android SDK (if needed)
-        if: hashFiles('prebuilt-avd/avd-android-${{ matrix.api-level }}.tar.gz') == ''
+        if: ${{ hashFiles(format('prebuilt-avd/avd-android-{0}.tar.gz', matrix.api-level)) == '' }}
         uses: android-actions/setup-android@v2
 
       - name: Accept all Android SDK licenses (if needed)
-        if: hashFiles('prebuilt-avd/avd-android-${{ matrix.api-level }}.tar.gz') == ''
+        if: ${{ hashFiles(format('prebuilt-avd/avd-android-{0}.tar.gz', matrix.api-level)) == '' }}
         run: yes | sdkmanager --licenses > /dev/null
 
       - name: Create AVD (if prebuilt not available)
-        if: hashFiles('prebuilt-avd/avd-android-${{ matrix.api-level }}.tar.gz') == ''
+        if: ${{ hashFiles(format('prebuilt-avd/avd-android-{0}.tar.gz', matrix.api-level)) == '' }}
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.api-level }}

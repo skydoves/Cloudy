@@ -418,6 +418,7 @@ main() {
                 print_success "API $api tests completed successfully"
             else
                 print_error "API $api tests failed"
+                exit 1     # propagate failure
             fi
             
             # Clean up emulator
