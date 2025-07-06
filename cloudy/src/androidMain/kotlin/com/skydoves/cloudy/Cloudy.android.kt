@@ -16,6 +16,7 @@
 package com.skydoves.cloudy
 
 import android.graphics.Bitmap
+import androidx.annotation.IntRange
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -61,7 +62,7 @@ import kotlinx.coroutines.launch
  */
 @Composable
 public actual fun Modifier.cloudy(
-  radius: Int,
+  @IntRange(from = 0) radius: Int,
   enabled: Boolean,
   onStateChanged: (CloudyState) -> Unit
 ): Modifier {
