@@ -22,13 +22,14 @@ import androidx.compose.ui.Modifier
  * `Modifier.cloudy()` is a blur modifier that applies blur effects to composables,
  * compatible with all supported platforms.
  *
- * @param radius Radius of the blur along both the x and y axis.
+ * @param radius Radius of the blur along both the x and y axis. Must be non-negative.
+ *               On Android, values > 25 are achieved through iterative passes which may affect performance.
  * @param enabled Enabling the blur effects.
  * @param onStateChanged Lambda function that will be invoked when the blur process has been updated.
  */
 @Composable
 public expect fun Modifier.cloudy(
-  radius: Int = 10,
+  @androidx.annotation.IntRange(from = 0) radius: Int = 10,
   enabled: Boolean = true,
   onStateChanged: (CloudyState) -> Unit = {}
 ): Modifier
