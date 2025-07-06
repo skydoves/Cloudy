@@ -87,7 +87,6 @@ dependencies {
   implementation(project(":cloudy"))
 
   implementation(libs.landscapist.glide)
-  implementation(libs.landscapist.transformation)
 
   implementation(libs.material)
   implementation(libs.androidx.activity.compose)
@@ -100,10 +99,7 @@ dependencies {
   implementation(libs.androidx.compose.constraintlayout)
 
   // Test dependencies (JVM-based)
-  testImplementation(libs.robolectric)
-  testImplementation(libs.junit4)
   testImplementation(libs.androidx.test.junit)
-  testImplementation(libs.androidx.compose.ui.test)
   testImplementation(libs.androidx.compose.ui.test.junit4)
 
   // Android Instrumentation Test dependencies (Device-based for Native libraries)
@@ -111,7 +107,6 @@ dependencies {
   androidTestImplementation(libs.androidx.compose.ui.test.junit4)
   androidTestImplementation(libs.androidx.ui.test.manifest)
   androidTestImplementation(libs.androidx.junit)
-  androidTestImplementation(libs.androidx.espresso.core)
   androidTestImplementation(libs.androidx.activity.compose)
   androidTestImplementation(libs.androidx.test.runner)
   androidTestImplementation(libs.androidx.test.rules)
