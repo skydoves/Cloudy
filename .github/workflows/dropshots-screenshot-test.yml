@@ -87,7 +87,7 @@ jobs:
         with:
           api-level: ${{ matrix.api-level }}
           target: google_apis
-          arch: x86_64
+          arch: ${{ matrix.api-level == 27 && 'x86_64' || (runner.arch == 'ARM64' && 'arm64-v8a' || 'x86_64') }}
           ram-size: 3072M
           heap-size: 1024M
           force-avd-creation: false
@@ -101,7 +101,7 @@ jobs:
         with:
           api-level: ${{ matrix.api-level }}
           target: google_apis
-          arch: x86_64
+          arch: ${{ matrix.api-level == 27 && 'x86_64' || (runner.arch == 'ARM64' && 'arm64-v8a' || 'x86_64') }}
           ram-size: 3072M
           heap-size: 1024M
           force-avd-creation: false
@@ -151,8 +151,8 @@ jobs:
             ls -la || echo "No files found"
 
       - name: Upload screenshots artifact
-        uses: actions/upload-artifact@v4
         if: always()
+        uses: actions/upload-artifact@v4
         with:
           name: screenshots-api-${{ matrix.api-level }}
           path: screenshots/
@@ -160,8 +160,8 @@ jobs:
           compression-level: 6
 
       - name: Upload test reports
-        uses: actions/upload-artifact@v4
         if: always()
+        uses: actions/upload-artifact@v4
         with:
           name: test-reports-api-${{ matrix.api-level }}
           path: |

@@ -135,7 +135,15 @@ check_system_requirements() {
     print_status "Checking system requirements..."
     
     # Check available memory (at least 4GB recommended)
-    local available_memory=$(free -m | awk 'NR==2{printf "%.0f", $7/1024}')
+    local available_memory=0
+    if command -v free &> /dev/null; then
+        # Linux
+        available_memory=$(free -m | awk 'NR==2{printf "%.0f", $7/1024}')
+    elif command -v vm_stat &> /dev/null; then
+        # macOS
+        available_memory=$(vm_stat | awk '/free/ {gsub(/\./, "", $3); printf "%.0f", $3/1024/1024}')
+    fi
+    
     if [[ $available_memory -lt 4 ]]; then
         print_warning "Low available memory: ${available_memory}GB (4GB+ recommended)"
     fi
@@ -182,15 +190,31 @@ create_avd() {
     
     print_status "Creating AVD: $avd_name"
     
+    # Detect architecture
+    local arch=""
+    if [[ "$(uname -m)" == "arm64" ]]; then
+        arch="arm64-v8a"
+    else
+        arch="x86_64"
+    fi
+    
+    # Determine system image type based on API level and architecture
+    local system_image=""
+    if [[ $api_level -eq 27 ]]; then
+        system_image="system-images;android-${api_level};default;${arch}"
+    else
+        system_image="system-images;android-${api_level};google_apis;${arch}"
+    fi
+    
     # Download SDK image (if needed)
-    print_status "Downloading system image for API $api_level..."
-    sdkmanager "system-images;android-${api_level};google_apis;x86_64"
+    print_status "Downloading system image for API $api_level ($arch)..."
+    sdkmanager "$system_image"
     
     # Create AVD
     print_status "Creating AVD with system image..."
     echo "no" | avdmanager create avd \
         -n "$avd_name" \
-        -k "system-images;android-${api_level};google_apis;x86_64" \
+        -k "$system_image" \
         -d "pixel_xl" \
         --force
         
@@ -279,12 +303,12 @@ collect_screenshots() {
     
     # Clean up filenames
     cd "$output_dir"
-    for file in *.png 2>/dev/null; do
+    for file in *.png; do
         if [[ -f "$file" && "$file" != *"api$api_level"* ]]; then
             base_name="${file%.png}"
             mv "$file" "${base_name}_api${api_level}.png" 2>/dev/null || true
         fi
-    done
+    done 2>/dev/null || true
     cd - > /dev/null
     
     local count=$(find "$output_dir" -name "*.png" 2>/dev/null | wc -l)
