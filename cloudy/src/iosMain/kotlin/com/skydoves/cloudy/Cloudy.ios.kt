@@ -18,40 +18,36 @@
 package com.skydoves.cloudy
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.Paint
-import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.node.DrawModifierNode
+import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.requireGraphicsContext
+import androidx.compose.ui.platform.InspectorInfo
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import platform.CoreGraphics.CGRectMake
-import platform.CoreGraphics.CGSizeMake
 import platform.CoreImage.CIContext
 import platform.CoreImage.CIFilter
 import platform.CoreImage.CIImage
 import platform.CoreImage.createCGImage
 import platform.CoreImage.filterWithName
 import platform.Foundation.setValue
-import platform.UIKit.UIGraphicsBeginImageContextWithOptions
-import platform.UIKit.UIGraphicsEndImageContext
-import platform.UIKit.UIGraphicsGetCurrentContext
-import platform.UIKit.UIGraphicsGetImageFromCurrentImageContext
 import platform.UIKit.UIImage
 
 /**
  * iOS implementation of the cloudy modifier that applies blur effects to composables.
  * This is the actual implementation for the expect function declared in commonMain.
  * 
- * Uses Core Image filters for blur processing on iOS, with caching to improve performance.
- * The blur effect is applied through a combination of content drawing and overlay rendering.
+ * Uses Core Image filters for blur processing on iOS, with graphics layer content capture
+ * to blur the actual composable content instead of placeholder images.
  * 
  * @param radius The blur radius in pixels. Higher values create more blur.
  * @param enabled Whether the blur effect is enabled. When false, returns the original modifier unchanged.
@@ -68,77 +64,110 @@ public actual fun Modifier.cloudy(
     return this
   }
 
-  var cachedBlurredBitmap by remember { mutableStateOf<PlatformBitmap?>(null) }
-  var isProcessing by remember { mutableStateOf(false) }
+  return this then CloudyModifierNodeElement(
+    radius = radius,
+    onStateChanged = onStateChanged
+  )
+}
 
-  return this.drawWithContent {
-    drawContent()
+private data class CloudyModifierNodeElement(
+  val radius: Int = 10,
+  val onStateChanged: (CloudyState) -> Unit = {}
+) : ModifierNodeElement<CloudyModifierNode>() {
 
-    cachedBlurredBitmap?.let { blurred ->
-      // Draw the cached blurred version
-      drawIntoCanvas { canvas ->
+  override fun InspectorInfo.inspectableProperties() {
+    name = "cloudy"
+    properties["cloudy"] = radius
+  }
 
-        val bitmap = blurred.image.toPlatformBitmap()
+  override fun create(): CloudyModifierNode = CloudyModifierNode(
+    radius = radius,
+    onStateChanged = onStateChanged
+  )
 
-        canvas.drawImage(
-          ImageBitmap(bitmap.width, bitmap.height),
-          topLeftOffset = Offset.Zero,
-          paint = Paint()
-        )
-      }
+  override fun update(node: CloudyModifierNode) {
+    node.radius = radius
+  }
+}
+
+/**
+ * The actual modifier node that handles the blur drawing operations for iOS.
+ * This class captures the actual composable content and applies Core Image blur filters.
+ */
+private class CloudyModifierNode(
+  var radius: Int = 10,
+  private val onStateChanged: (CloudyState) -> Unit = {}
+) : DrawModifierNode, Modifier.Node() {
+
+  private var cachedBlurredBitmap: PlatformBitmap? by mutableStateOf(null)
+
+  override fun ContentDrawScope.draw() {
+    val graphicsLayer = requireGraphicsContext().createGraphicsLayer()
+
+    // Record the actual composable content into the graphics layer
+    graphicsLayer.record {
+      this@draw.drawContent()
     }
-  }.also {
-    LaunchedEffect(radius) {
-      if (!isProcessing) {
-        isProcessing = true
-        onStateChanged(CloudyState.Loading)
 
-        try {
-          val blurredBitmap = withContext(Dispatchers.Default) {
-            createBlurredBitmap(radius.toFloat())
-          }
+    // Draw the original content
+    drawLayer(graphicsLayer)
 
-          cachedBlurredBitmap = blurredBitmap
-          onStateChanged(CloudyState.Success(blurredBitmap))
-        } catch (e: Exception) {
-          onStateChanged(CloudyState.Error(e))
-        } finally {
-          isProcessing = false
+    onStateChanged.invoke(CloudyState.Loading)
+
+    // Launch blur processing in background
+    // Note: We need to be careful about coroutine scope in Modifier.Node
+    kotlinx.coroutines.MainScope().launch {
+      try {
+        val contentBitmap = graphicsLayer.toImageBitmap()
+        
+        val blurredBitmap = withContext(Dispatchers.Default) {
+          createBlurredBitmapFromContent(contentBitmap, radius.toFloat())
         }
+
+        cachedBlurredBitmap = blurredBitmap
+        
+        // Draw the blurred overlay
+        blurredBitmap?.let { blurred ->
+          val imageBitmap = blurred.toUIImage().asImageBitmap()
+          
+          imageBitmap?.let { bitmap ->
+            drawImage(
+              bitmap,
+              topLeft = Offset.Zero
+            )
+          }
+        }
+
+        onStateChanged.invoke(CloudyState.Success(blurredBitmap))
+      } catch (e: Exception) {
+        onStateChanged.invoke(CloudyState.Error(e))
+      } finally {
+        requireGraphicsContext().releaseGraphicsLayer(graphicsLayer)
       }
     }
   }
 }
 
 /**
- * Creates a blurred bitmap using Core Image for optimal performance on iOS.
+ * Creates a blurred bitmap from actual composable content using Core Image.
  * 
- * This function creates a demonstration bitmap and applies Gaussian blur using
- * Core Image filters. In a production implementation, this would capture
- * the actual composable content instead of creating a placeholder image.
+ * This function takes the captured content from a graphics layer and applies 
+ * Gaussian blur using Core Image filters for optimal performance on iOS.
  * 
+ * @param contentBitmap The actual content to blur, captured from graphics layer.
  * @param radius The blur radius to apply to the image.
  * @return A PlatformBitmap containing the blurred result, or null if the operation fails.
  */
-private suspend fun createBlurredBitmap(radius: Float): PlatformBitmap? {
+private suspend fun createBlurredBitmapFromContent(contentBitmap: ImageBitmap, radius: Float): PlatformBitmap? {
   return withContext(Dispatchers.Default) {
     try {
-      // Create a simple colored image for demonstration
-      // In a real implementation, you would capture the actual content
-      val size = CGSizeMake(100.0, 100.0)
-      UIGraphicsBeginImageContextWithOptions(size, false, 0.0)
-
-      val context = UIGraphicsGetCurrentContext()
-      context?.let { ctx ->
-        // Fill with a semi-transparent color
-        platform.CoreGraphics.CGContextSetRGBFillColor(ctx, 0.5, 0.5, 0.5, 0.8)
-        platform.CoreGraphics.CGContextFillRect(ctx, CGRectMake(0.0, 0.0, 100.0, 100.0))
-      }
-
-      val baseImage = UIGraphicsGetImageFromCurrentImageContext()
-      UIGraphicsEndImageContext()
-
-      baseImage?.let { image ->
+      // Convert Compose ImageBitmap to UIImage
+      // Note: This is a simplified conversion - in production you might need
+      // a more sophisticated approach depending on your specific requirements
+      val uiImage = contentBitmap.toUIImage()
+      
+      // Apply Gaussian blur to the actual content
+      uiImage?.let { image ->
         applyGaussianBlur(image, radius)?.toPlatformBitmap()
       }
     } catch (_: Exception) {
