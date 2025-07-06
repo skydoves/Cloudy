@@ -97,8 +97,8 @@ jobs:
           script: |
             # Wait for emulator to fully boot with longer timeout and better error handling
             echo "Waiting for emulator to boot..."
-            local boot_timeout=600  # 10 minutes timeout
-            local elapsed=0
+            boot_timeout=600  # 10 minutes timeout
+            elapsed=0
 
             while [[ $elapsed -lt $boot_timeout ]]; do
               if adb shell getprop sys.boot_completed 2>/dev/null | grep -q "1"; then
@@ -244,8 +244,8 @@ jobs:
           script: |
             # Wait for emulator to fully boot with longer timeout and better error handling
             echo "Waiting for emulator to boot..."
-            local boot_timeout=600  # 10 minutes timeout
-            local elapsed=0
+            boot_timeout=600  # 10 minutes timeout
+            elapsed=0
 
             while [[ $elapsed -lt $boot_timeout ]]; do
               if adb shell getprop sys.boot_completed 2>/dev/null | grep -q "1"; then
