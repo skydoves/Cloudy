@@ -82,7 +82,7 @@ private class CloudyModifierNode(
   private val onStateChanged: (CloudyState) -> Unit = {}
 ) : DrawModifierNode, Modifier.Node() {
 
-  private var cachedOutput: Bitmap? by mutableStateOf(null)
+  private var cachedOutput: PlatformBitmap? by mutableStateOf(null)
 
   override fun ContentDrawScope.draw() {
     val graphicsLayer = requireGraphicsContext().createGraphicsLayer()
@@ -102,19 +102,26 @@ private class CloudyModifierNode(
         val targetBitmap: Bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
           .copy(Bitmap.Config.ARGB_8888, true)
 
-        val out =
-          if (cachedOutput == null || cachedOutput?.width != targetBitmap.width || cachedOutput?.height != targetBitmap.height) {
-            createCompatibleBitmap(targetBitmap).also { cachedOutput = it }
-          } else {
-            cachedOutput!!
-          }
+        val out = if (cachedOutput == null || 
+          cachedOutput?.width != targetBitmap.width || 
+          cachedOutput?.height != targetBitmap.height) {
+          
+          // Dispose previous cached output
+          cachedOutput?.dispose()
+          
+          targetBitmap.toPlatformBitmap().createCompatible().also { cachedOutput = it }
+        } else {
+          cachedOutput!!
+        }
 
         val blurredBitmap = iterativeBlur(
           androidBitmap = targetBitmap,
-          outputBitmap = out,
+          outputBitmap = out.toAndroidBitmap(),
           radius = radius
-        ).await()?.apply {
-          drawImage(this.asImageBitmap())
+        ).await()?.let { bitmap ->
+          bitmap.toPlatformBitmap().also {
+            drawImage(bitmap.asImageBitmap())
+          }
         } ?: throw RuntimeException("Couldn't capture a bitmap from the composable tree")
 
         onStateChanged.invoke(CloudyState.Success(blurredBitmap))
@@ -126,6 +133,3 @@ private class CloudyModifierNode(
     }
   }
 }
-
-private fun createCompatibleBitmap(inputBitmap: Bitmap) =
-  Bitmap.createBitmap(inputBitmap.width, inputBitmap.height, inputBitmap.config!!)
