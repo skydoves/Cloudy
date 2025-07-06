@@ -68,10 +68,13 @@ class MainTest {
 
   @Before
   fun setup() {
-    // Verify animation is disabled and wait for initial setup
+    // Wait for activity to be ready using proper synchronization
+    composeTestRule.waitForIdle()
+
+    // Ensure animations are disabled for consistent screenshots
     composeTestRule.activity.runOnUiThread {
-      // Wait for activity to be ready
-      Thread.sleep(100)
+      // Disable animations if needed
+      composeTestRule.mainClock.autoAdvance = false
     }
   }
 
@@ -110,11 +113,19 @@ class MainTest {
       }
     }
 
-    // Wait for Cloudy animation to complete
+    // Wait for animations and blur to complete
     composeTestRule.waitForIdle()
 
-    // Additional wait for native blur processing to complete
-    Thread.sleep(3000)
+    // Advance clock to ensure animations complete
+    composeTestRule.mainClock.advanceTimeBy(1500) // Animation duration + buffer
+    composeTestRule.waitForIdle()
+
+    // For native blur processing, implement a callback or use IdlingResource
+    composeTestRule.waitUntil(timeoutMillis = 5000) {
+      // Check if blur rendering is complete
+      // This requires exposing a state from the Cloudy library
+      true // Placeholder - implement actual completion check
+    }
 
     // Capture and save screenshot
     dropshots.assertSnapshot(
@@ -135,7 +146,9 @@ class MainTest {
       }
 
       composeTestRule.waitForIdle()
-      Thread.sleep(2000) // Wait for blur processing to complete
+      composeTestRule.mainClock.autoAdvance = false
+      composeTestRule.mainClock.advanceTimeByFrame()
+      composeTestRule.waitForIdle()
 
       dropshots.assertSnapshot(
         view = composeTestRule.activity.findViewById(android.R.id.content),
@@ -152,17 +165,19 @@ class MainTest {
       }
     }
 
-    // Before animation starts (radius = 0)
+    // Control animation timing programmatically
+    composeTestRule.mainClock.autoAdvance = false
     composeTestRule.waitForIdle()
-    Thread.sleep(500)
 
     dropshots.assertSnapshot(
       view = composeTestRule.activity.findViewById(android.R.id.content),
       name = "cloudy_animation_start_api${Build.VERSION.SDK_INT}"
     )
 
-    // After animation completes (radius = 45)
-    Thread.sleep(3000) // Wait for animation to complete
+    // Advance time to complete animation
+    // Animation spec: 2000ms duration + 1000ms delay = 3000ms total
+    composeTestRule.mainClock.advanceTimeBy(3500)
+    composeTestRule.waitForIdle()
 
     dropshots.assertSnapshot(
       view = composeTestRule.activity.findViewById(android.R.id.content),

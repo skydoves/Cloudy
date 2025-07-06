@@ -1,6 +1,5 @@
 [versions]
 agp = "8.11.0"
-dropshotsVersion = "0.5.0"
 espressoCore = "3.5.1"
 kotlin = "2.2.0"
 dokka = "2.0.0"
@@ -41,7 +40,7 @@ dropshots = { id = "com.dropbox.dropshots", version.ref = "dropshots" }
 androidx-espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref = "espressoCore" }
 androidx-junit = { module = "androidx.test.ext:junit", version.ref = "androidxJunit" }
 androidx-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest", version.ref = "androidxCompose" }
-dropshots = { module = "com.dropbox.dropshots:dropshots", version.ref = "dropshotsVersion" }
+dropshots = { module = "com.dropbox.dropshots:dropshots", version.ref = "dropshots" }
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "kotlinxCoroutinesAndroid" }
 material = { module = "com.google.android.material:material", version.ref = "material" }
 androidx-compose-ui = { group = "androidx.compose.ui", name = "ui", version.ref = "androidxCompose" }

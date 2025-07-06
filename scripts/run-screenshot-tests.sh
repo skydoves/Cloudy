@@ -141,7 +141,10 @@ check_system_requirements() {
         available_memory=$(free -m | awk 'NR==2{printf "%.0f", $7/1024}')
     elif command -v vm_stat &> /dev/null; then
         # macOS
-        available_memory=$(vm_stat | awk '/free/ {gsub(/\./, "", $3); printf "%.0f", $3/1024/1024}')
+        # Get page size and free pages, then calculate GB
+        page_size=$(vm_stat | grep "page size" | awk '{print $8}')
+        free_pages=$(vm_stat | awk '/Pages free/ {gsub(/\./, "", $3); print $3}')
+        available_memory=$(echo "scale=0; ($free_pages * $page_size) / 1024 / 1024 / 1024" | bc)
     fi
     
     if [[ $available_memory -lt 4 ]]; then
@@ -149,7 +152,8 @@ check_system_requirements() {
     fi
     
     # Check available disk space (at least 10GB)
-    local available_disk=$(df . | awk 'NR==2{printf "%.0f", $4/1024/1024}')
+    local available_disk
+    available_disk=$(df . | awk 'NR==2{printf "%.0f", $4/1024/1024}')
     if [[ $available_disk -lt 10 ]]; then
         print_warning "Low available disk space: ${available_disk}GB (10GB+ recommended)"
     fi
@@ -250,7 +254,7 @@ start_emulator() {
     
     # Wait for emulator boot completion
     print_status "Waiting for emulator to boot..."
-    adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed | tr -d '\r') ]]; do sleep 1; done'
+    adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed | tr -d $'\''\\r'\'') ]]; do sleep 1; done'
     
     # Unlock screen
     adb shell input keyevent 82
@@ -311,7 +315,8 @@ collect_screenshots() {
     done 2>/dev/null || true
     cd - > /dev/null
     
-    local count=$(find "$output_dir" -name "*.png" 2>/dev/null | wc -l)
+    local count
+    count=$(find "$output_dir" -name "*.png" 2>/dev/null | wc -l)
     print_success "Collected $count screenshots for API $api_level"
 }
 
@@ -374,7 +379,7 @@ main() {
         
     else
         # Run specific API level only
-        if [[ " ${API_LEVELS[*]} " =~ " ${SELECTED_API} " ]]; then
+        if [[ " ${API_LEVELS[*]} " =~ ${SELECTED_API} ]]; then
             print_status "Running tests for API level $SELECTED_API"
             
             check_emulator $SELECTED_API
@@ -401,7 +406,8 @@ main() {
     if [[ $total_screenshots -gt 0 ]]; then
         print_status "📋 Screenshot breakdown:"
         for api in "${API_LEVELS[@]}"; do
-            local count=$(find "./screenshots/api-$api" -name "*.png" 2>/dev/null | wc -l)
+            local count
+            count=$(find "./screenshots/api-$api" -name "*.png" 2>/dev/null | wc -l)
             if [[ $count -gt 0 ]]; then
                 print_status "   API $api: $count screenshots"
             fi

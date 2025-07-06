@@ -39,7 +39,7 @@ android {
     versionName = Configuration.versionName
 
     // Dropshots test runner 설정
-    testInstrumentationRunner = "com.dropbox.dropshots.ThresholdValidator"
+    testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     testInstrumentationRunnerArguments["dropshots_threshold"] = "0.15"
   }
 

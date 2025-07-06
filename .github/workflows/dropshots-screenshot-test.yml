@@ -99,7 +99,7 @@ jobs:
           disable-animations: true
           script: |
             # Wait for emulator to fully boot
-            adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed | tr -d '\r') ]]; do sleep 1; done'
+            adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed | tr -d '\''\r'\'') ]]; do sleep 1; done'
             adb shell input keyevent 82
 
             # Set fixed screen resolution (for screenshot consistency)
