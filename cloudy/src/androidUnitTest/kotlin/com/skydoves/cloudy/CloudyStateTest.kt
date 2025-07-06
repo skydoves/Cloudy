@@ -16,9 +16,13 @@
 package com.skydoves.cloudy
 
 import android.graphics.Bitmap
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Test
-import org.junit.Assert.*
-import org.mockito.Mockito.*
+import org.mockito.Mockito.mock
+import org.mockito.Mockito.`when`
 
 internal class CloudyStateTest {
 
@@ -26,7 +30,7 @@ internal class CloudyStateTest {
   fun `Nothing state should be singleton`() {
     val state1 = CloudyState.Nothing
     val state2 = CloudyState.Nothing
-    
+
     assertSame(state1, state2)
   }
 
@@ -34,7 +38,7 @@ internal class CloudyStateTest {
   fun `Loading state should be singleton`() {
     val state1 = CloudyState.Loading
     val state2 = CloudyState.Loading
-    
+
     assertSame(state1, state2)
   }
 
@@ -42,14 +46,14 @@ internal class CloudyStateTest {
   fun `Success state should contain bitmap`() {
     val mockBitmap = createMockPlatformBitmap(100, 100)
     val state = CloudyState.Success(mockBitmap)
-    
+
     assertEquals(mockBitmap, state.bitmap)
   }
 
   @Test
   fun `Success state can contain null bitmap`() {
     val state = CloudyState.Success(null)
-    
+
     assertNull(state.bitmap)
   }
 
@@ -57,7 +61,7 @@ internal class CloudyStateTest {
   fun `Error state should contain throwable`() {
     val exception = RuntimeException("Test error")
     val state = CloudyState.Error(exception)
-    
+
     assertEquals(exception, state.throwable)
   }
 
@@ -66,7 +70,7 @@ internal class CloudyStateTest {
     val mockBitmap = createMockPlatformBitmap(100, 100)
     val state1 = CloudyState.Success(mockBitmap)
     val state2 = CloudyState.Success(mockBitmap)
-    
+
     assertEquals(state1, state2)
   }
 
@@ -76,7 +80,7 @@ internal class CloudyStateTest {
     val mockBitmap2 = createMockPlatformBitmap(200, 200)
     val state1 = CloudyState.Success(mockBitmap1)
     val state2 = CloudyState.Success(mockBitmap2)
-    
+
     assertNotEquals(state1, state2)
   }
 
@@ -85,7 +89,7 @@ internal class CloudyStateTest {
     val exception = RuntimeException("Test error")
     val state1 = CloudyState.Error(exception)
     val state2 = CloudyState.Error(exception)
-    
+
     assertEquals(state1, state2)
   }
 
@@ -95,7 +99,7 @@ internal class CloudyStateTest {
     val exception2 = RuntimeException("Error 2")
     val state1 = CloudyState.Error(exception1)
     val state2 = CloudyState.Error(exception2)
-    
+
     assertNotEquals(state1, state2)
   }
 
@@ -105,7 +109,7 @@ internal class CloudyStateTest {
     `when`(mockBitmap.height).thenReturn(height)
     `when`(mockBitmap.isRecycled).thenReturn(false)
     `when`(mockBitmap.isMutable).thenReturn(true)
-    
+
     return PlatformBitmap(mockBitmap)
   }
-} 
+}

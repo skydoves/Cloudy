@@ -16,9 +16,17 @@
 package com.skydoves.cloudy
 
 import android.graphics.Bitmap
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotSame
+import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Test
-import org.junit.Assert.*
-import org.mockito.Mockito.*
+import org.mockito.Mockito.mock
+import org.mockito.Mockito.mockStatic
+import org.mockito.Mockito.times
+import org.mockito.Mockito.verify
+import org.mockito.Mockito.`when`
 
 internal class PlatformBitmapTest {
 
@@ -31,9 +39,9 @@ internal class PlatformBitmapTest {
     `when`(mockBitmap.height).thenReturn(height)
     `when`(mockBitmap.isRecycled).thenReturn(false)
     `when`(mockBitmap.isMutable).thenReturn(true)
-    
+
     val platformBitmap = PlatformBitmap(mockBitmap)
-    
+
     assertEquals(width, platformBitmap.width)
     assertEquals(height, platformBitmap.height)
   }
@@ -45,9 +53,9 @@ internal class PlatformBitmapTest {
     `when`(mockBitmap.height).thenReturn(100)
     `when`(mockBitmap.isRecycled).thenReturn(false)
     `when`(mockBitmap.isMutable).thenReturn(true)
-    
+
     val platformBitmap = PlatformBitmap(mockBitmap)
-    
+
     assertTrue(platformBitmap.isRecyclable)
   }
 
@@ -58,9 +66,9 @@ internal class PlatformBitmapTest {
     `when`(mockBitmap.height).thenReturn(100)
     `when`(mockBitmap.isRecycled).thenReturn(true)
     `when`(mockBitmap.isMutable).thenReturn(true)
-    
+
     val platformBitmap = PlatformBitmap(mockBitmap)
-    
+
     assertFalse(platformBitmap.isRecyclable)
   }
 
@@ -71,9 +79,9 @@ internal class PlatformBitmapTest {
     `when`(mockBitmap.height).thenReturn(100)
     `when`(mockBitmap.isRecycled).thenReturn(false)
     `when`(mockBitmap.isMutable).thenReturn(false)
-    
+
     val platformBitmap = PlatformBitmap(mockBitmap)
-    
+
     assertFalse(platformBitmap.isRecyclable)
   }
 
@@ -85,22 +93,22 @@ internal class PlatformBitmapTest {
     `when`(mockOriginalBitmap.config).thenReturn(Bitmap.Config.ARGB_8888)
     `when`(mockOriginalBitmap.isRecycled).thenReturn(false)
     `when`(mockOriginalBitmap.isMutable).thenReturn(true)
-    
+
     val mockCompatibleBitmap = mock(Bitmap::class.java)
     `when`(mockCompatibleBitmap.width).thenReturn(100)
     `when`(mockCompatibleBitmap.height).thenReturn(200)
     `when`(mockCompatibleBitmap.config).thenReturn(Bitmap.Config.ARGB_8888)
     `when`(mockCompatibleBitmap.isRecycled).thenReturn(false)
     `when`(mockCompatibleBitmap.isMutable).thenReturn(true)
-    
+
     // Mock Bitmap.createBitmap static method
     mockStatic(Bitmap::class.java).use { mockedStatic ->
       mockedStatic.`when`<Bitmap> { Bitmap.createBitmap(100, 200, Bitmap.Config.ARGB_8888) }
         .thenReturn(mockCompatibleBitmap)
-      
+
       val platformBitmap = PlatformBitmap(mockOriginalBitmap)
       val compatibleBitmap = platformBitmap.createCompatible()
-      
+
       assertEquals(platformBitmap.width, compatibleBitmap.width)
       assertEquals(platformBitmap.height, compatibleBitmap.height)
       assertNotSame(platformBitmap, compatibleBitmap)
@@ -115,22 +123,22 @@ internal class PlatformBitmapTest {
     `when`(mockOriginalBitmap.config).thenReturn(Bitmap.Config.RGB_565)
     `when`(mockOriginalBitmap.isRecycled).thenReturn(false)
     `when`(mockOriginalBitmap.isMutable).thenReturn(true)
-    
+
     val mockCompatibleBitmap = mock(Bitmap::class.java)
     `when`(mockCompatibleBitmap.width).thenReturn(100)
     `when`(mockCompatibleBitmap.height).thenReturn(100)
     `when`(mockCompatibleBitmap.config).thenReturn(Bitmap.Config.RGB_565)
     `when`(mockCompatibleBitmap.isRecycled).thenReturn(false)
     `when`(mockCompatibleBitmap.isMutable).thenReturn(true)
-    
+
     // Mock Bitmap.createBitmap static method
     mockStatic(Bitmap::class.java).use { mockedStatic ->
       mockedStatic.`when`<Bitmap> { Bitmap.createBitmap(100, 100, Bitmap.Config.RGB_565) }
         .thenReturn(mockCompatibleBitmap)
-      
+
       val platformBitmap = PlatformBitmap(mockOriginalBitmap)
       val compatibleBitmap = platformBitmap.createCompatible()
-      
+
       assertEquals(mockOriginalBitmap.config, compatibleBitmap.bitmap.config)
     }
   }
@@ -142,13 +150,13 @@ internal class PlatformBitmapTest {
     `when`(mockBitmap.height).thenReturn(100)
     `when`(mockBitmap.isRecycled).thenReturn(false)
     `when`(mockBitmap.isMutable).thenReturn(true)
-    
+
     val platformBitmap = PlatformBitmap(mockBitmap)
-    
+
     assertFalse(mockBitmap.isRecycled)
-    
+
     platformBitmap.dispose()
-    
+
     verify(mockBitmap).recycle()
   }
 
@@ -159,12 +167,12 @@ internal class PlatformBitmapTest {
     `when`(mockBitmap.height).thenReturn(100)
     `when`(mockBitmap.isRecycled).thenReturn(true)
     `when`(mockBitmap.isMutable).thenReturn(true)
-    
+
     val platformBitmap = PlatformBitmap(mockBitmap)
-    
+
     platformBitmap.dispose()
     platformBitmap.dispose() // Should not throw exception
-    
+
     verify(mockBitmap, times(0)).recycle() // Already recycled, so recycle() should not be called
   }
 
@@ -175,9 +183,9 @@ internal class PlatformBitmapTest {
     `when`(mockBitmap.height).thenReturn(100)
     `when`(mockBitmap.isRecycled).thenReturn(false)
     `when`(mockBitmap.isMutable).thenReturn(true)
-    
+
     val platformBitmap = mockBitmap.toPlatformBitmap()
-    
+
     assertEquals(mockBitmap, platformBitmap.bitmap)
     assertEquals(mockBitmap.width, platformBitmap.width)
     assertEquals(mockBitmap.height, platformBitmap.height)
@@ -190,9 +198,9 @@ internal class PlatformBitmapTest {
     `when`(mockBitmap.height).thenReturn(100)
     `when`(mockBitmap.isRecycled).thenReturn(false)
     `when`(mockBitmap.isMutable).thenReturn(true)
-    
+
     val platformBitmap = PlatformBitmap(mockBitmap)
-    
+
     assertSame(mockBitmap, platformBitmap.toAndroidBitmap())
   }
-} 
+}

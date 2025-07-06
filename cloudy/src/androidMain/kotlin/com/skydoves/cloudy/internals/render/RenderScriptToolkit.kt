@@ -313,11 +313,11 @@ internal fun validateBitmap(
 }
 
 /**
-   * Creates a new bitmap with the same width, height, and configuration as the input bitmap.
-   *
-   * @param inputBitmap The bitmap whose dimensions and configuration are to be matched.
-   * @return A new bitmap instance compatible with the input bitmap.
-   */
+ * Creates a new bitmap with the same width, height, and configuration as the input bitmap.
+ *
+ * @param inputBitmap The bitmap whose dimensions and configuration are to be matched.
+ * @return A new bitmap instance compatible with the input bitmap.
+ */
 internal fun createCompatibleBitmap(inputBitmap: Bitmap) =
   Bitmap.createBitmap(inputBitmap.width, inputBitmap.height, inputBitmap.config!!)
 
