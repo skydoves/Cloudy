@@ -116,9 +116,3 @@ kotlin {
     }
   }
 }
-
-dependencies {
-  implementation(libs.androidx.compose.ui)
-  implementation(libs.androidx.compose.runtime)
-  implementation(libs.kotlinx.coroutines.android)
-}
