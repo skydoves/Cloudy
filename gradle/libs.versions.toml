@@ -22,6 +22,8 @@ composeMultiplatform = "1.8.2"
 spotless = "6.7.0"
 junit4 = "4.13.2"
 kotlinxCoroutinesTest = "1.10.2"
+mockito="5.18.0"
+mockito-inline="5.2.0"
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
@@ -65,3 +67,5 @@ kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-t
 junit4 = { module = "junit:junit", version.ref = "junit4" }
 androidx-compose-ui-test = { group = "androidx.compose.ui", name = "ui-test", version.ref = "androidxCompose" }
 androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4", version.ref = "androidxCompose" }
+mockito = { module = "org.mockito:mockito-core", version.ref = "mockito" }
+mockito-inline = { module = "org.mockito:mockito-inline", version.ref = "mockito-inline" }
