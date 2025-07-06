@@ -9,6 +9,7 @@ plugins {
   alias(libs.plugins.spotless)
   alias(libs.plugins.dokka)
   alias(libs.plugins.kotlinBinaryCompatibilityValidator)
+  alias(libs.plugins.roborazzi) apply false
 }
 
 apiValidation {

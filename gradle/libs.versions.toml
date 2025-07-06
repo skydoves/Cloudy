@@ -19,6 +19,10 @@ androidxProfileinstaller = "1.4.1"
 androidxUiAutomator = "2.3.0"
 landscapist = "2.5.1"
 spotless = "6.7.0"
+junit4 = "4.13.2"
+roborazzi = "1.46.1"
+robolectric = "4.15.1"
+composePreviewScannerSupport = "0.6.1"
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
@@ -29,6 +33,7 @@ compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "
 nexus-plugin = { id = "com.vanniktech.maven.publish", version.ref = "nexusPlugin" }
 spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
 kotlinBinaryCompatibilityValidator = { id = "org.jetbrains.kotlinx.binary-compatibility-validator", version.ref = "binaryCompatibility" }
+roborazzi = { id = "io.github.takahirom.roborazzi", version.ref = "roborazzi" }
 
 [libraries]
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "kotlinxCoroutinesAndroid" }
@@ -50,3 +55,13 @@ androidx-test-junit = { group = "androidx.test.ext", name = "junit-ktx", version
 androidx-test-uiautomator = { group = "androidx.test.uiautomator", name = "uiautomator", version.ref = "androidxUiAutomator" }
 landscapist-glide = { group = "com.github.skydoves", name = "landscapist-glide", version.ref = "landscapist" }
 landscapist-transformation = { group = "com.github.skydoves", name = "landscapist-transformation", version.ref = "landscapist" }
+junit4 = { module = "junit:junit", version.ref = "junit4" }
+androidx-compose-ui-test = { group = "androidx.compose.ui", name = "ui-test", version.ref = "androidxCompose" }
+androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4", version.ref = "androidxCompose" }
+roborazzi = { group = "io.github.takahirom.roborazzi", name = "roborazzi", version.ref = "roborazzi" }
+roborazzi-annotations = { module = "io.github.takahirom.roborazzi:roborazzi-annotations", version.ref = "roborazzi" }
+roborazzi-compose = { group = "io.github.takahirom.roborazzi", name = "roborazzi-compose", version.ref = "roborazzi" }
+roborazzi-junit = { group = "io.github.takahirom.roborazzi", name = "roborazzi-junit-rule", version.ref = "roborazzi" }
+roborazzi-compose-preview-scanner-support = { group = "io.github.takahirom.roborazzi", name = "roborazzi-compose-preview-scanner-support", version.ref = "roborazzi" }
+compose-preview-scanner-support = { group = "io.github.sergio-sastre.ComposablePreviewScanner", name = "android", version.ref = "composePreviewScannerSupport" }
+robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
