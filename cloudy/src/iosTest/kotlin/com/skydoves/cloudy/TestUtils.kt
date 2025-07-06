@@ -19,10 +19,27 @@ package com.skydoves.cloudy
 
 import kotlinx.cinterop.ExperimentalForeignApi
 
+/**
+ * Creates a `PlatformBitmap` of the specified width and height for testing purposes.
+ *
+ * @param width The width of the bitmap in pixels.
+ * @param height The height of the bitmap in pixels.
+ * @return A `PlatformBitmap` instance containing a blank image of the given dimensions.
+ */
 internal fun createTestPlatformBitmap(width: Int, height: Int): PlatformBitmap {
   return PlatformBitmap(createTestUIImage(width, height))
 }
 
+/**
+ * Creates a new `UIImage` with the specified width and height.
+ *
+ * Starts a new image graphics context, captures the resulting image, and returns it.
+ * If image creation fails, returns an empty `UIImage` instance.
+ *
+ * @param width The width of the image in points.
+ * @param height The height of the image in points.
+ * @return A `UIImage` of the specified size, or an empty image if creation fails.
+ */
 internal fun createTestUIImage(width: Int, height: Int): platform.UIKit.UIImage {
   val size = platform.CoreGraphics.CGSizeMake(width.toDouble(), height.toDouble())
   platform.UIKit.UIGraphicsBeginImageContextWithOptions(size, false, 1.0)
