@@ -277,15 +277,14 @@ internal class Rgba3dArray(val values: ByteArray, val sizeX: Int, val sizeY: Int
 }
 
 /**
- * Ensures that the provided bitmap is compatible with RenderScriptToolkit operations.
+ * Validates that a bitmap is compatible with RenderScriptToolkit operations.
  *
- * Validates that the bitmap uses a supported configuration (ARGB_8888, or ALPHA_8 if allowed)
- * and that its row stride matches the expected value for its width and pixel format.
+ * Checks that the bitmap uses a supported configuration (ARGB_8888, or ALPHA_8 if allowed) and that its row stride matches the expected value for its width and pixel format.
  *
- * @param function The name of the calling function, used in error messages.
+ * @param function The name of the calling function, used for error reporting.
  * @param inputBitmap The bitmap to validate.
- * @param alphaAllowed If true, allows ALPHA_8 bitmaps in addition to ARGB_8888.
- * @throws IllegalArgumentException if the bitmap configuration or row stride is invalid.
+ * @param alphaAllowed Whether ALPHA_8 bitmaps are permitted in addition to ARGB_8888.
+ * @throws IllegalArgumentException If the bitmap configuration or row stride is invalid.
  */
 internal fun validateBitmap(
   function: String,
@@ -313,11 +312,11 @@ internal fun validateBitmap(
 }
 
 /**
- * Creates a new bitmap with the same width, height, and configuration as the input bitmap.
- *
- * @param inputBitmap The bitmap whose dimensions and configuration are to be matched.
- * @return A new bitmap instance compatible with the input bitmap.
- */
+   * Creates a new bitmap with the same dimensions and configuration as the given bitmap.
+   *
+   * @param inputBitmap The bitmap to match in size and configuration.
+   * @return A new bitmap instance compatible with the input bitmap.
+   */
 internal fun createCompatibleBitmap(inputBitmap: Bitmap) =
   Bitmap.createBitmap(inputBitmap.width, inputBitmap.height, inputBitmap.config!!)
 

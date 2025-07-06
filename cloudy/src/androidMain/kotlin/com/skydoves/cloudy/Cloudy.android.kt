@@ -60,6 +60,14 @@ import kotlinx.coroutines.launch
  * @param onStateChanged Callback invoked with updates about the blur processing state.
  * @return The modified [Modifier] with the blur effect applied if enabled.
  */
+/**
+ * Applies a native iterative blur effect to the composable if enabled.
+ *
+ * @param radius The blur radius, which must be a non-negative integer.
+ * @param enabled If false, the blur effect is not applied.
+ * @param onStateChanged Callback invoked with the current blur processing state.
+ * @return The modifier with the blur effect applied if enabled; otherwise, the original modifier.
+ */
 @Composable
 public actual fun Modifier.cloudy(
   @IntRange(from = 0) radius: Int,
