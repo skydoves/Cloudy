@@ -76,7 +76,7 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.api-level }}
-          target: google_apis
+          target: ${{ matrix.api-level == 27 && 'default' || 'google_apis' }}
           arch: ${{ matrix.api-level == 27 && 'x86_64' || (runner.arch == 'ARM64' && 'arm64-v8a' || 'x86_64') }}
           ram-size: 3072M
           heap-size: 1024M
@@ -90,7 +90,7 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.api-level }}
-          target: google_apis
+          target: ${{ matrix.api-level == 27 && 'default' || 'google_apis' }}
           arch: ${{ matrix.api-level == 27 && 'x86_64' || (runner.arch == 'ARM64' && 'arm64-v8a' || 'x86_64') }}
           ram-size: 3072M
           heap-size: 1024M
