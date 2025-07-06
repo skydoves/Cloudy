@@ -144,7 +144,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: screenshots-api-${{ matrix.api-level }}
-          path: screenshots/
+          path: screenshots/api-${{ matrix.api-level }}/
           retention-days: 7
           compression-level: 6
 

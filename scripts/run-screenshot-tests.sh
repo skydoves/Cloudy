@@ -254,7 +254,7 @@ start_emulator() {
     
     # Wait for emulator boot completion
     print_status "Waiting for emulator to boot..."
-    adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed | tr -d $'\''\\r'\'') ]]; do sleep 1; done'
+    adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed | tr -d '\r') ]]; do sleep 1; done'
     
     # Unlock screen
     adb shell input keyevent 82
@@ -264,7 +264,7 @@ start_emulator() {
     adb shell wm density 440
     
     print_success "Emulator API $api_level is ready!"
-    return $emulator_pid
+    echo $emulator_pid
 }
 
 # Run tests
@@ -360,8 +360,7 @@ main() {
             print_status "========== API Level $api =========="
             
             check_emulator $api
-            start_emulator $api
-            emulator_pid=$!
+            emulator_pid=$(start_emulator $api)
             
             # Run tests
             if run_tests $api; then
@@ -383,7 +382,7 @@ main() {
             print_status "Running tests for API level $SELECTED_API"
             
             check_emulator $SELECTED_API
-            start_emulator $SELECTED_API
+            emulator_pid=$(start_emulator $SELECTED_API)
             run_tests $SELECTED_API
             cleanup_emulator
             
