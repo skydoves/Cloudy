@@ -22,23 +22,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.asComposeImageBitmap
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
-import androidx.compose.ui.graphics.nativeCanvas
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import platform.CoreGraphics.CGRectMake
+import platform.CoreGraphics.CGSizeMake
 import platform.CoreImage.CIContext
 import platform.CoreImage.CIFilter
 import platform.CoreImage.CIImage
 import platform.CoreImage.filterWithName
-import platform.CoreGraphics.CGColorSpaceCreateDeviceRGB
-import platform.CoreGraphics.CGContextRef
-import platform.CoreGraphics.CGRectMake
-import platform.CoreGraphics.CGSizeMake
 import platform.Foundation.setValue
 import platform.UIKit.UIGraphicsBeginImageContextWithOptions
 import platform.UIKit.UIGraphicsEndImageContext
@@ -61,7 +55,7 @@ public actual fun Modifier.cloudy(
 
   return this.drawWithContent {
     drawContent()
-    
+
     cachedBlurredBitmap?.let { blurred ->
       // Draw the cached blurred version
       drawIntoCanvas { canvas ->
@@ -74,12 +68,12 @@ public actual fun Modifier.cloudy(
       if (!isProcessing) {
         isProcessing = true
         onStateChanged(CloudyState.Loading)
-        
+
         try {
           val blurredBitmap = withContext(Dispatchers.Default) {
             createBlurredBitmap(radius.toFloat())
           }
-          
+
           cachedBlurredBitmap = blurredBitmap
           onStateChanged(CloudyState.Success(blurredBitmap))
         } catch (e: Exception) {
@@ -102,17 +96,17 @@ private suspend fun createBlurredBitmap(radius: Float): PlatformBitmap? {
       // In a real implementation, you would capture the actual content
       val size = CGSizeMake(100.0, 100.0)
       UIGraphicsBeginImageContextWithOptions(size, false, 0.0)
-      
+
       val context = UIGraphicsGetCurrentContext()
       context?.let { ctx ->
         // Fill with a semi-transparent color
         platform.CoreGraphics.CGContextSetRGBFillColor(ctx, 0.5, 0.5, 0.5, 0.8)
         platform.CoreGraphics.CGContextFillRect(ctx, CGRectMake(0.0, 0.0, 100.0, 100.0))
       }
-      
+
       val baseImage = UIGraphicsGetImageFromCurrentImageContext()
       UIGraphicsEndImageContext()
-      
+
       baseImage?.let { image ->
         applyGaussianBlur(image, radius)?.toPlatformBitmap()
       }
@@ -129,19 +123,19 @@ private fun applyGaussianBlur(image: UIImage, radius: Float): UIImage? {
   return try {
     // Convert UIImage to CIImage
     val ciImage = CIImage.imageWithCGImage(image.CGImage ?: return null)
-    
+
     // Create Gaussian blur filter
     val blurFilter = CIFilter.filterWithName("CIGaussianBlur") ?: return null
     blurFilter.setValue(ciImage, forKey = "inputImage")
     blurFilter.setValue(radius, forKey = "inputRadius")
-    
+
     // Get output image
     val outputImage = blurFilter.outputImage ?: return null
-    
+
     // Create context and render
     val context = CIContext()
     val cgImage = context.createCGImage(outputImage, fromRect = outputImage.extent)
-    
+
     cgImage?.let { UIImage.imageWithCGImage(it) }
   } catch (e: Exception) {
     null

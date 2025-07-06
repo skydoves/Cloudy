@@ -28,13 +28,13 @@ public actual class PlatformBitmap(
    */
   public val bitmap: Bitmap
 ) {
-  
+
   public actual val width: Int
     get() = bitmap.width
-    
+
   public actual val height: Int
     get() = bitmap.height
-    
+
   public actual val isRecyclable: Boolean
     get() = !bitmap.isRecycled && bitmap.isMutable
 }
