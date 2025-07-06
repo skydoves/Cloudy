@@ -20,6 +20,8 @@ androidxUiAutomator = "2.3.0"
 landscapist = "2.5.1"
 composeMultiplatform = "1.8.2"
 spotless = "6.7.0"
+junit4 = "4.13.2"
+kotlinxCoroutinesTest = "1.10.2"
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
@@ -58,3 +60,8 @@ compose-resources = { group = "org.jetbrains.compose.components", name = "compon
 compose-ui-tooling-preview = { group = "org.jetbrains.compose.components", name = "components-ui-tooling-preview", version.ref = "composeMultiplatform" }
 landscapist-glide = { group = "com.github.skydoves", name = "landscapist-glide", version.ref = "landscapist" }
 landscapist-transformation = { group = "com.github.skydoves", name = "landscapist-transformation", version.ref = "landscapist" }
+kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinxCoroutinesTest" }
+junit4 = { module = "junit:junit", version.ref = "junit4" }
+androidx-compose-ui-test = { group = "androidx.compose.ui", name = "ui-test", version.ref = "androidxCompose" }
+androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4", version.ref = "androidxCompose" }
