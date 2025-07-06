@@ -37,14 +37,22 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 /**
- * `Modifier.cloudy()` is a replacement of the [blur] modifier (compatible with under Android 12),
- * which blurs with the given [radius].
- *
+ * Android implementation of the cloudy modifier that applies blur effects to composables.
+ * This is the actual implementation for the expect function declared in commonMain.
+ * 
+ * For Android 12+ devices in preview mode, it falls back to the platform's blur modifier.
+ * For runtime execution, it uses a custom implementation with graphics layers and
+ * RenderScript toolkit for optimal performance.
+ * 
+ * The implementation captures the composable content in a graphics layer, applies
+ * iterative blur processing using native code, and overlays the result.
+ * 
  * History: The [blur] modifier supports only Android 12 and higher, and [RenderScript] was also deprecated.
  *
- * @param radius Radius of the blur along both the x and y axis.
- * @param enabled Enabling the blur effects.
- * @param onStateChanged Lambda function that will be invoked when the blur process has been updated.
+ * @param radius The blur radius in pixels (1-25). Higher values create more blur but take longer to process.
+ * @param enabled Whether the blur effect is enabled. When false, returns the original modifier unchanged.
+ * @param onStateChanged Callback that receives updates about the blur processing state.
+ * @return Modified Modifier with blur effect applied.
  */
 @Composable
 public actual fun Modifier.cloudy(
@@ -87,6 +95,14 @@ private data class CloudyModifierNodeElement(
   }
 }
 
+/**
+ * The actual modifier node that handles the blur drawing operations.
+ * This class implements the core logic for capturing composable content,
+ * applying blur effects, and managing the rendering lifecycle.
+ * 
+ * @property radius The blur radius to apply (mutable for updates).
+ * @property onStateChanged Callback function for state change notifications.
+ */
 private class CloudyModifierNode(
   var radius: Int = 10,
   private val onStateChanged: (CloudyState) -> Unit = {}

@@ -46,6 +46,18 @@ import platform.UIKit.UIGraphicsGetCurrentContext
 import platform.UIKit.UIGraphicsGetImageFromCurrentImageContext
 import platform.UIKit.UIImage
 
+/**
+ * iOS implementation of the cloudy modifier that applies blur effects to composables.
+ * This is the actual implementation for the expect function declared in commonMain.
+ * 
+ * Uses Core Image filters for blur processing on iOS, with caching to improve performance.
+ * The blur effect is applied through a combination of content drawing and overlay rendering.
+ * 
+ * @param radius The blur radius in pixels. Higher values create more blur.
+ * @param enabled Whether the blur effect is enabled. When false, returns the original modifier unchanged.
+ * @param onStateChanged Callback that receives updates about the blur processing state.
+ * @return Modified Modifier with blur effect applied.
+ */
 @Composable
 public actual fun Modifier.cloudy(
   radius: Int,
@@ -100,6 +112,13 @@ public actual fun Modifier.cloudy(
 
 /**
  * Creates a blurred bitmap using Core Image for optimal performance on iOS.
+ * 
+ * This function creates a demonstration bitmap and applies Gaussian blur using
+ * Core Image filters. In a production implementation, this would capture
+ * the actual composable content instead of creating a placeholder image.
+ * 
+ * @param radius The blur radius to apply to the image.
+ * @return A PlatformBitmap containing the blurred result, or null if the operation fails.
  */
 private suspend fun createBlurredBitmap(radius: Float): PlatformBitmap? {
   return withContext(Dispatchers.Default) {
@@ -129,7 +148,15 @@ private suspend fun createBlurredBitmap(radius: Float): PlatformBitmap? {
 }
 
 /**
- * Applies Gaussian blur to UIImage using Core Image.
+ * Applies Gaussian blur to UIImage using Core Image filters.
+ * 
+ * This function converts the input UIImage to CIImage, applies a CIGaussianBlur filter
+ * with the specified radius, and converts the result back to UIImage. Core Image
+ * provides hardware-accelerated image processing on iOS devices.
+ * 
+ * @param image The source UIImage to blur.
+ * @param radius The blur radius for the Gaussian blur filter.
+ * @return The blurred UIImage, or null if the blur operation fails.
  */
 private fun applyGaussianBlur(image: UIImage, radius: Float): UIImage? {
   return try {

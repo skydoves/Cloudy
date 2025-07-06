@@ -233,6 +233,15 @@ public data class Range2d(
   internal constructor() : this(0, 0, 0, 0)
 }
 
+/**
+ * A collection of 3D RGBA data values with spatial dimensions.
+ * This class provides indexed access to RGBA byte values in a 3D array structure.
+ * 
+ * @property values The byte array containing RGBA data (4 bytes per pixel).
+ * @property sizeX The width dimension.
+ * @property sizeY The height dimension.
+ * @property sizeZ The depth dimension.
+ */
 internal class Rgba3dArray(val values: ByteArray, val sizeX: Int, val sizeY: Int, val sizeZ: Int) {
   init {
     require(values.size >= sizeX * sizeY * sizeZ * 4)
@@ -259,6 +268,14 @@ internal class Rgba3dArray(val values: ByteArray, val sizeX: Int, val sizeY: Int
   }
 }
 
+/**
+ * Validates a bitmap for use with RenderScript operations.
+ * 
+ * @param function The name of the function calling this validation (for error messages).
+ * @param inputBitmap The bitmap to validate.
+ * @param alphaAllowed Whether ALPHA_8 bitmaps are allowed (default: true).
+ * @throws IllegalArgumentException if the bitmap configuration is not supported.
+ */
 internal fun validateBitmap(
   function: String,
   inputBitmap: Bitmap,
@@ -284,9 +301,24 @@ internal fun validateBitmap(
   }
 }
 
+/**
+ * Creates a new bitmap with the same dimensions and configuration as the input bitmap.
+ * 
+ * @param inputBitmap The source bitmap to copy configuration from.
+ * @return A new compatible bitmap with the same dimensions and config.
+ */
 internal fun createCompatibleBitmap(inputBitmap: Bitmap) =
   Bitmap.createBitmap(inputBitmap.width, inputBitmap.height, inputBitmap.config!!)
 
+/**
+ * Validates the restriction range for RenderScript operations.
+ * 
+ * @param tag The operation name (for error messages).
+ * @param sizeX The width of the data.
+ * @param sizeY The height of the data.
+ * @param restriction The optional restriction range to validate.
+ * @throws IllegalArgumentException if the restriction is invalid.
+ */
 internal fun validateRestriction(
   tag: String,
   sizeX: Int,
@@ -308,6 +340,13 @@ internal fun validateRestriction(
   }
 }
 
+/**
+ * Returns the number of bytes per pixel for the given bitmap configuration.
+ * 
+ * @param bitmap The bitmap to check.
+ * @return 4 for ARGB_8888, 1 for ALPHA_8.
+ * @throws IllegalArgumentException for unsupported bitmap configurations.
+ */
 internal fun vectorSize(bitmap: Bitmap): Int {
   return when (bitmap.config) {
     Bitmap.Config.ARGB_8888 -> 4
@@ -318,6 +357,18 @@ internal fun vectorSize(bitmap: Bitmap): Int {
   }
 }
 
+/**
+ * Applies iterative blur to handle large blur radii by breaking them into multiple passes.
+ * 
+ * Since RenderScript blur is limited to radius 25, this function performs multiple blur
+ * operations to achieve larger blur effects. The radius is divided into chunks of 25
+ * with a remainder applied in the final pass.
+ * 
+ * @param androidBitmap The source bitmap to blur.
+ * @param outputBitmap The target bitmap to write the result.
+ * @param radius The desired blur radius (can exceed 25).
+ * @return A Deferred that resolves to the blurred bitmap or null if failed.
+ */
 internal fun CoroutineScope.iterativeBlur(
   androidBitmap: Bitmap,
   outputBitmap: Bitmap,
