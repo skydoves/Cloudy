@@ -10,6 +10,14 @@ enum class Arch(val arch: String?) {
   ALL(null);
 
   companion object {
+    /**
+     * Returns the corresponding [Arch] enum value for the given architecture string.
+     *
+     * If the input does not match any known architecture, returns [Arch.ALL].
+     *
+     * @param arch The architecture identifier string, or null.
+     * @return The matching [Arch] value, or [Arch.ALL] if no match is found.
+     */
     fun of(arch: String?): Arch {
       return values().firstOrNull { it.arch == arch } ?: ALL
     }

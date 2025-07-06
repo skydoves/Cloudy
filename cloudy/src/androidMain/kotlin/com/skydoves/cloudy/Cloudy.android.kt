@@ -49,6 +49,16 @@ import kotlinx.coroutines.launch
  * @param onStateChanged Callback that receives updates about the blur processing state.
  * @return Modified Modifier with blur effect applied.
  */
+/**
+ * Applies a blur effect to the composable using a native iterative blur algorithm.
+ *
+ * If `enabled` is false, the modifier is not applied. In Android Studio preview mode on Android 12+, the platform's native blur is used for inspection. Otherwise, the modifier captures the composable's content, applies a blur with the specified `radius`, and reports processing state changes via `onStateChanged`.
+ *
+ * @param radius The blur radius in pixels. Must be non-negative.
+ * @param enabled Whether the blur effect is applied.
+ * @param onStateChanged Callback invoked with updates about the blur processing state.
+ * @return The modified [Modifier] with the blur effect applied if enabled.
+ */
 @Composable
 public actual fun Modifier.cloudy(
   radius: Int,
@@ -87,6 +97,11 @@ private data class CloudyModifierNodeElement(
     onStateChanged = onStateChanged
   )
 
+  /**
+   * Updates the blur radius of the given [CloudyModifierNode] to match the current value.
+   *
+   * @param node The modifier node whose blur radius will be updated.
+   */
   override fun update(node: CloudyModifierNode) {
     node.radius = radius
   }
@@ -106,6 +121,11 @@ private class CloudyModifierNode(
 
   private var cachedOutput: PlatformBitmap? by mutableStateOf(null)
 
+  /**
+   * Captures the composable's content, applies an asynchronous native iterative blur, and draws the blurred result.
+   *
+   * Notifies the blur processing state via the `onStateChanged` callback, including loading, success with the blurred bitmap, or error states. Caches the output bitmap for performance and manages resource cleanup after processing.
+   */
   override fun ContentDrawScope.draw() {
     val graphicsLayer = requireGraphicsContext().createGraphicsLayer()
 
