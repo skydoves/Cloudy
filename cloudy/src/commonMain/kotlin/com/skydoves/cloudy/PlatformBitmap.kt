@@ -40,11 +40,15 @@ public expect class PlatformBitmap {
 }
 
 /**
- * Creates a compatible bitmap with the same dimensions and configuration.
+ * Creates and returns a new bitmap instance with the same dimensions and configuration as this bitmap.
+ *
+ * @return A new compatible bitmap.
  */
 public expect fun PlatformBitmap.createCompatible(): PlatformBitmap
 
 /**
- * Disposes/recycles the bitmap to free up memory.
+ * Releases resources associated with this bitmap, freeing memory used by its pixel data.
+ *
+ * After calling this function, the bitmap should not be used.
  */
 public expect fun PlatformBitmap.dispose()

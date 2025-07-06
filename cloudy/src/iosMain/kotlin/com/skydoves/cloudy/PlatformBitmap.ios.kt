@@ -56,7 +56,11 @@ public actual class PlatformBitmap(
 }
 
 /**
- * Creates a compatible iOS image with the same dimensions.
+ * Creates a new `PlatformBitmap` with the same dimensions and scale as the original image.
+ *
+ * If image creation fails, returns a `PlatformBitmap` wrapping the original image.
+ *
+ * @return A new `PlatformBitmap` instance compatible in size and scale with the original.
  */
 public actual fun PlatformBitmap.createCompatible(): PlatformBitmap {
   val size = CGSizeMake(width.toDouble(), height.toDouble())
@@ -68,40 +72,39 @@ public actual fun PlatformBitmap.createCompatible(): PlatformBitmap {
 }
 
 /**
- * Disposes the iOS image. In iOS, this is mostly a no-op as ARC handles memory management.
+ * Releases resources associated with this bitmap if necessary.
+ *
+ * On iOS, this function performs no action since memory management is handled automatically by ARC. Present for cross-platform API consistency.
  */
 public actual fun PlatformBitmap.dispose() {
   // iOS uses ARC for memory management, so we don't need to manually dispose
   // This method is kept for API consistency across platforms
 }
 
-/**
- * Converts UIImage to [PlatformBitmap].
+/****
+ * Wraps this `UIImage` in a `PlatformBitmap`.
+ *
+ * @return A `PlatformBitmap` containing the current `UIImage`.
  */
 public fun UIImage.toPlatformBitmap(): PlatformBitmap = PlatformBitmap(this)
 
 /**
- * Converts [PlatformBitmap] to UIImage.
+ * Returns the underlying UIImage associated with this PlatformBitmap.
+ *
+ * @return The native UIImage instance wrapped by this PlatformBitmap.
  */
 public fun PlatformBitmap.toUIImage(): UIImage = image
 
 /**
- * Converts Compose [ImageBitmap] to iOS [UIImage].
+ * Converts a Compose [ImageBitmap] to an iOS [UIImage].
  *
- * ⚠️ IMPORTANT: This is currently a placeholder implementation that creates a representative
- * image based on sampled pixels, not a pixel-perfect conversion. For production use,
- * implement proper pixel data extraction using native Swift/Objective-C helpers.
+ * This function generates a representative UIImage by sampling color data from the center pixel of the [ImageBitmap]
+ * and filling a new image context with that color, overlaying a subtle texture pattern. It does not perform a pixel-perfect
+ * conversion; the resulting image is an approximation and does not preserve the original bitmap's content.
  *
- * Current limitations:
- * - Does not extract actual pixel data from Skia bitmap
- * - Creates pattern-based approximation instead of real content
- * - May cause incorrect blur results as the actual image content is not preserved
+ * If an error occurs during conversion, a basic gray placeholder UIImage is returned.
  *
- * Production TODO: Implement native helpers that can:
- * - Extract raw pixel data from Skia bitmap using proper color space conversion
- * - Handle different pixel formats (RGBA, BGRA, etc.) correctly
- * - Support HDR and wide color gamut images
- * - Optimize memory usage for large images
+ * @return A [UIImage] approximating the [ImageBitmap], or a placeholder if conversion fails.
  */
 public fun ImageBitmap.toUIImage(): UIImage? {
   return try {
@@ -185,22 +188,15 @@ public fun ImageBitmap.toUIImage(): UIImage? {
 }
 
 /**
- * Converts iOS [UIImage] to Compose [ImageBitmap].
+ * Converts a `UIImage` to a Compose `ImageBitmap` using a synthetic gradient pattern.
  *
- * ⚠️ IMPORTANT: This is currently a placeholder implementation that generates a synthetic
- * gradient pattern instead of extracting actual CGImage pixels. For production use,
- * implement proper pixel data extraction using native Swift/Objective-C helpers.
+ * This placeholder implementation does not extract actual pixel data from the `UIImage`.
+ * Instead, it generates a gradient-based approximation to represent the image content.
+ * Returns `null` if the image dimensions are invalid or if an error occurs.
  *
- * Current limitations:
- * - Does not extract actual pixel data from CGImage
- * - Creates gradient-based approximation instead of real content
- * - Will cause incorrect blur results as the actual image content is not preserved
+ * @return An `ImageBitmap` approximating the `UIImage`, or `null` if conversion fails.
  *
- * Production TODO: Implement native helpers that can:
- * - Extract CGImage pixel data efficiently using CGDataProviderCopyData, CGImageGetBytesPerRow
- * - Convert color spaces correctly (sRGB, Display P3, etc.)
- * - Handle different bit depths and alpha channels
- * - Process large images with memory optimization
+ * @note For accurate image conversion, implement native helpers to extract pixel data and handle color spaces.
  */
 public fun UIImage.asImageBitmap(): ImageBitmap? {
   return try {
@@ -260,7 +256,13 @@ public fun UIImage.asImageBitmap(): ImageBitmap? {
 }
 
 /**
- * Creates a basic placeholder UIImage with specified dimensions.
+ * Generates a simple semi-transparent gray placeholder UIImage of the given width and height.
+ *
+ * Returns null if the specified dimensions are not positive.
+ *
+ * @param width The width of the placeholder image in pixels.
+ * @param height The height of the placeholder image in pixels.
+ * @return A placeholder UIImage, or null if dimensions are invalid.
  */
 private fun createBasicPlaceholderUIImage(width: Int, height: Int): UIImage? {
   if (width <= 0 || height <= 0) return null

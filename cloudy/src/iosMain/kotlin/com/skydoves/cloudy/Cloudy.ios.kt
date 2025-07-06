@@ -49,6 +49,15 @@ import platform.UIKit.UIImage
  * @param onStateChanged Callback that receives updates about the blur processing state.
  * @return Modified Modifier with blur effect applied.
  */
+/**
+ * Applies a Gaussian blur effect to the composable content using Core Image when enabled.
+ *
+ * @param radius The blur radius in points. Must be non-negative.
+ * @param enabled If false, no blur is applied and the modifier is unchanged.
+ * @param onStateChanged Callback invoked with the current blur processing state.
+ * @return The modifier with the blur effect applied if enabled; otherwise, the original modifier.
+ * @throws IllegalArgumentException if radius is negative.
+ */
 @Composable
 public actual fun Modifier.cloudy(
   @IntRange(from = 0) radius: Int,
@@ -72,16 +81,29 @@ private data class CloudyModifierNodeElement(
   val onStateChanged: (CloudyState) -> Unit = {}
 ) : ModifierNodeElement<CloudyModifierNode>() {
 
+  /**
+   * Sets up inspectable properties for the "cloudy" modifier, exposing the blur radius for inspection tools.
+   */
   override fun InspectorInfo.inspectableProperties() {
     name = "cloudy"
     properties["cloudy"] = radius
   }
 
+  /**
+   * Creates a new instance of `CloudyModifierNode` with the specified blur radius and state change callback.
+   *
+   * @return A `CloudyModifierNode` configured with the current radius and callback.
+   */
   override fun create(): CloudyModifierNode = CloudyModifierNode(
     radius = radius,
     onStateChanged = onStateChanged
   )
 
+  /**
+   * Updates the blur radius of the given [CloudyModifierNode] to match the current value.
+   *
+   * @param node The modifier node whose blur radius will be updated.
+   */
   override fun update(node: CloudyModifierNode) {
     node.radius = radius
   }
@@ -96,6 +118,12 @@ private class CloudyModifierNode(
   private val onStateChanged: (CloudyState) -> Unit = {}
 ) : DrawModifierNode, Modifier.Node() {
 
+  /**
+   * Captures the composable content, draws it, and asynchronously applies a blur effect using Core Image.
+   *
+   * Notifies the blur processing state via the `onStateChanged` callback, including loading, success with the blurred bitmap, or error states.
+   * Ensures proper graphics layer management and lifecycle-aware coroutine usage.
+   */
   override fun ContentDrawScope.draw() {
     val graphicsLayer = requireGraphicsContext().createGraphicsLayer()
 
@@ -136,12 +164,14 @@ private class CloudyModifierNode(
 }
 
 /**
- * Creates a blurred bitmap from actual composable content using Core Image.
- * * This function takes the captured content from a graphics layer and applies
- * Gaussian blur using Core Image filters for optimal performance on iOS.
- * * @param contentBitmap The actual content to blur, captured from graphics layer.
- * @param radius The blur radius to apply to the image.
- * @return A PlatformBitmap containing the blurred result, or null if the operation fails.
+ * Generates a blurred bitmap from the provided composable content using Core Image Gaussian blur.
+ *
+ * Converts the given `ImageBitmap` to a `UIImage`, applies a Gaussian blur with the specified radius,
+ * and returns the resulting blurred image as a `PlatformBitmap`. Returns null if any step fails.
+ *
+ * @param contentBitmap The composable content to blur.
+ * @param radius The blur radius to apply.
+ * @return The blurred bitmap, or null if the blur operation fails.
  */
 private suspend fun createBlurredBitmapFromContent(contentBitmap: ImageBitmap, radius: Float): PlatformBitmap? {
   return withContext(Dispatchers.Default) {
@@ -162,13 +192,14 @@ private suspend fun createBlurredBitmapFromContent(contentBitmap: ImageBitmap, r
 }
 
 /**
- * Applies Gaussian blur to UIImage using Core Image filters.
- * * This function converts the input UIImage to CIImage, applies a CIGaussianBlur filter
- * with the specified radius, and converts the result back to UIImage. Core Image
- * provides hardware-accelerated image processing on iOS devices.
- * * @param image The source UIImage to blur.
- * @param radius The blur radius for the Gaussian blur filter.
- * @return The blurred UIImage, or null if the blur operation fails.
+ * Applies a Gaussian blur to the given UIImage using Core Image.
+ *
+ * Converts the input image to a CIImage, applies a CIGaussianBlur filter with the specified radius,
+ * and returns the resulting blurred UIImage. Returns null if the blur operation fails at any step.
+ *
+ * @param image The UIImage to blur.
+ * @param radius The blur radius to use for the Gaussian blur filter.
+ * @return The blurred UIImage, or null if the operation fails.
  */
 private fun applyGaussianBlur(image: UIImage, radius: Float): UIImage? {
   return try {

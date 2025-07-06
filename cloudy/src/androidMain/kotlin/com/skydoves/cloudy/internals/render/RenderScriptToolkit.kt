@@ -259,6 +259,15 @@ internal class Rgba3dArray(val values: ByteArray, val sizeX: Int, val sizeY: Int
     }
   }
 
+  /**
+   * Calculates the starting index in the underlying byte array for the RGBA vector at the specified (x, y, z) coordinates.
+   *
+   * @param x The x-coordinate within the 3D array.
+   * @param y The y-coordinate within the 3D array.
+   * @param z The z-coordinate within the 3D array.
+   * @return The index of the first byte of the RGBA vector at the given coordinates.
+   * @throws IllegalArgumentException if any coordinate is out of bounds.
+   */
   private fun indexOfVector(x: Int, y: Int, z: Int): Int {
     require(x in 0 until sizeX)
     require(y in 0 until sizeY)
@@ -268,11 +277,15 @@ internal class Rgba3dArray(val values: ByteArray, val sizeX: Int, val sizeY: Int
 }
 
 /**
- * Validates a bitmap for use with RenderScript operations.
- * @param function The name of the function calling this validation (for error messages).
+ * Ensures that the provided bitmap is compatible with RenderScriptToolkit operations.
+ *
+ * Validates that the bitmap uses a supported configuration (ARGB_8888, or ALPHA_8 if allowed)
+ * and that its row stride matches the expected value for its width and pixel format.
+ *
+ * @param function The name of the calling function, used in error messages.
  * @param inputBitmap The bitmap to validate.
- * @param alphaAllowed Whether ALPHA_8 bitmaps are allowed (default: true).
- * @throws IllegalArgumentException if the bitmap configuration is not supported.
+ * @param alphaAllowed If true, allows ALPHA_8 bitmaps in addition to ARGB_8888.
+ * @throws IllegalArgumentException if the bitmap configuration or row stride is invalid.
  */
 internal fun validateBitmap(
   function: String,
@@ -300,20 +313,18 @@ internal fun validateBitmap(
 }
 
 /**
- * Creates a new bitmap with the same dimensions and configuration as the input bitmap.
- * @param inputBitmap The source bitmap to copy configuration from.
- * @return A new compatible bitmap with the same dimensions and config.
- */
+   * Creates a new bitmap with the same width, height, and configuration as the input bitmap.
+   *
+   * @param inputBitmap The bitmap whose dimensions and configuration are to be matched.
+   * @return A new bitmap instance compatible with the input bitmap.
+   */
 internal fun createCompatibleBitmap(inputBitmap: Bitmap) =
   Bitmap.createBitmap(inputBitmap.width, inputBitmap.height, inputBitmap.config!!)
 
 /**
- * Validates the restriction range for RenderScript operations.
- * @param tag The operation name (for error messages).
- * @param sizeX The width of the data.
- * @param sizeY The height of the data.
- * @param restriction The optional restriction range to validate.
- * @throws IllegalArgumentException if the restriction is invalid.
+ * Validates that a given restriction range is within the bounds of the specified data dimensions.
+ *
+ * Throws an IllegalArgumentException if the restriction is out of bounds or if the start indices are not less than the end indices.
  */
 internal fun validateRestriction(
   tag: String,
@@ -337,10 +348,13 @@ internal fun validateRestriction(
 }
 
 /**
- * Returns the number of bytes per pixel for the given bitmap configuration.
- * @param bitmap The bitmap to check.
- * @return 4 for ARGB_8888, 1 for ALPHA_8.
- * @throws IllegalArgumentException for unsupported bitmap configurations.
+ * Determines the number of bytes per pixel for a supported bitmap configuration.
+ *
+ * Returns 4 for ARGB_8888 and 1 for ALPHA_8 bitmap configs.
+ *
+ * @param bitmap The bitmap whose pixel size is to be determined.
+ * @return The number of bytes per pixel.
+ * @throws IllegalArgumentException If the bitmap configuration is not ARGB_8888 or ALPHA_8.
  */
 internal fun vectorSize(bitmap: Bitmap): Int {
   return when (bitmap.config) {
@@ -353,14 +367,14 @@ internal fun vectorSize(bitmap: Bitmap): Int {
 }
 
 /**
- * Applies iterative blur to handle large blur radii by breaking them into multiple passes.
- * * Since RenderScript blur is limited to radius 25, this function performs multiple blur
- * operations to achieve larger blur effects. The radius is divided into chunks of 25
- * with a remainder applied in the final pass.
- * * @param androidBitmap The source bitmap to blur.
- * @param outputBitmap The target bitmap to write the result.
- * @param radius The desired blur radius (can exceed 25).
- * @return A Deferred that resolves to the blurred bitmap or null if failed.
+ * Performs Gaussian blur on a bitmap with a radius greater than 25 by applying multiple blur passes asynchronously.
+ *
+ * The blur operation is split into several passes of radius 25 and a final pass for any remainder, as the underlying blur implementation supports a maximum radius of 25 per pass.
+ *
+ * @param androidBitmap The source bitmap to blur.
+ * @param outputBitmap The bitmap where the blurred result is written.
+ * @param radius The total blur radius to achieve.
+ * @return A Deferred resolving to the blurred bitmap, or null if the operation fails.
  */
 internal fun CoroutineScope.iterativeBlur(
   androidBitmap: Bitmap,
