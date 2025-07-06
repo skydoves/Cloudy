@@ -13,9 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@file:OptIn(ExperimentalRoborazziApi::class)
 
-import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
 import com.skydoves.cloudy.Configuration
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
 import org.gradle.api.tasks.testing.logging.TestLogEvent.FAILED
@@ -27,7 +25,7 @@ plugins {
   id(libs.plugins.android.application.get().pluginId)
   id(libs.plugins.kotlin.android.get().pluginId)
   id(libs.plugins.compose.compiler.get().pluginId)
-  id(libs.plugins.roborazzi.get().pluginId)
+  id(libs.plugins.dropshots.get().pluginId)
 }
 
 android {
@@ -39,6 +37,10 @@ android {
     targetSdk = Configuration.targetSdk
     versionCode = Configuration.versionCode
     versionName = Configuration.versionName
+
+    // Dropshots test runner 설정
+    testInstrumentationRunner = "com.dropbox.dropshots.ThresholdValidator"
+    testInstrumentationRunnerArguments["dropshots_threshold"] = "0.15"
   }
 
   buildFeatures {
@@ -46,7 +48,12 @@ android {
   }
 
   packaging {
-    jniLibs.pickFirsts.add("lib/*/librenderscript-toolkit.so")
+    jniLibs {
+      pickFirsts.add("lib/*/librenderscript-toolkit.so")
+    }
+    resources {
+      excludes.add("**/librenderscript-toolkit.so")
+    }
   }
 
   buildTypes {
@@ -64,10 +71,6 @@ android {
   testOptions {
     unitTests {
       all {
-        it.systemProperties["robolectric.graphicsMode"] = "NATIVE"
-        it.systemProperties["robolectric.pixelCopyRenderMode"] = "hardware"
-        it.maxParallelForks = Runtime.getRuntime().availableProcessors()
-        it.maxParallelForks = Runtime.getRuntime().availableProcessors()
         it.testLogging {
           events.addAll(listOf(STARTED, PASSED, SKIPPED, FAILED))
           showCauses = true
@@ -75,6 +78,7 @@ android {
           exceptionFormat = FULL
         }
       }
+      isIncludeAndroidResources = true
     }
   }
 }
@@ -95,27 +99,20 @@ dependencies {
   implementation(libs.androidx.compose.runtime)
   implementation(libs.androidx.compose.constraintlayout)
 
-  // Test dependencies
-  testImplementation(libs.roborazzi)
-  testImplementation(libs.roborazzi.compose)
-  testImplementation(libs.roborazzi.junit)
-  testImplementation(libs.roborazzi.annotations)
-  testImplementation(libs.roborazzi.compose.preview.scanner.support)
-  testImplementation(libs.compose.preview.scanner.support)
+  // Test dependencies (JVM-based)
   testImplementation(libs.robolectric)
   testImplementation(libs.junit4)
   testImplementation(libs.androidx.test.junit)
   testImplementation(libs.androidx.compose.ui.test)
   testImplementation(libs.androidx.compose.ui.test.junit4)
-}
 
-roborazzi {
-  generateComposePreviewRobolectricTests {
-    enable.set(true)
-    packages.set(listOf("com.skydoves.cloudydemo"))
-    robolectricConfig = mapOf(
-      "sdk" to "[27, 30, 33]",
-      "qualifiers" to "RobolectricDeviceQualifiers.Pixel5",
-    )
-  }
+  // Android Instrumentation Test dependencies (Device-based for Native libraries)
+  androidTestImplementation(libs.dropshots)
+  androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+  androidTestImplementation(libs.androidx.ui.test.manifest)
+  androidTestImplementation(libs.androidx.junit)
+  androidTestImplementation(libs.androidx.espresso.core)
+  androidTestImplementation(libs.androidx.activity.compose)
+  androidTestImplementation(libs.androidx.test.runner)
+  androidTestImplementation(libs.androidx.test.rules)
 }
