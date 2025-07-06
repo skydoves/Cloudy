@@ -126,6 +126,8 @@ kotlin {
       implementation(libs.androidx.compose.ui.test)
       implementation(libs.androidx.compose.ui.test.junit4)
       implementation(libs.junit4)
+      implementation(libs.mockito)
+      implementation(libs.mockito.inline)
     }
 
     iosTest.dependencies {
