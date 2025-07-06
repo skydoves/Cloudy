@@ -18,11 +18,7 @@
 package com.skydoves.cloudy
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.layer.drawLayer
@@ -97,13 +93,12 @@ private class CloudyModifierNode(
   private val onStateChanged: (CloudyState) -> Unit = {}
 ) : DrawModifierNode, Modifier.Node() {
 
-  private var cachedBlurredBitmap: PlatformBitmap? by mutableStateOf(null)
-
   override fun ContentDrawScope.draw() {
     val graphicsLayer = requireGraphicsContext().createGraphicsLayer()
 
     // Record the actual composable content into the graphics layer
     graphicsLayer.record {
+      // Draw the contents of the composable into the graphics layer
       this@draw.drawContent()
     }
 
@@ -112,29 +107,20 @@ private class CloudyModifierNode(
 
     onStateChanged.invoke(CloudyState.Loading)
 
-    // Launch blur processing in background
-    // Note: We need to be careful about coroutine scope in Modifier.Node
-    kotlinx.coroutines.MainScope().launch {
+    // Use the node's coroutine scope for proper lifecycle management
+    coroutineScope.launch(Dispatchers.Main.immediate) {
       try {
         val contentBitmap = graphicsLayer.toImageBitmap()
 
         val blurredBitmap = withContext(Dispatchers.Default) {
           createBlurredBitmapFromContent(contentBitmap, radius.toFloat())
-        }
-
-        cachedBlurredBitmap = blurredBitmap
-
-        // Draw the blurred overlay
-        blurredBitmap?.let { blurred ->
-          val imageBitmap = blurred.toUIImage().asImageBitmap()
-
-          imageBitmap?.let { bitmap ->
-            drawImage(
-              bitmap,
-              topLeft = Offset.Zero
-            )
+        }?.let { bitmap ->
+          bitmap.also {
+            // Draw the blurred result
+            val imageBitmap = it.toUIImage().asImageBitmap()
+            imageBitmap?.let { bmp -> drawImage(bmp) }
           }
-        }
+        } ?: throw RuntimeException("Couldn't capture a bitmap from the composable tree")
 
         onStateChanged.invoke(CloudyState.Success(blurredBitmap))
       } catch (e: Exception) {
