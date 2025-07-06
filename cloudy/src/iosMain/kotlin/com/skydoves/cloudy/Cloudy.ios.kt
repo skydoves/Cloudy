@@ -13,6 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@file:OptIn(ExperimentalForeignApi::class)
+
 package com.skydoves.cloudy
 
 import androidx.compose.runtime.Composable
@@ -23,8 +25,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.graphics.asComposeImageBitmap
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import platform.CoreGraphics.CGRectMake
@@ -32,6 +37,7 @@ import platform.CoreGraphics.CGSizeMake
 import platform.CoreImage.CIContext
 import platform.CoreImage.CIFilter
 import platform.CoreImage.CIImage
+import platform.CoreImage.createCGImage
 import platform.CoreImage.filterWithName
 import platform.Foundation.setValue
 import platform.UIKit.UIGraphicsBeginImageContextWithOptions
@@ -59,12 +65,18 @@ public actual fun Modifier.cloudy(
     cachedBlurredBitmap?.let { blurred ->
       // Draw the cached blurred version
       drawIntoCanvas { canvas ->
-        val bitmap = blurred.image.asComposeImageBitmap()
-        canvas.drawImage(bitmap, topLeft = androidx.compose.ui.geometry.Offset.Zero)
+
+        val bitmap = blurred.image.toPlatformBitmap()
+
+        canvas.drawImage(
+          ImageBitmap(bitmap.width, bitmap.height),
+          topLeftOffset = Offset.Zero,
+          paint = Paint()
+        )
       }
     }
   }.also {
-    LaunchedEffect(radius, size) {
+    LaunchedEffect(radius) {
       if (!isProcessing) {
         isProcessing = true
         onStateChanged(CloudyState.Loading)
@@ -110,7 +122,7 @@ private suspend fun createBlurredBitmap(radius: Float): PlatformBitmap? {
       baseImage?.let { image ->
         applyGaussianBlur(image, radius)?.toPlatformBitmap()
       }
-    } catch (e: Exception) {
+    } catch (_: Exception) {
       null
     }
   }
@@ -137,7 +149,7 @@ private fun applyGaussianBlur(image: UIImage, radius: Float): UIImage? {
     val cgImage = context.createCGImage(outputImage, fromRect = outputImage.extent)
 
     cgImage?.let { UIImage.imageWithCGImage(it) }
-  } catch (e: Exception) {
+  } catch (_: Exception) {
     null
   }
 }
