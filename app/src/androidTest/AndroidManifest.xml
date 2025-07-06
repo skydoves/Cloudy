@@ -1,23 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     
-    <!-- 스크린샷 테스트를 위한 권한 -->
+    <!-- Permissions for screenshot testing -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     
-    <!-- Native 라이브러리 테스트를 위한 권한 -->
+    <!-- Permissions for native library testing -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     
     <application
         android:allowBackup="true"
         android:theme="@style/Theme.Material3.DayNight.NoActionBar">
         
-        <!-- Dropshots 테스트를 위한 Activity -->
+        <!-- Activity for Dropshots testing -->
         <activity
             android:name="androidx.activity.ComponentActivity"
             android:exported="false"
             android:theme="@style/Theme.Material3.DayNight.NoActionBar"
-            android:hardwareAccelerated="true" />
+            android:hardwareAccelerated="true"
+            tools:replace="android:exported,android:theme" />
             
     </application>
 </manifest>

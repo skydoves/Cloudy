@@ -37,7 +37,8 @@ print_error() {
 check_architecture() {
     print_status "Checking system architecture..."
     
-    local arch=$(uname -m)
+    local arch
+    arch=$(uname -m)
     if [[ "$arch" != "x86_64" ]]; then
         print_error "API 27 requires x86_64 architecture. Current architecture: $arch"
         print_status "Please run this script on an x86_64 system or use the main script for other API levels."
@@ -213,7 +214,7 @@ create_avd() {
     
     # Download SDK image (if needed)
     print_status "Downloading system image for API $API_LEVEL ($arch)..."
-    sdkmanager "$system_image"
+    yes | sdkmanager "$system_image"
     
     # Create AVD
     print_status "Creating AVD with system image..."

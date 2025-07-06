@@ -174,7 +174,8 @@ check_emulator() {
     
     # Check architecture for API 27
     if [[ $api_level -eq 27 ]]; then
-        local arch=$(uname -m)
+        local arch
+        arch=$(uname -m)
         if [[ "$arch" != "x86_64" ]]; then
             print_error "API 27 requires x86_64 architecture. Current architecture: $arch"
             print_status "Please use the dedicated API 27 script: ./scripts/run-screenshot-tests-api27.sh"
@@ -223,7 +224,7 @@ create_avd() {
     
     # Download SDK image (if needed)
     print_status "Downloading system image for API $api_level ($arch)..."
-    sdkmanager "$system_image"
+    yes | sdkmanager "$system_image"
     
     # Create AVD
     print_status "Creating AVD with system image..."
@@ -428,7 +429,13 @@ main() {
         
     else
         # Run specific API level only
-        if [[ " ${API_LEVELS[*]} " =~ ${SELECTED_API} ]]; then
+        contains() {
+            local needle=$1; shift
+            for item; do [[ "$item" == "$needle" ]] && return 0; done
+            return 1
+        }
+
+        if contains "$SELECTED_API" "${API_LEVELS[@]}"; then
             print_status "Running tests for API level $SELECTED_API"
             
             check_emulator $SELECTED_API

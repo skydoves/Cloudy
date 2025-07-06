@@ -38,7 +38,7 @@ android {
     versionCode = Configuration.versionCode
     versionName = Configuration.versionName
 
-    // Dropshots test runner 설정
+    // Dropshots test runner configuration
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     testInstrumentationRunnerArguments["dropshots_threshold"] = "0.15"
   }

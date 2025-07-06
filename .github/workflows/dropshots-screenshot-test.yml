@@ -31,9 +31,133 @@ jobs:
               - 'app/src/main/res/**'
               - 'app/src/androidTest/**/*.kt'
 
+  # Prebuilt AVD creation Job (manual execution or periodic execution)
+  create-prebuilt-avd:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [27, 30, 33]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: "temurin"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v2
+
+      - name: Accept all Android SDK licenses
+        run: yes | sdkmanager --licenses > /dev/null
+
+      - name: Create AVD for API ${{ matrix.api-level }}
+        run: |
+          # API 27 uses x86_64, others auto-detect architecture
+          if [[ ${{ matrix.api-level }} -eq 27 ]]; then
+            arch="x86_64"
+          else
+            if [[ "$(uname -m)" == "arm64" ]]; then
+              arch="arm64-v8a"
+            else
+              arch="x86_64"
+            fi
+          fi
+
+          system_image="system-images;android-${{ matrix.api-level }};default;${arch}"
+
+          echo "Creating AVD for API ${{ matrix.api-level }} with arch ${arch}"
+          yes | sdkmanager "$system_image"
+
+          avd_name="test_avd_${{ matrix.api-level }}"
+          echo "no" | avdmanager create avd \
+            -n "$avd_name" \
+            -k "$system_image" \
+            -d "pixel_xl" \
+            --force
+
+          echo "AVD $avd_name created successfully"
+
+      - name: Boot AVD and create snapshot
+        run: |
+          avd_name="test_avd_${{ matrix.api-level }}"
+
+          # Start emulator
+          emulator -avd "$avd_name" \
+            -no-window \
+            -gpu swiftshader_indirect \
+            -noaudio \
+            -no-boot-anim \
+            -camera-back none \
+            -memory 2048 \
+            -partition-size 2048 \
+            -accel off \
+            -no-snapshot &
+
+          emulator_pid=$!
+          echo "Emulator started with PID: $emulator_pid"
+
+          # Wait for boot
+          echo "Waiting for emulator to boot..."
+          boot_timeout=600
+          elapsed=0
+
+          while [[ $elapsed -lt $boot_timeout ]]; do
+            if adb shell getprop sys.boot_completed 2>/dev/null | grep -q "1"; then
+              break
+            fi
+            sleep 5
+            elapsed=$((elapsed + 5))
+            if [[ $((elapsed % 60)) -eq 0 ]]; then
+              echo "Still waiting for boot... (${elapsed}s elapsed)"
+            fi
+          done
+
+          if [[ $elapsed -ge $boot_timeout ]]; then
+            echo "Emulator boot timeout after ${boot_timeout}s"
+            exit 1
+          fi
+
+          echo "Emulator booted in ${elapsed}s"
+          sleep 10
+
+          # Setup screen
+          adb shell input keyevent 82
+          adb shell wm size 1080x1920
+          adb shell wm density 440
+
+          # Create snapshot
+          echo "Creating snapshot..."
+          adb emu avd snapshot save clean_boot
+
+          # Stop emulator
+          adb emu kill
+          sleep 5
+
+          echo "Snapshot created successfully"
+
+      - name: Create prebuilt AVD archive
+        run: |
+          # Create archive with AVD and snapshot
+          cd ~/.android
+          tar czf avd-android-${{ matrix.api-level }}.tar.gz avd/
+          echo "Archive size: $(du -h avd-android-${{ matrix.api-level }}.tar.gz | cut -f1)"
+
+      - name: Upload prebuilt AVD artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: prebuilt-avd-android-${{ matrix.api-level }}
+          path: ~/.android/avd-android-${{ matrix.api-level }}.tar.gz
+          retention-days: 30
+          compression-level: 9
+
   screenshot-tests-api27:
-    needs: changes
-    if: needs.changes.outputs.ui-changed == 'true'
+    needs: [changes]
+    if: always() && (needs.changes.outputs.ui-changed == 'true' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -56,18 +180,34 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      # AVD snapshot caching to reduce boot time
-      - name: AVD Cache
-        uses: actions/cache@v4
-        id: avd-cache
+      # Download prebuilt AVD for API 27
+      - name: Download prebuilt AVD for API 27
+        uses: actions/download-artifact@v4
         with:
-          path: |
-            ~/.android/avd/*
-            ~/.android/adb*
-          key: avd-dropshots-27-${{ runner.os }}-v2
+          name: prebuilt-avd-android-27
+          path: prebuilt-avd
+        continue-on-error: true
 
-      - name: Create AVD and generate snapshot for caching
-        if: steps.avd-cache.outputs.cache-hit != 'true'
+      - name: Extract prebuilt AVD for API 27
+        run: |
+          if [ -f "prebuilt-avd/avd-android-27.tar.gz" ]; then
+            echo "Extracting prebuilt AVD for API 27..."
+            tar xzf prebuilt-avd/avd-android-27.tar.gz -C ~/.android/
+            echo "Prebuilt AVD extracted successfully"
+          else
+            echo "Prebuilt AVD not found, will create new AVD"
+          fi
+
+      - name: Setup Android SDK (if needed)
+        if: hashFiles('prebuilt-avd/avd-android-27.tar.gz') == ''
+        uses: android-actions/setup-android@v2
+
+      - name: Accept all Android SDK licenses (if needed)
+        if: hashFiles('prebuilt-avd/avd-android-27.tar.gz') == ''
+        run: yes | sdkmanager --licenses > /dev/null
+
+      - name: Create AVD (if prebuilt not available)
+        if: hashFiles('prebuilt-avd/avd-android-27.tar.gz') == ''
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 27
@@ -76,7 +216,7 @@ jobs:
           ram-size: 2048M
           heap-size: 512M
           force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -partition-size 2048 -accel off -no-snapshot -memory 2048
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -partition-size 2048 -accel off -snapshot clean_boot -memory 2048
           disable-animations: true
           emulator-boot-timeout: 1200
           script: echo "Generated AVD snapshot for caching."
@@ -91,35 +231,10 @@ jobs:
           ram-size: 2048M
           heap-size: 512M
           force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -partition-size 2048 -accel off -no-snapshot -memory 2048
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -partition-size 2048 -accel off -snapshot clean_boot -memory 2048
           disable-animations: true
           emulator-boot-timeout: 1200
           script: |
-            # Wait for emulator to fully boot with longer timeout and better error handling
-            echo "Waiting for emulator to boot..."
-            boot_timeout=600  # 10 minutes timeout
-            elapsed=0
-
-            while [[ $elapsed -lt $boot_timeout ]]; do
-              if adb shell getprop sys.boot_completed 2>/dev/null | grep -q "1"; then
-                break
-              fi
-              sleep 5
-              elapsed=$((elapsed + 5))
-              if [[ $((elapsed % 60)) -eq 0 ]]; then
-                echo "Still waiting for boot... (${elapsed}s elapsed)"
-              fi
-            done
-
-            if [[ $elapsed -ge $boot_timeout ]]; then
-              echo "Emulator boot timeout after ${boot_timeout}s"
-              exit 1
-            fi
-
-            echo "Emulator booted in ${elapsed}s"
-            sleep 10
-            adb shell input keyevent 82
-
             # Set fixed screen resolution (for screenshot consistency)
             adb shell wm size 1080x1920
             adb shell wm density 440
@@ -127,7 +242,7 @@ jobs:
             echo "Emulator is ready. Starting Dropshots tests..."
 
             # Execute Dropshots tests with proper command formatting
-            ./gradlew :app:connectedDebugAndroidTest --no-daemon --no-build-cache -Pandroid.testInstrumentationRunnerArguments.class=com.skydoves.cloudydemo.MainTest || echo "Tests completed with issues"
+            ./gradlew :app:connectedDebugAndroidTest --no-daemon --no-build-cache -Pandroid.testInstrumentationRunnerArguments.class=com.skydoves.cloudydemo.MainTest
 
             # Check screenshot directory
             adb shell find /sdcard -name "*.png" -type f 2>/dev/null || echo "No PNG files found"
@@ -172,15 +287,16 @@ jobs:
             app/build/reports/androidTests/
             app/build/outputs/androidTest-results/
           retention-days: 3
+          if-no-files-found: ignore
 
   screenshot-tests:
-    needs: changes
-    if: needs.changes.outputs.ui-changed == 'true'
+    needs: [changes]
+    if: always() && (needs.changes.outputs.ui-changed == 'true' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        api-level: [30, 33] # API 27은 x86_64 환경에서만 실행하므로 제외
+        api-level: [30, 33] # API 27 excluded as it only runs on x86_64 environment
 
     steps:
       - name: Checkout code
@@ -203,18 +319,34 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      # AVD snapshot caching to reduce boot time
-      - name: AVD Cache
-        uses: actions/cache@v4
-        id: avd-cache
+      # Download prebuilt AVD for API ${{ matrix.api-level }}
+      - name: Download prebuilt AVD for API ${{ matrix.api-level }}
+        uses: actions/download-artifact@v4
         with:
-          path: |
-            ~/.android/avd/*
-            ~/.android/adb*
-          key: avd-dropshots-${{ matrix.api-level }}-${{ runner.os }}-v2
+          name: prebuilt-avd-android-${{ matrix.api-level }}
+          path: prebuilt-avd
+        continue-on-error: true
 
-      - name: Create AVD and generate snapshot for caching
-        if: steps.avd-cache.outputs.cache-hit != 'true'
+      - name: Extract prebuilt AVD for API ${{ matrix.api-level }}
+        run: |
+          if [ -f "prebuilt-avd/avd-android-${{ matrix.api-level }}.tar.gz" ]; then
+            echo "Extracting prebuilt AVD for API ${{ matrix.api-level }}..."
+            tar xzf prebuilt-avd/avd-android-${{ matrix.api-level }}.tar.gz -C ~/.android/
+            echo "Prebuilt AVD extracted successfully"
+          else
+            echo "Prebuilt AVD not found, will create new AVD"
+          fi
+
+      - name: Setup Android SDK (if needed)
+        if: hashFiles('prebuilt-avd/avd-android-${{ matrix.api-level }}.tar.gz') == ''
+        uses: android-actions/setup-android@v2
+
+      - name: Accept all Android SDK licenses (if needed)
+        if: hashFiles('prebuilt-avd/avd-android-${{ matrix.api-level }}.tar.gz') == ''
+        run: yes | sdkmanager --licenses > /dev/null
+
+      - name: Create AVD (if prebuilt not available)
+        if: hashFiles('prebuilt-avd/avd-android-${{ matrix.api-level }}.tar.gz') == ''
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.api-level }}
@@ -242,31 +374,6 @@ jobs:
           disable-animations: true
           emulator-boot-timeout: 1200
           script: |
-            # Wait for emulator to fully boot with longer timeout and better error handling
-            echo "Waiting for emulator to boot..."
-            boot_timeout=600  # 10 minutes timeout
-            elapsed=0
-
-            while [[ $elapsed -lt $boot_timeout ]]; do
-              if adb shell getprop sys.boot_completed 2>/dev/null | grep -q "1"; then
-                break
-              fi
-              sleep 5
-              elapsed=$((elapsed + 5))
-              if [[ $((elapsed % 60)) -eq 0 ]]; then
-                echo "Still waiting for boot... (${elapsed}s elapsed)"
-              fi
-            done
-
-            if [[ $elapsed -ge $boot_timeout ]]; then
-              echo "Emulator boot timeout after ${boot_timeout}s"
-              exit 1
-            fi
-
-            echo "Emulator booted in ${elapsed}s"
-            sleep 10
-            adb shell input keyevent 82
-
             # Set fixed screen resolution (for screenshot consistency)
             adb shell wm size 1080x1920
             adb shell wm density 440
@@ -274,7 +381,7 @@ jobs:
             echo "Emulator is ready. Starting Dropshots tests..."
 
             # Execute Dropshots tests with proper command formatting
-            ./gradlew :app:connectedDebugAndroidTest --no-daemon --no-build-cache -Pandroid.testInstrumentationRunnerArguments.class=com.skydoves.cloudydemo.MainTest || echo "Tests completed with issues"
+            ./gradlew :app:connectedDebugAndroidTest --no-daemon --no-build-cache -Pandroid.testInstrumentationRunnerArguments.class=com.skydoves.cloudydemo.MainTest
 
             # Check screenshot directory
             adb shell find /sdcard -name "*.png" -type f 2>/dev/null || echo "No PNG files found"
@@ -319,6 +426,7 @@ jobs:
             app/build/reports/androidTests/
             app/build/outputs/androidTest-results/
           retention-days: 3
+          if-no-files-found: ignore
 
   # Create integrated PR comment after all API levels complete
   create-pr-comment:
@@ -421,7 +529,7 @@ jobs:
             if (uploadedImages.length > 0) {
               const totalSize = uploadedImages.reduce((sum, img) => sum + img.size, 0);
               const formattedSize = (totalSize / 1024 / 1024).toFixed(2);
-              
+
               let commentBody = '## 📱 Cloudy Library Screenshot Test Results\n\n' +
                 '**🔧 Native RenderScript Toolkit Testing**\n' +
                 `**📊 Total Screenshots:** ${uploadedImages.length}\n` +
@@ -472,8 +580,8 @@ jobs:
                 issue_number: context.issue.number
               });
               
-              const existingComment = comments.find(comment => 
-                comment.body.includes('📱 Cloudy Library Screenshot Test Results') && 
+              const existingComment = comments.find(comment =>
+                comment.body.includes('📱 Cloudy Library Screenshot Test Results') &&
                 comment.user.type === 'Bot'
               );
               
