@@ -17,6 +17,7 @@
 
 package com.skydoves.cloudy
 
+import androidx.annotation.IntRange
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
@@ -50,10 +51,12 @@ import platform.UIKit.UIImage
  */
 @Composable
 public actual fun Modifier.cloudy(
-  radius: Int,
+  @IntRange(from = 0) radius: Int,
   enabled: Boolean,
   onStateChanged: (CloudyState) -> Unit
 ): Modifier {
+  require(radius >= 0) { "Blur radius must be non-negative, but was $radius" }
+
   if (!enabled) {
     return this
   }
@@ -134,7 +137,8 @@ private class CloudyModifierNode(
 
 /**
  * Creates a blurred bitmap from actual composable content using Core Image.
- * * This function takes the captured content from a graphics layer and applies * Gaussian blur using Core Image filters for optimal performance on iOS.
+ * * This function takes the captured content from a graphics layer and applies
+ * Gaussian blur using Core Image filters for optimal performance on iOS.
  * * @param contentBitmap The actual content to blur, captured from graphics layer.
  * @param radius The blur radius to apply to the image.
  * @return A PlatformBitmap containing the blurred result, or null if the operation fails.

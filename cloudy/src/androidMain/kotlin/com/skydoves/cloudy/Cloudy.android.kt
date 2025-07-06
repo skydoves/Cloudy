@@ -41,7 +41,7 @@ import kotlinx.coroutines.launch
  * This is the actual implementation for the expect function declared in commonMain.
  * * For Android 12+ devices in preview mode, it falls back to the platform's blur modifier.
  * For runtime execution, it uses a custom implementation with graphics layers and
- * RenderScript toolkit for optimal performance.
+ * native iterative blur processing for optimal performance.
  * * The implementation captures the composable content in a graphics layer, applies
  * iterative blur processing using native code, and overlays the result.
  * * @param radius The blur radius in pixels (1-25). Higher values create more blur but take longer to process.
@@ -55,6 +55,8 @@ public actual fun Modifier.cloudy(
   enabled: Boolean,
   onStateChanged: (CloudyState) -> Unit
 ): Modifier {
+  require(radius >= 0) { "Blur radius must be non-negative, but was $radius" }
+
   if (!enabled) {
     return this
   }
@@ -140,7 +142,7 @@ private class CloudyModifierNode(
           bitmap.toPlatformBitmap().also {
             drawImage(bitmap.asImageBitmap())
           }
-        } ?: throw RuntimeException("Couldn't capture a bitmap from the composable tree")
+        } ?: throw RuntimeException("Failed to capture bitmap from composable tree: blur processing returned null")
 
         onStateChanged.invoke(CloudyState.Success(blurredBitmap))
       } catch (e: Exception) {

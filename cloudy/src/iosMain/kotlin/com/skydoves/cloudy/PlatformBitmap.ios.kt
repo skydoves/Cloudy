@@ -88,16 +88,20 @@ public fun PlatformBitmap.toUIImage(): UIImage = image
 /**
  * Converts Compose [ImageBitmap] to iOS [UIImage].
  *
- * Current implementation: Creates a UIImage with accurate dimensions and enhanced visual representation.
+ * ⚠️ IMPORTANT: This is currently a placeholder implementation that creates a representative
+ * image based on sampled pixels, not a pixel-perfect conversion. For production use,
+ * implement proper pixel data extraction using native Swift/Objective-C helpers.
  *
- * Production TODO: For full pixel-perfect conversion, implement native Swift/Objective-C helpers that can:
+ * Current limitations:
+ * - Does not extract actual pixel data from Skia bitmap
+ * - Creates pattern-based approximation instead of real content
+ * - May cause incorrect blur results as the actual image content is not preserved
+ *
+ * Production TODO: Implement native helpers that can:
  * - Extract raw pixel data from Skia bitmap using proper color space conversion
  * - Handle different pixel formats (RGBA, BGRA, etc.) correctly
  * - Support HDR and wide color gamut images
  * - Optimize memory usage for large images
- *
- * The current approach provides a stable foundation while maintaining proper dimensions
- * and visual characteristics for the blur pipeline.
  */
 public fun ImageBitmap.toUIImage(): UIImage? {
   return try {
@@ -114,15 +118,15 @@ public fun ImageBitmap.toUIImage(): UIImage? {
       // Note: This is a simplified approach - full pixel extraction would require native interop
       val pixelMap = this.toPixelMap()
 
-      // Sample a few pixels to get representative colors using proper bit operations
+      // Sample a few pixels to get representative colors
       val sampleColor = if (width > 0 && height > 0) {
         val centerPixel = pixelMap[width / 2, height / 2]
 
-        // Extract ARGB components using infix functions
-        val alpha = (centerPixel.alpha.toInt() shr 24 and 0xFF) / 255.0
-        val red = (centerPixel.red.toInt() shr 16 and 0xFF) / 255.0
-        val green = (centerPixel.green.toInt() shr 8 and 0xFF) / 255.0
-        val blue = (centerPixel.blue.toInt() and 0xFF) / 255.0
+        // Extract normalized color components (already 0.0-1.0 range)
+        val alpha = centerPixel.alpha
+        val red = centerPixel.red
+        val green = centerPixel.green
+        val blue = centerPixel.blue
 
         arrayOf(red, green, blue, alpha)
       } else {
@@ -132,10 +136,10 @@ public fun ImageBitmap.toUIImage(): UIImage? {
       // Create a more representative image using the sampled color
       platform.CoreGraphics.CGContextSetRGBFillColor(
         ctx,
-        sampleColor[0],
-        sampleColor[1],
-        sampleColor[2],
-        sampleColor[3]
+        sampleColor[0].toDouble(),
+        sampleColor[1].toDouble(),
+        sampleColor[2].toDouble(),
+        sampleColor[3].toDouble()
       )
       platform.CoreGraphics.CGContextFillRect(
         ctx,
@@ -145,10 +149,10 @@ public fun ImageBitmap.toUIImage(): UIImage? {
       // Add subtle texture pattern to better represent content
       platform.CoreGraphics.CGContextSetRGBFillColor(
         ctx,
-        sampleColor[0] * 0.9,
-        sampleColor[1] * 0.9,
-        sampleColor[2] * 0.9,
-        sampleColor[3] * 0.5
+        sampleColor[0].toDouble() * 0.9,
+        sampleColor[1].toDouble() * 0.9,
+        sampleColor[2].toDouble() * 0.9,
+        sampleColor[3].toDouble() * 0.5
       )
 
       // Create a pattern that varies based on image characteristics
@@ -183,15 +187,20 @@ public fun ImageBitmap.toUIImage(): UIImage? {
 /**
  * Converts iOS [UIImage] to Compose [ImageBitmap].
  *
- * Current implementation: Creates an ImageBitmap with accurate dimensions and color approximation.
+ * ⚠️ IMPORTANT: This is currently a placeholder implementation that generates a synthetic
+ * gradient pattern instead of extracting actual CGImage pixels. For production use,
+ * implement proper pixel data extraction using native Swift/Objective-C helpers.
  *
- * Production TODO: For full pixel-perfect conversion, implement native Swift/Objective-C helpers that can:
- * - Extract CGImage pixel data efficiently
+ * Current limitations:
+ * - Does not extract actual pixel data from CGImage
+ * - Creates gradient-based approximation instead of real content
+ * - Will cause incorrect blur results as the actual image content is not preserved
+ *
+ * Production TODO: Implement native helpers that can:
+ * - Extract CGImage pixel data efficiently using CGDataProviderCopyData, CGImageGetBytesPerRow
  * - Convert color spaces correctly (sRGB, Display P3, etc.)
  * - Handle different bit depths and alpha channels
  * - Process large images with memory optimization
- *
- * The current approach maintains compatibility while providing reasonable visual results.
  */
 public fun UIImage.asImageBitmap(): ImageBitmap? {
   return try {
@@ -231,14 +240,15 @@ public fun UIImage.asImageBitmap(): ImageBitmap? {
       (alpha shl 24) or (finalRed shl 16) or (finalGreen shl 8) or finalBlue
     }
 
-    // Convert to ByteArray for Skia using infix bit operations
+    // Convert to ByteArray for Skia - iOS Skia expects BGRA format
     val byteArray = ByteArray(pixels.size * 4)
     for (i in pixels.indices) {
       val pixel = pixels[i]
       val baseIndex = i * 4
-      byteArray[baseIndex] = (pixel shr 16 and 0xFF).toByte() // Red
+      // Skia expects BGRA format on iOS
+      byteArray[baseIndex] = (pixel and 0xFF).toByte() // Blue
       byteArray[baseIndex + 1] = (pixel shr 8 and 0xFF).toByte() // Green
-      byteArray[baseIndex + 2] = (pixel and 0xFF).toByte() // Blue
+      byteArray[baseIndex + 2] = (pixel shr 16 and 0xFF).toByte() // Red
       byteArray[baseIndex + 3] = (pixel shr 24 and 0xFF).toByte() // Alpha
     }
 
