@@ -71,7 +71,7 @@ class MainTest {
     // Generic test that runs regardless of API level
     // Use timestamp to ensure unique filename
     val timestamp = System.currentTimeMillis()
-    captureCloudyMainScreen("generic_${timestamp}")
+    captureCloudyMainScreen("generic_$timestamp")
   }
 
   private fun captureCloudyMainScreen(apiSuffix: String) {
@@ -103,7 +103,7 @@ class MainTest {
   fun testCloudyBlurStates() {
     // Test different blur states by waiting for animation to complete
     // MainActivity already has blur animation, just capture at different times
-    
+
     // Wait for initial state (no blur)
     composeTestRule.waitForIdle()
     dropshots.assertSnapshot(
@@ -123,7 +123,7 @@ class MainTest {
   @Test
   fun testCloudyAnimationStates() {
     // MainActivity already has animation, just capture different states
-    
+
     // Initial state
     composeTestRule.waitForIdle()
     dropshots.assertSnapshot(
