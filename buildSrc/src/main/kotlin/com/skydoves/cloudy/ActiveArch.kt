@@ -11,7 +11,7 @@ enum class Arch(val arch: String?) {
 
   companion object {
     fun of(arch: String?): Arch {
-      return entries.firstOrNull { it.arch == arch } ?: ALL
+      return values().firstOrNull { it.arch == arch } ?: ALL
     }
   }
 }
