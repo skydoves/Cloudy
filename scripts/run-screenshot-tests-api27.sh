@@ -95,16 +95,30 @@ check_android_sdk() {
         exit 1
     fi
     
-    # Check if SDK tools exist
-    if [[ ! -f "$SDK_PATH/cmdline-tools/latest/bin/sdkmanager" ]]; then
-        print_error "sdkmanager not found at $SDK_PATH/cmdline-tools/latest/bin/sdkmanager"
+    # Check if SDK tools exist and find the latest version
+    local cmdline_tools_path=""
+    if [[ -d "$SDK_PATH/cmdline-tools/latest" ]]; then
+        cmdline_tools_path="$SDK_PATH/cmdline-tools/latest"
+    else
+        # Find the newest versioned directory
+        cmdline_tools_path=$(find "$SDK_PATH/cmdline-tools" -maxdepth 1 -type d -name "[0-9]*" | sort -V | tail -n 1)
+        if [[ -z "$cmdline_tools_path" ]]; then
+            print_error "No command-line tools found in $SDK_PATH/cmdline-tools"
+            print_status "Please install Android SDK Command-line Tools"
+            print_status "You can install it via Android Studio or download from Google"
+            exit 1
+        fi
+    fi
+    
+    if [[ ! -f "$cmdline_tools_path/bin/sdkmanager" ]]; then
+        print_error "sdkmanager not found at $cmdline_tools_path/bin/sdkmanager"
         print_status "Please install Android SDK Command-line Tools"
         print_status "You can install it via Android Studio or download from Google"
         exit 1
     fi
     
     # Add SDK tools to PATH
-    export PATH="$SDK_PATH/cmdline-tools/latest/bin:$SDK_PATH/emulator:$SDK_PATH/platform-tools:$PATH"
+    export PATH="$cmdline_tools_path/bin:$SDK_PATH/emulator:$SDK_PATH/platform-tools:$PATH"
     
     print_success "Android SDK environment verified"
 }

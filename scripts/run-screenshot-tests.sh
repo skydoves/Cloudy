@@ -18,6 +18,14 @@ NC='\033[0m' # No Color
 API_LEVELS=(27 30 33)
 SELECTED_API=${1:-"all"}
 
+# Helper function to check if an item exists in an array
+contains() {
+    local needle=$1; shift
+    for item; do [[ "$item" == "$needle" ]] && return 0; done
+    return 1
+}
+readonly -f contains
+
 print_status() {
     echo -e "${BLUE}[INFO]${NC} $1"
 }
@@ -144,7 +152,12 @@ check_system_requirements() {
         # Get page size and free pages, then calculate GB
         page_size=$(vm_stat | grep "page size" | awk '{print $8}')
         free_pages=$(vm_stat | awk '/Pages free/ {gsub(/\./, "", $3); print $3}')
-        available_memory=$(echo "scale=0; ($free_pages * $page_size) / 1024 / 1024 / 1024" | bc)
+        if command -v bc >/dev/null 2>&1; then
+          available_memory=$(echo "scale=0; ($free_pages * $page_size) / 1024 / 1024 / 1024" | bc)
+        else
+          # Fallback: assume 0 GB to trigger the low-memory warning
+          available_memory=0
+        fi
     fi
     
     if [[ $available_memory -lt 4 ]]; then
@@ -430,12 +443,6 @@ main() {
         
     else
         # Run specific API level only
-        contains() {
-            local needle=$1; shift
-            for item; do [[ "$item" == "$needle" ]] && return 0; done
-            return 1
-        }
-
         if contains "$SELECTED_API" "${API_LEVELS[@]}"; then
             print_status "Running tests for API level $SELECTED_API"
             
