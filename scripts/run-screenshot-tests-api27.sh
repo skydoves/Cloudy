@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Cloudy Library Screenshot Tests Runner
-# Test Native RenderScript Toolkit on actual emulators
+# Cloudy Library Screenshot Tests Runner for API 27
+# Test Native RenderScript Toolkit on x86_64 emulator only
 
 set -e
 
-echo "🔧 Starting Cloudy Library Screenshot Tests..."
+echo "🔧 Starting Cloudy Library Screenshot Tests for API 27..."
 
 # Color definitions
 RED='\033[0;31m'
@@ -14,9 +14,8 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# API level configuration
-API_LEVELS=(27 30 33)
-SELECTED_API=${1:-"all"}
+# API level configuration (API 27 only)
+API_LEVEL=27
 
 print_status() {
     echo -e "${BLUE}[INFO]${NC} $1"
@@ -32,6 +31,20 @@ print_warning() {
 
 print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
+}
+
+# Check if running on x86_64 architecture
+check_architecture() {
+    print_status "Checking system architecture..."
+    
+    local arch=$(uname -m)
+    if [[ "$arch" != "x86_64" ]]; then
+        print_error "API 27 requires x86_64 architecture. Current architecture: $arch"
+        print_status "Please run this script on an x86_64 system or use the main script for other API levels."
+        exit 1
+    fi
+    
+    print_success "x86_64 architecture confirmed"
 }
 
 # Comprehensive setup check
@@ -169,18 +182,7 @@ check_system_requirements() {
 
 # Check emulator status
 check_emulator() {
-    local api_level=$1
-    print_status "Checking emulator for API $api_level..."
-    
-    # Check architecture for API 27
-    if [[ $api_level -eq 27 ]]; then
-        local arch=$(uname -m)
-        if [[ "$arch" != "x86_64" ]]; then
-            print_error "API 27 requires x86_64 architecture. Current architecture: $arch"
-            print_status "Please use the dedicated API 27 script: ./scripts/run-screenshot-tests-api27.sh"
-            return 1
-        fi
-    fi
+    print_status "Checking emulator for API $API_LEVEL..."
     
     if ! command -v emulator &> /dev/null; then
         print_error "Android SDK emulator not found in PATH"
@@ -188,10 +190,10 @@ check_emulator() {
     fi
     
     # Check AVD list
-    local avd_name="test_avd_${api_level}"
+    local avd_name="test_avd_${API_LEVEL}"
     if ! emulator -list-avds | grep -q "$avd_name"; then
         print_warning "AVD $avd_name not found. Creating..."
-        create_avd $api_level $avd_name
+        create_avd $avd_name
     fi
     
     return 0
@@ -199,30 +201,18 @@ check_emulator() {
 
 # Create AVD
 create_avd() {
-    local api_level=$1
-    local avd_name=$2
+    local avd_name=$1
     
     print_status "Creating AVD: $avd_name"
     
-    # Detect architecture
-    local arch=""
-    if [[ "$(uname -m)" == "arm64" ]]; then
-        arch="arm64-v8a"
-    else
-        arch="x86_64"
-    fi
+    # Use x86_64 architecture for API 27
+    local arch="x86_64"
     
-    # Determine system image type based on API level and architecture
-    local system_image=""
-    if [[ $api_level -eq 27 ]]; then
-        system_image="system-images;android-${api_level};default;${arch}"
-    else
-        # Use default target for faster boot times on API 30 and 33
-        system_image="system-images;android-${api_level};default;${arch}"
-    fi
+    # Use default target for faster boot times
+    local system_image="system-images;android-${API_LEVEL};default;${arch}"
     
     # Download SDK image (if needed)
-    print_status "Downloading system image for API $api_level ($arch)..."
+    print_status "Downloading system image for API $API_LEVEL ($arch)..."
     sdkmanager "$system_image"
     
     # Create AVD
@@ -238,10 +228,9 @@ create_avd() {
 
 # Start emulator
 start_emulator() {
-    local api_level=$1
-    local avd_name="test_avd_${api_level}"
+    local avd_name="test_avd_${API_LEVEL}"
     
-    print_status "Starting emulator for API $api_level..."
+    print_status "Starting emulator for API $API_LEVEL..."
     
     # Check if emulator is already running
     if adb devices | grep -q "emulator"; then
@@ -250,30 +239,15 @@ start_emulator() {
         sleep 5
     fi
     
-    # Start emulator (background) with optimized settings for faster boot
-    local memory_size=""
-    local partition_size=""
-    
-    # Optimize memory and partition size based on API level
-    if [[ $api_level -eq 27 ]]; then
-        memory_size="2048"
-        partition_size="2048"
-    elif [[ $api_level -eq 30 ]]; then
-        memory_size="2048"
-        partition_size="2048"
-    else  # API 33
-        memory_size="2560"
-        partition_size="2048"
-    fi
-    
+    # Start emulator (background) with optimized settings for API 27
     emulator -avd "$avd_name" \
         -no-window \
         -gpu swiftshader_indirect \
         -noaudio \
         -no-boot-anim \
         -camera-back none \
-        -memory "$memory_size" \
-        -partition-size "$partition_size" \
+        -memory 2048 \
+        -partition-size 2048 \
         -accel off \
         -no-snapshot &
     
@@ -313,15 +287,13 @@ start_emulator() {
     adb shell wm size 1080x1920
     adb shell wm density 440
     
-    print_success "Emulator API $api_level is ready!"
+    print_success "Emulator API $API_LEVEL is ready!"
     echo $emulator_pid
 }
 
 # Run tests
 run_tests() {
-    local api_level=$1
-    
-    print_status "Running Dropshots tests for API $api_level..."
+    print_status "Running Dropshots tests for API $API_LEVEL..."
     
     # Execute tests
     ./gradlew :app:connectedDebugAndroidTest \
@@ -329,22 +301,21 @@ run_tests() {
         --no-build-cache \
         -Pandroid.testInstrumentationRunnerArguments.class=com.skydoves.cloudydemo.MainTest \
         || {
-            print_error "Tests failed for API $api_level"
+            print_error "Tests failed for API $API_LEVEL"
             return 1
         }
     
     # Collect screenshots
-    collect_screenshots $api_level
+    collect_screenshots
     
-    print_success "Tests completed successfully for API $api_level"
+    print_success "Tests completed successfully for API $API_LEVEL"
 }
 
 # Collect screenshots
 collect_screenshots() {
-    local api_level=$1
-    local output_dir="screenshots/api-$api_level"
+    local output_dir="screenshots/api-$API_LEVEL"
     
-    print_status "Collecting screenshots for API $api_level..."
+    print_status "Collecting screenshots for API $API_LEVEL..."
     
     mkdir -p "$output_dir"
     
@@ -358,16 +329,16 @@ collect_screenshots() {
     # Clean up filenames
     cd "$output_dir"
     for file in *.png; do
-        if [[ -f "$file" && "$file" != *"api$api_level"* ]]; then
+        if [[ -f "$file" && "$file" != *"api$API_LEVEL"* ]]; then
             base_name="${file%.png}"
-            mv "$file" "${base_name}_api${api_level}.png" 2>/dev/null || true
+            mv "$file" "${base_name}_api${API_LEVEL}.png" 2>/dev/null || true
         fi
     done 2>/dev/null || true
     cd - > /dev/null
     
     local count
     count=$(find "$output_dir" -name "*.png" 2>/dev/null | wc -l)
-    print_success "Collected $count screenshots for API $api_level"
+    print_success "Collected $count screenshots for API $API_LEVEL"
 }
 
 # Clean up emulator
@@ -379,9 +350,12 @@ cleanup_emulator() {
 
 # Main execution logic
 main() {
-    print_status "Cloudy Library Screenshot Testing"
-    print_status "Testing Native RenderScript Toolkit on real Android emulators"
+    print_status "Cloudy Library Screenshot Testing for API 27"
+    print_status "Testing Native RenderScript Toolkit on x86_64 Android emulator"
     echo ""
+    
+    # Check architecture first
+    check_architecture
     
     # Check permissions
     if [[ ! -w "." ]]; then
@@ -401,67 +375,30 @@ main() {
     # Create screenshots directory
     mkdir -p screenshots
     
-    # Execute based on selected API level
-    if [[ "$SELECTED_API" == "all" ]]; then
-        print_status "Running tests for all API levels: ${API_LEVELS[*]}"
-        
-        for api in "${API_LEVELS[@]}"; do
-            echo ""
-            print_status "========== API Level $api =========="
-            
-            check_emulator $api
-            emulator_pid=$(start_emulator $api)
-            
-            # Run tests
-            if run_tests $api; then
-                print_success "API $api tests completed successfully"
-            else
-                print_error "API $api tests failed"
-            fi
-            
-            # Clean up emulator
-            cleanup_emulator
-            
-            # Wait before next test
-            sleep 5
-        done
-        
+    # Execute API 27 tests
+    print_status "========== API Level $API_LEVEL =========="
+    
+    check_emulator
+    emulator_pid=$(start_emulator)
+    
+    # Run tests
+    if run_tests; then
+        print_success "API $API_LEVEL tests completed successfully"
     else
-        # Run specific API level only
-        if [[ " ${API_LEVELS[*]} " =~ ${SELECTED_API} ]]; then
-            print_status "Running tests for API level $SELECTED_API"
-            
-            check_emulator $SELECTED_API
-            emulator_pid=$(start_emulator $SELECTED_API)
-            run_tests $SELECTED_API
-            cleanup_emulator
-            
-        else
-            print_error "Invalid API level: $SELECTED_API"
-            print_status "Available API levels: ${API_LEVELS[*]}"
-            exit 1
-        fi
+        print_error "API $API_LEVEL tests failed"
     fi
+    
+    # Clean up emulator
+    cleanup_emulator
     
     # Result summary
     echo ""
-    print_success "🎉 Screenshot testing completed!"
-    print_status "📁 Screenshots saved in: ./screenshots/"
+    print_success "🎉 Screenshot testing completed for API $API_LEVEL!"
+    print_status "📁 Screenshots saved in: ./screenshots/api-$API_LEVEL/"
     
     # Display number of collected screenshots
-    total_screenshots=$(find ./screenshots -name "*.png" 2>/dev/null | wc -l)
+    total_screenshots=$(find "./screenshots/api-$API_LEVEL" -name "*.png" 2>/dev/null | wc -l)
     print_status "📊 Total screenshots captured: $total_screenshots"
-    
-    if [[ $total_screenshots -gt 0 ]]; then
-        print_status "📋 Screenshot breakdown:"
-        for api in "${API_LEVELS[@]}"; do
-            local count
-            count=$(find "./screenshots/api-$api" -name "*.png" 2>/dev/null | wc -l)
-            if [[ $count -gt 0 ]]; then
-                print_status "   API $api: $count screenshots"
-            fi
-        done
-    fi
 }
 
 # Ctrl+C handler
@@ -469,16 +406,15 @@ trap 'print_warning "Script interrupted. Cleaning up..."; cleanup_emulator; exit
 
 # Display usage
 if [[ "$1" == "-h" || "$1" == "--help" ]]; then
-    echo "Usage: $0 [API_LEVEL|all]"
+    echo "Usage: $0"
     echo ""
-    echo "Examples:"
-    echo "  $0           # Run tests for all API levels (27, 30, 33)"
-    echo "  $0 all       # Run tests for all API levels"
-    echo "  $0 30        # Run tests for API level 30 only"
+    echo "API 27 Screenshot Testing Script for Cloudy Library"
     echo ""
-    echo "Available API levels: ${API_LEVELS[*]}"
+    echo "This script runs Dropshots screenshot tests specifically for API 27 (Android 8.1)"
+    echo "on x86_64 architecture only."
     echo ""
     echo "Prerequisites:"
+    echo "  - x86_64 architecture system"
     echo "  - Android SDK installed with ANDROID_HOME or ANDROID_SDK_ROOT set"
     echo "  - Android SDK Command-line Tools installed"
     echo "  - Run from project root directory"
@@ -489,8 +425,11 @@ if [[ "$1" == "-h" || "$1" == "--help" ]]; then
     echo "     export ANDROID_HOME=/path/to/android/sdk"
     echo "  3. Install Android SDK Command-line Tools via Android Studio"
     echo "  4. Ensure you have at least 4GB RAM and 10GB free disk space"
+    echo ""
+    echo "Note: This script is specifically for API 27. For other API levels,"
+    echo "use the main script: ./scripts/run-screenshot-tests.sh"
     exit 0
 fi
 
 # Execute main function
-main
+main 

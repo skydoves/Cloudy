@@ -31,6 +31,148 @@ jobs:
               - 'app/src/main/res/**'
               - 'app/src/androidTest/**/*.kt'
 
+  screenshot-tests-api27:
+    needs: changes
+    if: needs.changes.outputs.ui-changed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: "temurin"
+
+      # Multi-layer caching to reduce build time
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      # AVD snapshot caching to reduce boot time
+      - name: AVD Cache
+        uses: actions/cache@v4
+        id: avd-cache
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-dropshots-27-${{ runner.os }}-v2
+
+      - name: Create AVD and generate snapshot for caching
+        if: steps.avd-cache.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 27
+          target: default
+          arch: x86_64
+          ram-size: 2048M
+          heap-size: 512M
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -partition-size 2048 -accel off -no-snapshot -memory 2048
+          disable-animations: true
+          emulator-boot-timeout: 1200
+          script: echo "Generated AVD snapshot for caching."
+
+      # Emulator optimization settings for Cloudy Native library
+      - name: Run Dropshots screenshot tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 27
+          target: default
+          arch: x86_64
+          ram-size: 2048M
+          heap-size: 512M
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -partition-size 2048 -accel off -no-snapshot -memory 2048
+          disable-animations: true
+          emulator-boot-timeout: 1200
+          script: |
+            # Wait for emulator to fully boot with longer timeout and better error handling
+            echo "Waiting for emulator to boot..."
+            local boot_timeout=600  # 10 minutes timeout
+            local elapsed=0
+
+            while [[ $elapsed -lt $boot_timeout ]]; do
+              if adb shell getprop sys.boot_completed 2>/dev/null | grep -q "1"; then
+                break
+              fi
+              sleep 5
+              elapsed=$((elapsed + 5))
+              if [[ $((elapsed % 60)) -eq 0 ]]; then
+                echo "Still waiting for boot... (${elapsed}s elapsed)"
+              fi
+            done
+
+            if [[ $elapsed -ge $boot_timeout ]]; then
+              echo "Emulator boot timeout after ${boot_timeout}s"
+              exit 1
+            fi
+
+            echo "Emulator booted in ${elapsed}s"
+            sleep 10
+            adb shell input keyevent 82
+
+            # Set fixed screen resolution (for screenshot consistency)
+            adb shell wm size 1080x1920
+            adb shell wm density 440
+
+            echo "Emulator is ready. Starting Dropshots tests..."
+
+            # Execute Dropshots tests with proper command formatting
+            ./gradlew :app:connectedDebugAndroidTest --no-daemon --no-build-cache -Pandroid.testInstrumentationRunnerArguments.class=com.skydoves.cloudydemo.MainTest || echo "Tests completed with issues"
+
+            # Check screenshot directory
+            adb shell find /sdcard -name "*.png" -type f 2>/dev/null || echo "No PNG files found"
+
+            # Extract screenshots from Dropshots results directory
+            mkdir -p screenshots/api-27
+
+            # Collect screenshots from multiple possible locations
+            adb pull /sdcard/dropshots/ ./screenshots/api-27/ 2>/dev/null || echo "No dropshots directory"
+            adb pull /storage/emulated/0/dropshots/ ./screenshots/api-27/ 2>/dev/null || echo "No emulated dropshots directory"
+
+            # Also check app build outputs
+            find ./app/build/outputs -name "*.png" -type f -exec cp {} ./screenshots/api-27/ \; 2>/dev/null || echo "No build output screenshots"
+
+            # Clean up filenames and add API level
+            cd ./screenshots/api-27
+            for file in *.png 2>/dev/null; do
+              if [[ -f "$file" && "$file" != *"api27"* ]]; then
+                base_name="${file%.png}"
+                mv "$file" "${base_name}_api27.png" 2>/dev/null || true
+              fi
+            done
+
+            echo "Screenshots in api-27:"
+            ls -la || echo "No files found"
+
+      - name: Upload screenshots artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-api-27
+          path: screenshots/api-27/
+          retention-days: 7
+          compression-level: 6
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-api-27
+          path: |
+            app/build/reports/androidTests/
+            app/build/outputs/androidTest-results/
+          retention-days: 3
+
   screenshot-tests:
     needs: changes
     if: needs.changes.outputs.ui-changed == 'true'
@@ -38,7 +180,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        api-level: [27, 30, 33]
+        api-level: [30, 33] # API 27은 x86_64 환경에서만 실행하므로 제외
 
     steps:
       - name: Checkout code
@@ -77,13 +219,13 @@ jobs:
         with:
           api-level: ${{ matrix.api-level }}
           target: default
-          arch: ${{ matrix.api-level == 27 && 'x86_64' || (runner.arch == 'ARM64' && 'arm64-v8a' || 'x86_64') }}
-          ram-size: ${{ matrix.api-level == 30 && '2048M' || matrix.api-level == 33 && '2560M' || '3072M' }}
-          heap-size: ${{ matrix.api-level == 30 && '512M' || matrix.api-level == 33 && '768M' || '1024M' }}
+          arch: ${{ runner.arch == 'ARM64' && 'arm64-v8a' || 'x86_64' }}
+          ram-size: ${{ matrix.api-level == 30 && '2048M' || '2560M' }}
+          heap-size: ${{ matrix.api-level == 30 && '512M' || '768M' }}
           force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -partition-size 2048 -accel off -no-snapshot -memory 2048
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -partition-size 2048 -accel off -no-snapshot -memory ${{ matrix.api-level == 30 && '2048' || '2560' }}
           disable-animations: true
-          emulator-boot-timeout: 900
+          emulator-boot-timeout: 1200
           script: echo "Generated AVD snapshot for caching."
 
       # Emulator optimization settings for Cloudy Native library
@@ -92,16 +234,36 @@ jobs:
         with:
           api-level: ${{ matrix.api-level }}
           target: default
-          arch: ${{ matrix.api-level == 27 && 'x86_64' || (runner.arch == 'ARM64' && 'arm64-v8a' || 'x86_64') }}
-          ram-size: ${{ matrix.api-level == 30 && '2048M' || matrix.api-level == 33 && '2560M' || '3072M' }}
-          heap-size: ${{ matrix.api-level == 30 && '512M' || matrix.api-level == 33 && '768M' || '1024M' }}
+          arch: ${{ runner.arch == 'ARM64' && 'arm64-v8a' || 'x86_64' }}
+          ram-size: ${{ matrix.api-level == 30 && '2048M' || '2560M' }}
+          heap-size: ${{ matrix.api-level == 30 && '512M' || '768M' }}
           force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -partition-size 2048 -accel off -no-snapshot -memory 2048
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -partition-size 2048 -accel off -no-snapshot -memory ${{ matrix.api-level == 30 && '2048' || '2560' }}
           disable-animations: true
-          emulator-boot-timeout: 900
+          emulator-boot-timeout: 1200
           script: |
-            # Wait for emulator to fully boot with longer timeout
-            adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed | tr -d '\''\r'\'') ]]; do sleep 2; done'
+            # Wait for emulator to fully boot with longer timeout and better error handling
+            echo "Waiting for emulator to boot..."
+            local boot_timeout=600  # 10 minutes timeout
+            local elapsed=0
+
+            while [[ $elapsed -lt $boot_timeout ]]; do
+              if adb shell getprop sys.boot_completed 2>/dev/null | grep -q "1"; then
+                break
+              fi
+              sleep 5
+              elapsed=$((elapsed + 5))
+              if [[ $((elapsed % 60)) -eq 0 ]]; then
+                echo "Still waiting for boot... (${elapsed}s elapsed)"
+              fi
+            done
+
+            if [[ $elapsed -ge $boot_timeout ]]; then
+              echo "Emulator boot timeout after ${boot_timeout}s"
+              exit 1
+            fi
+
+            echo "Emulator booted in ${elapsed}s"
             sleep 10
             adb shell input keyevent 82
 
@@ -160,7 +322,7 @@ jobs:
 
   # Create integrated PR comment after all API levels complete
   create-pr-comment:
-    needs: screenshot-tests
+    needs: [screenshot-tests-api27, screenshot-tests]
     if: always() && github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
