@@ -61,16 +61,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      - name: Cache Android SDK
-        uses: actions/cache@v4
-        with:
-          path: |
-            ${{ env.ANDROID_SDK_ROOT }}
-            ${{ env.ANDROID_HOME }}
-          key: ${{ runner.os }}-android-sdk-${{ matrix.api-level }}
-          restore-keys: |
-            ${{ runner.os }}-android-sdk-
-
       # AVD snapshot caching to reduce boot time
       - name: AVD Cache
         uses: actions/cache@v4
