@@ -15,7 +15,6 @@
  */
 package com.skydoves.cloudy
 
-import kotlinx.cinterop.ExperimentalForeignApi
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -67,18 +66,4 @@ internal class CloudyStateTest {
     val state2 = CloudyState.Success(bitmap2)
     assertFalse(state1 == state2)
   }
-}
-
-@OptIn(ExperimentalForeignApi::class)
-private fun createTestPlatformBitmap(width: Int, height: Int): PlatformBitmap {
-  return PlatformBitmap(createTestUIImage(width, height))
-}
-
-@OptIn(ExperimentalForeignApi::class)
-private fun createTestUIImage(width: Int, height: Int): platform.UIKit.UIImage {
-  val size = platform.CoreGraphics.CGSizeMake(width.toDouble(), height.toDouble())
-  platform.UIKit.UIGraphicsBeginImageContextWithOptions(size, false, 1.0)
-  val image = platform.UIKit.UIGraphicsGetImageFromCurrentImageContext()
-  platform.UIKit.UIGraphicsEndImageContext()
-  return image ?: platform.UIKit.UIImage()
 }

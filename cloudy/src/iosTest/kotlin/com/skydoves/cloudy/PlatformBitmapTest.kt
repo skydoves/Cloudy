@@ -15,7 +15,6 @@
  */
 package com.skydoves.cloudy
 
-import kotlinx.cinterop.ExperimentalForeignApi
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -49,7 +48,7 @@ internal class PlatformBitmapTest {
   fun disposeShouldNotThrowException() {
     val bitmap = createTestPlatformBitmap(100, 100)
     bitmap.dispose()
-    bitmap.dispose() // 두 번 호출해도 예외 없어야 함
+    bitmap.dispose() // Should not throw exception even when called twice
   }
 
   @Test
@@ -58,18 +57,4 @@ internal class PlatformBitmapTest {
     val platformBitmap = PlatformBitmap(uiImage)
     assertEquals(uiImage, platformBitmap.toUIImage())
   }
-}
-
-@OptIn(ExperimentalForeignApi::class)
-private fun createTestPlatformBitmap(width: Int, height: Int): PlatformBitmap {
-  return PlatformBitmap(createTestUIImage(width, height))
-}
-
-@OptIn(ExperimentalForeignApi::class)
-private fun createTestUIImage(width: Int, height: Int): platform.UIKit.UIImage {
-  val size = platform.CoreGraphics.CGSizeMake(width.toDouble(), height.toDouble())
-  platform.UIKit.UIGraphicsBeginImageContextWithOptions(size, false, 1.0)
-  val image = platform.UIKit.UIGraphicsGetImageFromCurrentImageContext()
-  platform.UIKit.UIGraphicsEndImageContext()
-  return image ?: platform.UIKit.UIImage()
 }
