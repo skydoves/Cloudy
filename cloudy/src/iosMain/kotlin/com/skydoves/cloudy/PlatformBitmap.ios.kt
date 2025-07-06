@@ -37,40 +37,40 @@ import kotlin.math.roundToInt
  */
 @Immutable
 public actual class PlatformBitmap(
-    /**
-     * The underlying iOS UIImage.
-     */
-    public val image: UIImage
+  /**
+   * The underlying iOS UIImage.
+   */
+  public val image: UIImage
 ) {
 
-    public actual val width: Int
-        get() = (image.size.useContents { width } * image.scale).roundToInt()
+  public actual val width: Int
+    get() = (image.size.useContents { width } * image.scale).roundToInt()
 
-    public actual val height: Int
-        get() = (image.size.useContents { height } * image.scale).roundToInt()
+  public actual val height: Int
+    get() = (image.size.useContents { height } * image.scale).roundToInt()
 
-    public actual val isRecyclable: Boolean
-        get() = true // UIImage doesn't have a direct recyclable concept
+  public actual val isRecyclable: Boolean
+    get() = true // UIImage doesn't have a direct recyclable concept
 }
 
 /**
  * Creates a compatible iOS image with the same dimensions.
  */
 public actual fun PlatformBitmap.createCompatible(): PlatformBitmap {
-    val size = CGSizeMake(width.toDouble(), height.toDouble())
-    UIGraphicsBeginImageContextWithOptions(size, false, image.scale)
-    val newImage = UIGraphicsGetImageFromCurrentImageContext()
-    UIGraphicsEndImageContext()
+  val size = CGSizeMake(width.toDouble(), height.toDouble())
+  UIGraphicsBeginImageContextWithOptions(size, false, image.scale)
+  val newImage = UIGraphicsGetImageFromCurrentImageContext()
+  UIGraphicsEndImageContext()
 
-    return PlatformBitmap(newImage ?: image)
+  return PlatformBitmap(newImage ?: image)
 }
 
 /**
  * Disposes the iOS image. In iOS, this is mostly a no-op as ARC handles memory management.
  */
 public actual fun PlatformBitmap.dispose() {
-    // iOS uses ARC for memory management, so we don't need to manually dispose
-    // This method is kept for API consistency across platforms
+  // iOS uses ARC for memory management, so we don't need to manually dispose
+  // This method is kept for API consistency across platforms
 }
 
 /**
@@ -90,34 +90,34 @@ public fun PlatformBitmap.toUIImage(): UIImage = image
  * In production, you would need proper pixel data extraction.
  */
 public fun ImageBitmap.toUIImage(): UIImage? {
-    return try {
-        // Get dimensions from the ImageBitmap
-        val width = this.width
-        val height = this.height
+  return try {
+    // Get dimensions from the ImageBitmap
+    val width = this.width
+    val height = this.height
 
-        // Create a UIImage context with the same dimensions
-        val size = CGSizeMake(width.toDouble(), height.toDouble())
-        UIGraphicsBeginImageContextWithOptions(size, false, 1.0)
+    // Create a UIImage context with the same dimensions
+    val size = CGSizeMake(width.toDouble(), height.toDouble())
+    UIGraphicsBeginImageContextWithOptions(size, false, 1.0)
 
-        // For this demo implementation, we'll create a semi-transparent gray image
-        // that represents the content to be blurred
-        val context = UIGraphicsGetCurrentContext()
-        context?.let { ctx ->
-            // Use a semi-transparent gray color to represent the captured content
-            platform.CoreGraphics.CGContextSetRGBFillColor(ctx, 0.6, 0.6, 0.6, 0.8)
-            platform.CoreGraphics.CGContextFillRect(
-                ctx,
-                platform.CoreGraphics.CGRectMake(0.0, 0.0, width.toDouble(), height.toDouble())
-            )
-        }
-
-        val image = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
-
-        image
-    } catch (_: Exception) {
-        null
+    // For this demo implementation, we'll create a semi-transparent gray image
+    // that represents the content to be blurred
+    val context = UIGraphicsGetCurrentContext()
+    context?.let { ctx ->
+      // Use a semi-transparent gray color to represent the captured content
+      platform.CoreGraphics.CGContextSetRGBFillColor(ctx, 0.6, 0.6, 0.6, 0.8)
+      platform.CoreGraphics.CGContextFillRect(
+        ctx,
+        platform.CoreGraphics.CGRectMake(0.0, 0.0, width.toDouble(), height.toDouble())
+      )
     }
+
+    val image = UIGraphicsGetImageFromCurrentImageContext()
+    UIGraphicsEndImageContext()
+
+    image
+  } catch (_: Exception) {
+    null
+  }
 }
 
 /**
@@ -127,23 +127,23 @@ public fun ImageBitmap.toUIImage(): UIImage? {
  * In production, you would need proper pixel data extraction.
  */
 public fun UIImage.asImageBitmap(): ImageBitmap? {
-    return try {
-        // Get dimensions from UIImage
-        val width = this.size.useContents { width }.toInt()
-        val height = this.size.useContents { height }.toInt()
+  return try {
+    // Get dimensions from UIImage
+    val width = this.size.useContents { width }.toInt()
+    val height = this.size.useContents { height }.toInt()
 
-        // Create a simple Skia bitmap with the same dimensions
-        val imageInfo = ImageInfo.makeN32Premul(width, height)
-        val skiaBitmap = Bitmap()
-        skiaBitmap.allocPixels(imageInfo)
+    // Create a simple Skia bitmap with the same dimensions
+    val imageInfo = ImageInfo.makeN32Premul(width, height)
+    val skiaBitmap = Bitmap()
+    skiaBitmap.allocPixels(imageInfo)
 
-        // For this demo, fill with a gray color that represents the blurred content
-        // In production, you would extract actual pixel data from the UIImage
-        val pixels = ByteArray(width * height) { 0xFF999999.toByte() }
-        skiaBitmap.installPixels(imageInfo, pixels, width * 4)
+    // For this demo, fill with a gray color that represents the blurred content
+    // In production, you would extract actual pixel data from the UIImage
+    val pixels = ByteArray(width * height) { 0xFF999999.toByte() }
+    skiaBitmap.installPixels(imageInfo, pixels, width * 4)
 
-        skiaBitmap.asComposeImageBitmap()
-    } catch (_: Exception) {
-        null
-    }
+    skiaBitmap.asComposeImageBitmap()
+  } catch (_: Exception) {
+    null
+  }
 }

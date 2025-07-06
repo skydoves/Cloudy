@@ -43,8 +43,7 @@ public sealed interface CloudyState {
 
   /**
    * Represents the successful completion of the blur processing operation.
-   * 
-   * @property bitmap The resulting blurred bitmap. May be null if the blur
+   * * @property bitmap The resulting blurred bitmap. May be null if the blur
    *                 operation completed but no bitmap was generated (e.g., in preview mode).
    */
   @Immutable
@@ -52,8 +51,7 @@ public sealed interface CloudyState {
 
   /**
    * Represents a failed blur processing operation.
-   * 
-   * @property throwable The exception that caused the blur operation to fail.
+   * * @property throwable The exception that caused the blur operation to fail.
    *                    This can be used for error reporting and debugging.
    */
   @Immutable

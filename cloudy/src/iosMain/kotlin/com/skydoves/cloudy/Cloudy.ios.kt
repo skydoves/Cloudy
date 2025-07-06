@@ -45,11 +45,9 @@ import platform.UIKit.UIImage
 /**
  * iOS implementation of the cloudy modifier that applies blur effects to composables.
  * This is the actual implementation for the expect function declared in commonMain.
- * 
- * Uses Core Image filters for blur processing on iOS, with graphics layer content capture
+ * * Uses Core Image filters for blur processing on iOS, with graphics layer content capture
  * to blur the actual composable content instead of placeholder images.
- * 
- * @param radius The blur radius in pixels. Higher values create more blur.
+ * * @param radius The blur radius in pixels. Higher values create more blur.
  * @param enabled Whether the blur effect is enabled. When false, returns the original modifier unchanged.
  * @param onStateChanged Callback that receives updates about the blur processing state.
  * @return Modified Modifier with blur effect applied.
@@ -119,17 +117,17 @@ private class CloudyModifierNode(
     kotlinx.coroutines.MainScope().launch {
       try {
         val contentBitmap = graphicsLayer.toImageBitmap()
-        
+
         val blurredBitmap = withContext(Dispatchers.Default) {
           createBlurredBitmapFromContent(contentBitmap, radius.toFloat())
         }
 
         cachedBlurredBitmap = blurredBitmap
-        
+
         // Draw the blurred overlay
         blurredBitmap?.let { blurred ->
           val imageBitmap = blurred.toUIImage().asImageBitmap()
-          
+
           imageBitmap?.let { bitmap ->
             drawImage(
               bitmap,
@@ -150,11 +148,8 @@ private class CloudyModifierNode(
 
 /**
  * Creates a blurred bitmap from actual composable content using Core Image.
- * 
- * This function takes the captured content from a graphics layer and applies 
- * Gaussian blur using Core Image filters for optimal performance on iOS.
- * 
- * @param contentBitmap The actual content to blur, captured from graphics layer.
+ * * This function takes the captured content from a graphics layer and applies * Gaussian blur using Core Image filters for optimal performance on iOS.
+ * * @param contentBitmap The actual content to blur, captured from graphics layer.
  * @param radius The blur radius to apply to the image.
  * @return A PlatformBitmap containing the blurred result, or null if the operation fails.
  */
@@ -165,7 +160,7 @@ private suspend fun createBlurredBitmapFromContent(contentBitmap: ImageBitmap, r
       // Note: This is a simplified conversion - in production you might need
       // a more sophisticated approach depending on your specific requirements
       val uiImage = contentBitmap.toUIImage()
-      
+
       // Apply Gaussian blur to the actual content
       uiImage?.let { image ->
         applyGaussianBlur(image, radius)?.toPlatformBitmap()
@@ -178,12 +173,10 @@ private suspend fun createBlurredBitmapFromContent(contentBitmap: ImageBitmap, r
 
 /**
  * Applies Gaussian blur to UIImage using Core Image filters.
- * 
- * This function converts the input UIImage to CIImage, applies a CIGaussianBlur filter
+ * * This function converts the input UIImage to CIImage, applies a CIGaussianBlur filter
  * with the specified radius, and converts the result back to UIImage. Core Image
  * provides hardware-accelerated image processing on iOS devices.
- * 
- * @param image The source UIImage to blur.
+ * * @param image The source UIImage to blur.
  * @param radius The blur radius for the Gaussian blur filter.
  * @return The blurred UIImage, or null if the blur operation fails.
  */
