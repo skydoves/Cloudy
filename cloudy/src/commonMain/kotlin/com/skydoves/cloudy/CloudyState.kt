@@ -32,7 +32,7 @@ public sealed interface CloudyState {
 
   /** Represents the state of [cloudy] process is successful. */
   @Immutable
-  public data class Success(public val bitmap: Any?) : CloudyState
+  public data class Success(public val bitmap: PlatformBitmap?) : CloudyState
 
   /** Represents the state of [cloudy] process is failed. */
   @Immutable
