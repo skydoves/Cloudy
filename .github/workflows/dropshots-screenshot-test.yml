@@ -112,8 +112,8 @@ jobs:
             echo "Emulator is ready. Starting Dropshots tests..."
 
             # Execute Dropshots tests with proper command formatting
-            ./gradlew :app:connectedDebugAndroidTest --no-daemon --no-build-cache -Pandroid.testInstrumentationRunnerArguments.class=com.skydoves.cloudydemo.MainTest || echo "Tests completed with issues"
-
+            ./gradlew :app:connectedDebugAndroidTest --no-daemon --no-build-cache \
+              -Pandroid.testInstrumentationRunnerArguments.class=com.skydoves.cloudydemo.MainTest
             # Check screenshot directory
             adb shell find /sdcard -name "*.png" -type f 2>/dev/null || echo "No PNG files found"
 
