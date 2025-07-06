@@ -233,6 +233,14 @@ public data class Range2d(
   internal constructor() : this(0, 0, 0, 0)
 }
 
+/**
+ * A collection of 3D RGBA data values with spatial dimensions.
+ * This class provides indexed access to RGBA byte values in a 3D array structure.
+ * @property values The byte array containing RGBA data (4 bytes per pixel).
+ * @property sizeX The width dimension.
+ * @property sizeY The height dimension.
+ * @property sizeZ The depth dimension.
+ */
 internal class Rgba3dArray(val values: ByteArray, val sizeX: Int, val sizeY: Int, val sizeZ: Int) {
   init {
     require(values.size >= sizeX * sizeY * sizeZ * 4)
@@ -251,6 +259,15 @@ internal class Rgba3dArray(val values: ByteArray, val sizeX: Int, val sizeY: Int
     }
   }
 
+  /**
+   * Calculates the starting index in the underlying byte array for the RGBA vector at the specified (x, y, z) coordinates.
+   *
+   * @param x The x-coordinate within the 3D array.
+   * @param y The y-coordinate within the 3D array.
+   * @param z The z-coordinate within the 3D array.
+   * @return The index of the first byte of the RGBA vector at the given coordinates.
+   * @throws IllegalArgumentException if any coordinate is out of bounds.
+   */
   private fun indexOfVector(x: Int, y: Int, z: Int): Int {
     require(x in 0 until sizeX)
     require(y in 0 until sizeY)
@@ -259,6 +276,17 @@ internal class Rgba3dArray(val values: ByteArray, val sizeX: Int, val sizeY: Int
   }
 }
 
+/**
+ * Ensures that the provided bitmap is compatible with RenderScriptToolkit operations.
+ *
+ * Validates that the bitmap uses a supported configuration (ARGB_8888, or ALPHA_8 if allowed)
+ * and that its row stride matches the expected value for its width and pixel format.
+ *
+ * @param function The name of the calling function, used in error messages.
+ * @param inputBitmap The bitmap to validate.
+ * @param alphaAllowed If true, allows ALPHA_8 bitmaps in addition to ARGB_8888.
+ * @throws IllegalArgumentException if the bitmap configuration or row stride is invalid.
+ */
 internal fun validateBitmap(
   function: String,
   inputBitmap: Bitmap,
@@ -284,9 +312,20 @@ internal fun validateBitmap(
   }
 }
 
+/**
+   * Creates a new bitmap with the same width, height, and configuration as the input bitmap.
+   *
+   * @param inputBitmap The bitmap whose dimensions and configuration are to be matched.
+   * @return A new bitmap instance compatible with the input bitmap.
+   */
 internal fun createCompatibleBitmap(inputBitmap: Bitmap) =
   Bitmap.createBitmap(inputBitmap.width, inputBitmap.height, inputBitmap.config!!)
 
+/**
+ * Validates that a given restriction range is within the bounds of the specified data dimensions.
+ *
+ * Throws an IllegalArgumentException if the restriction is out of bounds or if the start indices are not less than the end indices.
+ */
 internal fun validateRestriction(
   tag: String,
   sizeX: Int,
@@ -308,6 +347,15 @@ internal fun validateRestriction(
   }
 }
 
+/**
+ * Determines the number of bytes per pixel for a supported bitmap configuration.
+ *
+ * Returns 4 for ARGB_8888 and 1 for ALPHA_8 bitmap configs.
+ *
+ * @param bitmap The bitmap whose pixel size is to be determined.
+ * @return The number of bytes per pixel.
+ * @throws IllegalArgumentException If the bitmap configuration is not ARGB_8888 or ALPHA_8.
+ */
 internal fun vectorSize(bitmap: Bitmap): Int {
   return when (bitmap.config) {
     Bitmap.Config.ARGB_8888 -> 4
@@ -318,19 +366,35 @@ internal fun vectorSize(bitmap: Bitmap): Int {
   }
 }
 
+/**
+ * Performs Gaussian blur on a bitmap with a radius greater than 25 by applying multiple blur passes asynchronously.
+ *
+ * The blur operation is split into several passes of radius 25 and a final pass for any remainder, as the underlying blur implementation supports a maximum radius of 25 per pass.
+ *
+ * @param androidBitmap The source bitmap to blur.
+ * @param outputBitmap The bitmap where the blurred result is written.
+ * @param radius The total blur radius to achieve.
+ * @return A Deferred resolving to the blurred bitmap, or null if the operation fails.
+ */
 internal fun CoroutineScope.iterativeBlur(
   androidBitmap: Bitmap,
   outputBitmap: Bitmap,
   radius: Int
 ): Deferred<Bitmap?> = async {
-  val iterate = (radius + 1) / 25
-  var bitmap: Bitmap? = RenderScriptToolkit.blur(
-    inputBitmap = androidBitmap,
-    outputBitmap = outputBitmap,
-    radius = (radius + 1) % 25
-  )
+  val iterate = radius / 25
+  val remainder = radius % 25
 
-  for (i in 0 until iterate) {
+  var bitmap: Bitmap? = if (remainder == 0) {
+    androidBitmap
+  } else {
+    RenderScriptToolkit.blur(
+      inputBitmap = androidBitmap,
+      outputBitmap = outputBitmap,
+      radius = remainder
+    )
+  }
+
+  repeat(iterate) {
     bitmap = RenderScriptToolkit.blur(
       inputBitmap = bitmap,
       outputBitmap = outputBitmap,

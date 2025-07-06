@@ -16,7 +16,6 @@
 package com.skydoves.cloudy
 
 import android.graphics.Bitmap
-import android.renderscript.RenderScript
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -38,24 +37,36 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 /**
- * `Modifier.cloudy()` is a replacement of the [blur] modifier (compatible with under Android 12),
- * which blurs with the given [radius].
+ * Android implementation of the cloudy modifier that applies blur effects to composables.
+ * This is the actual implementation for the expect function declared in commonMain.
+ * * For Android 12+ devices in preview mode, it falls back to the platform's blur modifier.
+ * For runtime execution, it uses a custom implementation with graphics layers and
+ * native iterative blur processing for optimal performance.
+ * * The implementation captures the composable content in a graphics layer, applies
+ * iterative blur processing using native code, and overlays the result.
+ * * @param radius The blur radius in pixels (1-25). Higher values create more blur but take longer to process.
+ * @param enabled Whether the blur effect is enabled. When false, returns the original modifier unchanged.
+ * @param onStateChanged Callback that receives updates about the blur processing state.
+ * @return Modified Modifier with blur effect applied.
+ */
+/**
+ * Applies a blur effect to the composable using a native iterative blur algorithm.
  *
- * History: The [blur] modifier supports only Android 12 and higher, and [RenderScript] was also deprecated.
+ * If `enabled` is false, the modifier is not applied. In Android Studio preview mode on Android 12+, the platform's native blur is used for inspection. Otherwise, the modifier captures the composable's content, applies a blur with the specified `radius`, and reports processing state changes via `onStateChanged`.
  *
- * @param radius Radius of the blur along both the x and y axis.
- * @param enabled Enabling the blur effects.
- * @param graphicsLayer The graphic layer that records the original content and get the bitmap information.
- * This parameter should be used when you need to remain with the same graphic layer for the dynamically
- * updated Composable functions, such as Lazy Lists.
- * @param onStateChanged Lambda function that will be invoked when the blur process has been updated.
+ * @param radius The blur radius in pixels. Must be non-negative.
+ * @param enabled Whether the blur effect is applied.
+ * @param onStateChanged Callback invoked with updates about the blur processing state.
+ * @return The modified [Modifier] with the blur effect applied if enabled.
  */
 @Composable
-public fun Modifier.cloudy(
-  radius: Int = 10,
-  enabled: Boolean = true,
-  onStateChanged: (CloudyState) -> Unit = {}
+public actual fun Modifier.cloudy(
+  radius: Int,
+  enabled: Boolean,
+  onStateChanged: (CloudyState) -> Unit
 ): Modifier {
+  require(radius >= 0) { "Blur radius must be non-negative, but was $radius" }
+
   if (!enabled) {
     return this
   }
@@ -86,18 +97,35 @@ private data class CloudyModifierNodeElement(
     onStateChanged = onStateChanged
   )
 
+  /**
+   * Updates the blur radius of the given [CloudyModifierNode] to match the current value.
+   *
+   * @param node The modifier node whose blur radius will be updated.
+   */
   override fun update(node: CloudyModifierNode) {
     node.radius = radius
   }
 }
 
+/**
+ * The actual modifier node that handles the blur drawing operations.
+ * This class implements the core logic for capturing composable content,
+ * applying blur effects, and managing the rendering lifecycle.
+ * * @property radius The blur radius to apply (mutable for updates).
+ * @property onStateChanged Callback function for state change notifications.
+ */
 private class CloudyModifierNode(
   var radius: Int = 10,
   private val onStateChanged: (CloudyState) -> Unit = {}
 ) : DrawModifierNode, Modifier.Node() {
 
-  private var cachedOutput: Bitmap? by mutableStateOf(null)
+  private var cachedOutput: PlatformBitmap? by mutableStateOf(null)
 
+  /**
+   * Captures the composable's content, applies an asynchronous native iterative blur, and draws the blurred result.
+   *
+   * Notifies the blur processing state via the `onStateChanged` callback, including loading, success with the blurred bitmap, or error states. Caches the output bitmap for performance and manages resource cleanup after processing.
+   */
   override fun ContentDrawScope.draw() {
     val graphicsLayer = requireGraphicsContext().createGraphicsLayer()
 
@@ -116,20 +144,25 @@ private class CloudyModifierNode(
         val targetBitmap: Bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
           .copy(Bitmap.Config.ARGB_8888, true)
 
-        val out =
-          if (cachedOutput == null || cachedOutput?.width != targetBitmap.width || cachedOutput?.height != targetBitmap.height) {
-            createCompatibleBitmap(targetBitmap).also { cachedOutput = it }
-          } else {
-            cachedOutput!!
-          }
+        val out = if (cachedOutput == null || cachedOutput?.width != targetBitmap.width || cachedOutput?.height != targetBitmap.height
+        ) {
+          // Dispose previous cached output
+          cachedOutput?.dispose()
+
+          targetBitmap.toPlatformBitmap().createCompatible().also { cachedOutput = it }
+        } else {
+          cachedOutput!!
+        }
 
         val blurredBitmap = iterativeBlur(
           androidBitmap = targetBitmap,
-          outputBitmap = out,
+          outputBitmap = out.toAndroidBitmap(),
           radius = radius
-        ).await()?.apply {
-          drawImage(this.asImageBitmap())
-        } ?: throw RuntimeException("Couldn't capture a bitmap from the composable tree")
+        ).await()?.let { bitmap ->
+          bitmap.toPlatformBitmap().also {
+            drawImage(bitmap.asImageBitmap())
+          }
+        } ?: throw RuntimeException("Failed to capture bitmap from composable tree: blur processing returned null")
 
         onStateChanged.invoke(CloudyState.Success(blurredBitmap))
       } catch (e: Exception) {
@@ -140,6 +173,3 @@ private class CloudyModifierNode(
     }
   }
 }
-
-private fun createCompatibleBitmap(inputBitmap: Bitmap) =
-  Bitmap.createBitmap(inputBitmap.width, inputBitmap.height, inputBitmap.config!!)
