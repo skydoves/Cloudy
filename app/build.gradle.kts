@@ -110,4 +110,5 @@ dependencies {
   androidTestImplementation(libs.androidx.activity.compose)
   androidTestImplementation(libs.androidx.test.runner)
   androidTestImplementation(libs.androidx.test.rules)
+  androidTestImplementation(libs.androidx.test.uiautomator)
 }
