@@ -12,6 +12,9 @@ on:
 env:
   GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.workers.max=2 -Dkotlin.incremental=false
   JAVA_OPTS: -Xmx4g
+  # KVM acceleration for faster emulator boot
+  ANDROID_EMULATOR_USE_SYSTEM_LIBS: 1
+  ANDROID_AVD_HOME: ~/.android/avd
 
 jobs:
   # Detect changes to prevent unnecessary execution
@@ -57,6 +60,18 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
+      # AVD snapshot caching for faster emulator boot
+      - name: AVD cache
+        uses: actions/cache@v4
+        id: avd-cache
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-api27-${{ runner.os }}-${{ hashFiles('**/*.gradle*') }}
+          restore-keys: |
+            avd-api27-${{ runner.os }}-
+
       - name: Setup Android SDK
         uses: android-actions/setup-android@v2
 
@@ -68,14 +83,14 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 27
-          target: google_apis
+          target: default
           arch: x86_64
           ram-size: 2048M
           heap-size: 512M
           force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -partition-size 2048 -accel off -no-snapshot -memory 2048
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -partition-size 2048 -accel on -no-snapshot-save -memory 2048 -cores 2 -netfast
           disable-animations: true
-          emulator-boot-timeout: 1200
+          emulator-boot-timeout: 600
           script: |
             # Set fixed screen resolution (for screenshot consistency)
             adb shell wm size 1080x1920
@@ -137,6 +152,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
+      max-parallel: 2
       matrix:
         api-level: [30, 33] # API 27 excluded as it only runs on x86_64 environment
 
@@ -161,6 +177,18 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
+      # AVD snapshot caching for faster emulator boot
+      - name: AVD cache
+        uses: actions/cache@v4
+        id: avd-cache
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-api-${{ matrix.api-level }}-${{ runner.os }}-${{ hashFiles('**/*.gradle*') }}
+          restore-keys: |
+            avd-api-${{ matrix.api-level }}-${{ runner.os }}-
+
       - name: Setup Android SDK
         uses: android-actions/setup-android@v2
 
@@ -172,14 +200,14 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.api-level }}
-          target: google_apis
+          target: ${{ matrix.api-level == 30 && 'google_apis' || 'default' }}
           arch: x86_64
           ram-size: 2048M
           heap-size: 512M
           force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -partition-size 2048 -accel off -no-snapshot -memory 2048
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -partition-size 2048 -accel on -no-snapshot-save -memory 2048 -cores 2 -netfast
           disable-animations: true
-          emulator-boot-timeout: 1200
+          emulator-boot-timeout: 600
           script: |
             # Set fixed screen resolution (for screenshot consistency)
             adb shell wm size 1080x1920

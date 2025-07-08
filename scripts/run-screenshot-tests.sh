@@ -230,8 +230,10 @@ create_avd() {
     local system_image=""
     if [[ $api_level -eq 27 ]]; then
         system_image="system-images;android-${api_level};default;${arch}"
+    elif [[ $api_level -eq 30 ]]; then
+        system_image="system-images;android-${api_level};google_apis;${arch}"
     else
-        # Use default target for faster boot times on API 30 and 33
+        # Use default target for API 33 and others
         system_image="system-images;android-${api_level};default;${arch}"
     fi
     

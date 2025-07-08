@@ -42,8 +42,7 @@ class MainTest {
   @get:Rule
   val dropshots = Dropshots()
 
-  @Before
-  fun setup() {
+  @Before fun setup() {
     // Grant permissions for all API levels
     val context = InstrumentationRegistry.getInstrumentation().targetContext
     val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
@@ -111,15 +110,15 @@ class MainTest {
     try {
       ActivityScenario.launch<MainActivity>(intent).use { scenario ->
         scenario.onActivity { activity ->
-          // Wait for activity to be fully loaded and Compose to render
-          // Use multiple shorter sleeps instead of one long sleep
-          repeat(6) { i ->
-            Thread.sleep(500)
-            println("Waiting for Compose to render... (${i + 1}/6)")
+          // Optimized wait for activity to be fully loaded and Compose to render
+          // Reduced wait time for faster test execution
+          repeat(3) { i ->
+            Thread.sleep(300)
+            println("Waiting for Compose to render... (${i + 1}/3)")
           }
 
-          // Additional wait for any background operations
-          Thread.sleep(1000)
+          // Reduced wait for background operations
+          Thread.sleep(500)
 
           // Capture screenshot with error handling
           try {
@@ -130,8 +129,8 @@ class MainTest {
             println("Successfully captured screenshot: cloudy_main_screen_$apiSuffix")
           } catch (e: Exception) {
             println("Error capturing screenshot: ${e.message}")
-            // Try one more time after additional wait
-            Thread.sleep(2000)
+            // Try one more time after reduced wait
+            Thread.sleep(1000)
             try {
               dropshots.assertSnapshot(
                 view = activity.findViewById(android.R.id.content),
@@ -159,10 +158,10 @@ class MainTest {
     try {
       ActivityScenario.launch<MainActivity>(intent).use { scenario ->
         scenario.onActivity { activity ->
-          // Wait for initial state (no blur) with progressive waiting
-          repeat(4) { i ->
-            Thread.sleep(500)
-            println("Waiting for initial state... (${i + 1}/4)")
+          // Optimized wait for initial state (no blur)
+          repeat(2) { i ->
+            Thread.sleep(300)
+            println("Waiting for initial state... (${i + 1}/2)")
           }
 
           try {
@@ -176,10 +175,10 @@ class MainTest {
             throw e
           }
 
-          // Wait for animation to complete (full blur) with progressive waiting
-          repeat(6) { i ->
-            Thread.sleep(500)
-            println("Waiting for blur animation... (${i + 1}/6)")
+          // Optimized wait for blur animation
+          repeat(3) { i ->
+            Thread.sleep(400)
+            println("Waiting for blur animation... (${i + 1}/3)")
           }
 
           try {
@@ -208,10 +207,10 @@ class MainTest {
     try {
       ActivityScenario.launch<MainActivity>(intent).use { scenario ->
         scenario.onActivity { activity ->
-          // Initial state with progressive waiting
-          repeat(4) { i ->
-            Thread.sleep(500)
-            println("Waiting for animation start... (${i + 1}/4)")
+          // Optimized wait for animation start
+          repeat(2) { i ->
+            Thread.sleep(300)
+            println("Waiting for animation start... (${i + 1}/2)")
           }
 
           try {
@@ -225,10 +224,10 @@ class MainTest {
             throw e
           }
 
-          // Final state after animation with progressive waiting
-          repeat(6) { i ->
-            Thread.sleep(500)
-            println("Waiting for animation end... (${i + 1}/6)")
+          // Optimized wait for animation end
+          repeat(3) { i ->
+            Thread.sleep(400)
+            println("Waiting for animation end... (${i + 1}/3)")
           }
 
           try {

@@ -228,7 +228,7 @@ create_avd() {
     # Use x86_64 architecture for API 27
     local arch="x86_64"
     
-    # Use default target for faster boot times
+    # Use default target for API 27 (google_apis may not be available)
     local system_image="system-images;android-${API_LEVEL};default;${arch}"
     
     # Download SDK image (if needed)
