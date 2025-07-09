@@ -15,17 +15,12 @@
  */
 package com.skydoves.cloudydemo
 
-import android.Manifest
 import android.content.Intent
 import android.os.Build
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.platform.app.InstrumentationRegistry
-import androidx.test.rule.GrantPermissionRule
-import androidx.test.uiautomator.UiDevice
 import com.dropbox.dropshots.Dropshots
-import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -34,45 +29,7 @@ import org.junit.runner.RunWith
 class MainTest {
 
   @get:Rule
-  val grantPermissionRule = GrantPermissionRule.grant(
-    Manifest.permission.WRITE_EXTERNAL_STORAGE,
-    Manifest.permission.READ_EXTERNAL_STORAGE
-  )
-
-  @get:Rule
   val dropshots = Dropshots()
-
-  @Before fun setup() {
-    // Grant permissions for all API levels
-    val context = InstrumentationRegistry.getInstrumentation().targetContext
-    val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
-
-    // Grant permissions via shell command for all API levels
-    val permissions = arrayOf(
-      Manifest.permission.WRITE_EXTERNAL_STORAGE,
-      Manifest.permission.READ_EXTERNAL_STORAGE
-    )
-
-    permissions.forEach { permission ->
-      try {
-        device.executeShellCommand("pm grant ${context.packageName} $permission")
-        println("Granted permission: $permission")
-      } catch (e: Exception) {
-        println("Warning: Could not grant permission $permission: ${e.message}")
-      }
-    }
-
-    // Additional permissions for API 30+ (Android 11+)
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-      try {
-        // Grant all files access for API 30+
-        device.executeShellCommand("appops set ${context.packageName} MANAGE_EXTERNAL_STORAGE allow")
-        println("Granted MANAGE_EXTERNAL_STORAGE for API 30+")
-      } catch (e: Exception) {
-        println("Warning: Could not grant MANAGE_EXTERNAL_STORAGE: ${e.message}")
-      }
-    }
-  }
 
   @Test
   fun testCloudyMainScreenApi27() {

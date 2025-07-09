@@ -41,6 +41,7 @@ android {
     // Dropshots test runner configuration
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     testInstrumentationRunnerArguments["dropshots_threshold"] = "0.15"
+    testInstrumentationRunnerArguments["dropshots_dir"] = "/data/data/com.skydoves.cloudydemo/cache/dropshots"
   }
 
   buildFeatures {
@@ -110,5 +111,4 @@ dependencies {
   androidTestImplementation(libs.androidx.activity.compose)
   androidTestImplementation(libs.androidx.test.runner)
   androidTestImplementation(libs.androidx.test.rules)
-  androidTestImplementation(libs.androidx.test.uiautomator)
 }

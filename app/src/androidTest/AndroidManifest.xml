@@ -2,11 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
     
-    <!-- Permissions for screenshot testing -->
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-    
-    <!-- Permissions for native library testing -->
+    <!-- Minimal permissions for testing -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     
     <application

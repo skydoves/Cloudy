@@ -88,9 +88,9 @@ jobs:
           ram-size: 2048M
           heap-size: 512M
           force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -partition-size 2048 -accel on -no-snapshot-save -memory 2048 -cores 2 -netfast
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -partition-size 4096 -accel on -no-snapshot-save -memory 2048 -cores 2 -netfast -wipe-data
           disable-animations: true
-          emulator-boot-timeout: 600
+          emulator-boot-timeout: 900
           script: |
             # Set fixed screen resolution (for screenshot consistency)
             adb shell wm size 1080x1920
@@ -107,7 +107,8 @@ jobs:
             # Extract screenshots from Dropshots results directory
             mkdir -p screenshots/api-27
 
-            # Collect screenshots from multiple possible locations
+            # Collect screenshots from internal app cache directory
+            adb pull /data/data/com.skydoves.cloudydemo/cache/dropshots/ ./screenshots/api-27/ 2>/dev/null || echo "No internal dropshots directory"
             adb pull /sdcard/dropshots/ ./screenshots/api-27/ 2>/dev/null || echo "No dropshots directory"
             adb pull /storage/emulated/0/dropshots/ ./screenshots/api-27/ 2>/dev/null || echo "No emulated dropshots directory"
 
@@ -205,9 +206,9 @@ jobs:
           ram-size: 2048M
           heap-size: 512M
           force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -partition-size 2048 -accel on -no-snapshot-save -memory 2048 -cores 2 -netfast
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -partition-size 4096 -accel on -no-snapshot-save -memory 2048 -cores 2 -netfast -wipe-data
           disable-animations: true
-          emulator-boot-timeout: 600
+          emulator-boot-timeout: 900
           script: |
             # Set fixed screen resolution (for screenshot consistency)
             adb shell wm size 1080x1920
@@ -224,7 +225,8 @@ jobs:
             # Extract screenshots from Dropshots results directory
             mkdir -p screenshots/api-${{ matrix.api-level }}
 
-            # Collect screenshots from multiple possible locations
+            # Collect screenshots from internal app cache directory
+            adb pull /data/data/com.skydoves.cloudydemo/cache/dropshots/ ./screenshots/api-${{ matrix.api-level }}/ 2>/dev/null || echo "No internal dropshots directory"
             adb pull /sdcard/dropshots/ ./screenshots/api-${{ matrix.api-level }}/ 2>/dev/null || echo "No dropshots directory"
             adb pull /storage/emulated/0/dropshots/ ./screenshots/api-${{ matrix.api-level }}/ 2>/dev/null || echo "No emulated dropshots directory"
 
