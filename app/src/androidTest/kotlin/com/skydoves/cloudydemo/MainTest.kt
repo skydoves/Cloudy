@@ -28,7 +28,7 @@ import org.junit.runner.RunWith
 class MainTest {
 
   @get:Rule
-  val dropshots = DropshostsTestRule()
+  val screenshots = ScreenshotTestRule()
 
   @Test
   fun testCloudyMainScreenApi27() {
@@ -77,7 +77,7 @@ class MainTest {
 
           // Capture screenshot with error handling
           try {
-            dropshots.assertSnapshot(
+            screenshots.takeScreenshot(
               view = activity.findViewById(android.R.id.content),
               name = "cloudy_main_screen_$apiSuffix"
             )
@@ -87,7 +87,7 @@ class MainTest {
             // Try one more time after reduced wait
             Thread.sleep(1000)
             try {
-              dropshots.assertSnapshot(
+              screenshots.takeScreenshot(
                 view = activity.findViewById(android.R.id.content),
                 name = "cloudy_main_screen_$apiSuffix"
               )
@@ -117,7 +117,7 @@ class MainTest {
           Thread.sleep(400) // Optimized single wait
 
           try {
-            dropshots.assertSnapshot(
+            screenshots.takeScreenshot(
               view = activity.findViewById(android.R.id.content),
               name = "cloudy_blur_initial_api${Build.VERSION.SDK_INT}"
             )
@@ -131,7 +131,7 @@ class MainTest {
           Thread.sleep(1000) // Animation duration
 
           try {
-            dropshots.assertSnapshot(
+            screenshots.takeScreenshot(
               view = activity.findViewById(android.R.id.content),
               name = "cloudy_blur_complete_api${Build.VERSION.SDK_INT}"
             )
@@ -160,7 +160,7 @@ class MainTest {
           Thread.sleep(400) // Initial state
 
           try {
-            dropshots.assertSnapshot(
+            screenshots.takeScreenshot(
               view = activity.findViewById(android.R.id.content),
               name = "cloudy_animation_start_api${Build.VERSION.SDK_INT}"
             )
@@ -174,7 +174,7 @@ class MainTest {
           Thread.sleep(1000) // Full animation duration
 
           try {
-            dropshots.assertSnapshot(
+            screenshots.takeScreenshot(
               view = activity.findViewById(android.R.id.content),
               name = "cloudy_animation_end_api${Build.VERSION.SDK_INT}"
             )

@@ -104,18 +104,17 @@ jobs:
             # Check screenshot directory
             adb shell find /sdcard -name "*.png" -type f 2>/dev/null || echo "No PNG files found"
 
-            # Extract screenshots from Dropshots results directory
+            # Extract screenshots from internal app cache directory
             mkdir -p screenshots/api-27
 
-            # Collect screenshots from internal app cache directory
-            adb pull /data/data/com.skydoves.cloudydemo/cache/dropshots/ ./screenshots/api-27/ 2>/dev/null || echo "No internal dropshots directory"
-            adb pull /sdcard/dropshots/ ./screenshots/api-27/ 2>/dev/null || echo "No dropshots directory"
-            adb pull /storage/emulated/0/dropshots/ ./screenshots/api-27/ 2>/dev/null || echo "No emulated dropshots directory"
+            # Collect screenshots from internal cache directory (our custom location)
+            adb pull /data/data/com.skydoves.cloudydemo/cache/screenshots/ ./screenshots/api-27/ 2>/dev/null || echo "No internal screenshots directory"
+            
+            # List what we found
+            echo "Screenshots found in api-27:"
+            ls -la ./screenshots/api-27/ || echo "No files found"
 
-            # Also check app build outputs
-            find ./app/build/outputs -name "*.png" -type f -exec cp {} ./screenshots/api-27/ \; 2>/dev/null || echo "No build output screenshots"
-
-            # Clean up filenames and add API level
+            # Add API level suffix to filenames if needed
             cd ./screenshots/api-27
             for file in *.png 2>/dev/null; do
               if [[ -f "$file" && "$file" != *"api27"* ]]; then
@@ -123,9 +122,10 @@ jobs:
                 mv "$file" "${base_name}_api27.png" 2>/dev/null || true
               fi
             done
+            cd - > /dev/null
 
-            echo "Screenshots in api-27:"
-            ls -la || echo "No files found"
+            echo "Final screenshots in api-27:"
+            ls -la ./screenshots/api-27/ || echo "No files found"
 
       - name: Upload screenshots artifact
         if: always()
@@ -223,18 +223,17 @@ jobs:
             # Check screenshot directory
             adb shell find /sdcard -name "*.png" -type f 2>/dev/null || echo "No PNG files found"
 
-            # Extract screenshots from Dropshots results directory
+            # Extract screenshots from internal app cache directory
             mkdir -p screenshots/api-${{ matrix.api-level }}
 
-            # Collect screenshots from internal app cache directory
-            adb pull /data/data/com.skydoves.cloudydemo/cache/dropshots/ ./screenshots/api-${{ matrix.api-level }}/ 2>/dev/null || echo "No internal dropshots directory"
-            adb pull /sdcard/dropshots/ ./screenshots/api-${{ matrix.api-level }}/ 2>/dev/null || echo "No dropshots directory"
-            adb pull /storage/emulated/0/dropshots/ ./screenshots/api-${{ matrix.api-level }}/ 2>/dev/null || echo "No emulated dropshots directory"
+            # Collect screenshots from internal cache directory (our custom location)
+            adb pull /data/data/com.skydoves.cloudydemo/cache/screenshots/ ./screenshots/api-${{ matrix.api-level }}/ 2>/dev/null || echo "No internal screenshots directory"
+            
+            # List what we found
+            echo "Screenshots found in api-${{ matrix.api-level }}:"
+            ls -la ./screenshots/api-${{ matrix.api-level }}/ || echo "No files found"
 
-            # Also check app build outputs
-            find ./app/build/outputs -name "*.png" -type f -exec cp {} ./screenshots/api-${{ matrix.api-level }}/ \; 2>/dev/null || echo "No build output screenshots"
-
-            # Clean up filenames and add API level
+            # Add API level suffix to filenames if needed
             cd ./screenshots/api-${{ matrix.api-level }}
             for file in *.png 2>/dev/null; do
               if [[ -f "$file" && "$file" != *"api${{ matrix.api-level }}"* ]]; then
@@ -242,9 +241,10 @@ jobs:
                 mv "$file" "${base_name}_api${{ matrix.api-level }}.png" 2>/dev/null || true
               fi
             done
+            cd - > /dev/null
 
-            echo "Screenshots in api-${{ matrix.api-level }}:"
-            ls -la || echo "No files found"
+            echo "Final screenshots in api-${{ matrix.api-level }}:"
+            ls -la ./screenshots/api-${{ matrix.api-level }}/ || echo "No files found"
 
       - name: Upload screenshots artifact
         if: always()

@@ -25,7 +25,6 @@ plugins {
   id(libs.plugins.android.application.get().pluginId)
   id(libs.plugins.kotlin.android.get().pluginId)
   id(libs.plugins.compose.compiler.get().pluginId)
-  id(libs.plugins.dropshots.get().pluginId)
 }
 
 android {
@@ -102,7 +101,6 @@ dependencies {
   testImplementation(libs.androidx.compose.ui.test.junit4)
 
   // Android Instrumentation Test dependencies (Device-based for Native libraries)
-  androidTestImplementation(libs.dropshots)
   androidTestImplementation(libs.androidx.compose.ui.test.junit4)
   androidTestImplementation(libs.androidx.ui.test.manifest)
   androidTestImplementation(libs.androidx.junit)
