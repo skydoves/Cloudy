@@ -20,7 +20,6 @@ import android.os.Build
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.dropbox.dropshots.Dropshots
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -29,7 +28,7 @@ import org.junit.runner.RunWith
 class MainTest {
 
   @get:Rule
-  val dropshots = Dropshots()
+  val dropshots = DropshostsTestRule()
 
   @Test
   fun testCloudyMainScreenApi27() {
@@ -65,17 +64,16 @@ class MainTest {
     val intent = Intent(ApplicationProvider.getApplicationContext(), MainActivity::class.java)
 
     try {
-      ActivityScenario.launch<MainActivity>(intent).use { scenario ->
-        scenario.onActivity { activity ->
-          // Optimized wait for activity to be fully loaded and Compose to render
-          // Reduced wait time for faster test execution
-          repeat(3) { i ->
-            Thread.sleep(300)
-            println("Waiting for Compose to render... (${i + 1}/3)")
-          }
+      ActivityScenario.launch<MainActivity>(intent).use { scenario: ActivityScenario<MainActivity> ->
+        scenario.onActivity { activity: MainActivity ->
+          // Wait for Compose to render and native libraries to load
+          // Using a single optimized wait instead of multiple loops
+          Thread.sleep(1000) // Reduced from 1400ms total
 
-          // Reduced wait for background operations
-          Thread.sleep(500)
+          // Ensure UI is settled
+          activity.runOnUiThread { // Force a layout pass
+            activity.window.decorView.requestLayout()
+          }
 
           // Capture screenshot with error handling
           try {
@@ -113,13 +111,10 @@ class MainTest {
     val intent = Intent(ApplicationProvider.getApplicationContext(), MainActivity::class.java)
 
     try {
-      ActivityScenario.launch<MainActivity>(intent).use { scenario ->
-        scenario.onActivity { activity ->
-          // Optimized wait for initial state (no blur)
-          repeat(2) { i ->
-            Thread.sleep(300)
-            println("Waiting for initial state... (${i + 1}/2)")
-          }
+      ActivityScenario.launch<MainActivity>(intent).use { scenario: ActivityScenario<MainActivity> ->
+        scenario.onActivity { activity: MainActivity ->
+          // Wait for initial state (no blur)
+          Thread.sleep(400) // Optimized single wait
 
           try {
             dropshots.assertSnapshot(
@@ -132,11 +127,8 @@ class MainTest {
             throw e
           }
 
-          // Optimized wait for blur animation
-          repeat(3) { i ->
-            Thread.sleep(400)
-            println("Waiting for blur animation... (${i + 1}/3)")
-          }
+          // Wait for blur animation to complete
+          Thread.sleep(1000) // Animation duration
 
           try {
             dropshots.assertSnapshot(
@@ -162,13 +154,10 @@ class MainTest {
     val intent = Intent(ApplicationProvider.getApplicationContext(), MainActivity::class.java)
 
     try {
-      ActivityScenario.launch<MainActivity>(intent).use { scenario ->
-        scenario.onActivity { activity ->
-          // Optimized wait for animation start
-          repeat(2) { i ->
-            Thread.sleep(300)
-            println("Waiting for animation start... (${i + 1}/2)")
-          }
+      ActivityScenario.launch<MainActivity>(intent).use { scenario: ActivityScenario<MainActivity> ->
+        scenario.onActivity { activity: MainActivity ->
+          // Wait for animation start
+          Thread.sleep(400) // Initial state
 
           try {
             dropshots.assertSnapshot(
@@ -181,11 +170,8 @@ class MainTest {
             throw e
           }
 
-          // Optimized wait for animation end
-          repeat(3) { i ->
-            Thread.sleep(400)
-            println("Waiting for animation end... (${i + 1}/3)")
-          }
+          // Wait for animation to complete
+          Thread.sleep(1000) // Full animation duration
 
           try {
             dropshots.assertSnapshot(

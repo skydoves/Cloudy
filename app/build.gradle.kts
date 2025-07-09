@@ -38,10 +38,8 @@ android {
     versionCode = Configuration.versionCode
     versionName = Configuration.versionName
 
-    // Dropshots test runner configuration
+    // Test runner configuration
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-    testInstrumentationRunnerArguments["dropshots_threshold"] = "0.15"
-    testInstrumentationRunnerArguments["dropshots_dir"] = "/data/data/com.skydoves.cloudydemo/cache/dropshots"
   }
 
   buildFeatures {

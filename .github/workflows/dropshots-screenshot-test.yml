@@ -88,7 +88,7 @@ jobs:
           ram-size: 2048M
           heap-size: 512M
           force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -partition-size 4096 -accel on -no-snapshot-save -memory 2048 -cores 2 -netfast -wipe-data
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -partition-size 4096 -accel auto -no-snapshot-save -memory 2048 -delay-adb
           disable-animations: true
           emulator-boot-timeout: 900
           script: |
@@ -135,6 +135,7 @@ jobs:
           path: screenshots/api-27/
           retention-days: 7
           compression-level: 6
+          if-no-files-found: warn
 
       - name: Upload test reports
         if: always()
@@ -206,7 +207,7 @@ jobs:
           ram-size: 2048M
           heap-size: 512M
           force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -partition-size 4096 -accel on -no-snapshot-save -memory 2048 -cores 2 -netfast -wipe-data
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -partition-size 4096 -accel auto -no-snapshot-save -memory 2048 -delay-adb
           disable-animations: true
           emulator-boot-timeout: 900
           script: |
@@ -253,6 +254,7 @@ jobs:
           path: screenshots/api-${{ matrix.api-level }}/
           retention-days: 7
           compression-level: 6
+          if-no-files-found: warn
 
       - name: Upload test reports
         if: always()
@@ -337,7 +339,7 @@ jobs:
             // Upload screenshots to GitHub
             const uploadedImages = [];
 
-            for (const screenshot of allScreenshots.slice(0, 20)) { // Limit to 20 images
+            for (const screenshot of allScreenshots.slice(0, 30)) { // Limit to 30 images
               try {
                 const content = fs.readFileSync(screenshot.path, 'base64');
 
@@ -352,7 +354,8 @@ jobs:
                   api: screenshot.api,
                   name: screenshot.name,
                   size: screenshot.size,
-                  blobSha: blob.sha
+                  blobSha: blob.sha,
+                  content: content
                 });
 
                 console.log(`Uploaded: ${screenshot.name} for API ${screenshot.api}`);
@@ -395,12 +398,12 @@ jobs:
 
                 images.forEach(img => {
                   const cleanName = img.name.replace(/\.png$/, '').replace(/_/g, ' ');
-                  const blobUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/blob/${context.sha}?blob_sha=${img.blobSha}`;
+                  const dataUrl = `data:image/png;base64,${img.content}`;
 
                   commentBody += `#### ${cleanName}\n`;
                   commentBody += `<details>\n`;
                   commentBody += `<summary>📸 View Screenshot (${(img.size/1024).toFixed(1)} KB)</summary>\n\n`;
-                  commentBody += `![${cleanName}](${blobUrl})\n\n`;
+                  commentBody += `![${cleanName}](${dataUrl})\n\n`;
                   commentBody += `</details>\n\n`;
                 });
               });
