@@ -53,7 +53,7 @@ dependencies {
 
 ## Usage
 
-You can implement blur effect with `Modifiy.cloudy()` composable function as seen in the below:
+You can implement blur effect with `Modifier.cloudy()` composable function as seen below:
 
 ```kotlin
 Text(
