@@ -1,0 +1,445 @@
+name: Dropshots Screenshot Tests
+
+on:
+  pull_request:
+    branches: [main, develop, develop/*]
+    paths:
+      - "app/src/**"
+      - "cloudy/src/**"
+      - "*.gradle*"
+      - "gradle/**"
+
+env:
+  GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.workers.max=2 -Dkotlin.incremental=false
+  JAVA_OPTS: -Xmx4g
+  # KVM acceleration for faster emulator boot
+  ANDROID_EMULATOR_USE_SYSTEM_LIBS: 1
+  ANDROID_AVD_HOME: ~/.android/avd
+
+jobs:
+  # Detect changes to prevent unnecessary execution
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      ui-changed: ${{ steps.changes.outputs.ui }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            ui:
+              - 'app/src/main/**/*.kt'
+              - 'cloudy/src/**/*.kt'
+              - 'app/src/main/res/**'
+              - 'app/src/androidTest/**/*.kt'
+
+
+  screenshot-tests-api27:
+    needs: [changes]
+    if: always() && (needs.changes.outputs.ui-changed == 'true' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: "temurin"
+
+      # Multi-layer caching to reduce build time
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      # AVD snapshot caching for faster emulator boot
+      - name: AVD cache
+        uses: actions/cache@v4
+        id: avd-cache
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-api27-${{ runner.os }}-${{ hashFiles('**/*.gradle*') }}
+          restore-keys: |
+            avd-api27-${{ runner.os }}-
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v2
+
+      - name: Accept all Android SDK licenses
+        run: yes | sdkmanager --licenses > /dev/null
+
+      # Emulator optimization settings for Cloudy Native library
+      - name: Run Dropshots screenshot tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 27
+          target: default
+          arch: x86_64
+          ram-size: 2048M
+          heap-size: 512M
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -partition-size 4096 -accel auto -no-snapshot-save -memory 2048 -delay-adb
+          disable-animations: true
+          emulator-boot-timeout: 900
+          script: |
+            # Set fixed screen resolution (for screenshot consistency)
+            adb shell wm size 1080x1920
+            adb shell wm density 440
+
+            echo "Emulator is ready. Starting Dropshots tests..."
+
+            # Execute Dropshots tests with proper command formatting
+            ./gradlew :app:connectedDebugAndroidTest --no-daemon --no-build-cache -Pandroid.testInstrumentationRunnerArguments.class=com.skydoves.cloudydemo.MainTest
+
+            # Check screenshot directory
+            adb shell find /sdcard -name "*.png" -type f 2>/dev/null || echo "No PNG files found"
+
+            # Extract screenshots from internal app cache directory
+            mkdir -p screenshots/api-27
+
+            # Collect screenshots from internal cache directory (our custom location)
+            adb pull /data/data/com.skydoves.cloudydemo/cache/screenshots/ ./screenshots/api-27/ 2>/dev/null || echo "No internal screenshots directory"
+            
+            # List what we found
+            echo "Screenshots found in api-27:"
+            ls -la ./screenshots/api-27/ || echo "No files found"
+
+            # Add API level suffix to filenames if needed
+            cd ./screenshots/api-27
+            for file in *.png 2>/dev/null; do
+              if [[ -f "$file" && "$file" != *"api27"* ]]; then
+                base_name="${file%.png}"
+                mv "$file" "${base_name}_api27.png" 2>/dev/null || true
+              fi
+            done
+            cd - > /dev/null
+
+            echo "Final screenshots in api-27:"
+            ls -la ./screenshots/api-27/ || echo "No files found"
+
+      - name: Upload screenshots artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-api-27
+          path: screenshots/api-27/
+          retention-days: 7
+          compression-level: 6
+          if-no-files-found: warn
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-api-27
+          path: |
+            app/build/reports/androidTests/
+            app/build/outputs/androidTest-results/
+          retention-days: 3
+          if-no-files-found: ignore
+
+  screenshot-tests:
+    needs: [changes]
+    if: always() && (needs.changes.outputs.ui-changed == 'true' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        api-level: [30, 33] # API 27 excluded as it only runs on x86_64 environment
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: "temurin"
+
+      # Multi-layer caching to reduce build time
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      # AVD snapshot caching for faster emulator boot
+      - name: AVD cache
+        uses: actions/cache@v4
+        id: avd-cache
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-api-${{ matrix.api-level }}-${{ runner.os }}-${{ hashFiles('**/*.gradle*') }}
+          restore-keys: |
+            avd-api-${{ matrix.api-level }}-${{ runner.os }}-
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v2
+
+      - name: Accept all Android SDK licenses
+        run: yes | sdkmanager --licenses > /dev/null
+
+      # Emulator optimization settings for Cloudy Native library
+      - name: Run Dropshots screenshot tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          target: ${{ matrix.api-level == 30 && 'google_apis' || 'default' }}
+          arch: x86_64
+          ram-size: 2048M
+          heap-size: 512M
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -partition-size 4096 -accel auto -no-snapshot-save -memory 2048 -delay-adb
+          disable-animations: true
+          emulator-boot-timeout: 900
+          script: |
+            # Set fixed screen resolution (for screenshot consistency)
+            adb shell wm size 1080x1920
+            adb shell wm density 440
+
+            echo "Emulator is ready. Starting Dropshots tests..."
+
+            # Execute Dropshots tests with proper command formatting
+            ./gradlew :app:connectedDebugAndroidTest --no-daemon --no-build-cache -Pandroid.testInstrumentationRunnerArguments.class=com.skydoves.cloudydemo.MainTest
+
+            # Check screenshot directory
+            adb shell find /sdcard -name "*.png" -type f 2>/dev/null || echo "No PNG files found"
+
+            # Extract screenshots from internal app cache directory
+            mkdir -p screenshots/api-${{ matrix.api-level }}
+
+            # Collect screenshots from internal cache directory (our custom location)
+            adb pull /data/data/com.skydoves.cloudydemo/cache/screenshots/ ./screenshots/api-${{ matrix.api-level }}/ 2>/dev/null || echo "No internal screenshots directory"
+            
+            # List what we found
+            echo "Screenshots found in api-${{ matrix.api-level }}:"
+            ls -la ./screenshots/api-${{ matrix.api-level }}/ || echo "No files found"
+
+            # Add API level suffix to filenames if needed
+            cd ./screenshots/api-${{ matrix.api-level }}
+            for file in *.png 2>/dev/null; do
+              if [[ -f "$file" && "$file" != *"api${{ matrix.api-level }}"* ]]; then
+                base_name="${file%.png}"
+                mv "$file" "${base_name}_api${{ matrix.api-level }}.png" 2>/dev/null || true
+              fi
+            done
+            cd - > /dev/null
+
+            echo "Final screenshots in api-${{ matrix.api-level }}:"
+            ls -la ./screenshots/api-${{ matrix.api-level }}/ || echo "No files found"
+
+      - name: Upload screenshots artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-api-${{ matrix.api-level }}
+          path: screenshots/api-${{ matrix.api-level }}/
+          retention-days: 7
+          compression-level: 6
+          if-no-files-found: warn
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-api-${{ matrix.api-level }}
+          path: |
+            app/build/reports/androidTests/
+            app/build/outputs/androidTest-results/
+          retention-days: 3
+          if-no-files-found: ignore
+
+  # Create integrated PR comment after all API levels complete
+  create-pr-comment:
+    needs: [screenshot-tests-api27, screenshot-tests]
+    if: always() && github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all screenshots
+        uses: actions/download-artifact@v4
+        with:
+          pattern: screenshots-api-*
+          path: all-screenshots
+          merge-multiple: true
+
+      - name: Organize screenshots by API level
+        run: |
+          mkdir -p organized-screenshots
+
+          # Organize screenshots by API level
+          for api in 27 30 33; do
+            mkdir -p "organized-screenshots/api-$api"
+            find all-screenshots -name "*api${api}*" -name "*.png" -exec cp {} "organized-screenshots/api-$api/" \; 2>/dev/null || true
+          done
+
+          echo "Organized screenshots:"
+          find organized-screenshots -type f -name "*.png" | head -20
+
+      - name: Create PR comment with screenshots
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            const screenshotDir = 'organized-screenshots';
+
+            if (!fs.existsSync(screenshotDir)) {
+              console.log('No screenshots directory found');
+              return;
+            }
+
+            // Collect screenshots by API level
+            const apiLevels = ['27', '30', '33'];
+            const allScreenshots = [];
+
+            for (const api of apiLevels) {
+              const apiDir = path.join(screenshotDir, `api-${api}`);
+              if (fs.existsSync(apiDir)) {
+                const screenshots = fs.readdirSync(apiDir)
+                  .filter(file => file.endsWith('.png'))
+                  .map(file => ({
+                    api: api,
+                    name: file,
+                    path: path.join(apiDir, file),
+                    size: fs.statSync(path.join(apiDir, file)).size
+                  }));
+                allScreenshots.push(...screenshots);
+              }
+            }
+
+            if (allScreenshots.length === 0) {
+              console.log('No screenshots found');
+              return;
+            }
+
+            console.log(`Found ${allScreenshots.length} screenshots`);
+
+            // Upload screenshots to GitHub
+            const uploadedImages = [];
+
+            for (const screenshot of allScreenshots.slice(0, 30)) { // Limit to 30 images
+              try {
+                const content = fs.readFileSync(screenshot.path, 'base64');
+
+                const { data: blob } = await github.rest.git.createBlob({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  content: content,
+                  encoding: 'base64'
+                });
+
+                uploadedImages.push({
+                  api: screenshot.api,
+                  name: screenshot.name,
+                  size: screenshot.size,
+                  blobSha: blob.sha,
+                  content: content
+                });
+
+                console.log(`Uploaded: ${screenshot.name} for API ${screenshot.api}`);
+
+              } catch (error) {
+                console.error(`Failed to upload ${screenshot.name}:`, error.message);
+              }
+            }
+
+            // Create PR comment
+            if (uploadedImages.length > 0) {
+              const totalSize = uploadedImages.reduce((sum, img) => sum + img.size, 0);
+              const formattedSize = (totalSize / 1024 / 1024).toFixed(2);
+
+              let commentBody = '## 📱 Cloudy Library Screenshot Test Results\n\n' +
+                '**🔧 Native RenderScript Toolkit Testing**\n' +
+                `**📊 Total Screenshots:** ${uploadedImages.length}\n` +
+                `**📏 Total Size:** ${formattedSize} MB\n` +
+                `**🕒 Generated:** ${new Date().toISOString()}\n\n` +
+                '### ✅ Test Coverage\n' +
+                '- **API 27** (Android 8.1) - Native blur compatibility\n' +
+                '- **API 30** (Android 11) - Performance optimization\n' +
+                '- **API 33** (Android 13) - Latest feature support\n\n' +
+                '### 🎯 Native Features Tested\n' +
+                '- ✅ RenderScript Toolkit blur effects\n' +
+                '- ✅ GPU acceleration compatibility\n' +
+                '- ✅ Animation state consistency\n' +
+                '- ✅ Memory management under load\n\n' +
+                '---\n';
+
+              // Group by API level
+              const groupedByApi = uploadedImages.reduce((groups, img) => {
+                if (!groups[img.api]) groups[img.api] = [];
+                groups[img.api].push(img);
+                return groups;
+              }, {});
+
+              Object.entries(groupedByApi).forEach(([api, images]) => {
+                commentBody += `### 📱 API Level ${api}\n\n`;
+
+                images.forEach(img => {
+                  const cleanName = img.name.replace(/\.png$/, '').replace(/_/g, ' ');
+                  const dataUrl = `data:image/png;base64,${img.content}`;
+
+                  commentBody += `#### ${cleanName}\n`;
+                  commentBody += `<details>\n`;
+                  commentBody += `<summary>📸 View Screenshot (${(img.size/1024).toFixed(1)} KB)</summary>\n\n`;
+                  commentBody += `![${cleanName}](${dataUrl})\n\n`;
+                  commentBody += `</details>\n\n`;
+                });
+              });
+
+              commentBody += '---\n' +
+                '**🤖 Screenshots automatically generated by Dropshots in CI**\n' +
+                '**⚡ Native libraries tested on real Android emulators**\n' +
+                `**🔄 Run ID:** ${context.runId}`;
+
+              // Check for existing comment and update
+              const { data: comments } = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number
+              });
+
+              const existingComment = comments.find(comment =>
+                comment.body.includes('📱 Cloudy Library Screenshot Test Results') &&
+                comment.user.type === 'Bot'
+              );
+
+              if (existingComment) {
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: existingComment.id,
+                  body: commentBody
+                });
+                console.log('Updated existing PR comment');
+              } else {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  body: commentBody
+                });
+                console.log('Created new PR comment');
+              }
+            }

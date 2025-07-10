@@ -13,7 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 import com.skydoves.cloudy.Configuration
+import org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+import org.gradle.api.tasks.testing.logging.TestLogEvent.FAILED
+import org.gradle.api.tasks.testing.logging.TestLogEvent.PASSED
+import org.gradle.api.tasks.testing.logging.TestLogEvent.SKIPPED
+import org.gradle.api.tasks.testing.logging.TestLogEvent.STARTED
 
 plugins {
   id(libs.plugins.android.application.get().pluginId)
@@ -30,6 +36,9 @@ android {
     targetSdk = Configuration.targetSdk
     versionCode = Configuration.versionCode
     versionName = Configuration.versionName
+
+    // Test runner configuration
+    testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 
   buildFeatures {
@@ -37,7 +46,12 @@ android {
   }
 
   packaging {
-    jniLibs.pickFirsts.add("lib/*/librenderscript-toolkit.so")
+    jniLibs {
+      pickFirsts.add("lib/*/librenderscript-toolkit.so")
+    }
+    resources {
+      excludes.add("**/librenderscript-toolkit.so")
+    }
   }
 
   buildTypes {
@@ -51,13 +65,26 @@ android {
   lint {
     abortOnError = false
   }
+
+  testOptions {
+    unitTests {
+      all {
+        it.testLogging {
+          events.addAll(listOf(STARTED, PASSED, SKIPPED, FAILED))
+          showCauses = true
+          showExceptions = true
+          exceptionFormat = FULL
+        }
+      }
+      isIncludeAndroidResources = true
+    }
+  }
 }
 
 dependencies {
   implementation(project(":cloudy"))
 
   implementation(libs.landscapist.glide)
-  implementation(libs.landscapist.transformation)
 
   implementation(libs.material)
   implementation(libs.androidx.activity.compose)
@@ -68,4 +95,16 @@ dependencies {
   implementation(libs.androidx.compose.foundation)
   implementation(libs.androidx.compose.runtime)
   implementation(libs.androidx.compose.constraintlayout)
+
+  // Test dependencies (JVM-based)
+  testImplementation(libs.androidx.test.junit)
+  testImplementation(libs.androidx.compose.ui.test.junit4)
+
+  // Android Instrumentation Test dependencies (Device-based for Native libraries)
+  androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+  androidTestImplementation(libs.androidx.ui.test.manifest)
+  androidTestImplementation(libs.androidx.junit)
+  androidTestImplementation(libs.androidx.activity.compose)
+  androidTestImplementation(libs.androidx.test.runner)
+  androidTestImplementation(libs.androidx.test.rules)
 }

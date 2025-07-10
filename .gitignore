@@ -4,7 +4,7 @@
 
 # Files for the ART/Dalvik VM
 *.dex
-
+.kotlin/
 # Java class files
 *.class
 ./kotlin
