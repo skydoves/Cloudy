@@ -1,7 +1,3 @@
-public final class com/skydoves/cloudy/CloudyModifierNodeKt {
-	public static final fun cloudy (Landroidx/compose/ui/Modifier;IZLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
-}
-
 public abstract interface class com/skydoves/cloudy/CloudyState {
 }
 
@@ -35,14 +31,34 @@ public final class com/skydoves/cloudy/CloudyState$Nothing : com/skydoves/cloudy
 
 public final class com/skydoves/cloudy/CloudyState$Success : com/skydoves/cloudy/CloudyState {
 	public static final field $stable I
-	public fun <init> (Landroid/graphics/Bitmap;)V
-	public final fun component1 ()Landroid/graphics/Bitmap;
-	public final fun copy (Landroid/graphics/Bitmap;)Lcom/skydoves/cloudy/CloudyState$Success;
-	public static synthetic fun copy$default (Lcom/skydoves/cloudy/CloudyState$Success;Landroid/graphics/Bitmap;ILjava/lang/Object;)Lcom/skydoves/cloudy/CloudyState$Success;
+	public fun <init> (Lcom/skydoves/cloudy/PlatformBitmap;)V
+	public final fun component1 ()Lcom/skydoves/cloudy/PlatformBitmap;
+	public final fun copy (Lcom/skydoves/cloudy/PlatformBitmap;)Lcom/skydoves/cloudy/CloudyState$Success;
+	public static synthetic fun copy$default (Lcom/skydoves/cloudy/CloudyState$Success;Lcom/skydoves/cloudy/PlatformBitmap;ILjava/lang/Object;)Lcom/skydoves/cloudy/CloudyState$Success;
 	public fun equals (Ljava/lang/Object;)Z
-	public final fun getBitmap ()Landroid/graphics/Bitmap;
+	public final fun getBitmap ()Lcom/skydoves/cloudy/PlatformBitmap;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/skydoves/cloudy/Cloudy_androidKt {
+	public static final fun cloudy (Landroidx/compose/ui/Modifier;IZLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
+}
+
+public final class com/skydoves/cloudy/PlatformBitmap {
+	public static final field $stable I
+	public fun <init> (Landroid/graphics/Bitmap;)V
+	public final fun getBitmap ()Landroid/graphics/Bitmap;
+	public final fun getHeight ()I
+	public final fun getWidth ()I
+	public final fun isRecyclable ()Z
+}
+
+public final class com/skydoves/cloudy/PlatformBitmap_androidKt {
+	public static final fun createCompatible (Lcom/skydoves/cloudy/PlatformBitmap;)Lcom/skydoves/cloudy/PlatformBitmap;
+	public static final fun dispose (Lcom/skydoves/cloudy/PlatformBitmap;)V
+	public static final fun toAndroidBitmap (Lcom/skydoves/cloudy/PlatformBitmap;)Landroid/graphics/Bitmap;
+	public static final fun toPlatformBitmap (Landroid/graphics/Bitmap;)Lcom/skydoves/cloudy/PlatformBitmap;
 }
 
 public final class com/skydoves/cloudy/RememberCloudyStateKt {

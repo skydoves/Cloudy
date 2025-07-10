@@ -9,6 +9,9 @@
 *.class
 ./kotlin
 
+# Kotlin
+.kotlin/
+
 # Generated files
 bin/
 gen/
