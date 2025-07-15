@@ -112,34 +112,25 @@ GlideImage(
 
 ## Maintaining Blurring Effect on Responsive Composable
 
-The `Modifier.cloudy` captures the bitmap of the composable node under the hood. If you need to use the cloudy modifier as an item in lists or similar structures, you should provide the same [graphic layer](https://developer.android.com/reference/kotlin/androidx/compose/ui/graphics/layer/GraphicsLayer) to ensure consistent rendering and performance.
+The `Modifier.cloudy` captures the bitmap of the composable node under the hood.
 
 ```kotlin
-val graphicsLayer = rememberGraphicsLayer()
-
 LazyVerticalGrid(
   state = rememberLazyGridState(),
   columns = GridCells.Fixed(2)
 ) {
   itemsIndexed(key = { index, item -> item.id }, items = posters) { index, item ->
-    HomePoster(
-      poster = item,
-      graphicsLayer = graphicsLayer
-    )
+    HomePoster(poster = item)
   }
 }
 
 @Composable
-private fun HomePoster(
-  graphicsLayer: GraphicsLayer = rememberGraphicsLayer(),
-  poster: Poster
-) {
-
+private fun HomePoster(poster: Poster) {
     ConstraintLayout {
       val (image, title, content) = createRefs()
       GlideImage(
         modifier = Modifier
-          .cloudy(radius = 15, graphicsLayer = graphicsLayer)
+          .cloudy(radius = 15)
           .aspectRatio(0.8f)
           .constrainAs(image) {
             centerHorizontallyTo(parent)

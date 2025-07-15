@@ -45,9 +45,6 @@ import kotlinx.coroutines.launch
  *
  * @param radius Radius of the blur along both the x and y axis.
  * @param enabled Enabling the blur effects.
- * @param graphicsLayer The graphic layer that records the original content and get the bitmap information.
- * This parameter should be used when you need to remain with the same graphic layer for the dynamically
- * updated Composable functions, such as Lazy Lists.
  * @param onStateChanged Lambda function that will be invoked when the blur process has been updated.
  */
 @Composable
