@@ -11,14 +11,16 @@ binaryCompatibility = "0.18.0"
 androidxActivity = "1.10.1"
 androidxCompose = "1.8.3"
 androidxComposeConstraintLayout = "1.1.1"
-androidxCore = "1.16.0"
 androidxTest = "1.6.2"
+androidxTestRules = "1.6.1"
 androidxJunit = "1.2.1"
 androidxMacroBenchmark = "1.3.4"
 androidxProfileinstaller = "1.4.1"
 androidxUiAutomator = "2.3.0"
 landscapist = "2.5.1"
 spotless = "6.7.0"
+dropshots = "0.5.0"
+uiTestJunit4 = "1.8.3"
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
@@ -29,24 +31,26 @@ compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "
 nexus-plugin = { id = "com.vanniktech.maven.publish", version.ref = "nexusPlugin" }
 spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
 kotlinBinaryCompatibilityValidator = { id = "org.jetbrains.kotlinx.binary-compatibility-validator", version.ref = "binaryCompatibility" }
+dropshots = { id = "com.dropbox.dropshots", version.ref = "dropshots" }
 
 [libraries]
+androidx-junit = { module = "androidx.test.ext:junit", version.ref = "androidxJunit" }
+androidx-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest", version.ref = "androidxCompose" }
+dropshots = { module = "com.dropbox.dropshots:dropshots", version.ref = "dropshots" }
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "kotlinxCoroutinesAndroid" }
 material = { module = "com.google.android.material:material", version.ref = "material" }
 androidx-compose-ui = { group = "androidx.compose.ui", name = "ui", version.ref = "androidxCompose" }
 androidx-compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling", version.ref = "androidxCompose" }
-androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview", version.ref = "androidxCompose" }
 androidx-compose-material = { group = "androidx.compose.material", name = "material", version.ref = "androidxCompose" }
 androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "androidxCompose" }
 androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime", version.ref = "androidxCompose" }
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "androidxActivity" }
 androidx-compose-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout-compose", version.ref = "androidxComposeConstraintLayout" }
-androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "androidxCore" }
 androidx-profileinstaller = { group = "androidx.profileinstaller", name = "profileinstaller", version.ref = "androidxProfileinstaller" }
 androidx-benchmark-macro = { group = "androidx.benchmark", name = "benchmark-macro-junit4", version.ref = "androidxMacroBenchmark" }
 androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "androidxTest" }
-androidx-test-rules = { group = "androidx.test", name = "rules", version.ref = "androidxTest" }
+androidx-test-rules = { group = "androidx.test", name = "rules", version.ref = "androidxTestRules" }
 androidx-test-junit = { group = "androidx.test.ext", name = "junit-ktx", version.ref = "androidxJunit" }
 androidx-test-uiautomator = { group = "androidx.test.uiautomator", name = "uiautomator", version.ref = "androidxUiAutomator" }
 landscapist-glide = { group = "com.github.skydoves", name = "landscapist-glide", version.ref = "landscapist" }
-landscapist-transformation = { group = "com.github.skydoves", name = "landscapist-transformation", version.ref = "landscapist" }
+androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4", version.ref = "androidxCompose" }
