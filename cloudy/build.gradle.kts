@@ -27,6 +27,20 @@ plugins {
 
 apply(from = "${rootDir}/scripts/publish-module.gradle.kts")
 
+mavenPublishing {
+  val artifactId = "cloudy"
+  project.group = Configuration.artifactGroup
+  coordinates(
+    artifactId = artifactId,
+    version = rootProject.extra.get("libVersion").toString()
+  )
+
+  pom {
+    name.set(artifactId)
+    description.set("Jetpack Compose blur effect library, which falls back onto a CPU-based implementation to support older API levels.")
+  }
+}
+
 kotlin {
   compilerOptions {
     freeCompilerArgs.addAll(
