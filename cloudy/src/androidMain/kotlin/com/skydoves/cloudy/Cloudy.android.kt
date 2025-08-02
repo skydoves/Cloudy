@@ -40,28 +40,17 @@ import kotlinx.coroutines.launch
 /**
  * Android implementation of the cloudy modifier that applies blur effects to composables.
  * This is the actual implementation for the expect function declared in commonMain.
- * * For Android 12+ devices in preview mode, it falls back to the platform's blur modifier.
+ * For Android 12+ devices in preview mode, it falls back to the platform's blur modifier.
  * For runtime execution, it uses a custom implementation with graphics layers and
  * native iterative blur processing for optimal performance.
- * * The implementation captures the composable content in a graphics layer, applies
+ * The implementation captures the composable content in a graphics layer, applies
  * iterative blur processing using native code, and overlays the result.
- * 
  * History: The [blur] modifier supports only Android 12 and higher, and [RenderScript] was also deprecated.
  *
  * @param radius The blur radius in pixels (1-25). Higher values create more blur but take longer to process.
  * @param enabled Whether the blur effect is enabled. When false, returns the original modifier unchanged.
  * @param onStateChanged Callback that receives updates about the blur processing state.
  * @return Modified Modifier with blur effect applied.
- */
-/**
- * Applies a blur effect to the composable using a native iterative blur algorithm.
- *
- * If `enabled` is false, the modifier is not applied. In Android Studio preview mode on Android 12+, the platform's native blur is used for inspection. Otherwise, the modifier captures the composable's content, applies a blur with the specified `radius`, and reports processing state changes via `onStateChanged`.
- *
- * @param radius The blur radius in pixels. Must be non-negative.
- * @param enabled Whether the blur effect is applied.
- * @param onStateChanged Callback invoked with updates about the blur processing state.
- * @return The modified [Modifier] with the blur effect applied if enabled.
  */
 @Composable
 public actual fun Modifier.cloudy(
