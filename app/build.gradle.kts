@@ -14,11 +14,60 @@
  * limitations under the License.
  */
 import com.skydoves.cloudy.Configuration
+import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 
 plugins {
   id(libs.plugins.android.application.get().pluginId)
-  id(libs.plugins.kotlin.android.get().pluginId)
+  id(libs.plugins.kotlin.multiplatform.get().pluginId)
+  id(libs.plugins.compose.multiplatform.get().pluginId)
   id(libs.plugins.compose.compiler.get().pluginId)
+}
+
+kotlin {
+  targets
+    .filterIsInstance<KotlinNativeTarget>()
+    .forEach { target ->
+      target.binaries {
+        framework {
+          baseName = "ComposeApp"
+          isStatic = true
+        }
+      }
+    }
+
+  androidTarget()
+  
+  listOf(
+    iosX64(),
+    iosArm64(),
+    iosSimulatorArm64()
+  ).forEach { iosTarget ->
+    iosTarget.binaries.framework {
+      baseName = "ComposeApp"
+      isStatic = true
+    }
+  }
+
+  sourceSets {
+    androidMain.dependencies {
+      implementation(compose.preview)
+      implementation(libs.androidx.activity.compose)
+    }
+    
+    commonMain.dependencies {
+      implementation(project(":cloudy"))
+      
+      implementation(compose.runtime)
+      implementation(compose.foundation)
+      implementation(compose.ui)
+      implementation(libs.compose.resources)
+      implementation(compose.material)
+      
+      implementation(libs.landscapist.coil)
+      implementation(libs.coil)
+      implementation(libs.coil.network)
+    }
+  }
 }
 
 android {
@@ -54,18 +103,7 @@ android {
 }
 
 dependencies {
-  implementation(project(":cloudy"))
-
-  implementation(libs.landscapist.glide)
-  implementation(libs.landscapist.transformation)
-
   implementation(libs.material)
-  implementation(libs.androidx.activity.compose)
-
-  implementation(libs.androidx.compose.ui)
   implementation(libs.androidx.compose.ui.tooling)
-  implementation(libs.androidx.compose.material)
-  implementation(libs.androidx.compose.foundation)
-  implementation(libs.androidx.compose.runtime)
   implementation(libs.androidx.compose.constraintlayout)
 }
