@@ -36,7 +36,7 @@ kotlin {
     }
 
   androidTarget()
-  
+
   listOf(
     iosX64(),
     iosArm64(),
@@ -53,16 +53,16 @@ kotlin {
       implementation(compose.preview)
       implementation(libs.androidx.activity.compose)
     }
-    
+
     commonMain.dependencies {
       implementation(project(":cloudy"))
-      
+
       implementation(compose.runtime)
       implementation(compose.foundation)
       implementation(compose.ui)
       implementation(libs.compose.resources)
       implementation(compose.material)
-      
+
       implementation(libs.landscapist.coil)
       implementation(libs.coil)
       implementation(libs.coil.network)

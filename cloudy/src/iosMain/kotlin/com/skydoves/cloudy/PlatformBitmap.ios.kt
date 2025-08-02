@@ -21,12 +21,12 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asComposeImageBitmap
 import androidx.compose.ui.graphics.toPixelMap
+import kotlinx.cinterop.ByteVar
 import kotlinx.cinterop.ExperimentalForeignApi
-import kotlinx.cinterop.useContents
 import kotlinx.cinterop.get
 import kotlinx.cinterop.reinterpret
 import kotlinx.cinterop.set
-import kotlinx.cinterop.ByteVar
+import kotlinx.cinterop.useContents
 import org.jetbrains.skia.Bitmap
 import org.jetbrains.skia.ImageInfo
 import platform.CoreGraphics.CGBitmapContextCreate

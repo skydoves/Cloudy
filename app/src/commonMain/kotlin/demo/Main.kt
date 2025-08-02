@@ -26,7 +26,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -43,17 +42,11 @@ import com.skydoves.cloudy.cloudy
 import com.skydoves.landscapist.coil3.CoilImage
 import demo.model.MockUtil
 import demo.theme.PosterTheme
-import org.jetbrains.compose.resources.painterResource
-import org.jetbrains.compose.resources.DrawableResource
 import androidx.compose.material.MaterialTheme as M2MaterialTheme
-import androidx.compose.material.Text
-import androidx.compose.foundation.background
 
 @Composable
 fun CloudyDemoApp() {
-  PosterTheme { 
-    Main() 
-  }
+  PosterTheme { Main() }
 }
 
 @Composable
