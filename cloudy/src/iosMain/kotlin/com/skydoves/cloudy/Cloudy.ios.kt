@@ -42,21 +42,12 @@ import platform.UIKit.UIImage
 /**
  * iOS implementation of the cloudy modifier that applies blur effects to composables.
  * This is the actual implementation for the expect function declared in commonMain.
- * * Uses Core Image filters for blur processing on iOS, with graphics layer content capture
+ * Uses Core Image filters for blur processing on iOS, with graphics layer content capture
  * to blur the actual composable content instead of placeholder images.
- * * @param radius The blur radius in pixels. Higher values create more blur.
+ * @param radius The blur radius in pixels. Higher values create more blur.
  * @param enabled Whether the blur effect is enabled. When false, returns the original modifier unchanged.
  * @param onStateChanged Callback that receives updates about the blur processing state.
  * @return Modified Modifier with blur effect applied.
- */
-/**
- * Applies a Gaussian blur effect to the composable content using Core Image when enabled.
- *
- * @param radius The blur radius in points. Must be non-negative.
- * @param enabled If false, no blur is applied and the modifier is unchanged.
- * @param onStateChanged Callback invoked with the current blur processing state.
- * @return The modifier with the blur effect applied if enabled; otherwise, the original modifier.
- * @throws IllegalArgumentException if radius is negative.
  */
 @Composable
 public actual fun Modifier.cloudy(
@@ -173,7 +164,10 @@ private class CloudyModifierNode(
  * @param radius The blur radius to apply.
  * @return The blurred bitmap, or null if the blur operation fails.
  */
-private suspend fun createBlurredBitmapFromContent(contentBitmap: ImageBitmap, radius: Float): PlatformBitmap? {
+private suspend fun createBlurredBitmapFromContent(
+  contentBitmap: ImageBitmap,
+  radius: Float
+): PlatformBitmap? {
   return withContext(Dispatchers.Default) {
     try {
       // Convert Compose ImageBitmap to UIImage
