@@ -29,12 +29,23 @@ public final class com/skydoves/cloudy/CloudyState$Nothing : com/skydoves/cloudy
 	public fun toString ()Ljava/lang/String;
 }
 
-public final class com/skydoves/cloudy/CloudyState$Success : com/skydoves/cloudy/CloudyState {
+public abstract interface class com/skydoves/cloudy/CloudyState$Success : com/skydoves/cloudy/CloudyState {
+}
+
+public final class com/skydoves/cloudy/CloudyState$Success$Applied : com/skydoves/cloudy/CloudyState$Success {
+	public static final field $stable I
+	public static final field INSTANCE Lcom/skydoves/cloudy/CloudyState$Success$Applied;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/skydoves/cloudy/CloudyState$Success$Captured : com/skydoves/cloudy/CloudyState$Success {
 	public static final field $stable I
 	public fun <init> (Lcom/skydoves/cloudy/PlatformBitmap;)V
 	public final fun component1 ()Lcom/skydoves/cloudy/PlatformBitmap;
-	public final fun copy (Lcom/skydoves/cloudy/PlatformBitmap;)Lcom/skydoves/cloudy/CloudyState$Success;
-	public static synthetic fun copy$default (Lcom/skydoves/cloudy/CloudyState$Success;Lcom/skydoves/cloudy/PlatformBitmap;ILjava/lang/Object;)Lcom/skydoves/cloudy/CloudyState$Success;
+	public final fun copy (Lcom/skydoves/cloudy/PlatformBitmap;)Lcom/skydoves/cloudy/CloudyState$Success$Captured;
+	public static synthetic fun copy$default (Lcom/skydoves/cloudy/CloudyState$Success$Captured;Lcom/skydoves/cloudy/PlatformBitmap;ILjava/lang/Object;)Lcom/skydoves/cloudy/CloudyState$Success$Captured;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getBitmap ()Lcom/skydoves/cloudy/PlatformBitmap;
 	public fun hashCode ()I
