@@ -10,11 +10,19 @@
 </p><br>
 
 <p align="center">
-☁️ Compose blur effect library, which falls back on to a CPU-based implementation to support older API levels.
+☁️ Kotlin Multiplatform blur effect library for Compose, with GPU-accelerated rendering and CPU fallback for older devices.
 </p><br>
 
 > <p align="center">The `blur` modifier supports only Android 12 and higher, and `RenderScript` APIs are deprecated starting in Android 12.
-> Cloudy is the backport of the blur effect for Jetpack Compose.</p>
+> Cloudy is the backport of the blur effect for Jetpack Compose with cross-platform support.</p>
+
+## Platform Support
+
+| Platform | Implementation | Performance | State Type |
+|----------|----------------|-------------|------------|
+| iOS | Skia BlurEffect (Metal GPU) | GPU-accelerated | `Success.Applied` |
+| Android 31+ | RenderEffect (GPU) | GPU-accelerated | `Success.Applied` |
+| Android 30- | Native C++ (CPU) | NEON/SIMD optimized | `Success.Captured` |
 
 <p align="center">
 <img src="preview/gif0.gif" width="268"/>
@@ -103,12 +111,42 @@ GlideImage(
     .size(400.dp)
     .cloudy(
       radius = 25,
-      onStateChanged = {
-        // ..
+      onStateChanged = { state ->
+        when (state) {
+          is CloudyState.Success.Applied -> {
+            // GPU blur applied (iOS, Android 31+)
+            // No bitmap available - blur rendered directly
+          }
+          is CloudyState.Success.Captured -> {
+            // CPU blur completed (Android 30-)
+            // Blurred bitmap available: state.bitmap
+            val blurredBitmap = state.bitmap
+          }
+          is CloudyState.Loading -> {
+            // Blur processing in progress
+          }
+          is CloudyState.Error -> {
+            // Handle error: state.throwable
+          }
+          CloudyState.Nothing -> {
+            // Initial state
+          }
+        }
       }
     ),
-..
+  ..
+)
 ```
+
+### CloudyState Types
+
+| State | Description | Bitmap Available |
+|-------|-------------|------------------|
+| `Success.Applied` | GPU blur applied in rendering pipeline | No |
+| `Success.Captured` | CPU blur completed with bitmap | Yes (`state.bitmap`) |
+| `Loading` | Blur processing in progress | No |
+| `Error` | Blur operation failed | No |
+| `Nothing` | Initial state | No |
 
 ## Maintaining Blurring Effect on Responsive Composable
 
