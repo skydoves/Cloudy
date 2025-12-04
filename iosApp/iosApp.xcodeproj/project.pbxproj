@@ -152,7 +152,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "cd \"$SRCROOT/..\"\n./gradlew :iosApp:embedAndSignAppleFrameworkForXcode\n";
+			shellScript = "cd \"$SRCROOT/..\"\n./gradlew :app:embedAndSignAppleFrameworkForXcode\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -294,7 +294,7 @@
 				ENABLE_PREVIEWS = YES;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
-					"$(SRCROOT)/../iosApp/build/cocoapods/framework",
+					"$(SRCROOT)/../app/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)",
 				);
 				INFOPLIST_FILE = iosApp/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 14.1;
@@ -305,7 +305,7 @@
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-framework",
-					CloudyIOSApp,
+					CloudyApp,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.skydoves.cloudydemo;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -323,7 +323,7 @@
 				ENABLE_PREVIEWS = YES;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
-					"$(SRCROOT)/../iosApp/build/cocoapods/framework",
+					"$(SRCROOT)/../app/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)",
 				);
 				INFOPLIST_FILE = iosApp/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 14.1;
@@ -334,7 +334,7 @@
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-framework",
-					CloudyIOSApp,
+					CloudyApp,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.skydoves.cloudydemo;
 				PRODUCT_NAME = "$(TARGET_NAME)";
