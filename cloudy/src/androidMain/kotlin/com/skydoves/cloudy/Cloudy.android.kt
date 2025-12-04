@@ -67,6 +67,16 @@ import kotlinx.coroutines.launch
  * @param onStateChanged Callback that receives updates about the blur processing state.
  * @return Modified Modifier with blur effect applied.
  */
+/**
+ * Applies a blur effect to the element this modifier is attached to.
+ *
+ * Uses a GPU-accelerated RenderEffect on API 31+ and a CPU-based bitmap capture and blur on older Android versions.
+ *
+ * @param radius Blur radius in pixels; must be greater than or equal to 0.
+ * @param enabled When `false`, returns the original modifier unchanged.
+ * @param onStateChanged Callback invoked with `CloudyState` updates describing progress, success, or error.
+ * @return A [Modifier] that applies the requested blur when `enabled` is `true`, otherwise the original modifier.
+ */
 @Composable
 public actual fun Modifier.cloudy(
   @IntRange(from = 0) radius: Int,
@@ -97,10 +107,18 @@ public actual fun Modifier.cloudy(
 }
 
 /**
- * Applies GPU-accelerated blur using RenderEffect (API 31+).
+ * Applies a GPU-accelerated blur to the receiver using RenderEffect on API 31+.
  *
- * This implementation operates directly in the rendering pipeline without
- * extracting bitmaps, providing optimal performance.
+ * When `radius` is zero the modifier is returned unchanged and `onStateChanged`
+ * is invoked with `CloudyState.Success.Applied`. For positive radii this emits
+ * `CloudyState.Success.Applied` and applies a RenderEffect-based blur to the
+ * composable's rendering layer; no bitmap is produced or exposed.
+ *
+ * @param radius The blur radius in pixels; must be greater than or equal to 0.
+ * @param onStateChanged Callback invoked with `CloudyState` updates (e.g.
+ *   `Success.Applied`). Note that the GPU path does not provide a captured bitmap.
+ * @return A Modifier that applies a RenderEffect blur on supported Android versions,
+ *   or the original Modifier if `radius` is 0 or the platform does not support RenderEffect.
  */
 @Composable
 private fun Modifier.cloudyWithRenderEffect(
@@ -137,11 +155,21 @@ private data class CloudyModifierNodeElement(
     properties["cloudy"] = radius
   }
 
+  /**
+   * Creates a CloudyModifierNode configured with this element's current radius and state callback.
+   *
+   * @return A new CloudyModifierNode initialized with the element's `radius` and `onStateChanged` callback.
+   */
   override fun create(): CloudyModifierNode = CloudyModifierNode(
     radius = radius,
     onStateChanged = onStateChanged,
   )
 
+  /**
+   * Synchronizes the modifier node's blur radius with this element's current radius.
+   *
+   * @param node The CloudyModifierNode to update.
+   */
   override fun update(node: CloudyModifierNode) {
     node.radius = radius
   }
@@ -162,6 +190,14 @@ private class CloudyModifierNode(
 
   private var cachedOutput: PlatformBitmap? by mutableStateOf(null)
 
+  /**
+   * Draws the composable content into an offscreen graphics layer, applies a blur when requested, and emits processing states.
+   *
+   * If `radius` is zero or less, the content is drawn without blurring and `CloudyState.Success.Applied` is emitted.
+   * Otherwise the modifier emits `CloudyState.Loading`, captures the recorded layer as a bitmap, performs an asynchronous iterative blur on the main dispatcher, draws the blurred result into the composition, and then emits `CloudyState.Success.Captured` with the blurred bitmap. If an error occurs during capture or blur, `CloudyState.Error` is emitted.
+   *
+   * This method ensures the created graphics layer is released after processing.
+   */
   override fun ContentDrawScope.draw() {
     val graphicsLayer = requireGraphicsContext().createGraphicsLayer()
 
