@@ -43,11 +43,45 @@ public sealed interface CloudyState {
 
   /**
    * Represents the successful completion of the blur processing operation.
-   * @property bitmap The resulting blurred bitmap. May be null if the blur
-   *                 operation completed but no bitmap was generated (e.g., in preview mode).
+   *
+   * This sealed interface has two subtypes:
+   * - [Applied]: GPU-accelerated blur was applied in the rendering pipeline (no bitmap available)
+   * - [Captured]: CPU-based blur completed with a captured bitmap
+   *
+   * ## Platform Behavior
+   * - **iOS**: Returns [Applied] (Skia ImageFilter via Metal GPU)
+   * - **Android 31+**: Returns [Applied] (RenderEffect GPU)
+   * - **Android 30-**: Returns [Captured] (Native C++ CPU blur with bitmap)
+   *
+   * @see Applied
+   * @see Captured
    */
-  @Immutable
-  public data class Success(public val bitmap: PlatformBitmap?) : CloudyState
+  @Stable
+  public sealed interface Success : CloudyState {
+
+    /**
+     * GPU-accelerated blur was applied directly in the rendering pipeline.
+     *
+     * This state is returned when using GPU-based blur implementations:
+     * - iOS: Skia ImageFilter.makeBlur() with Metal backend
+     * - Android 31+: RenderEffect.createBlurEffect()
+     *
+     * No bitmap is extracted for performance reasons (avoiding GPU→CPU readback).
+     */
+    @Immutable
+    public data object Applied : Success
+
+    /**
+     * CPU-based blur completed with a captured bitmap.
+     *
+     * This state is returned when using CPU-based blur implementations:
+     * - Android 30 and below: Native C++ RenderScriptToolkit
+     *
+     * @property bitmap The resulting blurred bitmap.
+     */
+    @Immutable
+    public data class Captured(public val bitmap: PlatformBitmap) : Success
+  }
 
   /**
    * Represents a failed blur processing operation.
