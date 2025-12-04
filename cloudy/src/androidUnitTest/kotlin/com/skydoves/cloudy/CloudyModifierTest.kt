@@ -49,7 +49,7 @@ internal class CloudyModifierTest {
 
     assertTrue(
       "API 31 should satisfy RenderEffect condition (SDK_INT >= S)",
-      shouldUseRenderEffect
+      shouldUseRenderEffect,
     )
     assertEquals(Build.VERSION_CODES.S, Build.VERSION.SDK_INT)
   }
@@ -64,7 +64,7 @@ internal class CloudyModifierTest {
 
     assertTrue(
       "API 32 should satisfy RenderEffect condition",
-      shouldUseRenderEffect
+      shouldUseRenderEffect,
     )
   }
 
@@ -78,7 +78,7 @@ internal class CloudyModifierTest {
 
     assertTrue(
       "API 33 should satisfy RenderEffect condition",
-      shouldUseRenderEffect
+      shouldUseRenderEffect,
     )
   }
 
@@ -92,7 +92,7 @@ internal class CloudyModifierTest {
 
     assertFalse(
       "API 30 should NOT satisfy RenderEffect condition (SDK_INT < S)",
-      shouldUseRenderEffect
+      shouldUseRenderEffect,
     )
     assertEquals(Build.VERSION_CODES.R, Build.VERSION.SDK_INT)
   }
@@ -107,7 +107,7 @@ internal class CloudyModifierTest {
 
     assertFalse(
       "API 29 should NOT satisfy RenderEffect condition",
-      shouldUseRenderEffect
+      shouldUseRenderEffect,
     )
   }
 
@@ -123,11 +123,11 @@ internal class CloudyModifierTest {
 
     assertTrue(
       "Success.Applied should be a Success state",
-      state is CloudyState.Success
+      state is CloudyState.Success,
     )
     assertTrue(
       "Success.Applied should be exactly Applied type",
-      state is CloudyState.Success.Applied
+      state is CloudyState.Success.Applied,
     )
   }
 
@@ -144,16 +144,16 @@ internal class CloudyModifierTest {
 
     assertTrue(
       "Success.Captured should be a Success state",
-      state is CloudyState.Success
+      state is CloudyState.Success,
     )
     assertTrue(
       "Success.Captured should be exactly Captured type",
-      state is CloudyState.Success.Captured
+      state is CloudyState.Success.Captured,
     )
     assertEquals(
       "Success.Captured should contain the bitmap",
       mockBitmap,
-      (state as CloudyState.Success.Captured).bitmap
+      (state as CloudyState.Success.Captured).bitmap,
     )
   }
 
@@ -186,7 +186,7 @@ internal class CloudyModifierTest {
       CloudyState.Loading,
       CloudyState.Success.Applied,
       CloudyState.Success.Captured(createMockPlatformBitmap()),
-      CloudyState.Error(RuntimeException("test"))
+      CloudyState.Error(RuntimeException("test")),
     )
 
     states.forEach { state ->

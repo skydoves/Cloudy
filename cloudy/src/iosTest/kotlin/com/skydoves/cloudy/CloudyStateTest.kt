@@ -66,7 +66,9 @@ internal class CloudyStateTest {
   @Test
   fun successTypeHierarchyAllowsPatternMatchingBothSubtypes() {
     val appliedState: CloudyState = CloudyState.Success.Applied
-    val capturedState: CloudyState = CloudyState.Success.Captured(createTestPlatformBitmap(100, 100))
+    val capturedState: CloudyState = CloudyState.Success.Captured(
+      createTestPlatformBitmap(100, 100),
+    )
 
     var appliedMatched = false
     var capturedMatched = false

@@ -20,21 +20,20 @@ import androidx.compose.ui.graphics.Color
 // Disney-inspired color palette
 
 // Primary colors - Disney Magic Blue
-internal val disneyBluePrimary: Color = Color(0xFF0063E5)  // Disney+ Blue
+internal val disneyBluePrimary: Color = Color(0xFF0063E5) // Disney+ Blue
 internal val disneyBlueDark: Color = Color(0xFF0E3D7A)
 
 // Secondary colors - Disney Gold
 internal val disneyGold: Color = Color(0xFFF9D923)
 
 // Background colors
-internal val backgroundLight: Color = Color(0xFFF5F8FC)  // Light grayish blue
-internal val backgroundDark: Color = Color(0xFF0D1B2A)   // Deep Disney night blue
+internal val backgroundLight: Color = Color(0xFFF5F8FC) // Light grayish blue
+internal val backgroundDark: Color = Color(0xFF0D1B2A) // Deep Disney night blue
 
 // Surface colors
 internal val surfaceLight: Color = Color(0xFFFFFFFF)
 internal val surfaceDark: Color = Color(0xFF1B2838)
 
 // On-colors (text/icons)
-internal val onBackgroundLight: Color = Color(0xFF1A1A2E)  // Dark navy for light theme
-internal val onBackgroundDark: Color = Color(0xFFF0F4F8)   // Light for dark theme
-
+internal val onBackgroundLight: Color = Color(0xFF1A1A2E) // Dark navy for light theme
+internal val onBackgroundDark: Color = Color(0xFFF0F4F8) // Light for dark theme
