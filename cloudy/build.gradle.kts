@@ -142,6 +142,7 @@ kotlin {
       implementation(libs.junit4)
       implementation(libs.mockito)
       implementation(libs.mockito.inline)
+      implementation(libs.robolectric)
     }
 
     iosTest.dependencies {
