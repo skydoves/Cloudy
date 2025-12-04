@@ -15,4 +15,4 @@
  */
 package com.skydoves.cloudy.benchmark
 
-internal const val targetPackage = "com.skydoves.cloudydemo"
+internal const val TARGET_PACKAGE = "com.skydoves.cloudydemo"

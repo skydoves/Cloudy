@@ -27,15 +27,14 @@ class BaselineProfileGenerator {
   val baselineProfileRule = BaselineProfileRule()
 
   @Test
-  fun startup() =
-    baselineProfileRule.collect(
-      packageName = targetPackage
-    ) {
-      pressHome()
-      // This block defines the app's critical user journey. Here we are interested in
-      // optimizing for app startup. But you can also navigate and scroll
-      // through your most important UI.
-      startActivityAndWait()
-      device.waitForIdle()
-    }
+  fun startup() = baselineProfileRule.collect(
+    packageName = TARGET_PACKAGE,
+  ) {
+    pressHome()
+    // This block defines the app's critical user journey. Here we are interested in
+    // optimizing for app startup. But you can also navigate and scroll
+    // through your most important UI.
+    startActivityAndWait()
+    device.waitForIdle()
+  }
 }
