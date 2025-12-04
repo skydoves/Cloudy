@@ -17,8 +17,24 @@ package demo.theme
 
 import androidx.compose.ui.graphics.Color
 
-internal val purple200: Color = Color(0xFFBB86FC)
-internal val purple500: Color = Color(0xFF6200EE)
-internal val purple700: Color = Color(0xFF3700B3)
-internal val teal200: Color = Color(0xFF03DAC5)
-internal val background: Color = Color(0xFF000000)
+// Disney-inspired color palette
+
+// Primary colors - Disney Magic Blue
+internal val disneyBluePrimary: Color = Color(0xFF0063E5)  // Disney+ Blue
+internal val disneyBlueDark: Color = Color(0xFF0E3D7A)
+
+// Secondary colors - Disney Gold
+internal val disneyGold: Color = Color(0xFFF9D923)
+
+// Background colors
+internal val backgroundLight: Color = Color(0xFFF5F8FC)  // Light grayish blue
+internal val backgroundDark: Color = Color(0xFF0D1B2A)   // Deep Disney night blue
+
+// Surface colors
+internal val surfaceLight: Color = Color(0xFFFFFFFF)
+internal val surfaceDark: Color = Color(0xFF1B2838)
+
+// On-colors (text/icons)
+internal val onBackgroundLight: Color = Color(0xFF1A1A2E)  // Dark navy for light theme
+internal val onBackgroundDark: Color = Color(0xFFF0F4F8)   // Light for dark theme
+
