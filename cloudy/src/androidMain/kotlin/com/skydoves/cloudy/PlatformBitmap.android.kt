@@ -26,7 +26,7 @@ public actual class PlatformBitmap(
   /**
    * The underlying Android bitmap.
    */
-  public val bitmap: Bitmap
+  public val bitmap: Bitmap,
 ) {
 
   public actual val width: Int
@@ -46,11 +46,9 @@ public actual class PlatformBitmap(
  *
  * @return A new `PlatformBitmap` instance compatible with the original.
  */
-public actual fun PlatformBitmap.createCompatible(): PlatformBitmap {
-  return PlatformBitmap(
-    Bitmap.createBitmap(width, height, bitmap.config ?: Bitmap.Config.ARGB_8888)
-  )
-}
+public actual fun PlatformBitmap.createCompatible(): PlatformBitmap = PlatformBitmap(
+  Bitmap.createBitmap(width, height, bitmap.config ?: Bitmap.Config.ARGB_8888),
+)
 
 /**
  * Releases the memory used by the underlying Android bitmap if it has not already been recycled.

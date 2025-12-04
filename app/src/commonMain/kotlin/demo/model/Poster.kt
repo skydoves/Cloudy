@@ -25,7 +25,7 @@ internal data class Poster(
   val description: String,
   val image: String?,
   val gif: String?,
-  val id: String = generateUUID()
+  val id: String = generateUUID(),
 )
 
 internal expect fun generateUUID(): String

@@ -56,7 +56,7 @@ internal fun Main() {
       .fillMaxSize()
       .background(M2MaterialTheme.colors.background)
       .verticalScroll(rememberScrollState()),
-    horizontalAlignment = Alignment.CenterHorizontally
+    horizontalAlignment = Alignment.CenterHorizontally,
   ) {
     var animationPlayed by remember { mutableStateOf(false) }
     val radius by animateIntAsState(
@@ -64,9 +64,9 @@ internal fun Main() {
       animationSpec = tween(
         durationMillis = 1000,
         delayMillis = 500,
-        easing = FastOutLinearInEasing
+        easing = FastOutLinearInEasing,
       ),
-      label = "Blur Animation"
+      label = "Blur Animation",
     )
 
     LaunchedEffect(Unit) {
@@ -79,7 +79,7 @@ internal fun Main() {
       modifier = Modifier
         .size(400.dp)
         .cloudy(radius = radius),
-      imageModel = { poster.image }
+      imageModel = { poster.image },
     )
 
     Column(modifier = Modifier.cloudy(radius = radius)) {
@@ -90,7 +90,7 @@ internal fun Main() {
         text = poster.name,
         fontSize = 40.sp,
         color = M2MaterialTheme.colors.onBackground,
-        textAlign = TextAlign.Center
+        textAlign = TextAlign.Center,
       )
 
       Text(
@@ -99,7 +99,7 @@ internal fun Main() {
           .padding(8.dp),
         text = poster.description,
         color = M2MaterialTheme.colors.onBackground,
-        textAlign = TextAlign.Center
+        textAlign = TextAlign.Center,
       )
     }
   }

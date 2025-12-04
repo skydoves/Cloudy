@@ -56,7 +56,7 @@ import kotlinx.coroutines.launch
 public actual fun Modifier.cloudy(
   @IntRange(from = 0) radius: Int,
   enabled: Boolean,
-  onStateChanged: (CloudyState) -> Unit
+  onStateChanged: (CloudyState) -> Unit,
 ): Modifier {
   require(radius >= 0) { "Blur radius must be non-negative, but was $radius" }
 
@@ -71,13 +71,13 @@ public actual fun Modifier.cloudy(
 
   return this then CloudyModifierNodeElement(
     radius = radius,
-    onStateChanged = onStateChanged
+    onStateChanged = onStateChanged,
   )
 }
 
 private data class CloudyModifierNodeElement(
   val radius: Int = 10,
-  val onStateChanged: (CloudyState) -> Unit = {}
+  val onStateChanged: (CloudyState) -> Unit = {},
 ) : ModifierNodeElement<CloudyModifierNode>() {
 
   override fun InspectorInfo.inspectableProperties() {
@@ -87,7 +87,7 @@ private data class CloudyModifierNodeElement(
 
   override fun create(): CloudyModifierNode = CloudyModifierNode(
     radius = radius,
-    onStateChanged = onStateChanged
+    onStateChanged = onStateChanged,
   )
 
   /**
@@ -109,8 +109,9 @@ private data class CloudyModifierNodeElement(
  */
 private class CloudyModifierNode(
   var radius: Int = 10,
-  private val onStateChanged: (CloudyState) -> Unit = {}
-) : DrawModifierNode, Modifier.Node() {
+  private val onStateChanged: (CloudyState) -> Unit = {},
+) : Modifier.Node(),
+  DrawModifierNode {
 
   private var cachedOutput: PlatformBitmap? by mutableStateOf(null)
 
@@ -137,7 +138,8 @@ private class CloudyModifierNode(
         val targetBitmap: Bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
           .copy(Bitmap.Config.ARGB_8888, true)
 
-        val out = if (cachedOutput == null || cachedOutput?.width != targetBitmap.width || cachedOutput?.height != targetBitmap.height
+        val out = if (cachedOutput == null || cachedOutput?.width != targetBitmap.width ||
+          cachedOutput?.height != targetBitmap.height
         ) {
           // Dispose previous cached output
           cachedOutput?.dispose()
@@ -150,12 +152,15 @@ private class CloudyModifierNode(
         val blurredBitmap = iterativeBlur(
           androidBitmap = targetBitmap,
           outputBitmap = out.toAndroidBitmap(),
-          radius = radius
+          radius = radius,
         ).await()?.let { bitmap ->
           bitmap.toPlatformBitmap().also {
             drawImage(bitmap.asImageBitmap())
           }
-        } ?: throw RuntimeException("Failed to capture bitmap from composable tree: blur processing returned null")
+        }
+          ?: throw RuntimeException(
+            "Failed to capture bitmap from composable tree: blur processing returned null",
+          )
 
         onStateChanged.invoke(CloudyState.Success(blurredBitmap))
       } catch (e: Exception) {

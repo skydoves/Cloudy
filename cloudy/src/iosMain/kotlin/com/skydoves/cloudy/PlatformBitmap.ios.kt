@@ -58,7 +58,7 @@ public actual class PlatformBitmap(
   /**
    * The underlying iOS UIImage.
    */
-  public val image: UIImage
+  public val image: UIImage,
 ) {
 
   public actual val width: Int
@@ -165,7 +165,7 @@ public fun ImageBitmap.toUIImage(): UIImage? {
         bitsPerComponent = 8u,
         bytesPerRow = bytesPerRow.toULong(),
         space = colorSpace,
-        bitmapInfo = bitmapInfo
+        bitmapInfo = bitmapInfo,
       )
 
       context?.let { ctx ->
@@ -235,7 +235,7 @@ public fun UIImage.asImageBitmap(): ImageBitmap? {
         bitsPerComponent = 8u,
         bytesPerRow = bytesPerRow.toULong(),
         space = colorSpace,
-        bitmapInfo = bitmapInfo
+        bitmapInfo = bitmapInfo,
       )
 
       context?.let { ctx ->

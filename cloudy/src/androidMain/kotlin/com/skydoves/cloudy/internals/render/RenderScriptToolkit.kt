@@ -23,7 +23,7 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
 
 // This string is used for error messages.
-private const val externalName = "RenderScript Toolkit"
+private const val EXTERNAL_NAME = "RenderScript Toolkit"
 
 /**
  * A collection of high-performance graphic utility functions like blur and blend.
@@ -88,16 +88,17 @@ public object RenderScriptToolkit {
     sizeX: Int,
     sizeY: Int,
     radius: Int = 5,
-    restriction: Range2d? = null
+    restriction: Range2d? = null,
   ): ByteArray {
     require(vectorSize == 1 || vectorSize == 4) {
-      "$externalName blur. The vectorSize should be 1 or 4. $vectorSize provided."
+      "$EXTERNAL_NAME blur. The vectorSize should be 1 or 4. $vectorSize provided."
     }
     require(inputArray.size >= sizeX * sizeY * vectorSize) {
-      "$externalName blur. inputArray is too small for the given dimensions. " + "$sizeX*$sizeY*$vectorSize < ${inputArray.size}."
+      "$EXTERNAL_NAME blur. inputArray is too small for the given dimensions. " +
+        "$sizeX*$sizeY*$vectorSize < ${inputArray.size}."
     }
     require(radius in 1..25) {
-      "$externalName blur. The radius should be between 1 and 25. $radius provided."
+      "$EXTERNAL_NAME blur. The radius should be between 1 and 25. $radius provided."
     }
     validateRestriction("blur", sizeX, sizeY, restriction)
 
@@ -110,7 +111,7 @@ public object RenderScriptToolkit {
       sizeY,
       radius,
       outputArray,
-      restriction
+      restriction,
     )
     return outputArray
   }
@@ -143,13 +144,13 @@ public object RenderScriptToolkit {
     inputBitmap: Bitmap?,
     outputBitmap: Bitmap,
     @androidx.annotation.IntRange(from = 0, to = 25) radius: Int = 5,
-    restriction: Range2d? = null
+    restriction: Range2d? = null,
   ): Bitmap? {
     inputBitmap ?: return null
     validateBitmap("blur", inputBitmap)
     if (radius == 0) return inputBitmap
     require(radius in 1..25) {
-      "$externalName blur. The radius should be between 1 and 25. $radius provided."
+      "$EXTERNAL_NAME blur. The radius should be between 1 and 25. $radius provided."
     }
     validateRestriction("blur", inputBitmap.width, inputBitmap.height, restriction)
 
@@ -166,7 +167,7 @@ public object RenderScriptToolkit {
    */
   internal val identityMatrix: FloatArray
     get() = floatArrayOf(
-      1f, 0f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 0f, 1f
+      1f, 0f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 0f, 1f,
     )
 
   private var nativeHandle: Long = 0
@@ -201,7 +202,7 @@ public object RenderScriptToolkit {
     sizeY: Int,
     radius: Int,
     outputArray: ByteArray,
-    restriction: Range2d?
+    restriction: Range2d?,
   )
 
   private external fun nativeBlurBitmap(
@@ -209,7 +210,7 @@ public object RenderScriptToolkit {
     inputBitmap: Bitmap,
     outputBitmap: Bitmap,
     radius: Int,
-    restriction: Range2d?
+    restriction: Range2d?,
   )
 }
 
@@ -224,12 +225,7 @@ public object RenderScriptToolkit {
  * @property startY The index of the first value to be included on the Y axis.
  * @property endY The index after the last value to be included on the Y axis.
  */
-public data class Range2d(
-  val startX: Int,
-  val endX: Int,
-  val startY: Int,
-  val endY: Int
-) {
+public data class Range2d(val startX: Int, val endX: Int, val startY: Int, val endY: Int) {
   internal constructor() : this(0, 0, 0, 0)
 }
 
@@ -286,28 +282,27 @@ internal class Rgba3dArray(val values: ByteArray, val sizeX: Int, val sizeY: Int
  * @param alphaAllowed Whether ALPHA_8 bitmaps are permitted in addition to ARGB_8888.
  * @throws IllegalArgumentException If the bitmap configuration or row stride is invalid.
  */
-internal fun validateBitmap(
-  function: String,
-  inputBitmap: Bitmap,
-  alphaAllowed: Boolean = true
-) {
+internal fun validateBitmap(function: String, inputBitmap: Bitmap, alphaAllowed: Boolean = true) {
   if (alphaAllowed) {
     require(
-      inputBitmap.config == Bitmap.Config.ARGB_8888 || inputBitmap.config == Bitmap.Config.ALPHA_8
+      inputBitmap.config == Bitmap.Config.ARGB_8888 || inputBitmap.config == Bitmap.Config.ALPHA_8,
     ) {
-      "$externalName. $function supports only ARGB_8888 and ALPHA_8 bitmaps. " + "${inputBitmap.config} provided."
+      "$EXTERNAL_NAME. $function supports only ARGB_8888 and ALPHA_8 bitmaps. " +
+        "${inputBitmap.config} provided."
     }
   } else {
     require(inputBitmap.config == Bitmap.Config.ARGB_8888) {
-      "$externalName. $function supports only ARGB_8888. " + "${inputBitmap.config} provided."
+      "$EXTERNAL_NAME. $function supports only ARGB_8888. " + "${inputBitmap.config} provided."
     }
   }
   require(inputBitmap.width * vectorSize(inputBitmap) == inputBitmap.rowBytes) {
-    "$externalName $function. Only bitmaps with rowSize equal to the width * vectorSize are " + "currently supported. Provided were rowBytes=${inputBitmap.rowBytes}, " + "width={${inputBitmap.width}, and vectorSize=${
-    vectorSize(
-      inputBitmap
-    )
-    }."
+    "$EXTERNAL_NAME $function. Only bitmaps with rowSize equal to the width * vectorSize are " +
+      "currently supported. Provided were rowBytes=${inputBitmap.rowBytes}, " +
+      "width={${inputBitmap.width}, and vectorSize=${
+        vectorSize(
+          inputBitmap,
+        )
+      }."
   }
 }
 
@@ -329,20 +324,26 @@ internal fun validateRestriction(
   tag: String,
   sizeX: Int,
   sizeY: Int,
-  restriction: Range2d? = null
+  restriction: Range2d? = null,
 ) {
   if (restriction == null) return
   require(restriction.startX < sizeX && restriction.endX <= sizeX) {
-    "$externalName $tag. sizeX should be greater than restriction.startX and greater " + "or equal to restriction.endX. $sizeX, ${restriction.startX}, " + "and ${restriction.endX} were provided respectively."
+    "$EXTERNAL_NAME $tag. sizeX should be greater than restriction.startX and greater " +
+      "or equal to restriction.endX. $sizeX, ${restriction.startX}, " +
+      "and ${restriction.endX} were provided respectively."
   }
   require(restriction.startY < sizeY && restriction.endY <= sizeY) {
-    "$externalName $tag. sizeY should be greater than restriction.startY and greater " + "or equal to restriction.endY. $sizeY, ${restriction.startY}, " + "and ${restriction.endY} were provided respectively."
+    "$EXTERNAL_NAME $tag. sizeY should be greater than restriction.startY and greater " +
+      "or equal to restriction.endY. $sizeY, ${restriction.startY}, " +
+      "and ${restriction.endY} were provided respectively."
   }
   require(restriction.startX < restriction.endX) {
-    "$externalName $tag. Restriction startX should be less than endX. " + "${restriction.startX} and ${restriction.endX} were provided respectively."
+    "$EXTERNAL_NAME $tag. Restriction startX should be less than endX. " +
+      "${restriction.startX} and ${restriction.endX} were provided respectively."
   }
   require(restriction.startY < restriction.endY) {
-    "$externalName $tag. Restriction startY should be less than endY. " + "${restriction.startY} and ${restriction.endY} were provided respectively."
+    "$EXTERNAL_NAME $tag. Restriction startY should be less than endY. " +
+      "${restriction.startY} and ${restriction.endY} were provided respectively."
   }
 }
 
@@ -355,14 +356,12 @@ internal fun validateRestriction(
  * @return The number of bytes per pixel.
  * @throws IllegalArgumentException If the bitmap configuration is not ARGB_8888 or ALPHA_8.
  */
-internal fun vectorSize(bitmap: Bitmap): Int {
-  return when (bitmap.config) {
-    Bitmap.Config.ARGB_8888 -> 4
-    Bitmap.Config.ALPHA_8 -> 1
-    else -> throw IllegalArgumentException(
-      "$externalName. Only ARGB_8888 and ALPHA_8 Bitmap are supported."
-    )
-  }
+internal fun vectorSize(bitmap: Bitmap): Int = when (bitmap.config) {
+  Bitmap.Config.ARGB_8888 -> 4
+  Bitmap.Config.ALPHA_8 -> 1
+  else -> throw IllegalArgumentException(
+    "$EXTERNAL_NAME. Only ARGB_8888 and ALPHA_8 Bitmap are supported.",
+  )
 }
 
 /**
@@ -378,7 +377,7 @@ internal fun vectorSize(bitmap: Bitmap): Int {
 internal fun CoroutineScope.iterativeBlur(
   androidBitmap: Bitmap,
   outputBitmap: Bitmap,
-  radius: Int
+  radius: Int,
 ): Deferred<Bitmap?> = async {
   val iterate = radius / 25
   val remainder = radius % 25
@@ -389,7 +388,7 @@ internal fun CoroutineScope.iterativeBlur(
     RenderScriptToolkit.blur(
       inputBitmap = androidBitmap,
       outputBitmap = outputBitmap,
-      radius = remainder
+      radius = remainder,
     )
   }
 
@@ -397,7 +396,7 @@ internal fun CoroutineScope.iterativeBlur(
     bitmap = RenderScriptToolkit.blur(
       inputBitmap = bitmap,
       outputBitmap = outputBitmap,
-      radius = 25
+      radius = 25,
     )
   }
 

@@ -26,9 +26,8 @@ import kotlinx.cinterop.ExperimentalForeignApi
  * @param height The height of the bitmap in pixels.
  * @return A `PlatformBitmap` instance containing a blank image of the given dimensions.
  */
-internal fun createTestPlatformBitmap(width: Int, height: Int): PlatformBitmap {
-  return PlatformBitmap(createTestUIImage(width, height))
-}
+internal fun createTestPlatformBitmap(width: Int, height: Int): PlatformBitmap =
+  PlatformBitmap(createTestUIImage(width, height))
 
 /**
  * Creates a new `UIImage` with the specified width and height.

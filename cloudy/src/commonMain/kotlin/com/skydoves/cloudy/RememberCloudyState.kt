@@ -29,5 +29,5 @@ import androidx.compose.runtime.remember
 @Composable
 public fun rememberCloudyState(
   initialState: CloudyState = CloudyState.Nothing,
-  key: Any? = null
+  key: Any? = null,
 ): MutableState<CloudyState> = remember(key1 = key) { mutableStateOf(initialState) }

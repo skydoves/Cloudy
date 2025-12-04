@@ -53,7 +53,7 @@ import platform.UIKit.UIImage
 public actual fun Modifier.cloudy(
   @IntRange(from = 0) radius: Int,
   enabled: Boolean,
-  onStateChanged: (CloudyState) -> Unit
+  onStateChanged: (CloudyState) -> Unit,
 ): Modifier {
   require(radius >= 0) { "Blur radius must be non-negative, but was $radius" }
 
@@ -63,13 +63,13 @@ public actual fun Modifier.cloudy(
 
   return this then CloudyModifierNodeElement(
     radius = radius,
-    onStateChanged = onStateChanged
+    onStateChanged = onStateChanged,
   )
 }
 
 private data class CloudyModifierNodeElement(
   val radius: Int = 10,
-  val onStateChanged: (CloudyState) -> Unit = {}
+  val onStateChanged: (CloudyState) -> Unit = {},
 ) : ModifierNodeElement<CloudyModifierNode>() {
 
   /**
@@ -87,7 +87,7 @@ private data class CloudyModifierNodeElement(
    */
   override fun create(): CloudyModifierNode = CloudyModifierNode(
     radius = radius,
-    onStateChanged = onStateChanged
+    onStateChanged = onStateChanged,
   )
 
   /**
@@ -106,8 +106,9 @@ private data class CloudyModifierNodeElement(
  */
 private class CloudyModifierNode(
   var radius: Int = 10,
-  private val onStateChanged: (CloudyState) -> Unit = {}
-) : DrawModifierNode, Modifier.Node() {
+  private val onStateChanged: (CloudyState) -> Unit = {},
+) : Modifier.Node(),
+  DrawModifierNode {
 
   private var cachedOutput: PlatformBitmap? by mutableStateOf(null)
   private var lastRadius: Int = -1
@@ -149,7 +150,7 @@ private class CloudyModifierNode(
         val blurredBitmap = placeholderBitmap?.let { bitmap ->
           createBlurredBitmapFromContent(
             contentBitmap = bitmap,
-            radius = radius.toFloat()
+            radius = radius.toFloat(),
           )
         }
 
@@ -163,7 +164,9 @@ private class CloudyModifierNode(
 
             onStateChanged.invoke(CloudyState.Success(blurredBitmap))
           } else {
-            onStateChanged.invoke(CloudyState.Error(RuntimeException("Failed to create blurred bitmap")))
+            onStateChanged.invoke(
+              CloudyState.Error(RuntimeException("Failed to create blurred bitmap")),
+            )
           }
         }
       } catch (e: Exception) {
@@ -178,33 +181,31 @@ private class CloudyModifierNode(
    * Creates a placeholder bitmap representing the composable content.
    * This is a temporary solution until graphics layer capture is available on iOS.
    */
-  private fun createPlaceholderBitmap(width: Int, height: Int): ImageBitmap? {
-    return try {
-      val imageInfo = org.jetbrains.skia.ImageInfo.makeN32Premul(width, height)
-      val skiaBitmap = org.jetbrains.skia.Bitmap()
-      skiaBitmap.allocPixels(imageInfo)
+  private fun createPlaceholderBitmap(width: Int, height: Int): ImageBitmap? = try {
+    val imageInfo = org.jetbrains.skia.ImageInfo.makeN32Premul(width, height)
+    val skiaBitmap = org.jetbrains.skia.Bitmap()
+    skiaBitmap.allocPixels(imageInfo)
 
-      // Create a gradient pattern that represents typical UI content
-      val byteArray = ByteArray(width * height * 4) { index ->
-        val pixelIndex = index / 4
-        val x = pixelIndex % width
-        val y = pixelIndex / width
-        val component = index % 4
+    // Create a gradient pattern that represents typical UI content
+    val byteArray = ByteArray(width * height * 4) { index ->
+      val pixelIndex = index / 4
+      val x = pixelIndex % width
+      val y = pixelIndex / width
+      val component = index % 4
 
-        when (component) {
-          0 -> (128 + (x.toFloat() / width * 127)).toInt().toByte() // Red
-          1 -> (128 + (y.toFloat() / height * 127)).toInt().toByte() // Green
-          2 -> (200 - ((x + y).toFloat() / (width + height) * 100)).toInt().toByte() // Blue
-          3 -> 255.toByte() // Alpha
-          else -> 0.toByte()
-        }
+      when (component) {
+        0 -> (128 + (x.toFloat() / width * 127)).toInt().toByte() // Red
+        1 -> (128 + (y.toFloat() / height * 127)).toInt().toByte() // Green
+        2 -> (200 - ((x + y).toFloat() / (width + height) * 100)).toInt().toByte() // Blue
+        3 -> 255.toByte() // Alpha
+        else -> 0.toByte()
       }
-
-      skiaBitmap.installPixels(imageInfo, byteArray, width * 4)
-      skiaBitmap.asComposeImageBitmap()
-    } catch (_: Exception) {
-      null
     }
+
+    skiaBitmap.installPixels(imageInfo, byteArray, width * 4)
+    skiaBitmap.asComposeImageBitmap()
+  } catch (_: Exception) {
+    null
   }
 }
 
@@ -221,22 +222,20 @@ private class CloudyModifierNode(
 @OptIn(ExperimentalForeignApi::class)
 private suspend fun createBlurredBitmapFromContent(
   contentBitmap: ImageBitmap,
-  radius: Float
-): PlatformBitmap? {
-  return withContext(Dispatchers.Default) {
-    try {
-      // Convert Compose ImageBitmap to UIImage
-      // Note: This is a simplified conversion - in production you might need
-      // a more sophisticated approach depending on your specific requirements
-      val uiImage = contentBitmap.toUIImage()
+  radius: Float,
+): PlatformBitmap? = withContext(Dispatchers.Default) {
+  try {
+    // Convert Compose ImageBitmap to UIImage
+    // Note: This is a simplified conversion - in production you might need
+    // a more sophisticated approach depending on your specific requirements
+    val uiImage = contentBitmap.toUIImage()
 
-      // Apply Gaussian blur to the actual content
-      uiImage?.let { image ->
-        applyGaussianBlur(image, radius)?.toPlatformBitmap()
-      }
-    } catch (_: Exception) {
-      null
+    // Apply Gaussian blur to the actual content
+    uiImage?.let { image ->
+      applyGaussianBlur(image, radius)?.toPlatformBitmap()
     }
+  } catch (_: Exception) {
+    null
   }
 }
 

@@ -59,3 +59,10 @@ google-services.json
 
 # Temporary API docs
 docs/api
+
+# Claude
+.claude/
+.specify/
+openspec/
+CLAUDE.md
+AGENTS.md
