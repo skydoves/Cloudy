@@ -1,9 +1,9 @@
 package com.skydoves.cloudy
 
 object Configuration {
-  const val compileSdk = 35
-  const val targetSdk = 35
-  const val minSdk = 21
+  const val compileSdk = 36
+  const val targetSdk = 36
+  const val minSdk = 23
   const val majorVersion = 0
   const val minorVersion = 2
   const val patchVersion = 7

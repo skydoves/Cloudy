@@ -41,10 +41,12 @@ subprojects {
     kotlin {
       target("**/*.kt")
       targetExclude("${layout.buildDirectory.asFile.get()}/**/*.kt")
-      ktlint().setUseExperimental(true).editorConfigOverride(
+      ktlint()
+        .editorConfigOverride(
         mapOf(
           "indent_size" to "2",
-          "continuation_indent_size" to "2"
+          "continuation_indent_size" to "2",
+          "ktlint_standard_function-naming" to "disabled"
         )
       )
       licenseHeaderFile(rootProject.file("spotless/copyright.kt"))

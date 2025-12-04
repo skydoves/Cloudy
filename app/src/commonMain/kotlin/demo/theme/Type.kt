@@ -23,29 +23,29 @@ import androidx.compose.ui.unit.sp
 internal val LightTypography: Typography = Typography(
   h1 = TextStyle(
     fontWeight = FontWeight.Normal,
-    fontSize = 16.sp
+    fontSize = 16.sp,
   ),
   body1 = TextStyle(
     fontWeight = FontWeight.Normal,
-    fontSize = 14.sp
+    fontSize = 14.sp,
   ),
   caption = TextStyle(
     fontWeight = FontWeight.Normal,
-    fontSize = 12.sp
-  )
+    fontSize = 12.sp,
+  ),
 )
 
 internal val DarkTypography: Typography = Typography(
   h1 = TextStyle(
     fontWeight = FontWeight.Normal,
-    fontSize = 16.sp
+    fontSize = 16.sp,
   ),
   body1 = TextStyle(
     fontWeight = FontWeight.Normal,
-    fontSize = 14.sp
+    fontSize = 14.sp,
   ),
   caption = TextStyle(
     fontWeight = FontWeight.Normal,
-    fontSize = 12.sp
-  )
+    fontSize = 12.sp,
+  ),
 )
