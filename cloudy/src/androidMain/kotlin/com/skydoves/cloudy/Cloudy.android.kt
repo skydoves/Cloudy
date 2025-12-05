@@ -126,16 +126,17 @@ private fun Modifier.cloudyWithRenderEffect(
   radius: Int,
   onStateChanged: (CloudyState) -> Unit,
 ): Modifier {
+  // Notify state change only when radius changes to avoid infinite recomposition loops
+  LaunchedEffect(radius) {
+    onStateChanged(CloudyState.Success.Applied)
+  }
+
   if (radius == 0) {
-    SideEffect { onStateChanged.invoke(CloudyState.Success.Applied) }
     return this
   }
 
   // Convert radius to sigma: sigma = radius / 2.0
   val sigma = radius / 2.0f
-
-  // Notify that GPU blur is being applied (SideEffect ensures safe execution after composition)
-  SideEffect { onStateChanged.invoke(CloudyState.Success.Applied) }
 
   return this.graphicsLayer {
     // Required for Android Lint - lexical scope check even though cloudyWithRenderEffect

@@ -17,7 +17,7 @@ package com.skydoves.cloudy
 
 import androidx.annotation.IntRange
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.TileMode
@@ -70,16 +70,17 @@ public actual fun Modifier.cloudy(
     return this
   }
 
+  // Notify state change only when radius changes to avoid infinite recomposition loops
+  LaunchedEffect(radius) {
+    onStateChanged(CloudyState.Success.Applied)
+  }
+
   if (radius == 0) {
-    SideEffect { onStateChanged.invoke(CloudyState.Success.Applied) }
     return this
   }
 
   // Convert radius to sigma: sigma = radius / 2.0
   val sigma = radius / 2.0f
-
-  // Notify that blur is being applied (SideEffect ensures safe execution after composition)
-  SideEffect { onStateChanged.invoke(CloudyState.Success.Applied) }
 
   // Apply GPU-accelerated blur using Skia's BlurEffect
   // Skia handles large sigma values internally via progressive downsampling
