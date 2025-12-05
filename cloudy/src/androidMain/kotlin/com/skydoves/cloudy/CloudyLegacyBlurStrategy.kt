@@ -195,7 +195,7 @@ private class CloudyModifierNode(
             graphicsLayer.toImageBitmap().asAndroidBitmap()
           } catch (e: Exception) {
             if (e is CancellationException) throw e
-            graphicsContext.releaseGraphicsLayer(graphicsLayer)
+            onStateChanged.invoke(CloudyState.Error(e))
             return@launch
           }
 
@@ -204,16 +204,16 @@ private class CloudyModifierNode(
           ) {
             try {
               capturedBitmap.copy(Bitmap.Config.ARGB_8888, true)
-            } catch (_: Exception) {
-              null
+            } catch (e: Exception) {
+              onStateChanged.invoke(CloudyState.Error(e))
+              return@launch
             }
           } else {
             capturedBitmap
           }
 
-          graphicsContext.releaseGraphicsLayer(graphicsLayer)
-
           if (softwareBitmap == null) {
+            onStateChanged.invoke(CloudyState.Error(RuntimeException("Failed to create software bitmap")))
             return@launch
           }
 
@@ -245,11 +245,9 @@ private class CloudyModifierNode(
           }
         } catch (e: Exception) {
           if (e is CancellationException) throw e
-          if (!graphicsLayer.isReleased) {
-            graphicsContext.releaseGraphicsLayer(graphicsLayer)
-          }
           onStateChanged.invoke(CloudyState.Error(e))
         } finally {
+          graphicsContext.releaseGraphicsLayer(graphicsLayer)
           isProcessing = false
           blurJob = null
           if (pendingInvalidateRequest) {
@@ -279,6 +277,7 @@ private class CloudyModifierNode(
    */
   private fun isTransparentBitmap(bitmap: Bitmap, grid: Int = 4): Boolean {
     if (bitmap.width == 0 || bitmap.height == 0) return true
+    if (grid <= 1) return false
     val maxX = bitmap.width - 1
     val maxY = bitmap.height - 1
     var nonZeroAlpha = 0

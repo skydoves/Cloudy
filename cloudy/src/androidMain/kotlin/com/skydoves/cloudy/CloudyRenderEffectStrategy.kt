@@ -45,7 +45,9 @@ internal object CloudyRenderEffectStrategy : CloudyBlurStrategy {
     onStateChanged: (CloudyState) -> Unit,
   ): Modifier {
     LaunchedEffect(radius) {
-      onStateChanged(CloudyState.Success.Applied)
+      if (radius > 0) {
+        onStateChanged(CloudyState.Success.Applied)
+      }
     }
 
     if (radius == 0) {
@@ -55,11 +57,9 @@ internal object CloudyRenderEffectStrategy : CloudyBlurStrategy {
     val sigma = radius / 2.0f
 
     return modifier.graphicsLayer {
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        renderEffect = RenderEffect
-          .createBlurEffect(sigma, sigma, Shader.TileMode.CLAMP)
-          .asComposeRenderEffect()
-      }
+      renderEffect = RenderEffect
+        .createBlurEffect(sigma, sigma, Shader.TileMode.CLAMP)
+        .asComposeRenderEffect()
     }
   }
 }

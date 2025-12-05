@@ -40,7 +40,9 @@ public actual fun Modifier.cloudy(
 
   // Notify state change only when radius changes to avoid infinite recomposition loops
   LaunchedEffect(radius) {
-    onStateChanged(CloudyState.Success.Applied)
+    if (radius > 0) {
+      onStateChanged(CloudyState.Success.Applied)
+    }
   }
 
   if (radius == 0) {
