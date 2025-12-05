@@ -15,7 +15,6 @@
  */
 package demo
 
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.tween
@@ -54,6 +53,7 @@ import androidx.compose.material.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -64,6 +64,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation3.runtime.NavEntry
+import androidx.navigation3.ui.NavDisplay
 import com.skydoves.cloudy.cloudy
 import com.skydoves.landscapist.coil3.CoilImage
 import demo.model.MockUtil
@@ -74,37 +76,42 @@ import androidx.compose.material.MaterialTheme as M2MaterialTheme
 /**
  * Hosts the Cloudy demo UI and navigates between the radius list and blur detail screens.
  *
- * Displays either a list of blur radii or, when a radius is selected, a detail screen for that radius.
+ * Uses Navigation3's NavDisplay for type-safe navigation between screens.
  * The content is wrapped in PosterTheme and transitions between list and detail views use animated enter/exit transitions.
  */
 @Composable
 fun CloudyDemoApp() {
   PosterTheme {
-    var selectedRadius: Int? by remember { mutableStateOf(null) }
+    val backStack = remember { mutableStateListOf<Route>(Route.RadiusList) }
 
-    AnimatedContent(
-      targetState = selectedRadius,
-      transitionSpec = {
-        if (targetState != null) {
-          slideInHorizontally { it } + fadeIn() togetherWith
-            slideOutHorizontally { -it } + fadeOut()
-        } else {
-          slideInHorizontally { -it } + fadeIn() togetherWith
-            slideOutHorizontally { it } + fadeOut()
+    NavDisplay(
+      backStack = backStack,
+      onBack = { backStack.removeLastOrNull() },
+      entryProvider = { route ->
+        when (route) {
+          is Route.RadiusList -> NavEntry(route) {
+            RadiusListScreen(
+              onRadiusSelected = { radius -> backStack.add(Route.RadiusDetail(radius)) },
+            )
+          }
+
+          is Route.RadiusDetail -> NavEntry(route) {
+            BlurDetailScreen(
+              radius = route.radius,
+              onBackClick = { backStack.removeLastOrNull() },
+            )
+          }
         }
       },
-    ) { radius ->
-      if (radius != null) {
-        BlurDetailScreen(
-          radius = radius,
-          onBackClick = { selectedRadius = null },
-        )
-      } else {
-        RadiusListScreen(
-          onRadiusSelected = { selectedRadius = it },
-        )
-      }
-    }
+      transitionSpec = {
+        slideInHorizontally { it } + fadeIn() togetherWith
+          slideOutHorizontally { -it } + fadeOut()
+      },
+      popTransitionSpec = {
+        slideInHorizontally { -it } + fadeIn() togetherWith
+          slideOutHorizontally { it } + fadeOut()
+      },
+    )
   }
 }
 
@@ -215,8 +222,6 @@ private fun RadiusListItem(radius: Int, onClick: () -> Unit) {
  */
 @Composable
 private fun BlurDetailScreen(radius: Int, onBackClick: () -> Unit) {
-  PlatformBackHandler { onBackClick() }
-
   val poster = remember { MockUtil.getMockPoster() }
 
   Scaffold(
