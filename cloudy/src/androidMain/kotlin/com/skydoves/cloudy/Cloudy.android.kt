@@ -16,12 +16,13 @@
 package com.skydoves.cloudy
 
 import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.RenderEffect
 import android.graphics.Shader
 import android.os.Build
 import androidx.annotation.IntRange
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -193,6 +194,7 @@ private class CloudyModifierNode(
   DrawModifierNode {
 
   private var cachedOutput: PlatformBitmap? by mutableStateOf(null)
+  private var cachedInput: Bitmap? = null
 
   /**
    * Draws the composable content into an offscreen graphics layer, applies a blur when requested, and emits processing states.
@@ -221,8 +223,23 @@ private class CloudyModifierNode(
 
     coroutineScope.launch(Dispatchers.Main.immediate) {
       try {
-        val targetBitmap: Bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
-          .copy(Bitmap.Config.ARGB_8888, true)
+        val sourceBitmap: Bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
+
+        // Reuse cached input bitmap to reduce GC pressure
+        val targetBitmap: Bitmap = if (
+          cachedInput != null &&
+          cachedInput!!.width == sourceBitmap.width &&
+          cachedInput!!.height == sourceBitmap.height &&
+          !cachedInput!!.isRecycled
+        ) {
+          // Copy pixels to existing bitmap using Canvas
+          Canvas(cachedInput!!).drawBitmap(sourceBitmap, 0f, 0f, null)
+          cachedInput!!
+        } else {
+          // Create new bitmap and cache it
+          cachedInput?.recycle()
+          sourceBitmap.copy(Bitmap.Config.ARGB_8888, true).also { cachedInput = it }
+        }
 
         val out = if (cachedOutput == null || cachedOutput?.width != targetBitmap.width ||
           cachedOutput?.height != targetBitmap.height
