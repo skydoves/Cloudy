@@ -92,6 +92,7 @@ private class CloudyModifierNode(
   private var blurredBitmap: PlatformBitmap? = null
   private var cachedBlurRadius: Int = -1
   private var isProcessing: Boolean = false
+  private var pendingInvalidateRequest: Boolean = false
   private var blurJob: Job? = null
   private var contentMayHaveChanged: Boolean = false
 
@@ -101,6 +102,7 @@ private class CloudyModifierNode(
     blurJob?.cancel()
     blurJob = null
     isProcessing = false
+    pendingInvalidateRequest = false
     if (cachedBlurRadius != radius) {
       contentMayHaveChanged = true
     }
@@ -111,7 +113,9 @@ private class CloudyModifierNode(
 
   fun onUpdate() {
     contentMayHaveChanged = true
-    if (!isProcessing && isAttached) {
+    if (isProcessing) {
+      pendingInvalidateRequest = true
+    } else if (isAttached) {
       invalidateDraw()
     }
   }
@@ -148,6 +152,7 @@ private class CloudyModifierNode(
 
     if (!isProcessing) {
       isProcessing = true
+      pendingInvalidateRequest = false
       onStateChanged.invoke(CloudyState.Loading)
       val currentRadius = radius
       val node = this@CloudyModifierNode
@@ -212,9 +217,16 @@ private class CloudyModifierNode(
         } finally {
           isProcessing = false
           blurJob = null
+          if (pendingInvalidateRequest) {
+            pendingInvalidateRequest = false
+            if (node.isAttached) {
+              node.invalidateDraw()
+            }
+          }
         }
       }
     } else {
+      pendingInvalidateRequest = true
       graphicsContext.releaseGraphicsLayer(graphicsLayer)
     }
   }
