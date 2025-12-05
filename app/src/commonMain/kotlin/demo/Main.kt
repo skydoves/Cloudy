@@ -32,20 +32,20 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.Card
 import androidx.compose.material.Scaffold
 import androidx.compose.material.Text
@@ -105,9 +105,7 @@ fun CloudyDemoApp() {
 private val testRadiusList = listOf(0, 5, 10, 15, 20, 25, 30, 40, 50, 75, 100)
 
 @Composable
-private fun RadiusListScreen(
-  onRadiusSelected: (Int) -> Unit,
-) {
+private fun RadiusListScreen(onRadiusSelected: (Int) -> Unit) {
   Scaffold(
     modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing),
     topBar = {
@@ -137,10 +135,7 @@ private fun RadiusListScreen(
 }
 
 @Composable
-private fun RadiusListItem(
-  radius: Int,
-  onClick: () -> Unit,
-) {
+private fun RadiusListItem(radius: Int, onClick: () -> Unit) {
   val poster = remember { MockUtil.getMockPoster() }
 
   Card(
@@ -194,10 +189,7 @@ private fun RadiusListItem(
 }
 
 @Composable
-private fun BlurDetailScreen(
-  radius: Int,
-  onBackClick: () -> Unit,
-) {
+private fun BlurDetailScreen(radius: Int, onBackClick: () -> Unit) {
   PlatformBackHandler { onBackClick() }
 
   val poster = remember { MockUtil.getMockPoster() }
@@ -254,12 +246,7 @@ private fun BlurDetailScreen(
 }
 
 @Composable
-private fun BlurTestCard(
-  title: String,
-  radius: Int,
-  poster: Poster,
-  animated: Boolean,
-) {
+private fun BlurTestCard(title: String, radius: Int, poster: Poster, animated: Boolean) {
   var animationPlayed by remember { mutableStateOf(!animated) }
   val animatedRadius by animateIntAsState(
     targetValue = if (animationPlayed) radius else 0,
@@ -316,10 +303,7 @@ private fun BlurTestCard(
 }
 
 @Composable
-private fun TextBlurTest(
-  radius: Int,
-  poster: Poster,
-) {
+private fun TextBlurTest(radius: Int, poster: Poster) {
   Card(
     modifier = Modifier.fillMaxWidth(),
     elevation = 4.dp,
