@@ -21,6 +21,7 @@ import android.graphics.Shader
 import android.os.Build
 import androidx.annotation.IntRange
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -126,17 +127,19 @@ private fun Modifier.cloudyWithRenderEffect(
   onStateChanged: (CloudyState) -> Unit,
 ): Modifier {
   if (radius == 0) {
-    onStateChanged.invoke(CloudyState.Success.Applied)
+    SideEffect { onStateChanged.invoke(CloudyState.Success.Applied) }
     return this
   }
 
   // Convert radius to sigma: sigma = radius / 2.0
   val sigma = radius / 2.0f
 
-  // Notify that GPU blur is being applied (no bitmap available)
-  onStateChanged.invoke(CloudyState.Success.Applied)
+  // Notify that GPU blur is being applied (SideEffect ensures safe execution after composition)
+  SideEffect { onStateChanged.invoke(CloudyState.Success.Applied) }
 
   return this.graphicsLayer {
+    // Required for Android Lint - lexical scope check even though cloudyWithRenderEffect
+    // is only called when Build.VERSION.SDK_INT >= S
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
       renderEffect = RenderEffect
         .createBlurEffect(sigma, sigma, Shader.TileMode.CLAMP)

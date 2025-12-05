@@ -200,13 +200,4 @@ internal class CloudyModifierTest {
       assertTrue(description.isNotEmpty())
     }
   }
-
-  private fun createMockPlatformBitmap(): PlatformBitmap {
-    val mockBitmap = org.mockito.Mockito.mock(android.graphics.Bitmap::class.java)
-    org.mockito.Mockito.`when`(mockBitmap.width).thenReturn(100)
-    org.mockito.Mockito.`when`(mockBitmap.height).thenReturn(100)
-    org.mockito.Mockito.`when`(mockBitmap.isRecycled).thenReturn(false)
-    org.mockito.Mockito.`when`(mockBitmap.isMutable).thenReturn(true)
-    return PlatformBitmap(mockBitmap)
-  }
 }
