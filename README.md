@@ -16,14 +16,6 @@
 > <p align="center">The `blur` modifier supports only Android 12 and higher, and `RenderScript` APIs are deprecated starting in Android 12.
 > Cloudy is the backport of the blur effect for Jetpack Compose with cross-platform support.</p>
 
-## Platform Support
-
-| Platform | Implementation | Performance | State Type |
-|----------|----------------|-------------|------------|
-| iOS | Skia BlurEffect (Metal GPU) | GPU-accelerated | `Success.Applied` |
-| Android 31+ | RenderEffect (GPU) | GPU-accelerated | `Success.Applied` |
-| Android 30- | Native C++ (CPU) | NEON/SIMD optimized | `Success.Captured` |
-
 <p align="center">
 <img src="preview/gif0.gif" width="268"/>
 <img src="preview/img1.png" width="270"/>
@@ -147,6 +139,14 @@ GlideImage(
 | `Loading` | Blur processing in progress | No |
 | `Error` | Blur operation failed | No |
 | `Nothing` | Initial state | No |
+
+### Platform Support
+
+| Platform | Implementation | Performance | State Type |
+|----------|----------------|-------------|------------|
+| iOS | Skia BlurEffect (Metal GPU) | GPU-accelerated | `Success.Applied` |
+| Android 31+ | RenderEffect (GPU) | GPU-accelerated | `Success.Applied` |
+| Android 30- | Native C++ (CPU) | NEON/SIMD optimized | `Success.Captured` |
 
 ## Maintaining Blurring Effect on Responsive Composable
 
