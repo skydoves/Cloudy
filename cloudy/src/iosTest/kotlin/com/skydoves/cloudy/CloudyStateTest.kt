@@ -37,10 +37,41 @@ internal class CloudyStateTest {
   }
 
   @Test
-  fun successStateShouldContainBitmap() {
+  fun successAppliedStateShouldBeSingleton() {
+    val state1 = CloudyState.Success.Applied
+    val state2 = CloudyState.Success.Applied
+    assertTrue(state1 === state2)
+  }
+
+  @Test
+  fun successCapturedStateShouldContainBitmap() {
     val bitmap = createTestPlatformBitmap(100, 100)
-    val state = CloudyState.Success(bitmap)
+    val state = CloudyState.Success.Captured(bitmap)
     assertEquals(bitmap, state.bitmap)
+  }
+
+  @Test
+  fun successAppliedShouldBeInstanceOfSuccess() {
+    val state: CloudyState = CloudyState.Success.Applied
+    assertTrue(state is CloudyState.Success)
+  }
+
+  @Test
+  fun successCapturedShouldBeInstanceOfSuccess() {
+    val bitmap = createTestPlatformBitmap(100, 100)
+    val state: CloudyState = CloudyState.Success.Captured(bitmap)
+    assertTrue(state is CloudyState.Success)
+  }
+
+  @Test
+  fun successTypeHierarchyAllowsPatternMatchingBothSubtypes() {
+    val appliedState: CloudyState = CloudyState.Success.Applied
+    val capturedState: CloudyState = CloudyState.Success.Captured(
+      createTestPlatformBitmap(100, 100),
+    )
+
+    assertTrue(appliedState is CloudyState.Success.Applied)
+    assertTrue(capturedState is CloudyState.Success.Captured)
   }
 
   @Test
@@ -51,19 +82,19 @@ internal class CloudyStateTest {
   }
 
   @Test
-  fun successStatesWithSameBitmapShouldBeEqual() {
+  fun successCapturedStatesWithSameBitmapShouldBeEqual() {
     val bitmap = createTestPlatformBitmap(100, 100)
-    val state1 = CloudyState.Success(bitmap)
-    val state2 = CloudyState.Success(bitmap)
+    val state1 = CloudyState.Success.Captured(bitmap)
+    val state2 = CloudyState.Success.Captured(bitmap)
     assertEquals(state1, state2)
   }
 
   @Test
-  fun successStatesWithDifferentBitmapsShouldNotBeEqual() {
+  fun successCapturedStatesWithDifferentBitmapsShouldNotBeEqual() {
     val bitmap1 = createTestPlatformBitmap(100, 100)
     val bitmap2 = createTestPlatformBitmap(200, 200)
-    val state1 = CloudyState.Success(bitmap1)
-    val state2 = CloudyState.Success(bitmap2)
+    val state1 = CloudyState.Success.Captured(bitmap1)
+    val state2 = CloudyState.Success.Captured(bitmap2)
     assertFalse(state1 == state2)
   }
 }

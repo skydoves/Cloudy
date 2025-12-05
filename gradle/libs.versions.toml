@@ -25,6 +25,7 @@ junit4 = "4.13.2"
 kotlinxCoroutinesTest = "1.10.2"
 mockito = "5.20.0"
 mockito-inline = "5.2.0"
+robolectric = "4.14.1"
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
@@ -73,3 +74,4 @@ androidx-compose-ui-test = { group = "androidx.compose.ui", name = "ui-test", ve
 androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4", version.ref = "androidxCompose" }
 mockito = { module = "org.mockito:mockito-core", version.ref = "mockito" }
 mockito-inline = { module = "org.mockito:mockito-inline", version.ref = "mockito-inline" }
+robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }

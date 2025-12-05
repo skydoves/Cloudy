@@ -29,7 +29,7 @@ kotlin {
     .forEach { target ->
       target.binaries {
         framework {
-          baseName = "ComposeApp"
+          baseName = "CloudyApp"
           isStatic = true
         }
       }
@@ -43,7 +43,7 @@ kotlin {
     iosSimulatorArm64()
   ).forEach { iosTarget ->
     iosTarget.binaries.framework {
-      baseName = "ComposeApp"
+      baseName = "CloudyApp"
       isStatic = true
     }
   }

@@ -19,21 +19,60 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 
 /**
- * `Modifier.cloudy()` is a blur modifier that applies blur effects to composables,
- * compatible with all supported platforms.
- *
- * @param radius Radius of the blur along both the x and y axis. Must be non-negative.
- *               On Android, values > 25 are achieved through iterative passes which may affect performance.
- * @param enabled Enabling the blur effects.
- * @param onStateChanged Lambda function that will be invoked when the blur process has been updated.
- */
-/**
  * Applies a cross-platform blur effect to the current modifier.
  *
- * @param radius The blur radius in pixels for both the x and y axes. Must be non-negative. On Android, values above 25 may impact performance due to iterative passes.
- * @param enabled If false, disables the blur effect.
+ * This modifier uses GPU-accelerated blur when available for optimal performance,
+ * with a CPU-based fallback for older platforms.
+ *
+ * ## Platform Behavior
+ *
+ * | Platform | Implementation | State Returned |
+ * |----------|----------------|----------------|
+ * | iOS | Skia BlurEffect (Metal GPU) | [CloudyState.Success.Applied] |
+ * | Android 31+ | RenderEffect (GPU) | [CloudyState.Success.Applied] |
+ * | Android 30- | Native C++ (CPU) | [CloudyState.Success.Captured] |
+ *
+ * ## Success State Types
+ *
+ * - **[CloudyState.Success.Applied]**: GPU blur applied directly in rendering pipeline.
+ *   No bitmap is available (GPU→CPU extraction avoided for performance).
+ *
+ * - **[CloudyState.Success.Captured]**: CPU blur completed with captured bitmap.
+ *   The blurred bitmap is available via [CloudyState.Success.Captured.bitmap].
+ *
+ * ## Example Usage
+ *
+ * ```kotlin
+ * Box(
+ *   modifier = Modifier.cloudy(
+ *     radius = 15,
+ *     onStateChanged = { state ->
+ *       when (state) {
+ *         is CloudyState.Success.Applied -> {
+ *           // GPU blur applied, no bitmap available
+ *         }
+ *         is CloudyState.Success.Captured -> {
+ *           // CPU blur done, bitmap available: state.bitmap
+ *         }
+ *         is CloudyState.Loading -> { /* Processing */ }
+ *         is CloudyState.Error -> { /* Handle error */ }
+ *         CloudyState.Nothing -> { /* Initial state */ }
+ *       }
+ *     }
+ *   )
+ * )
+ * ```
+ *
+ * @param radius The blur radius in pixels for both the x and y axes. Must be non-negative.
+ *               Converted to sigma internally using `sigma = radius / 2.0`.
+ *               On Android API 30 and below, values above 25 use iterative passes.
+ * @param enabled If false, disables the blur effect and returns the original modifier.
  * @param onStateChanged Callback invoked when the blur state changes.
+ *        Check the state type to determine if a bitmap is available.
  * @return A [Modifier] with the blur effect applied.
+ *
+ * @see CloudyState.Success.Applied
+ * @see CloudyState.Success.Captured
  */
 @Composable
 public expect fun Modifier.cloudy(

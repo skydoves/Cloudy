@@ -17,37 +17,14 @@ package com.skydoves.cloudy
 
 import androidx.annotation.IntRange
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asComposeImageBitmap
-import androidx.compose.ui.graphics.drawscope.ContentDrawScope
-import androidx.compose.ui.node.DrawModifierNode
-import androidx.compose.ui.node.ModifierNodeElement
-import androidx.compose.ui.platform.InspectorInfo
-import kotlinx.cinterop.ExperimentalForeignApi
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import platform.CoreImage.CIContext
-import platform.CoreImage.CIFilter
-import platform.CoreImage.CIImage
-import platform.CoreImage.createCGImage
-import platform.CoreImage.filterWithName
-import platform.Foundation.setValue
-import platform.UIKit.UIImage
+import androidx.compose.ui.graphics.BlurEffect
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.graphicsLayer
 
 /**
- * iOS implementation of the cloudy modifier that applies blur effects to composables.
- * This is the actual implementation for the expect function declared in commonMain.
- * Uses Core Image filters for blur processing on iOS, with graphics layer content capture
- * to blur the actual composable content instead of placeholder images.
- * @param radius The blur radius in pixels. Higher values create more blur.
- * @param enabled Whether the blur effect is enabled. When false, returns the original modifier unchanged.
- * @param onStateChanged Callback that receives updates about the blur processing state.
- * @return Modified Modifier with blur effect applied.
+ * iOS implementation using Skia's GPU-accelerated BlurEffect via Metal backend.
  */
 @Composable
 public actual fun Modifier.cloudy(
@@ -61,219 +38,27 @@ public actual fun Modifier.cloudy(
     return this
   }
 
-  return this then CloudyModifierNodeElement(
-    radius = radius,
-    onStateChanged = onStateChanged,
-  )
-}
-
-private data class CloudyModifierNodeElement(
-  val radius: Int = 10,
-  val onStateChanged: (CloudyState) -> Unit = {},
-) : ModifierNodeElement<CloudyModifierNode>() {
-
-  /**
-   * Sets up inspectable properties for the "cloudy" modifier, exposing the blur radius for inspection tools.
-   */
-  override fun InspectorInfo.inspectableProperties() {
-    name = "cloudy"
-    properties["cloudy"] = radius
-  }
-
-  /**
-   * Creates a new instance of `CloudyModifierNode` with the specified blur radius and state change callback.
-   *
-   * @return A `CloudyModifierNode` configured with the current radius and callback.
-   */
-  override fun create(): CloudyModifierNode = CloudyModifierNode(
-    radius = radius,
-    onStateChanged = onStateChanged,
-  )
-
-  /**
-   * Updates the blur radius of the given [CloudyModifierNode] to match the current value.
-   *
-   * @param node The modifier node whose blur radius will be updated.
-   */
-  override fun update(node: CloudyModifierNode) {
-    node.radius = radius
-  }
-}
-
-/**
- * The actual modifier node that handles the blur drawing operations for iOS.
- * This class captures the actual composable content and applies Core Image blur filters.
- */
-private class CloudyModifierNode(
-  var radius: Int = 10,
-  private val onStateChanged: (CloudyState) -> Unit = {},
-) : Modifier.Node(),
-  DrawModifierNode {
-
-  private var cachedOutput: PlatformBitmap? by mutableStateOf(null)
-  private var lastRadius: Int = -1
-  private var lastSize: Pair<Int, Int> = Pair(-1, -1)
-
-  /**
-   * Captures the composable content and applies a blur effect using Core Image.
-   *
-   * Since graphics layers are not yet available in Compose iOS, this implementation
-   * uses a fallback approach to provide blur functionality.
-   */
-  override fun ContentDrawScope.draw() {
-    // First draw the original content
-    drawContent()
-
-    // Skip blur processing if radius is 0
-    if (radius <= 0) {
-      onStateChanged.invoke(CloudyState.Success(null))
-      return
-    }
-
-    val currentSize = Pair(size.width.toInt(), size.height.toInt())
-
-    // Check if we can use cached result
-    if (lastRadius == radius && lastSize == currentSize && cachedOutput != null) {
-      onStateChanged.invoke(CloudyState.Success(cachedOutput))
-      return
-    }
-
-    onStateChanged.invoke(CloudyState.Loading)
-
-    // Launch async blur processing
-    coroutineScope.launch(Dispatchers.Default) {
-      try {
-        // For iOS, we'll use a placeholder approach until graphics layers are available
-        // This creates a representative bitmap and applies blur to demonstrate functionality
-        val placeholderBitmap = createPlaceholderBitmap(currentSize.first, currentSize.second)
-
-        val blurredBitmap = placeholderBitmap?.let { bitmap ->
-          createBlurredBitmapFromContent(
-            contentBitmap = bitmap,
-            radius = radius.toFloat(),
-          )
-        }
-
-        withContext(Dispatchers.Main) {
-          if (blurredBitmap != null) {
-            // Cache the result
-            cachedOutput?.dispose()
-            cachedOutput = blurredBitmap
-            lastRadius = radius
-            lastSize = currentSize
-
-            onStateChanged.invoke(CloudyState.Success(blurredBitmap))
-          } else {
-            onStateChanged.invoke(
-              CloudyState.Error(RuntimeException("Failed to create blurred bitmap")),
-            )
-          }
-        }
-      } catch (e: Exception) {
-        withContext(Dispatchers.Main) {
-          onStateChanged.invoke(CloudyState.Error(e))
-        }
-      }
+  // Notify state change only when radius changes to avoid infinite recomposition loops
+  LaunchedEffect(radius) {
+    if (radius > 0) {
+      onStateChanged(CloudyState.Success.Applied)
     }
   }
 
-  /**
-   * Creates a placeholder bitmap representing the composable content.
-   * This is a temporary solution until graphics layer capture is available on iOS.
-   */
-  private fun createPlaceholderBitmap(width: Int, height: Int): ImageBitmap? = try {
-    val imageInfo = org.jetbrains.skia.ImageInfo.makeN32Premul(width, height)
-    val skiaBitmap = org.jetbrains.skia.Bitmap()
-    skiaBitmap.allocPixels(imageInfo)
-
-    // Create a gradient pattern that represents typical UI content
-    val byteArray = ByteArray(width * height * 4) { index ->
-      val pixelIndex = index / 4
-      val x = pixelIndex % width
-      val y = pixelIndex / width
-      val component = index % 4
-
-      when (component) {
-        0 -> (128 + (x.toFloat() / width * 127)).toInt().toByte() // Red
-        1 -> (128 + (y.toFloat() / height * 127)).toInt().toByte() // Green
-        2 -> (200 - ((x + y).toFloat() / (width + height) * 100)).toInt().toByte() // Blue
-        3 -> 255.toByte() // Alpha
-        else -> 0.toByte()
-      }
-    }
-
-    skiaBitmap.installPixels(imageInfo, byteArray, width * 4)
-    skiaBitmap.asComposeImageBitmap()
-  } catch (_: Exception) {
-    null
+  if (radius == 0) {
+    return this
   }
-}
 
-/**
- * Generates a blurred bitmap from the provided composable content using Core Image Gaussian blur.
- *
- * Converts the given `ImageBitmap` to a `UIImage`, applies a Gaussian blur with the specified radius,
- * and returns the resulting blurred image as a `PlatformBitmap`. Returns null if any step fails.
- *
- * @param contentBitmap The composable content to blur.
- * @param radius The blur radius to apply.
- * @return The blurred bitmap, or null if the blur operation fails.
- */
-@OptIn(ExperimentalForeignApi::class)
-private suspend fun createBlurredBitmapFromContent(
-  contentBitmap: ImageBitmap,
-  radius: Float,
-): PlatformBitmap? = withContext(Dispatchers.Default) {
-  try {
-    // Convert Compose ImageBitmap to UIImage
-    // Note: This is a simplified conversion - in production you might need
-    // a more sophisticated approach depending on your specific requirements
-    val uiImage = contentBitmap.toUIImage()
+  // Convert radius to sigma: sigma = radius / 2.0
+  val sigma = radius / 2.0f
 
-    // Apply Gaussian blur to the actual content
-    uiImage?.let { image ->
-      applyGaussianBlur(image, radius)?.toPlatformBitmap()
-    }
-  } catch (_: Exception) {
-    null
-  }
-}
-
-/**
- * Applies a Gaussian blur to the given UIImage using Core Image with performance optimizations.
- *
- * Converts the input image to a CIImage, applies a CIGaussianBlur filter with the specified radius,
- * and returns the resulting blurred UIImage. Includes optimizations for iOS performance.
- *
- * @param image The UIImage to blur.
- * @param radius The blur radius to use for the Gaussian blur filter.
- * @return The blurred UIImage, or null if the operation fails.
- */
-@OptIn(ExperimentalForeignApi::class)
-private fun applyGaussianBlur(image: UIImage, radius: Float): UIImage? {
-  return try {
-    // Convert UIImage to CIImage
-    val ciImage = CIImage.imageWithCGImage(image.CGImage ?: return null)
-
-    // For large radius values, apply iterative blur for better performance
-    val actualRadius = minOf(radius, 25.0f) // Core Image Gaussian blur has a limit
-
-    // Create Gaussian blur filter
-    val blurFilter = CIFilter.filterWithName("CIGaussianBlur") ?: return null
-    blurFilter.setValue(ciImage, forKey = "inputImage")
-    blurFilter.setValue(actualRadius, forKey = "inputRadius")
-
-    // Get output image
-    val outputImage = blurFilter.outputImage ?: return null
-
-    // Create optimized context for iOS performance
-    val context = CIContext()
-
-    // Render with clipping to original image bounds for better performance
-    val cgImage = context.createCGImage(outputImage, fromRect = ciImage.extent)
-
-    cgImage?.let { UIImage.imageWithCGImage(it) }
-  } catch (_: Exception) {
-    null
+  // Apply GPU-accelerated blur using Skia's BlurEffect
+  // Skia handles large sigma values internally via progressive downsampling
+  return this.graphicsLayer {
+    renderEffect = BlurEffect(
+      radiusX = sigma,
+      radiusY = sigma,
+      edgeTreatment = TileMode.Clamp,
+    )
   }
 }

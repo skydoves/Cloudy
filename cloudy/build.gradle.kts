@@ -116,6 +116,7 @@ kotlin {
 
   sourceSets {
     androidMain.dependencies {
+      implementation(libs.androidx.core.ktx)
       implementation(libs.androidx.compose.ui)
       implementation(libs.androidx.compose.runtime)
       implementation(libs.kotlinx.coroutines.android)
@@ -142,6 +143,7 @@ kotlin {
       implementation(libs.junit4)
       implementation(libs.mockito)
       implementation(libs.mockito.inline)
+      implementation(libs.robolectric)
     }
 
     iosTest.dependencies {

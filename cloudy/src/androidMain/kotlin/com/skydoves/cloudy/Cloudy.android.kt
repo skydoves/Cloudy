@@ -15,42 +15,16 @@
  */
 package com.skydoves.cloudy
 
-import android.graphics.Bitmap
+import android.os.Build
 import androidx.annotation.IntRange
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
-import androidx.compose.ui.graphics.asAndroidBitmap
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.drawscope.ContentDrawScope
-import androidx.compose.ui.graphics.layer.drawLayer
-import androidx.compose.ui.node.DrawModifierNode
-import androidx.compose.ui.node.ModifierNodeElement
-import androidx.compose.ui.node.requireGraphicsContext
-import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.unit.dp
-import com.skydoves.cloudy.internals.render.iterativeBlur
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
 /**
- * Android implementation of the cloudy modifier that applies blur effects to composables.
- * This is the actual implementation for the expect function declared in commonMain.
- * For Android 12+ devices in preview mode, it falls back to the platform's blur modifier.
- * For runtime execution, it uses a custom implementation with graphics layers and
- * native iterative blur processing for optimal performance.
- * The implementation captures the composable content in a graphics layer, applies
- * iterative blur processing using native code, and overlays the result.
- * History: The [blur] modifier supports only Android 12 and higher, and [RenderScript] was also deprecated.
- *
- * @param radius The blur radius in pixels (1-25). Higher values create more blur but take longer to process.
- * @param enabled Whether the blur effect is enabled. When false, returns the original modifier unchanged.
- * @param onStateChanged Callback that receives updates about the blur processing state.
- * @return Modified Modifier with blur effect applied.
+ * Android implementation that selects RenderEffect (API 31+) or legacy CPU blur strategy.
  */
 @Composable
 public actual fun Modifier.cloudy(
@@ -64,110 +38,19 @@ public actual fun Modifier.cloudy(
     return this
   }
 
-  // This local inspection preview only works over Android 12.
   if (LocalInspectionMode.current) {
     return this.blur(radius = radius.dp)
   }
 
-  return this then CloudyModifierNodeElement(
+  val strategy = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+    CloudyRenderEffectStrategy
+  } else {
+    CloudyLegacyBlurStrategy
+  }
+
+  return strategy.apply(
+    modifier = this,
     radius = radius,
     onStateChanged = onStateChanged,
   )
-}
-
-private data class CloudyModifierNodeElement(
-  val radius: Int = 10,
-  val onStateChanged: (CloudyState) -> Unit = {},
-) : ModifierNodeElement<CloudyModifierNode>() {
-
-  override fun InspectorInfo.inspectableProperties() {
-    name = "cloudy"
-    properties["cloudy"] = radius
-  }
-
-  override fun create(): CloudyModifierNode = CloudyModifierNode(
-    radius = radius,
-    onStateChanged = onStateChanged,
-  )
-
-  /**
-   * Updates the blur radius of the given [CloudyModifierNode] to match the current value.
-   *
-   * @param node The modifier node whose blur radius will be updated.
-   */
-  override fun update(node: CloudyModifierNode) {
-    node.radius = radius
-  }
-}
-
-/**
- * The actual modifier node that handles the blur drawing operations.
- * This class implements the core logic for capturing composable content,
- * applying blur effects, and managing the rendering lifecycle.
- * * @property radius The blur radius to apply (mutable for updates).
- * @property onStateChanged Callback function for state change notifications.
- */
-private class CloudyModifierNode(
-  var radius: Int = 10,
-  private val onStateChanged: (CloudyState) -> Unit = {},
-) : Modifier.Node(),
-  DrawModifierNode {
-
-  private var cachedOutput: PlatformBitmap? by mutableStateOf(null)
-
-  /**
-   * Captures the composable's content, applies an asynchronous native iterative blur, and draws the blurred result.
-   *
-   * Notifies the blur processing state via the `onStateChanged` callback, including loading, success with the blurred bitmap, or error states. Caches the output bitmap for performance and manages resource cleanup after processing.
-   */
-  override fun ContentDrawScope.draw() {
-    val graphicsLayer = requireGraphicsContext().createGraphicsLayer()
-
-    // call record to capture the content in the graphics layer
-    graphicsLayer.record {
-      // draw the contents of the composable into the graphics layer
-      this@draw.drawContent()
-    }
-
-    drawLayer(graphicsLayer)
-
-    onStateChanged.invoke(CloudyState.Loading)
-
-    coroutineScope.launch(Dispatchers.Main.immediate) {
-      try {
-        val targetBitmap: Bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
-          .copy(Bitmap.Config.ARGB_8888, true)
-
-        val out = if (cachedOutput == null || cachedOutput?.width != targetBitmap.width ||
-          cachedOutput?.height != targetBitmap.height
-        ) {
-          // Dispose previous cached output
-          cachedOutput?.dispose()
-
-          targetBitmap.toPlatformBitmap().createCompatible().also { cachedOutput = it }
-        } else {
-          cachedOutput!!
-        }
-
-        val blurredBitmap = iterativeBlur(
-          androidBitmap = targetBitmap,
-          outputBitmap = out.toAndroidBitmap(),
-          radius = radius,
-        ).await()?.let { bitmap ->
-          bitmap.toPlatformBitmap().also {
-            drawImage(bitmap.asImageBitmap())
-          }
-        }
-          ?: throw RuntimeException(
-            "Failed to capture bitmap from composable tree: blur processing returned null",
-          )
-
-        onStateChanged.invoke(CloudyState.Success(blurredBitmap))
-      } catch (e: Exception) {
-        onStateChanged.invoke(CloudyState.Error(e))
-      } finally {
-        requireGraphicsContext().releaseGraphicsLayer(graphicsLayer)
-      }
-    }
-  }
 }

@@ -15,14 +15,11 @@
  */
 package com.skydoves.cloudy
 
-import android.graphics.Bitmap
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Test
-import org.mockito.Mockito.mock
-import org.mockito.Mockito.`when`
 
 internal class CloudyStateTest {
 
@@ -43,18 +40,45 @@ internal class CloudyStateTest {
   }
 
   @Test
-  fun `Success state should contain bitmap`() {
+  fun `Success Applied state should be singleton`() {
+    val state1 = CloudyState.Success.Applied
+    val state2 = CloudyState.Success.Applied
+
+    assertSame(state1, state2)
+  }
+
+  @Test
+  fun `Success Captured state should contain bitmap`() {
     val mockBitmap = createMockPlatformBitmap(100, 100)
-    val state = CloudyState.Success(mockBitmap)
+    val state = CloudyState.Success.Captured(mockBitmap)
 
     assertEquals(mockBitmap, state.bitmap)
   }
 
   @Test
-  fun `Success state can contain null bitmap`() {
-    val state = CloudyState.Success(null)
+  fun `Success Applied should be instance of Success`() {
+    val state: CloudyState = CloudyState.Success.Applied
 
-    assertNull(state.bitmap)
+    assertTrue(state is CloudyState.Success)
+  }
+
+  @Test
+  fun `Success Captured should be instance of Success`() {
+    val mockBitmap = createMockPlatformBitmap(100, 100)
+    val state: CloudyState = CloudyState.Success.Captured(mockBitmap)
+
+    assertTrue(state is CloudyState.Success)
+  }
+
+  @Test
+  fun `Success type hierarchy allows pattern matching both subtypes`() {
+    val appliedState: CloudyState = CloudyState.Success.Applied
+    val capturedState: CloudyState = CloudyState.Success.Captured(
+      createMockPlatformBitmap(100, 100),
+    )
+
+    assertTrue(appliedState is CloudyState.Success.Applied)
+    assertTrue(capturedState is CloudyState.Success.Captured)
   }
 
   @Test
@@ -66,20 +90,20 @@ internal class CloudyStateTest {
   }
 
   @Test
-  fun `Success states with same bitmap should be equal`() {
+  fun `Success Captured states with same bitmap should be equal`() {
     val mockBitmap = createMockPlatformBitmap(100, 100)
-    val state1 = CloudyState.Success(mockBitmap)
-    val state2 = CloudyState.Success(mockBitmap)
+    val state1 = CloudyState.Success.Captured(mockBitmap)
+    val state2 = CloudyState.Success.Captured(mockBitmap)
 
     assertEquals(state1, state2)
   }
 
   @Test
-  fun `Success states with different bitmaps should not be equal`() {
+  fun `Success Captured states with different bitmaps should not be equal`() {
     val mockBitmap1 = createMockPlatformBitmap(100, 100)
     val mockBitmap2 = createMockPlatformBitmap(200, 200)
-    val state1 = CloudyState.Success(mockBitmap1)
-    val state2 = CloudyState.Success(mockBitmap2)
+    val state1 = CloudyState.Success.Captured(mockBitmap1)
+    val state2 = CloudyState.Success.Captured(mockBitmap2)
 
     assertNotEquals(state1, state2)
   }
@@ -101,15 +125,5 @@ internal class CloudyStateTest {
     val state2 = CloudyState.Error(exception2)
 
     assertNotEquals(state1, state2)
-  }
-
-  private fun createMockPlatformBitmap(width: Int, height: Int): PlatformBitmap {
-    val mockBitmap = mock(Bitmap::class.java)
-    `when`(mockBitmap.width).thenReturn(width)
-    `when`(mockBitmap.height).thenReturn(height)
-    `when`(mockBitmap.isRecycled).thenReturn(false)
-    `when`(mockBitmap.isMutable).thenReturn(true)
-
-    return PlatformBitmap(mockBitmap)
   }
 }
