@@ -4,7 +4,8 @@ import CloudyApp
 
 struct ComposeView: UIViewControllerRepresentable {
     /// Creates the view controller used by this UIViewControllerRepresentable.
-    /// - Returns: An instance of the app's main `UIViewController` (`MainViewControllerKt.MainViewController`).
+    /// Creates the UIViewController that will be presented by this UIViewControllerRepresentable.
+    /// - Returns: An instance of `MainViewControllerKt.MainViewController`.
     func makeUIViewController(context: Context) -> UIViewController {
         MainViewControllerKt.MainViewController()
     }

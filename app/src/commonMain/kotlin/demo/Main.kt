@@ -71,6 +71,12 @@ import demo.model.Poster
 import demo.theme.PosterTheme
 import androidx.compose.material.MaterialTheme as M2MaterialTheme
 
+/**
+ * Hosts the Cloudy demo UI and navigates between the radius list and blur detail screens.
+ *
+ * Displays either a list of blur radii or, when a radius is selected, a detail screen for that radius.
+ * The content is wrapped in PosterTheme and transitions between list and detail views use animated enter/exit transitions.
+ */
 @Composable
 fun CloudyDemoApp() {
   PosterTheme {
@@ -104,6 +110,11 @@ fun CloudyDemoApp() {
 
 private val testRadiusList = listOf(0, 5, 10, 15, 20, 25, 30, 40, 50, 75, 100)
 
+/**
+ * Shows a scrollable list of predefined blur radii and allows selecting one.
+ *
+ * @param onRadiusSelected Callback invoked with the selected radius when a list item is tapped.
+ */
 @Composable
 private fun RadiusListScreen(onRadiusSelected: (Int) -> Unit) {
   Scaffold(
@@ -134,6 +145,12 @@ private fun RadiusListScreen(onRadiusSelected: (Int) -> Unit) {
   }
 }
 
+/**
+ * Displays a clickable card representing a blur radius with a preview image and descriptive text.
+ *
+ * @param radius Blur radius in pixels used to render the preview and shown in the label.
+ * @param onClick Callback invoked when the card is clicked.
+ */
 @Composable
 private fun RadiusListItem(radius: Int, onClick: () -> Unit) {
   val poster = remember { MockUtil.getMockPoster() }
@@ -188,6 +205,14 @@ private fun RadiusListItem(radius: Int, onClick: () -> Unit) {
   }
 }
 
+/**
+ * Shows a detail screen demonstrating static and animated blur effects for the provided radius and supplies back navigation.
+ *
+ * The screen includes a top app bar displaying the radius, a static blur preview, an animated blur preview, and a text blur example in a scrollable column.
+ *
+ * @param radius The blur radius to preview.
+ * @param onBackClick Callback invoked when the user requests to navigate back (top app bar navigation or system back).
+ */
 @Composable
 private fun BlurDetailScreen(radius: Int, onBackClick: () -> Unit) {
   PlatformBackHandler { onBackClick() }
@@ -245,6 +270,14 @@ private fun BlurDetailScreen(radius: Int, onBackClick: () -> Unit) {
   }
 }
 
+/**
+ * Displays a card with a title and a poster image that applies a blur preview, either static or animated from 0 to the target radius.
+ *
+ * @param title The heading text shown at the top of the card.
+ * @param radius The target blur radius applied to the poster image and shown as the current radius.
+ * @param poster The Poster whose image and metadata are displayed inside the card.
+ * @param animated If `true`, the blur animates from 0 up to `radius`; if `false`, the blur is applied at the fixed `radius`.
+ */
 @Composable
 private fun BlurTestCard(title: String, radius: Int, poster: Poster, animated: Boolean) {
   var animationPlayed by remember { mutableStateOf(!animated) }
@@ -308,6 +341,15 @@ private fun BlurTestCard(title: String, radius: Int, poster: Poster, animated: B
   }
 }
 
+/**
+ * Displays a titled card that demonstrates text rendered with a configurable blur effect.
+ *
+ * Renders a "Text Blur Test" card showing the poster's name and a truncated description inside
+ * a rounded, blurred content area.
+ *
+ * @param radius The blur radius applied to the inner content area.
+ * @param poster The poster whose `name` and truncated `description` are displayed.
+ */
 @Composable
 private fun TextBlurTest(radius: Int, poster: Poster) {
   val textBlurShape = RoundedCornerShape(12.dp)

@@ -17,5 +17,11 @@ package demo
 
 import androidx.compose.runtime.Composable
 
+/**
+ * Registers a platform-specific back button handler for the current composable.
+ *
+ * @param enabled When `true`, the handler is active and will receive back actions; when `false`, it is ignored.
+ * @param onBack Callback invoked when a back action is triggered while the handler is active.
+ */
 @Composable
 expect fun PlatformBackHandler(enabled: Boolean = true, onBack: () -> Unit)

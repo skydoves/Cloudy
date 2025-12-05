@@ -29,6 +29,16 @@ import androidx.compose.ui.graphics.graphicsLayer
  */
 internal object CloudyRenderEffectStrategy : CloudyBlurStrategy {
 
+  /**
+   * Applies a GPU-accelerated blur to the given [Modifier] using RenderEffect on Android S (API 31) and above,
+   * and reports when the blur has been applied.
+   *
+   * @param radius The blur radius in pixels; a value of 0 skips applying any blur and returns the original modifier.
+   * @param onStateChanged Callback invoked with `CloudyState.Success.Applied` when the blur application is triggered.
+   * @param debugTag Optional tag for debugging (not used to alter behavior).
+   * @return The original modifier when `radius` is 0 or when RenderEffect is unavailable on the device; otherwise
+   * a modifier augmented with a graphicsLayer containing the RenderEffect-based blur.
+   */
   @Composable
   override fun apply(
     modifier: Modifier,

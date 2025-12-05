@@ -74,6 +74,17 @@ import androidx.compose.ui.Modifier
  * @see CloudyState.Success.Applied
  * @see CloudyState.Success.Captured
  */
+/**
+ * Applies a cross-platform blur effect to this Modifier.
+ *
+ * The blur radius controls the strength of the effect (converted internally to sigma = radius / 2.0).
+ * When blur cannot be applied on the GPU, a CPU fallback may capture a bitmap and provide it via the callback state.
+ *
+ * @param radius The blur radius in pixels (>= 0). Internally converted to sigma by `sigma = radius / 2.0`. On older Android versions, large radii may use iterative passes.
+ * @param enabled When `false`, returns the original modifier without applying any blur or producing state updates.
+ * @param onStateChanged Callback invoked with observable blur state changes (loading, success with either GPU-applied or CPU-captured bitmap, error, or nothing). Use the provided `CloudyState` to inspect whether a captured bitmap is available.
+ * @param debugTag Optional tag appended to internal debug traces for identifying this modifier instance.
+ * @return A Modifier with the requested blur effect applied (or the original modifier when disabled or unsupported).
 @Composable
 public expect fun Modifier.cloudy(
   @androidx.annotation.IntRange(from = 0) radius: Int = 10,

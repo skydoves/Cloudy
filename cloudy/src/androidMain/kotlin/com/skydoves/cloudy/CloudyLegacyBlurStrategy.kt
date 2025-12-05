@@ -41,6 +41,14 @@ import kotlinx.coroutines.withContext
  */
 internal object CloudyLegacyBlurStrategy : CloudyBlurStrategy {
 
+  /**
+   * Attach a legacy blur modifier (for API 30 and below) configured with the given radius and state callback.
+   *
+   * @param radius The blur radius to apply.
+   * @param onStateChanged Callback invoked with blur processing state updates.
+   * @param debugTag Optional tag for debugging; not used by the modifier's behavior.
+   * @return The original [Modifier] with a `CloudyModifierNodeElement` appended that applies the configured blur.
+   */
   @SuppressLint("ModifierFactoryUnreferencedReceiver")
   @Composable
   override fun apply(
@@ -61,16 +69,33 @@ private data class CloudyModifierNodeElement(
   val onStateChanged: (CloudyState) -> Unit = {},
 ) : ModifierNodeElement<CloudyModifierNode>() {
 
+  /**
+   * Registers inspector metadata for the cloudy modifier.
+   *
+   * Sets the inspector `name` to "cloudy" and exposes a `cloudy` property containing the current `radius`.
+   */
   override fun InspectorInfo.inspectableProperties() {
     name = "cloudy"
     properties["cloudy"] = radius
   }
 
+  /**
+   * Create a CloudyModifierNode configured with this element's radius and state callback.
+   *
+   * @return A CloudyModifierNode initialized with the element's `radius` and `onStateChanged` callback.
+   */
   override fun create(): CloudyModifierNode = CloudyModifierNode(
     radius = radius,
     onStateChanged = onStateChanged,
   )
 
+  /**
+   * Synchronizes the provided node with this element's state.
+   *
+   * Updates the node's content-change state and sets its blur radius to match this element.
+   *
+   * @param node The CloudyModifierNode to update.
+   */
   override fun update(node: CloudyModifierNode) {
     node.onUpdate()
     node.updateRadius(radius)
@@ -96,6 +121,14 @@ private class CloudyModifierNode(
   private var blurJob: Job? = null
   private var contentMayHaveChanged: Boolean = false
 
+  /**
+   * Update the blur radius and reset related processing state.
+   *
+   * Cancels any in-flight blur work, clears processing and pending-invalidate flags, and marks
+   * content as changed when the new radius differs from the cached blur radius. If the node is
+   * attached, requests a redraw.
+   *
+   * @param newRadius The new blur radius to apply.
   fun updateRadius(newRadius: Int) {
     if (radius == newRadius) return
     radius = newRadius
@@ -111,6 +144,11 @@ private class CloudyModifierNode(
     }
   }
 
+  /**
+   * Marks the node's content as changed and schedules either an immediate redraw or a pending invalidate.
+   *
+   * Sets `contentMayHaveChanged` to true. If a blur is currently processing, marks `pendingInvalidateRequest` so the change will be applied after processing completes; otherwise, if the node is attached, requests a draw invalidation via `invalidateDraw()`.
+   */
   fun onUpdate() {
     contentMayHaveChanged = true
     if (isProcessing) {
@@ -120,6 +158,15 @@ private class CloudyModifierNode(
     }
   }
 
+  /**
+   * Draws the modifier's content, applying a blur when requested and managing asynchronous capture, caching, and state callbacks.
+   *
+   * If the configured radius is less than or equal to zero the content is applied directly and the state is reported as Success.Applied.
+   * When a positive radius is set, a cached blurred bitmap is used when valid; otherwise the current content is captured and an asynchronous CPU blur is scheduled.
+   * During processing the state is reported as Loading; on successful capture the state is reported as Success.Captured with the resulting bitmap; on failure the state is reported as Error.
+   *
+   * The method updates internal cache state, may request redraws, and launches background work to produce blurred results when needed.
+   */
   override fun ContentDrawScope.draw() {
     val graphicsContext = requireGraphicsContext()
     val graphicsLayer = graphicsContext.createGraphicsLayer()
@@ -231,6 +278,17 @@ private class CloudyModifierNode(
     }
   }
 
+  /**
+   * Determine whether a bitmap is fully transparent by sampling a grid of pixels.
+   *
+   * If the bitmap has zero width or height this function returns `true`. The function samples
+   * `grid × grid` points evenly across the bitmap (including edges) and checks each sampled
+   * pixel's alpha channel.
+   *
+   * @param bitmap The bitmap to inspect.
+   * @param grid The number of rows and columns to sample; higher values increase sampling density.
+   * @return `true` if no sampled pixel has an alpha value greater than zero, `false` otherwise.
+   */
   private fun isTransparentBitmap(bitmap: Bitmap, grid: Int = 4): Boolean {
     if (bitmap.width == 0 || bitmap.height == 0) return true
     val maxX = bitmap.width - 1
