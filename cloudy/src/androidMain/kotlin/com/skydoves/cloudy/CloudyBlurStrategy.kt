@@ -38,9 +38,5 @@ internal interface CloudyBlurStrategy {
    * @return A Modifier that applies the configured blur effect on top of the given modifier.
    */
   @Composable
-  fun apply(
-    modifier: Modifier,
-    radius: Int,
-    onStateChanged: (CloudyState) -> Unit,
-  ): Modifier
+  fun apply(modifier: Modifier, radius: Int, onStateChanged: (CloudyState) -> Unit): Modifier
 }
