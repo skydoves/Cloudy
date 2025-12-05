@@ -213,7 +213,9 @@ private class CloudyModifierNode(
           }
 
           if (softwareBitmap == null) {
-            onStateChanged.invoke(CloudyState.Error(RuntimeException("Failed to create software bitmap")))
+            onStateChanged.invoke(
+              CloudyState.Error(RuntimeException("Failed to create software bitmap")),
+            )
             return@launch
           }
 
