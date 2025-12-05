@@ -15,18 +15,42 @@
  */
 package demo
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material.Card
+import androidx.compose.material.Scaffold
 import androidx.compose.material.Text
+import androidx.compose.material.TextButton
+import androidx.compose.material.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -35,72 +59,306 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.skydoves.cloudy.cloudy
 import com.skydoves.landscapist.coil3.CoilImage
 import demo.model.MockUtil
+import demo.model.Poster
 import demo.theme.PosterTheme
 import androidx.compose.material.MaterialTheme as M2MaterialTheme
 
 @Composable
 fun CloudyDemoApp() {
-  PosterTheme { Main() }
+  PosterTheme {
+    var selectedRadius: Int? by remember { mutableStateOf(null) }
+
+    AnimatedContent(
+      targetState = selectedRadius,
+      transitionSpec = {
+        if (targetState != null) {
+          slideInHorizontally { it } + fadeIn() togetherWith
+            slideOutHorizontally { -it } + fadeOut()
+        } else {
+          slideInHorizontally { -it } + fadeIn() togetherWith
+            slideOutHorizontally { it } + fadeOut()
+        }
+      },
+    ) { radius ->
+      if (radius != null) {
+        BlurDetailScreen(
+          radius = radius,
+          onBackClick = { selectedRadius = null },
+        )
+      } else {
+        RadiusListScreen(
+          onRadiusSelected = { selectedRadius = it },
+        )
+      }
+    }
+  }
+}
+
+private val testRadiusList = listOf(0, 5, 10, 15, 20, 25, 30, 40, 50, 75, 100)
+
+@Composable
+private fun RadiusListScreen(
+  onRadiusSelected: (Int) -> Unit,
+) {
+  Scaffold(
+    modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing),
+    topBar = {
+      TopAppBar(
+        title = { Text("Cloudy Demo - Blur Radius Test") },
+        backgroundColor = M2MaterialTheme.colors.primary,
+        contentColor = M2MaterialTheme.colors.onPrimary,
+      )
+    },
+    backgroundColor = M2MaterialTheme.colors.background,
+  ) { paddingValues ->
+    LazyColumn(
+      modifier = Modifier
+        .fillMaxSize()
+        .padding(paddingValues),
+      verticalArrangement = Arrangement.spacedBy(8.dp),
+      contentPadding = PaddingValues(16.dp),
+    ) {
+      items(testRadiusList) { radius ->
+        RadiusListItem(
+          radius = radius,
+          onClick = { onRadiusSelected(radius) },
+        )
+      }
+    }
+  }
 }
 
 @Composable
-internal fun Main() {
-  Column(
-    modifier = Modifier
-      .fillMaxSize()
-      .background(M2MaterialTheme.colors.background)
-      .verticalScroll(rememberScrollState()),
-    horizontalAlignment = Alignment.CenterHorizontally,
-  ) {
-    var animationPlayed by remember { mutableStateOf(false) }
-    val radius by animateIntAsState(
-      targetValue = if (animationPlayed) 45 else 0,
-      animationSpec = tween(
-        durationMillis = 1000,
-        delayMillis = 500,
-        easing = FastOutLinearInEasing,
-      ),
-      label = "Blur Animation",
-    )
+private fun RadiusListItem(
+  radius: Int,
+  onClick: () -> Unit,
+) {
+  val poster = remember { MockUtil.getMockPoster() }
 
-    LaunchedEffect(Unit) {
+  Card(
+    modifier = Modifier
+      .fillMaxWidth()
+      .clickable(onClick = onClick),
+    elevation = 4.dp,
+    shape = RoundedCornerShape(12.dp),
+    backgroundColor = M2MaterialTheme.colors.surface,
+  ) {
+    Row(
+      modifier = Modifier.padding(12.dp),
+      verticalAlignment = Alignment.CenterVertically,
+    ) {
+      Box(
+        modifier = Modifier
+          .size(80.dp)
+          .clip(RoundedCornerShape(8.dp)),
+      ) {
+        CoilImage(
+          modifier = Modifier
+            .fillMaxSize()
+            .cloudy(radius = radius),
+          imageModel = { poster.image },
+        )
+      }
+
+      Spacer(modifier = Modifier.width(16.dp))
+
+      Column(modifier = Modifier.weight(1f)) {
+        Text(
+          text = "Radius: $radius",
+          fontSize = 20.sp,
+          fontWeight = FontWeight.Bold,
+          color = M2MaterialTheme.colors.onSurface,
+        )
+        Text(
+          text = if (radius == 0) "No blur" else "Sigma: ${radius / 2.0f}",
+          fontSize = 14.sp,
+          color = M2MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
+        )
+      }
+
+      Text(
+        text = "→",
+        fontSize = 24.sp,
+        color = M2MaterialTheme.colors.primary,
+      )
+    }
+  }
+}
+
+@Composable
+private fun BlurDetailScreen(
+  radius: Int,
+  onBackClick: () -> Unit,
+) {
+  PlatformBackHandler { onBackClick() }
+
+  val poster = remember { MockUtil.getMockPoster() }
+
+  Scaffold(
+    modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing),
+    topBar = {
+      TopAppBar(
+        title = { Text("Radius: $radius") },
+        backgroundColor = M2MaterialTheme.colors.primary,
+        contentColor = M2MaterialTheme.colors.onPrimary,
+        navigationIcon = {
+          TextButton(onClick = onBackClick) {
+            Text(
+              text = "←",
+              fontSize = 20.sp,
+              color = M2MaterialTheme.colors.onPrimary,
+            )
+          }
+        },
+      )
+    },
+    backgroundColor = M2MaterialTheme.colors.background,
+  ) { paddingValues ->
+    Column(
+      modifier = Modifier
+        .fillMaxSize()
+        .padding(paddingValues)
+        .verticalScroll(rememberScrollState())
+        .padding(16.dp),
+      horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+      BlurTestCard(
+        title = "Static Blur",
+        radius = radius,
+        poster = poster,
+        animated = false,
+      )
+
+      Spacer(modifier = Modifier.height(24.dp))
+
+      BlurTestCard(
+        title = "Animated Blur (0 → $radius)",
+        radius = radius,
+        poster = poster,
+        animated = true,
+      )
+
+      Spacer(modifier = Modifier.height(24.dp))
+
+      TextBlurTest(radius = radius, poster = poster)
+    }
+  }
+}
+
+@Composable
+private fun BlurTestCard(
+  title: String,
+  radius: Int,
+  poster: Poster,
+  animated: Boolean,
+) {
+  var animationPlayed by remember { mutableStateOf(!animated) }
+  val animatedRadius by animateIntAsState(
+    targetValue = if (animationPlayed) radius else 0,
+    animationSpec = tween(
+      durationMillis = 1500,
+      delayMillis = 300,
+      easing = FastOutLinearInEasing,
+    ),
+    label = "Blur Animation",
+  )
+
+  LaunchedEffect(Unit) {
+    if (animated) {
       animationPlayed = true
     }
+  }
 
-    val poster = remember { MockUtil.getMockPoster() }
-
-    CoilImage(
-      modifier = Modifier
-        .size(400.dp)
-        .cloudy(radius = radius),
-      imageModel = { poster.image },
-    )
-
-    Column(modifier = Modifier.cloudy(radius = radius)) {
+  Card(
+    modifier = Modifier.fillMaxWidth(),
+    elevation = 4.dp,
+    shape = RoundedCornerShape(12.dp),
+    backgroundColor = M2MaterialTheme.colors.surface,
+  ) {
+    Column(
+      modifier = Modifier.padding(16.dp),
+      horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
       Text(
-        modifier = Modifier
-          .fillMaxWidth()
-          .padding(8.dp),
-        text = poster.name,
-        fontSize = 40.sp,
-        color = M2MaterialTheme.colors.onBackground,
-        textAlign = TextAlign.Center,
+        text = title,
+        fontSize = 18.sp,
+        fontWeight = FontWeight.Bold,
+        color = M2MaterialTheme.colors.onSurface,
       )
 
-      Text(
+      Spacer(modifier = Modifier.height(12.dp))
+
+      CoilImage(
         modifier = Modifier
-          .fillMaxWidth()
-          .padding(8.dp),
-        text = poster.description,
-        color = M2MaterialTheme.colors.onBackground,
-        textAlign = TextAlign.Center,
+          .size(300.dp)
+          .clip(RoundedCornerShape(8.dp))
+          .cloudy(radius = if (animated) animatedRadius else radius),
+        imageModel = { poster.image },
       )
+
+      Spacer(modifier = Modifier.height(8.dp))
+
+      Text(
+        text = "Current radius: ${if (animated) animatedRadius else radius}",
+        fontSize = 14.sp,
+        color = M2MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
+      )
+    }
+  }
+}
+
+@Composable
+private fun TextBlurTest(
+  radius: Int,
+  poster: Poster,
+) {
+  Card(
+    modifier = Modifier.fillMaxWidth(),
+    elevation = 4.dp,
+    shape = RoundedCornerShape(12.dp),
+    backgroundColor = M2MaterialTheme.colors.surface,
+  ) {
+    Column(
+      modifier = Modifier.padding(16.dp),
+      horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+      Text(
+        text = "Text Blur Test",
+        fontSize = 18.sp,
+        fontWeight = FontWeight.Bold,
+        color = M2MaterialTheme.colors.onSurface,
+      )
+
+      Spacer(modifier = Modifier.height(12.dp))
+
+      Column(modifier = Modifier.cloudy(radius = radius)) {
+        Text(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp),
+          text = poster.name,
+          fontSize = 32.sp,
+          color = M2MaterialTheme.colors.onSurface,
+          textAlign = TextAlign.Center,
+        )
+
+        Text(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp),
+          text = poster.description.take(100) + "...",
+          color = M2MaterialTheme.colors.onSurface.copy(alpha = 0.8f),
+          textAlign = TextAlign.Center,
+        )
+      }
     }
   }
 }
