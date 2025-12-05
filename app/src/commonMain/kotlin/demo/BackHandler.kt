@@ -17,5 +17,14 @@ package demo
 
 import androidx.compose.runtime.Composable
 
+/**
+ * Registers a composable back navigation handler that invokes the given callback when the system back action occurs.
+ *
+ * When `enabled` is true the handler is active and `onBack` will be called in response to a platform back/navigation event;
+ * when `enabled` is false the handler is inactive and will not intercept back events.
+ *
+ * @param enabled Controls whether the back handler is active. Defaults to `true`.
+ * @param onBack Callback invoked when the system back action is triggered while this handler is active.
+ */
 @Composable
 expect fun PlatformBackHandler(enabled: Boolean = true, onBack: () -> Unit)

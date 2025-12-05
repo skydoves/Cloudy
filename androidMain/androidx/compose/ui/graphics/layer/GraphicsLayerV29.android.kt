@@ -166,6 +166,12 @@ internal class GraphicsLayerV29(
     private var clipToBounds = false
     private var clipToOutline = false
 
+    /**
+     * Synchronizes clipping configuration with the current `clip` and outline state.
+     *
+     * Updates the internal `clipToBounds` and `clipToOutline` flags and applies them to
+     * the underlying `RenderNode` so clipping reflects whether an outline is provided.
+     */
     private fun applyClip() {
         val newClipToBounds = clip && !outlineIsProvided
         val newClipToOutline = clip && outlineIsProvided
@@ -193,6 +199,14 @@ internal class GraphicsLayerV29(
             updateLayerProperties()
         }
 
+    /**
+     * Configure this RenderNode's compositing and overlapping-rendering settings based on the given compositing strategy.
+     *
+     * @param compositingStrategy Chooses how the node composes its contents:
+     *   - `Offscreen`: enable a compositing (offscreen) layer and allow overlapping rendering.
+     *   - `ModulateAlpha`: disable a compositing layer and disallow overlapping rendering.
+     *   - otherwise: disable a compositing layer and allow overlapping rendering.
+     */
     private fun RenderNode.applyCompositingStrategy(compositingStrategy: CompositingStrategy) {
         when (compositingStrategy) {
             CompositingStrategy.Offscreen -> {
@@ -210,6 +224,13 @@ internal class GraphicsLayerV29(
         }
     }
 
+    /**
+     * Selects and applies the appropriate compositing strategy to the render node.
+     *
+     * If the current layer requires an offscreen compositing layer (for example due to blend
+     * mode, color filter, or render effects), this forces the Offscreen strategy; otherwise
+     * it applies the configured `compositingStrategy`.
+     */
     private fun updateLayerProperties() {
         if (requiresCompositingLayer()) {
             renderNode.applyCompositingStrategy(CompositingStrategy.Offscreen)
@@ -218,11 +239,27 @@ internal class GraphicsLayerV29(
         }
     }
 
+    /**
+     * Set the layer's position and size on the underlying RenderNode.
+     *
+     * @param x The left position in pixels.
+     * @param y The top position in pixels.
+     * @param size The width and height of the layer in pixels.
+     */
     override fun setPosition(x: Int, y: Int, size: IntSize) {
         renderNode.setPosition(x, y, x + size.width, y + size.height)
         this.size = size.toSize()
     }
 
+    /**
+     * Sets the RenderNode outline used for clipping and updates the layer's clipping state.
+     *
+     * The provided outline is applied to the underlying RenderNode; the internal flag tracking
+     * whether an outline is present is updated and clipping is reapplied to reflect the change.
+     *
+     * @param outline The outline to apply to the layer, or `null` to clear the outline.
+     * @param outlineSize Ignored for this implementation.
+     */
     override fun setOutline(outline: Outline?, outlineSize: IntSize) {
         // outlineSize is not required for this GraphicsLayer implementation
         renderNode.setOutline(outline)
@@ -232,6 +269,16 @@ internal class GraphicsLayerV29(
 
     override var isInvalidated: Boolean = true
 
+    /**
+     * Records drawing operations into the layer's RenderNode using the provided drawing block.
+     *
+     * The drawing environment is configured with the given density, layout direction, graphics layer,
+     * and the current layer size before executing `block`. Recording is ended when the block
+     * completes and the layer is marked as not invalidated.
+     *
+     * @param block The drawing operations to record; executed with a `DrawScope` receiver configured
+     *              for this layer's recording canvas.
+     */
     override fun record(
         density: Density,
         layoutDirection: LayoutDirection,
@@ -256,10 +303,23 @@ internal class GraphicsLayerV29(
         isInvalidated = false
     }
 
+    /**
+     * Draws the internal RenderNode contents into the provided canvas.
+     *
+     * @param canvas The canvas to draw the RenderNode into.
+     */
     override fun draw(canvas: Canvas) {
         canvas.nativeCanvas.drawRenderNode(renderNode)
     }
 
+    /**
+     * Obtain the transformation matrix representing the render node's current local transform.
+     *
+     * The returned matrix is populated with the render node's matrix values; the same Matrix
+     * instance may be reused by the implementation across calls.
+     *
+     * @return A Matrix populated with the render node's current local transform.
+     */
     override fun calculateMatrix(): Matrix {
         val m = matrix ?: Matrix().also { matrix = it }
         renderNode.getMatrix(m)
@@ -269,6 +329,11 @@ internal class GraphicsLayerV29(
     override val hasDisplayList: Boolean
         get() = renderNode.hasDisplayList()
 
+    /**
+     * Discards the RenderNode's cached display list.
+     *
+     * Forces the layer to rebuild its display list the next time content is recorded or drawn.
+     */
     override fun discardDisplayList() {
         renderNode.discardDisplayList()
     }
@@ -276,21 +341,42 @@ internal class GraphicsLayerV29(
     override val layerId: Long
         get() = renderNode.uniqueId
 
-    private fun obtainLayerPaint(): android.graphics.Paint =
+    /**
+         * Get the cached Paint used for layer rendering, creating and caching a new instance if necessary.
+         *
+         * @return The cached android.graphics.Paint instance used for layer properties.
+         */
+        private fun obtainLayerPaint(): android.graphics.Paint =
         layerPaint ?: android.graphics.Paint().also { layerPaint = it }
 
-    private fun requiresCompositingLayer(): Boolean =
+    /**
+             * Determines whether this graphics layer needs a compositing (offscreen) layer.
+             *
+             * @return `true` if the compositing strategy is `Offscreen`, the layer requires a paint (blend mode or color filter), or a render effect is set; `false` otherwise.
+             */
+            private fun requiresCompositingLayer(): Boolean =
         compositingStrategy == CompositingStrategy.Offscreen ||
             requiresLayerPaint() ||
             renderEffect != null
 
-    private fun requiresLayerPaint(): Boolean =
+    /**
+         * Indicates whether the layer requires an Android Paint to apply compositing effects.
+         *
+         * @return `true` if the blend mode is not `BlendMode.SrcOver` or a non-null color filter is set, `false` otherwise.
+         */
+        private fun requiresLayerPaint(): Boolean =
         blendMode != BlendMode.SrcOver || colorFilter != null
 }
 
 @RequiresApi(Build.VERSION_CODES.S)
 internal object RenderNodeVerificationHelper {
 
+    /**
+     * Applies the given RenderEffect to the RenderNode, or clears any existing effect when `target` is `null`.
+     *
+     * @param renderNode The Android RenderNode to update.
+     * @param target The Compose RenderEffect to apply, or `null` to remove the current render effect.
+     */
     fun setRenderEffect(renderNode: RenderNode, target: RenderEffect?) {
         renderNode.setRenderEffect(target?.asAndroidRenderEffect())
     }

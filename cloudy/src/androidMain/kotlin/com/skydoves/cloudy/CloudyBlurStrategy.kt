@@ -27,12 +27,13 @@ import androidx.compose.ui.Modifier
 internal interface CloudyBlurStrategy {
 
   /**
-   * Applies the blur implementation to the provided [modifier].
+   * Applies a platform-specific blur to the given modifier.
    *
-   * @param modifier The base modifier.
+   * @param modifier The base Modifier to which the blur will be applied.
    * @param radius Blur radius in pixels.
-   * @param onStateChanged Callback for blur state updates.
-   * @param debugTag Optional identifier for debugging logs.
+   * @param onStateChanged Callback invoked with blur state updates.
+   * @param debugTag Identifier used for debugging or logging.
+   * @return A Modifier that represents the original modifier with the blur effect applied.
    */
   @Composable
   fun apply(

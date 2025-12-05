@@ -18,6 +18,12 @@ package demo
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 
+/**
+ * Registers a back-button callback while this composable is active on Android.
+ *
+ * @param enabled If true, the back callback is active and will intercept back presses.
+ * @param onBack Callback invoked when the system back button is pressed while enabled.
+ */
 @Composable
 actual fun PlatformBackHandler(enabled: Boolean, onBack: () -> Unit) {
   BackHandler(enabled = enabled, onBack = onBack)

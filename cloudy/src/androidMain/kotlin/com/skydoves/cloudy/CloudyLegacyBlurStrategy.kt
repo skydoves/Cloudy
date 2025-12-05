@@ -41,6 +41,14 @@ import kotlinx.coroutines.withContext
  */
 internal object CloudyLegacyBlurStrategy : CloudyBlurStrategy {
 
+  /**
+   * Applies the legacy CPU-based blur modifier that captures content and produces blurred output (intended for older platforms).
+   *
+   * @param radius The blur radius in pixels.
+   * @param onStateChanged Callback invoked with blur processing state updates.
+   * @param debugTag Optional debug tag used for diagnostics; may be unused at runtime.
+   * @return The original [Modifier] with a Cloudy blur node applied.
+   */
   @SuppressLint("ModifierFactoryUnreferencedReceiver")
   @Composable
   override fun apply(
@@ -61,16 +69,31 @@ private data class CloudyModifierNodeElement(
   val onStateChanged: (CloudyState) -> Unit = {},
 ) : ModifierNodeElement<CloudyModifierNode>() {
 
+  /**
+   * Adds inspector metadata identifying this modifier as "cloudy" and exposing its radius.
+   *
+   * Populates the provided InspectorInfo with a name used by tooling and a "cloudy" property
+   * that carries the current blur radius for inspection and debugging. */
   override fun InspectorInfo.inspectableProperties() {
     name = "cloudy"
     properties["cloudy"] = radius
   }
 
+  /**
+   * Creates a new CloudyModifierNode configured with this element's radius and state callback.
+   *
+   * @return A new CloudyModifierNode initialized with the element's `radius` and `onStateChanged` handler.
+   */
   override fun create(): CloudyModifierNode = CloudyModifierNode(
     radius = radius,
     onStateChanged = onStateChanged,
   )
 
+  /**
+   * Applies this element's current properties to the given modifier node.
+   *
+   * @param node The CloudyModifierNode to update with the element's state (`radius` and lifecycle notification).
+   */
   override fun update(node: CloudyModifierNode) {
     node.onUpdate()
     node.updateRadius(radius)
@@ -96,6 +119,15 @@ private class CloudyModifierNode(
   private var blurJob: Job? = null
   private var contentMayHaveChanged: Boolean = false
 
+  /**
+   * Updates the blur radius and resets any in-progress blur work, ensuring the node will redraw with the new radius.
+   *
+   * If the new radius differs from the cached blur radius, marks the content as changed so a new blur will be produced.
+   * Any active blur coroutine is cancelled and processing-related flags are reset. If the node is attached, a draw
+   * invalidation is requested.
+   *
+   * @param newRadius The new blur radius to apply.
+   */
   fun updateRadius(newRadius: Int) {
     if (radius == newRadius) return
     radius = newRadius
@@ -111,6 +143,13 @@ private class CloudyModifierNode(
     }
   }
 
+  /**
+   * Marks the node's content as changed and schedules a redraw or defers it if a blur is in progress.
+   *
+   * Sets `contentMayHaveChanged` to true. If a blur operation is currently running, sets
+   * `pendingInvalidateRequest` so a redraw will occur after processing completes; otherwise,
+   * if the node is attached, requests an immediate draw via `invalidateDraw()`.
+   */
   fun onUpdate() {
     contentMayHaveChanged = true
     if (isProcessing) {
@@ -120,6 +159,24 @@ private class CloudyModifierNode(
     }
   }
 
+  /**
+   * Renders the modifier's content and, when a positive blur radius is configured, captures the content,
+   * applies a CPU-based blur, caches the result, and notifies observers about processing state changes.
+   *
+   * Draw behavior:
+   * - If `radius` is <= 0, draws the original content and reports `CloudyState.Success.Applied`.
+   * - If a valid cached blurred bitmap for the current radius exists, draws the cached image and reports
+   *   `CloudyState.Success.Captured`.
+   * - Otherwise, draws the current content, reports `CloudyState.Loading`, and initiates background blur
+   *   work. When the blur completes successfully the cache is updated, a redraw is requested, and
+   *   `CloudyState.Success.Captured` is reported. If blur fails, `CloudyState.Error` is reported.
+   *
+   * Side effects and lifecycle:
+   * - May start asynchronous processing to produce a blurred bitmap and updates internal fields such as
+   *   `isProcessing`, `blurredBitmap`, and `cachedBlurRadius`.
+   * - Requests redraws when needed and respects pending invalidate requests that occur during processing.
+   * - Ensures temporary graphics layers are released and reports errors on failure.
+   */
   override fun ContentDrawScope.draw() {
     val graphicsContext = requireGraphicsContext()
     val graphicsLayer = graphicsContext.createGraphicsLayer()
@@ -231,6 +288,13 @@ private class CloudyModifierNode(
     }
   }
 
+  /**
+   * Determines whether a bitmap is fully transparent by sampling pixels on a coarse grid.
+   *
+   * @param bitmap The bitmap to inspect.
+   * @param grid The number of sample rows and columns to use for coarse sampling; larger values increase detection accuracy. Must be at least 2.
+   * @return `true` if all sampled pixels have alpha equal to 0, `false` otherwise.
+   */
   private fun isTransparentBitmap(bitmap: Bitmap, grid: Int = 4): Boolean {
     if (bitmap.width == 0 || bitmap.height == 0) return true
     val maxX = bitmap.width - 1

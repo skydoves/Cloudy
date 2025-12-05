@@ -26,6 +26,14 @@ import org.mockito.Mockito.`when`
  * @param height The height of the bitmap in pixels. Defaults to 100.
  * @return A `PlatformBitmap` instance wrapping a mocked Android Bitmap.
  */
+/**
+ * Create a mocked PlatformBitmap with the specified pixel dimensions for use in tests.
+ *
+ * @param width The mocked bitmap width in pixels (default 100).
+ * @param height The mocked bitmap height in pixels (default 100).
+ * @return A PlatformBitmap wrapping a Mockito-mocked Bitmap configured to return the provided
+ * width and height, `isRecycled == false`, and `isMutable == true`.
+ */
 internal fun createMockPlatformBitmap(width: Int = 100, height: Int = 100): PlatformBitmap {
   val mockBitmap = mock(Bitmap::class.java)
   `when`(mockBitmap.width).thenReturn(width)

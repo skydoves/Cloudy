@@ -84,6 +84,22 @@ import androidx.compose.ui.Modifier
  * @param onStateChanged Callback invoked whenever the blur state changes; observe `CloudyState` variants such as `Success.Applied` (GPU blur applied; no bitmap), `Success.Captured` (CPU blur completed; blurred bitmap available at `state.bitmap`), `Loading`, `Error`, or `Nothing`.
  * @return A Modifier with the blur effect applied, or the original Modifier if `enabled` is false.
  */
+/**
+ * Applies a cross-platform blur effect to this Modifier.
+ *
+ * The `radius` is specified in pixels and is converted internally to a Gaussian sigma using
+ * `sigma = radius / 2.0`. If `enabled` is `false`, the original Modifier is returned unchanged.
+ * The `onStateChanged` callback receives `CloudyState` updates such as `Loading`, `Success.Applied`
+ * (GPU blur applied, no bitmap), `Success.Captured` (CPU blur completed, blurred bitmap available),
+ * `Error`, and `Nothing`. The `debugTag` is an optional identifier included in state callbacks for
+ * debugging and tracing purposes.
+ *
+ * @param radius The blur radius in pixels (must be >= 0).
+ * @param enabled Whether the blur effect is applied.
+ * @param onStateChanged Callback invoked with blur processing state changes.
+ * @param debugTag Optional debug identifier included in state callbacks.
+ * @return A Modifier with the blur effect applied, or the original Modifier if `enabled` is `false`.
+ */
 @Composable
 public expect fun Modifier.cloudy(
   @androidx.annotation.IntRange(from = 0) radius: Int = 10,

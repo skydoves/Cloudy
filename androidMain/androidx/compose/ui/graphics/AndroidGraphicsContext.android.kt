@@ -38,7 +38,13 @@ import androidx.compose.ui.graphics.shadow.ShadowContext
  * @param layerContainer [ViewGroup] used to contain [View] based layers that are created by the
  *   returned [GraphicsContext]
  */
-fun GraphicsContext(layerContainer: ViewGroup): GraphicsContext =
+/**
+     * Creates a GraphicsContext that hosts view-backed graphics layers inside the given ViewGroup.
+     *
+     * @param layerContainer The ViewGroup used to contain and manage view-based graphics layers.
+     * @return A GraphicsContext implementation bound to the provided ViewGroup.
+     */
+    fun GraphicsContext(layerContainer: ViewGroup): GraphicsContext =
     AndroidGraphicsContext(layerContainer)
 
 private class AndroidGraphicsContext(private val ownerView: ViewGroup) : GraphicsContext {
@@ -53,15 +59,32 @@ private class AndroidGraphicsContext(private val ownerView: ViewGroup) : Graphic
     init {
         componentCallback =
             object : ComponentCallbacks2 {
+                /**
+                 * Ignores configuration changes; no action is taken when the device configuration changes.
+                 *
+                 * @param newConfig The new configuration (ignored).
+                 */
                 override fun onConfigurationChanged(newConfig: Configuration) {
                     // NO-OP
                 }
 
+                /**
+                 * Intentionally ignores low-memory notifications.
+                 *
+                 * This implementation performs no action when the system reports low memory.
+                 */
                 @Suppress("OVERRIDE_DEPRECATION") // b/407491706
                 override fun onLowMemory() {
                     // NO-OP
                 }
 
+                /**
+                 * Handles system memory pressure notifications by clearing the cached shadow context when
+                 * the trim level indicates background-or-worse memory pressure.
+                 *
+                 * @param level The memory trim level delivered by the system (see `ComponentCallbacks2`). If
+                 * `level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND`, the cached shadow context is cleared.
+                 */
                 override fun onTrimMemory(level: Int) {
                     // See CacheManager.cpp. HWUI releases graphics resources whenever the trim
                     // memory callback exceed the level of TRIM_MEMORY_BACKGROUND so do the same
@@ -76,12 +99,22 @@ private class AndroidGraphicsContext(private val ownerView: ViewGroup) : Graphic
         }
         ownerView.addOnAttachStateChangeListener(
             object : OnAttachStateChangeListener {
+                /**
+                 * Registers the component callbacks when the view is attached to a window.
+                 *
+                 * @param v The view that was attached to the window whose context is used to register callbacks.
+                 */
                 override fun onViewAttachedToWindow(v: View) {
                     // If the View is attached to the window again, re-add the component
                     // callbacks
                     registerComponentCallback(v.context)
                 }
 
+                /**
+                 * Handle the view being detached from the window by unregistering component callbacks and clearing the shadow cache.
+                 *
+                 * @param v The view that was detached from its window.
+                 */
                 override fun onViewDetachedFromWindow(v: View) {
                     // When the View is detached from the window, remove the component callbacks
                     // used to listen to trim memory signals
@@ -92,11 +125,21 @@ private class AndroidGraphicsContext(private val ownerView: ViewGroup) : Graphic
         )
     }
 
+    /**
+     * Clears the cached ShadowContext and releases its resources.
+     *
+     * If a shadow context is present, invokes its cache-clear routine and removes the cached reference.
+     */
     private fun clearShadowCache() {
         shadowCache?.clearCache()
         shadowCache = null
     }
 
+    /**
+     * Registers the internal ComponentCallbacks2 with the application's context if it is not already registered.
+     *
+     * @param context The context whose applicationContext will be used to register the callback.
+     */
     private fun registerComponentCallback(context: Context) {
         if (!componentCallbackRegistered) {
             context.applicationContext.registerComponentCallbacks(componentCallback)
@@ -104,6 +147,12 @@ private class AndroidGraphicsContext(private val ownerView: ViewGroup) : Graphic
         }
     }
 
+    /**
+     * Unregisters the ComponentCallbacks2 from the application's context if currently registered.
+     *
+     * If registered, the callback is removed from the application context and the internal
+     * registration flag is cleared.
+     */
     private fun unregisterComponentCallback(context: Context) {
         if (componentCallbackRegistered) {
             context.applicationContext.unregisterComponentCallbacks(componentCallback)
@@ -111,6 +160,13 @@ private class AndroidGraphicsContext(private val ownerView: ViewGroup) : Graphic
         }
     }
 
+    /**
+     * Creates a new GraphicsLayer associated with this context's owner ViewGroup, choosing a
+     * platform-appropriate implementation based on runtime compatibility and API level.
+     *
+     * @return A ready-to-use GraphicsLayer that wraps a platform-specific implementation suitable
+     *         for the current device and configuration.
+     */
     override fun createGraphicsLayer(): GraphicsLayer {
         synchronized(lock) {
             val ownerId = getUniqueDrawingId(ownerView)
@@ -144,10 +200,23 @@ private class AndroidGraphicsContext(private val ownerView: ViewGroup) : Graphic
     override val shadowContext: ShadowContext
         get() = shadowCache ?: ShadowContext().also { shadowCache = it }
 
+    /**
+     * Releases resources associated with the specified graphics layer.
+     *
+     * The operation is performed in a thread-safe manner.
+     *
+     * @param layer The graphics layer to release and free any held resources for.
+     */
     override fun releaseGraphicsLayer(layer: GraphicsLayer) {
         synchronized(lock) { layer.release() }
     }
 
+    /**
+     * Obtain the DrawChildContainer hosted by the given ViewGroup, creating and attaching one if absent.
+     *
+     * @param ownerView ViewGroup that will host the container.
+     * @return The existing or newly created DrawChildContainer attached to `ownerView`.
+     */
     private fun obtainViewLayerContainer(ownerView: ViewGroup): DrawChildContainer {
         var container = viewLayerContainer
         if (container == null) {
@@ -160,7 +229,13 @@ private class AndroidGraphicsContext(private val ownerView: ViewGroup) : Graphic
         return container
     }
 
-    private fun getUniqueDrawingId(view: View): Long =
+    /**
+         * Obtain the platform unique drawing id for the given view when available.
+         *
+         * @param view The view whose unique drawing id is requested.
+         * @return `view.uniqueDrawingId` on Android Q (API 29) and above, `-1` on earlier API levels.
+         */
+        private fun getUniqueDrawingId(view: View): Long =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             UniqueDrawingIdApi29.getUniqueDrawingId(view)
         } else {
@@ -173,6 +248,12 @@ private class AndroidGraphicsContext(private val ownerView: ViewGroup) : Graphic
 
     @RequiresApi(29)
     private object UniqueDrawingIdApi29 {
-        @JvmStatic fun getUniqueDrawingId(view: View) = view.uniqueDrawingId
+        /**
+ * Retrieve the unique drawing id for a view.
+ *
+ * @param view The view to retrieve the unique drawing id from.
+ * @return The view's unique drawing id (available on API 29+).
+ */
+@JvmStatic fun getUniqueDrawingId(view: View) = view.uniqueDrawingId
     }
 }

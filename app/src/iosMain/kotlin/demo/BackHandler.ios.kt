@@ -17,6 +17,14 @@ package demo
 
 import androidx.compose.runtime.Composable
 
+/**
+ * No-op back handler for iOS kept for cross-platform compatibility.
+ *
+ * This composable intentionally does nothing on iOS because the platform has no system back button.
+ *
+ * @param enabled Whether the back handler is active (ignored on iOS).
+ * @param onBack Callback invoked when a back action occurs (never called on iOS).
+ */
 @Composable
 actual fun PlatformBackHandler(enabled: Boolean, onBack: () -> Unit) {
   // iOS doesn't have a system back button, uses swipe gestures instead

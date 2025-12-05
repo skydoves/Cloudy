@@ -27,6 +27,20 @@ import androidx.compose.ui.unit.dp
  * Android implementation of the cloudy modifier that selects
  * the appropriate blur strategy based on the current API level.
  */
+/**
+ * Applies a platform-appropriate "cloudy" blur to this Modifier.
+ *
+ * The implementation selects an API-specific blur strategy and forwards state changes through
+ * `onStateChanged`. If `enabled` is false the original modifier is returned. In tooling
+ * inspection mode a simple Compose blur is used.
+ *
+ * @param radius The blur radius in pixels; must be greater than or equal to 0.
+ * @param enabled Whether the cloudy effect should be applied.
+ * @param onStateChanged Callback invoked with `CloudyState` when the blur state changes.
+ * @param debugTag Debugging tag included with state callbacks for identification.
+ * @return A Modifier that applies the requested blur effect when enabled, or the original Modifier otherwise.
+ * @throws IllegalArgumentException if `radius` is negative.
+ */
 @Composable
 public actual fun Modifier.cloudy(
   @IntRange(from = 0) radius: Int,
