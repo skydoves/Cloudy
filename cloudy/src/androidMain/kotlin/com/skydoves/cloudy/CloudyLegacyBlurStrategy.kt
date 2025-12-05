@@ -30,6 +30,7 @@ import androidx.compose.ui.node.invalidateDraw
 import androidx.compose.ui.node.requireGraphicsContext
 import androidx.compose.ui.platform.InspectorInfo
 import com.skydoves.cloudy.internals.render.iterativeBlur
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -195,7 +196,9 @@ private class CloudyModifierNode(
         try {
           val capturedBitmap: Bitmap = try {
             graphicsLayer.toImageBitmap().asAndroidBitmap()
-          } catch (_: Exception) {
+          } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            graphicsContext.releaseGraphicsLayer(graphicsLayer)
             return@launch
           }
 
@@ -244,6 +247,7 @@ private class CloudyModifierNode(
             }
           }
         } catch (e: Exception) {
+          if (e is CancellationException) throw e
           if (!graphicsLayer.isReleased) {
             graphicsContext.releaseGraphicsLayer(graphicsLayer)
           }
