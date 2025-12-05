@@ -44,20 +44,6 @@ import androidx.compose.ui.graphics.graphicsLayer
  *        On iOS, this will receive [CloudyState.Success.Applied] (no bitmap available).
  * @return Modified Modifier with blur effect applied.
  */
-/**
- * Applies an iOS GPU-accelerated blur effect to this Modifier when enabled.
- *
- * If `enabled` is false the original modifier is returned unchanged. If `radius` is
- * zero the modifier is also returned unchanged but `onStateChanged` is invoked with
- * `CloudyState.Success.Applied`. For positive radii a Skia `BlurEffect` is applied
- * (sigma = radius / 2.0) and `onStateChanged` is invoked with `CloudyState.Success.Applied`.
- *
- * @param radius Blur radius in pixels; must be greater than or equal to 0.
- * @param enabled Whether the blur effect should be applied.
- * @param onStateChanged Callback invoked to report the resulting CloudyState.
- * @return A Modifier with the blur render effect applied when `enabled` is true and `radius` > 0, otherwise the original Modifier.
- * @throws IllegalArgumentException if [radius] is negative.
- */
 @Composable
 public actual fun Modifier.cloudy(
   @IntRange(from = 0) radius: Int,
