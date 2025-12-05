@@ -77,9 +77,12 @@ public sealed interface CloudyState {
      * This state is returned when using CPU-based blur implementations:
      * - Android 30 and below: Native C++ RenderScriptToolkit
      *
+     * Note: Uses @Stable instead of @Immutable because PlatformBitmap wraps
+     * platform-specific bitmap types (e.g., Android Bitmap) that are mutable.
+     *
      * @property bitmap The resulting blurred bitmap.
      */
-    @Immutable
+    @Stable
     public data class Captured(public val bitmap: PlatformBitmap) : Success
   }
 

@@ -15,14 +15,11 @@
  */
 package com.skydoves.cloudy
 
-import android.graphics.Bitmap
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import org.mockito.Mockito.mock
-import org.mockito.Mockito.`when`
 
 internal class CloudyStateTest {
 
@@ -80,23 +77,8 @@ internal class CloudyStateTest {
       createMockPlatformBitmap(100, 100),
     )
 
-    var appliedMatched = false
-    var capturedMatched = false
-
-    when (appliedState) {
-      is CloudyState.Success.Applied -> appliedMatched = true
-      is CloudyState.Success.Captured -> {}
-      else -> {}
-    }
-
-    when (capturedState) {
-      is CloudyState.Success.Captured -> capturedMatched = true
-      is CloudyState.Success.Applied -> {}
-      else -> {}
-    }
-
-    assertTrue(appliedMatched)
-    assertTrue(capturedMatched)
+    assertTrue(appliedState is CloudyState.Success.Applied)
+    assertTrue(capturedState is CloudyState.Success.Captured)
   }
 
   @Test
@@ -143,15 +125,5 @@ internal class CloudyStateTest {
     val state2 = CloudyState.Error(exception2)
 
     assertNotEquals(state1, state2)
-  }
-
-  private fun createMockPlatformBitmap(width: Int, height: Int): PlatformBitmap {
-    val mockBitmap = mock(Bitmap::class.java)
-    `when`(mockBitmap.width).thenReturn(width)
-    `when`(mockBitmap.height).thenReturn(height)
-    `when`(mockBitmap.isRecycled).thenReturn(false)
-    `when`(mockBitmap.isMutable).thenReturn(true)
-
-    return PlatformBitmap(mockBitmap)
   }
 }

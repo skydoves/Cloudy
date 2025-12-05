@@ -70,23 +70,8 @@ internal class CloudyStateTest {
       createTestPlatformBitmap(100, 100),
     )
 
-    var appliedMatched = false
-    var capturedMatched = false
-
-    when (appliedState) {
-      is CloudyState.Success.Applied -> appliedMatched = true
-      is CloudyState.Success.Captured -> {}
-      else -> {}
-    }
-
-    when (capturedState) {
-      is CloudyState.Success.Captured -> capturedMatched = true
-      is CloudyState.Success.Applied -> {}
-      else -> {}
-    }
-
-    assertTrue(appliedMatched)
-    assertTrue(capturedMatched)
+    assertTrue(appliedState is CloudyState.Success.Applied)
+    assertTrue(capturedState is CloudyState.Success.Captured)
   }
 
   @Test
