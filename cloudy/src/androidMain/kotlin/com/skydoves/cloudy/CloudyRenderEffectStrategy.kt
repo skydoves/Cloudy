@@ -18,6 +18,7 @@ package com.skydoves.cloudy
 import android.graphics.RenderEffect
 import android.graphics.Shader
 import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
@@ -38,6 +39,7 @@ internal object CloudyRenderEffectStrategy : CloudyBlurStrategy {
    * @return The original modifier when `radius` is 0 or when RenderEffect is unavailable on the device; otherwise
    * a modifier augmented with a graphicsLayer containing the RenderEffect-based blur.
    */
+  @RequiresApi(Build.VERSION_CODES.S)
   @Composable
   override fun apply(
     modifier: Modifier,
