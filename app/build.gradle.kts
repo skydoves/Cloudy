@@ -21,6 +21,7 @@ plugins {
   id(libs.plugins.kotlin.multiplatform.get().pluginId)
   id(libs.plugins.compose.multiplatform.get().pluginId)
   id(libs.plugins.compose.compiler.get().pluginId)
+  alias(libs.plugins.kotlinx.serialization)
 }
 
 kotlin {
@@ -66,6 +67,9 @@ kotlin {
       implementation(libs.landscapist.coil)
       implementation(libs.coil)
       implementation(libs.coil.network)
+
+      implementation(libs.androidx.nav3.ui)
+      implementation(libs.kotlinx.serialization.json)
     }
   }
 }
