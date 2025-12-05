@@ -63,6 +63,7 @@ public actual fun Modifier.cloudy(
   @IntRange(from = 0) radius: Int,
   enabled: Boolean,
   onStateChanged: (CloudyState) -> Unit,
+  debugTag: String,
 ): Modifier {
   require(radius >= 0) { "Blur radius must be non-negative, but was $radius" }
 

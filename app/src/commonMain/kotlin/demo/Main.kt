@@ -158,7 +158,7 @@ private fun RadiusListItem(radius: Int, onClick: () -> Unit) {
         CoilImage(
           modifier = Modifier
             .fillMaxSize()
-            .cloudy(radius = radius),
+            .cloudy(radius = radius, debugTag = "RadiusListItem"),
           imageModel = { poster.image },
         )
       }
@@ -264,6 +264,8 @@ private fun BlurTestCard(title: String, radius: Int, poster: Poster, animated: B
     }
   }
 
+  val imageShape = RoundedCornerShape(8.dp)
+
   Card(
     modifier = Modifier.fillMaxWidth(),
     elevation = 4.dp,
@@ -286,8 +288,12 @@ private fun BlurTestCard(title: String, radius: Int, poster: Poster, animated: B
       CoilImage(
         modifier = Modifier
           .size(300.dp)
-          .clip(RoundedCornerShape(8.dp))
-          .cloudy(radius = if (animated) animatedRadius else radius),
+          .clip(imageShape)
+          .background(M2MaterialTheme.colors.surface, imageShape)
+          .cloudy(
+            radius = if (animated) animatedRadius else radius,
+            debugTag = if (animated) "BlurTestCardAnimated" else "BlurTestCardStatic",
+          ),
         imageModel = { poster.image },
       )
 
@@ -304,6 +310,8 @@ private fun BlurTestCard(title: String, radius: Int, poster: Poster, animated: B
 
 @Composable
 private fun TextBlurTest(radius: Int, poster: Poster) {
+  val textBlurShape = RoundedCornerShape(12.dp)
+
   Card(
     modifier = Modifier.fillMaxWidth(),
     elevation = 4.dp,
@@ -323,7 +331,13 @@ private fun TextBlurTest(radius: Int, poster: Poster) {
 
       Spacer(modifier = Modifier.height(12.dp))
 
-      Column(modifier = Modifier.cloudy(radius = radius)) {
+      Column(
+        modifier = Modifier
+          .fillMaxWidth()
+          .clip(textBlurShape)
+          .background(M2MaterialTheme.colors.surface, textBlurShape)
+          .cloudy(radius = radius, debugTag = "TextBlurColumn"),
+      ) {
         Text(
           modifier = Modifier
             .fillMaxWidth()

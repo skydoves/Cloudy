@@ -89,4 +89,5 @@ public expect fun Modifier.cloudy(
   @androidx.annotation.IntRange(from = 0) radius: Int = 10,
   enabled: Boolean = true,
   onStateChanged: (CloudyState) -> Unit = {},
+  debugTag: String = "",
 ): Modifier
