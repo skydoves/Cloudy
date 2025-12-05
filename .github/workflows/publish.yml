@@ -7,27 +7,24 @@ on:
 
 jobs:
   publish:
-    name: Snapshot build and publish
-    runs-on: ubuntu-latest
+    name: Release build and publish
+    runs-on: macos-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@v4.1.7
+        uses: actions/checkout@v6.0.1
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4.2.1
+        uses: actions/setup-java@v5.1.0
         with:
           distribution: 'zulu'
-          java-version: 17
-
-      - name: Grant Permission to Execute Gradle
-        run: chmod +x gradlew
+          java-version: 21
 
       - name: Release build
-        run: ./gradlew assemble --scan
+        run: ./gradlew assemble --scan -x :benchmark-landscapist:pixel6api31Setup -x :benchmark-landscapist:pixel6api31NonMinifiedReleaseAndroidTest -x :benchmark-landscapist:collectNonMinifiedReleaseBaselineProfile
 
       - name: Publish to MavenCentral
         run: |
-          ./gradlew publishAllPublicationsToMavenCentral --no-configuration-cache
+          ./gradlew publishAllPublicationsToMavenCentral --no-configuration-cache -x javaDocReleaseGeneration -x :fresco:javaDocReleaseGeneration
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.OSSRH_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.OSSRH_PASSWORD }}
