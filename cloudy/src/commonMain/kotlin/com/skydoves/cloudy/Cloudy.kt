@@ -69,7 +69,6 @@ import androidx.compose.ui.Modifier
  * @param enabled If false, disables the blur effect and returns the original modifier.
  * @param onStateChanged Callback invoked when the blur state changes.
  *        Check the state type to determine if a bitmap is available.
- * @param debugTag Optional tag for identifying this modifier instance in debug traces.
  * @return A [Modifier] with the blur effect applied.
  *
  * @see CloudyState.Success.Applied
@@ -80,5 +79,4 @@ public expect fun Modifier.cloudy(
   @androidx.annotation.IntRange(from = 0) radius: Int = 10,
   enabled: Boolean = true,
   onStateChanged: (CloudyState) -> Unit = {},
-  debugTag: String = "",
 ): Modifier

@@ -175,7 +175,7 @@ private fun RadiusListItem(radius: Int, onClick: () -> Unit) {
         CoilImage(
           modifier = Modifier
             .fillMaxSize()
-            .cloudy(radius = radius, debugTag = "RadiusListItem"),
+            .cloudy(radius = radius),
           imageModel = { poster.image },
         )
       }
@@ -323,10 +323,7 @@ private fun BlurTestCard(title: String, radius: Int, poster: Poster, animated: B
           .size(300.dp)
           .clip(imageShape)
           .background(M2MaterialTheme.colors.surface, imageShape)
-          .cloudy(
-            radius = if (animated) animatedRadius else radius,
-            debugTag = if (animated) "BlurTestCardAnimated" else "BlurTestCardStatic",
-          ),
+          .cloudy(radius = if (animated) animatedRadius else radius),
         imageModel = { poster.image },
       )
 
@@ -378,7 +375,7 @@ private fun TextBlurTest(radius: Int, poster: Poster) {
           .fillMaxWidth()
           .clip(textBlurShape)
           .background(M2MaterialTheme.colors.surface, textBlurShape)
-          .cloudy(radius = radius, debugTag = "TextBlurColumn"),
+          .cloudy(radius = radius),
       ) {
         Text(
           modifier = Modifier

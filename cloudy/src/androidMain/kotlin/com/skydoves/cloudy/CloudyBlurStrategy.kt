@@ -30,13 +30,11 @@ internal interface CloudyBlurStrategy {
    * Builds a Modifier that applies a blur effect using the platform-specific strategy.
    *
    * The returned modifier applies the requested blur radius to the provided base modifier
-   * and reports blur state changes via the `onStateChanged` callback. The `debugTag`
-   * is used to identify this blur instance in diagnostics.
+   * and reports blur state changes via the `onStateChanged` callback.
    *
    * @param modifier The base Modifier to augment with the blur effect.
    * @param radius Blur radius in pixels.
    * @param onStateChanged Callback invoked when the blur state changes.
-   * @param debugTag Identifier used for debugging and diagnostics.
    * @return A Modifier that applies the configured blur effect on top of the given modifier.
    */
   @Composable
@@ -44,6 +42,5 @@ internal interface CloudyBlurStrategy {
     modifier: Modifier,
     radius: Int,
     onStateChanged: (CloudyState) -> Unit,
-    debugTag: String,
   ): Modifier
 }

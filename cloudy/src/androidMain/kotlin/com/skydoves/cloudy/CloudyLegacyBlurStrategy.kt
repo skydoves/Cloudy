@@ -47,7 +47,6 @@ internal object CloudyLegacyBlurStrategy : CloudyBlurStrategy {
    *
    * @param radius The blur radius to apply.
    * @param onStateChanged Callback invoked with blur processing state updates.
-   * @param debugTag Optional tag for debugging; not used by the modifier's behavior.
    * @return The original [Modifier] with a `CloudyModifierNodeElement` appended that applies the configured blur.
    */
   @SuppressLint("ModifierFactoryUnreferencedReceiver")
@@ -56,7 +55,6 @@ internal object CloudyLegacyBlurStrategy : CloudyBlurStrategy {
     modifier: Modifier,
     radius: Int,
     onStateChanged: (CloudyState) -> Unit,
-    debugTag: String,
   ): Modifier = modifier.then(
     CloudyModifierNodeElement(
       radius = radius,
@@ -149,7 +147,7 @@ private class CloudyModifierNode(
   /**
    * Draws the modifier's content, applying a blur when requested and managing asynchronous capture, caching, and state callbacks.
    *
-   * If the configured radius is less than or equal to zero the content is applied directly and the state is reported as Success.Applied.
+   * If the configured radius is less than or equal to zero, the content is drawn directly without blur and no state callback is invoked.
    * When a positive radius is set, a cached blurred bitmap is used when valid; otherwise the current content is captured and an asynchronous CPU blur is scheduled.
    * During processing the state is reported as Loading; on successful capture the state is reported as Success.Captured with the resulting bitmap; on failure the state is reported as Error.
    *
@@ -166,7 +164,6 @@ private class CloudyModifierNode(
     if (radius <= 0) {
       drawLayer(graphicsLayer)
       graphicsContext.releaseGraphicsLayer(graphicsLayer)
-      onStateChanged.invoke(CloudyState.Success.Applied)
       return
     }
 

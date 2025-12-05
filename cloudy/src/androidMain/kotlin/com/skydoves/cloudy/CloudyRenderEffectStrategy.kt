@@ -35,7 +35,6 @@ internal object CloudyRenderEffectStrategy : CloudyBlurStrategy {
    *
    * @param radius The blur radius in pixels; a value of 0 skips applying any blur and returns the original modifier.
    * @param onStateChanged Callback invoked with `CloudyState.Success.Applied` when the blur application is triggered.
-   * @param debugTag Optional tag for debugging (not used to alter behavior).
    * @return The original modifier when `radius` is 0 or when RenderEffect is unavailable on the device; otherwise
    * a modifier augmented with a graphicsLayer containing the RenderEffect-based blur.
    */
@@ -44,7 +43,6 @@ internal object CloudyRenderEffectStrategy : CloudyBlurStrategy {
     modifier: Modifier,
     radius: Int,
     onStateChanged: (CloudyState) -> Unit,
-    debugTag: String,
   ): Modifier {
     LaunchedEffect(radius) {
       onStateChanged(CloudyState.Success.Applied)
