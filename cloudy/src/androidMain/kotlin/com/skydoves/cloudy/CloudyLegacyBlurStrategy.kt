@@ -121,14 +121,6 @@ private class CloudyModifierNode(
   private var blurJob: Job? = null
   private var contentMayHaveChanged: Boolean = false
 
-  /**
-   * Update the blur radius and reset related processing state.
-   *
-   * Cancels any in-flight blur work, clears processing and pending-invalidate flags, and marks
-   * content as changed when the new radius differs from the cached blur radius. If the node is
-   * attached, requests a redraw.
-   *
-   * @param newRadius The new blur radius to apply.
   fun updateRadius(newRadius: Int) {
     if (radius == newRadius) return
     radius = newRadius
@@ -144,11 +136,6 @@ private class CloudyModifierNode(
     }
   }
 
-  /**
-   * Marks the node's content as changed and schedules either an immediate redraw or a pending invalidate.
-   *
-   * Sets `contentMayHaveChanged` to true. If a blur is currently processing, marks `pendingInvalidateRequest` so the change will be applied after processing completes; otherwise, if the node is attached, requests a draw invalidation via `invalidateDraw()`.
-   */
   fun onUpdate() {
     contentMayHaveChanged = true
     if (isProcessing) {

@@ -24,35 +24,7 @@ import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.graphicsLayer
 
 /**
- * iOS implementation of the cloudy modifier that applies blur effects to composables.
- *
- * This implementation uses Skia's GPU-accelerated blur via [BlurEffect] which is backed
- * by Metal on iOS for optimal performance. The blur is applied directly in the rendering
- * pipeline without bitmap extraction.
- *
- * ## Performance
- * - Uses GPU acceleration via Skia's Metal backend
- * - No bitmap extraction (GPU→CPU readback) for maximum performance
- * - Returns [CloudyState.Success.Applied] to indicate GPU blur was applied
- *
- * ## Sigma Conversion
- * The blur radius is converted to sigma using: `sigma = radius / 2.0`
- *
- * @param radius The blur radius in pixels. Higher values create more blur.
- * @param enabled Whether the blur effect is enabled. When false, returns the original modifier unchanged.
- * @param onStateChanged Callback that receives updates about the blur processing state.
- *        On iOS, this will receive [CloudyState.Success.Applied] (no bitmap available).
- * @return Modified Modifier with blur effect applied.
- */
-/**
- * Applies an iOS GPU-accelerated blur to this Modifier when enabled and radius is greater than zero.
- *
- * @param radius The blur radius (must be >= 0).
- * @param enabled If `false`, the original Modifier is returned unchanged.
- * @param onStateChanged Callback invoked with `CloudyState.Success.Applied` when the blur radius changes and the effect is applied.
- * @param debugTag Unused debug tag available for callers.
- * @return A Modifier with a GPU-accelerated blur renderEffect applied when `enabled` is `true` and `radius` > 0; otherwise the original Modifier.
- * @throws IllegalArgumentException if `radius` is negative.
+ * iOS implementation using Skia's GPU-accelerated BlurEffect via Metal backend.
  */
 @Composable
 public actual fun Modifier.cloudy(
