@@ -45,6 +45,16 @@ private val LightColorPalette = lightColors(
   onSecondary = backgroundDark,
 )
 
+/**
+ * Applies the app's poster styling (colors and typography) to the given composable content.
+ *
+ * When `darkTheme` is true the dark color palette and typography are used; otherwise the light
+ * palette and typography are applied.
+ *
+ * @param darkTheme Controls whether dark-theme colors and typography are applied. Defaults to the
+ * system dark theme setting.
+ * @param content Composable content to render within the themed Material surface.
+ */
 @Composable
 internal fun PosterTheme(
   darkTheme: Boolean = isSystemInDarkTheme(),
