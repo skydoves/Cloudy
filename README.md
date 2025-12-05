@@ -22,7 +22,16 @@
 <img src="preview/img2.png" width="268"/>
 </p>
 
+### Supported Platforms
+
+| Platform | Implementation | Performance | State Type |
+|----------|----------------|-------------|------------|
+| iOS | Skia BlurEffect (Metal GPU) | GPU-accelerated | `Success.Applied` |
+| Android 31+ | RenderEffect (GPU) | GPU-accelerated | `Success.Applied` |
+| Android 30- | Native C++ (CPU) | NEON/SIMD optimized | `Success.Captured` |
+
 ## Download
+
 [![Maven Central](https://img.shields.io/maven-central/v/com.github.skydoves/cloudy.svg?label=Maven%20Central)](https://search.maven.org/search?q=g:%22com.github.skydoves%22%20AND%20a:%22cloudy%22)
 
 ### Version Catalog
@@ -32,7 +41,7 @@ If you're using Version Catalog, you can configure the dependency by adding it t
 ```toml
 [versions]
 #...
-cloudy = "0.2.7"
+cloudy = "0.3.0"
 
 [libraries]
 #...
@@ -44,10 +53,20 @@ Add the dependency below to your **module**'s `build.gradle.kts` file:
 
 ```gradle
 dependencies {
-    implementation("com.github.skydoves:cloudy:0.2.7")
+    implementation("com.github.skydoves:cloudy:0.3.0")
     
     // if you're using Version Catalog
     implementation(libs.compose.cloudy)
+}
+```
+
+For Kotlin Multiplatform, add the dependency below to your **module**'s `build.gradle.kts` file:
+
+```gradle
+sourceSets {
+    commonMain.dependencies {
+        implementation("com.github.skydoves:cloudy:$version")
+    }
 }
 ```
 
@@ -139,14 +158,6 @@ GlideImage(
 | `Loading` | Blur processing in progress | No |
 | `Error` | Blur operation failed | No |
 | `Nothing` | Initial state | No |
-
-### Platform Support
-
-| Platform | Implementation | Performance | State Type |
-|----------|----------------|-------------|------------|
-| iOS | Skia BlurEffect (Metal GPU) | GPU-accelerated | `Success.Applied` |
-| Android 31+ | RenderEffect (GPU) | GPU-accelerated | `Success.Applied` |
-| Android 30- | Native C++ (CPU) | NEON/SIMD optimized | `Success.Captured` |
 
 ## Maintaining Blurring Effect on Responsive Composable
 
