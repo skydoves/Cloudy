@@ -18,6 +18,12 @@ package demo
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 
+/**
+ * Enables platform back-button handling in a Compose UI on Android.
+ *
+ * @param enabled Whether back handling is active.
+ * @param onBack Callback invoked when the back action occurs.
+ */
 @Composable
 actual fun PlatformBackHandler(enabled: Boolean, onBack: () -> Unit) {
   BackHandler(enabled = enabled, onBack = onBack)
