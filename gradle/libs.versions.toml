@@ -18,7 +18,9 @@ androidxMacroBenchmark = "1.4.1"
 androidxProfileinstaller = "1.4.1"
 androidxUiAutomator = "2.3.0"
 landscapist = "2.6.1"
-composeMultiplatform = "1.9.3"
+composeMultiplatform = "1.10.0-rc01"
+androidxNav3 = "1.0.0-alpha06"
+kotlinxSerialization = "1.9.0"
 coil = "3.3.0"
 spotless = "8.1.0"
 junit4 = "4.13.2"
@@ -38,6 +40,7 @@ compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "
 nexus-plugin = { id = "com.vanniktech.maven.publish", version.ref = "nexusPlugin" }
 spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
 kotlinBinaryCompatibilityValidator = { id = "org.jetbrains.kotlinx.binary-compatibility-validator", version.ref = "binaryCompatibility" }
+kotlinx-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 
 [libraries]
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "kotlinxCoroutinesAndroid" }
@@ -75,3 +78,5 @@ androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-te
 mockito = { module = "org.mockito:mockito-core", version.ref = "mockito" }
 mockito-inline = { module = "org.mockito:mockito-inline", version.ref = "mockito-inline" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
+androidx-nav3-ui = { module = "org.jetbrains.androidx.navigation3:navigation3-ui", version.ref = "androidxNav3" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
