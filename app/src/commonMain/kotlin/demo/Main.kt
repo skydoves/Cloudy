@@ -40,7 +40,11 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -74,30 +78,51 @@ import demo.theme.PosterTheme
 import androidx.compose.material.MaterialTheme as M2MaterialTheme
 
 /**
- * Hosts the Cloudy demo UI and navigates between the radius list and blur detail screens.
+ * Hosts the Cloudy demo UI with menu-driven navigation to multiple blur demo scenarios.
  *
  * Uses Navigation3's NavDisplay for type-safe navigation between screens.
- * The content is wrapped in PosterTheme and transitions between list and detail views use animated enter/exit transitions.
+ * The content is wrapped in PosterTheme and transitions between views use animated enter/exit transitions.
  */
 @Composable
 fun CloudyDemoApp() {
   PosterTheme {
-    val backStack = remember { mutableStateListOf<Route>(Route.RadiusList) }
+    val backStack = remember { mutableStateListOf<Route>(Route.MenuHome) }
 
     NavDisplay(
       backStack = backStack,
       onBack = { backStack.removeLastOrNull() },
       entryProvider = { route ->
         when (route) {
-          is Route.RadiusList -> NavEntry(route) {
-            RadiusListScreen(
+          is Route.MenuHome -> NavEntry(route) {
+            MenuHomeScreen(
+              onGridListClick = { backStack.add(Route.GridList) },
+              onRadiusItemsClick = { backStack.add(Route.RadiusItems) },
+              onBlurAppBarGridClick = { backStack.add(Route.BlurAppBarGrid) },
+            )
+          }
+
+          is Route.GridList -> NavEntry(route) {
+            GridListScreen(
+              onBackClick = { backStack.removeLastOrNull() },
+            )
+          }
+
+          is Route.RadiusItems -> NavEntry(route) {
+            RadiusItemsScreen(
               onRadiusSelected = { radius -> backStack.add(Route.RadiusDetail(radius)) },
+              onBackClick = { backStack.removeLastOrNull() },
             )
           }
 
           is Route.RadiusDetail -> NavEntry(route) {
-            BlurDetailScreen(
+            RadiusDetailScreen(
               radius = route.radius,
+              onBackClick = { backStack.removeLastOrNull() },
+            )
+          }
+
+          is Route.BlurAppBarGrid -> NavEntry(route) {
+            BlurAppBarGridScreen(
               onBackClick = { backStack.removeLastOrNull() },
             )
           }
@@ -117,20 +142,253 @@ fun CloudyDemoApp() {
 
 private val testRadiusList = listOf(0, 5, 10, 15, 20, 25, 30, 40, 50, 75, 100)
 
+// region Menu Home Screen
+
 /**
- * Shows a scrollable list of predefined blur radii and allows selecting one.
+ * Menu home screen displaying a list of blur demo scenarios.
  *
- * @param onRadiusSelected Callback invoked with the selected radius when a list item is tapped.
+ * @param onGridListClick Callback when the Grid List demo is selected.
+ * @param onRadiusItemsClick Callback when the Radius Items demo is selected.
+ * @param onBlurAppBarGridClick Callback when the Blur AppBar Grid demo is selected.
  */
 @Composable
-private fun RadiusListScreen(onRadiusSelected: (Int) -> Unit) {
+private fun MenuHomeScreen(
+  onGridListClick: () -> Unit,
+  onRadiusItemsClick: () -> Unit,
+  onBlurAppBarGridClick: () -> Unit,
+) {
+  val posters = remember { MockUtil.getMockPosters() }
+
   Scaffold(
     modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing),
     topBar = {
       TopAppBar(
-        title = { Text("Cloudy Demo - Blur Radius Test") },
+        title = { Text("Cloudy Demos") },
         backgroundColor = M2MaterialTheme.colors.primary,
         contentColor = M2MaterialTheme.colors.onPrimary,
+      )
+    },
+    backgroundColor = M2MaterialTheme.colors.background,
+  ) { paddingValues ->
+    LazyColumn(
+      modifier = Modifier
+        .fillMaxSize()
+        .padding(paddingValues),
+      verticalArrangement = Arrangement.spacedBy(16.dp),
+      contentPadding = PaddingValues(16.dp),
+    ) {
+      item {
+        MenuCard(
+          title = "Grid List",
+          description = "Disney posters in a 2-column grid with static blur",
+          poster = posters[0],
+          onClick = onGridListClick,
+        )
+      }
+      item {
+        MenuCard(
+          title = "Radius Items",
+          description = "Explore different blur radii with animated detail view",
+          poster = posters[1],
+          onClick = onRadiusItemsClick,
+        )
+      }
+      item {
+        MenuCard(
+          title = "Blur AppBar",
+          description = "Grid with frosted glass app bar overlay",
+          poster = posters[2],
+          onClick = onBlurAppBarGridClick,
+        )
+      }
+    }
+  }
+}
+
+/**
+ * A clickable menu card with a poster background and title/description overlay.
+ */
+@Composable
+private fun MenuCard(
+  title: String,
+  description: String,
+  poster: Poster,
+  onClick: () -> Unit,
+) {
+  Card(
+    modifier = Modifier
+      .fillMaxWidth()
+      .height(180.dp)
+      .clickable(onClick = onClick),
+    elevation = 4.dp,
+    shape = RoundedCornerShape(12.dp),
+  ) {
+    Box {
+      CoilImage(
+        modifier = Modifier
+          .fillMaxSize()
+          .cloudy(radius = 10),
+        imageModel = { poster.image },
+      )
+
+      Box(
+        modifier = Modifier
+          .fillMaxSize()
+          .background(M2MaterialTheme.colors.surface.copy(alpha = 0.7f)),
+      )
+
+      Column(
+        modifier = Modifier
+          .fillMaxSize()
+          .padding(16.dp),
+        verticalArrangement = Arrangement.Center,
+      ) {
+        Text(
+          text = title,
+          fontSize = 24.sp,
+          fontWeight = FontWeight.Bold,
+          color = M2MaterialTheme.colors.onSurface,
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+          text = description,
+          fontSize = 14.sp,
+          color = M2MaterialTheme.colors.onSurface.copy(alpha = 0.8f),
+        )
+      }
+
+      Text(
+        modifier = Modifier
+          .align(Alignment.CenterEnd)
+          .padding(end = 16.dp),
+        text = "->",
+        fontSize = 24.sp,
+        fontWeight = FontWeight.Bold,
+        color = M2MaterialTheme.colors.primary,
+      )
+    }
+  }
+}
+
+// endregion
+
+// region Grid List Screen
+
+/**
+ * Grid list screen showing Disney posters in a 2-column grid with static blur.
+ *
+ * @param onBackClick Callback when the back button is pressed.
+ */
+@Composable
+private fun GridListScreen(onBackClick: () -> Unit) {
+  val posters = remember { MockUtil.getMockPosters() }
+
+  Scaffold(
+    modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing),
+    topBar = {
+      TopAppBar(
+        title = { Text("Grid List") },
+        backgroundColor = M2MaterialTheme.colors.primary,
+        contentColor = M2MaterialTheme.colors.onPrimary,
+        navigationIcon = {
+          TextButton(onClick = onBackClick) {
+            Text(
+              text = "<-",
+              fontSize = 20.sp,
+              color = M2MaterialTheme.colors.onPrimary,
+            )
+          }
+        },
+      )
+    },
+    backgroundColor = M2MaterialTheme.colors.background,
+  ) { paddingValues ->
+    LazyVerticalGrid(
+      columns = GridCells.Fixed(2),
+      modifier = Modifier
+        .fillMaxSize()
+        .padding(paddingValues),
+      contentPadding = PaddingValues(12.dp),
+      horizontalArrangement = Arrangement.spacedBy(12.dp),
+      verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+      items(posters) { poster ->
+        GridPosterItem(poster = poster, blurRadius = 15)
+      }
+    }
+  }
+}
+
+/**
+ * A grid item displaying a poster with applied blur effect.
+ */
+@Composable
+private fun GridPosterItem(poster: Poster, blurRadius: Int) {
+  Card(
+    modifier = Modifier
+      .fillMaxWidth()
+      .aspectRatio(0.7f),
+    elevation = 4.dp,
+    shape = RoundedCornerShape(8.dp),
+  ) {
+    Box {
+      CoilImage(
+        modifier = Modifier
+          .fillMaxSize()
+          .cloudy(radius = blurRadius),
+        imageModel = { poster.image },
+      )
+
+      Box(
+        modifier = Modifier
+          .fillMaxWidth()
+          .align(Alignment.BottomCenter)
+          .background(M2MaterialTheme.colors.surface.copy(alpha = 0.8f))
+          .padding(8.dp),
+      ) {
+        Text(
+          text = poster.name,
+          fontSize = 12.sp,
+          fontWeight = FontWeight.Medium,
+          color = M2MaterialTheme.colors.onSurface,
+          maxLines = 1,
+        )
+      }
+    }
+  }
+}
+
+// endregion
+
+// region Radius Items Screen
+
+/**
+ * Radius items screen showing a list of blur radius options with Disney thumbnail previews.
+ *
+ * @param onRadiusSelected Callback with the selected radius when a list item is tapped.
+ * @param onBackClick Callback when the back button is pressed.
+ */
+@Composable
+private fun RadiusItemsScreen(
+  onRadiusSelected: (Int) -> Unit,
+  onBackClick: () -> Unit,
+) {
+  Scaffold(
+    modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing),
+    topBar = {
+      TopAppBar(
+        title = { Text("Radius Items") },
+        backgroundColor = M2MaterialTheme.colors.primary,
+        contentColor = M2MaterialTheme.colors.onPrimary,
+        navigationIcon = {
+          TextButton(onClick = onBackClick) {
+            Text(
+              text = "<-",
+              fontSize = 20.sp,
+              color = M2MaterialTheme.colors.onPrimary,
+            )
+          }
+        },
       )
     },
     backgroundColor = M2MaterialTheme.colors.background,
@@ -143,7 +401,7 @@ private fun RadiusListScreen(onRadiusSelected: (Int) -> Unit) {
       contentPadding = PaddingValues(16.dp),
     ) {
       items(testRadiusList) { radius ->
-        RadiusListItem(
+        RadiusItem(
           radius = radius,
           onClick = { onRadiusSelected(radius) },
         )
@@ -153,13 +411,10 @@ private fun RadiusListScreen(onRadiusSelected: (Int) -> Unit) {
 }
 
 /**
- * Displays a clickable card representing a blur radius with a preview image and descriptive text.
- *
- * @param radius Blur radius in pixels used to render the preview and shown in the label.
- * @param onClick Callback invoked when the card is clicked.
+ * A clickable card representing a blur radius with a preview image and descriptive text.
  */
 @Composable
-private fun RadiusListItem(radius: Int, onClick: () -> Unit) {
+private fun RadiusItem(radius: Int, onClick: () -> Unit) {
   val poster = remember { MockUtil.getMockPoster() }
 
   Card(
@@ -204,7 +459,7 @@ private fun RadiusListItem(radius: Int, onClick: () -> Unit) {
       }
 
       Text(
-        text = "→",
+        text = "->",
         fontSize = 24.sp,
         color = M2MaterialTheme.colors.primary,
       )
@@ -212,16 +467,18 @@ private fun RadiusListItem(radius: Int, onClick: () -> Unit) {
   }
 }
 
+// endregion
+
+// region Radius Detail Screen
+
 /**
- * Shows a detail screen demonstrating static and animated blur effects for the provided radius and supplies back navigation.
+ * Radius detail screen with animated blur effect from 0 to the selected radius.
  *
- * The screen includes a top app bar displaying the radius, a static blur preview, an animated blur preview, and a text blur example in a scrollable column.
- *
- * @param radius The blur radius to preview.
- * @param onBackClick Callback invoked when the user requests to navigate back (top app bar navigation or system back).
+ * @param radius The blur radius to demonstrate.
+ * @param onBackClick Callback when the back button is pressed.
  */
 @Composable
-private fun BlurDetailScreen(radius: Int, onBackClick: () -> Unit) {
+private fun RadiusDetailScreen(radius: Int, onBackClick: () -> Unit) {
   val poster = remember { MockUtil.getMockPoster() }
 
   Scaffold(
@@ -234,7 +491,7 @@ private fun BlurDetailScreen(radius: Int, onBackClick: () -> Unit) {
         navigationIcon = {
           TextButton(onClick = onBackClick) {
             Text(
-              text = "←",
+              text = "<-",
               fontSize = 20.sp,
               color = M2MaterialTheme.colors.onPrimary,
             )
@@ -252,7 +509,7 @@ private fun BlurDetailScreen(radius: Int, onBackClick: () -> Unit) {
         .padding(16.dp),
       horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-      BlurTestCard(
+      RadiusDetailCard(
         title = "Static Blur",
         radius = radius,
         poster = poster,
@@ -261,8 +518,8 @@ private fun BlurDetailScreen(radius: Int, onBackClick: () -> Unit) {
 
       Spacer(modifier = Modifier.height(24.dp))
 
-      BlurTestCard(
-        title = "Animated Blur (0 → $radius)",
+      RadiusDetailCard(
+        title = "Animated Blur (0 -> $radius)",
         radius = radius,
         poster = poster,
         animated = true,
@@ -270,21 +527,26 @@ private fun BlurDetailScreen(radius: Int, onBackClick: () -> Unit) {
 
       Spacer(modifier = Modifier.height(24.dp))
 
-      TextBlurTest(radius = radius, poster = poster)
+      Text(
+        text = "The blur effect animates smoothly from 0 to the target radius over 1.5 seconds, demonstrating Cloudy's animated blur capability.",
+        fontSize = 14.sp,
+        color = M2MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
+        textAlign = TextAlign.Center,
+      )
     }
   }
 }
 
 /**
- * Displays a card with a title and a poster image that applies a blur preview, either static or animated from 0 to the target radius.
- *
- * @param title The heading text shown at the top of the card.
- * @param radius The target blur radius applied to the poster image and shown as the current radius.
- * @param poster The Poster whose image and metadata are displayed inside the card.
- * @param animated If `true`, the blur animates from 0 up to `radius`; if `false`, the blur is applied at the fixed `radius`.
+ * A card displaying a poster with blur effect, optionally animated.
  */
 @Composable
-private fun BlurTestCard(title: String, radius: Int, poster: Poster, animated: Boolean) {
+private fun RadiusDetailCard(
+  title: String,
+  radius: Int,
+  poster: Poster,
+  animated: Boolean,
+) {
   var animationPlayed by remember { mutableStateOf(!animated) }
   val animatedRadius by animateIntAsState(
     targetValue = if (animationPlayed) radius else 0,
@@ -343,64 +605,66 @@ private fun BlurTestCard(title: String, radius: Int, poster: Poster, animated: B
   }
 }
 
+// endregion
+
+// region Blur AppBar Grid Screen
+
 /**
- * Displays a titled card that demonstrates text rendered with a configurable blur effect.
+ * Grid screen with a blurred app bar overlay demonstrating real-time background blur.
  *
- * Renders a "Text Blur Test" card showing the poster's name and a truncated description inside
- * a rounded, blurred content area.
- *
- * @param radius The blur radius applied to the inner content area.
- * @param poster The poster whose `name` and truncated `description` are displayed.
+ * @param onBackClick Callback when the back button is pressed.
  */
 @Composable
-private fun TextBlurTest(radius: Int, poster: Poster) {
-  val textBlurShape = RoundedCornerShape(12.dp)
+private fun BlurAppBarGridScreen(onBackClick: () -> Unit) {
+  val posters = remember { MockUtil.getMockPosters() }
 
-  Card(
-    modifier = Modifier.fillMaxWidth(),
-    elevation = 4.dp,
-    shape = RoundedCornerShape(12.dp),
-    backgroundColor = M2MaterialTheme.colors.surface,
+  Box(
+    modifier = Modifier
+      .fillMaxSize()
+      .windowInsetsPadding(WindowInsets.safeDrawing),
   ) {
-    Column(
-      modifier = Modifier.padding(16.dp),
-      horizontalAlignment = Alignment.CenterHorizontally,
+    LazyVerticalGrid(
+      columns = GridCells.Fixed(2),
+      modifier = Modifier.fillMaxSize(),
+      contentPadding = PaddingValues(top = 72.dp, start = 12.dp, end = 12.dp, bottom = 12.dp),
+      horizontalArrangement = Arrangement.spacedBy(12.dp),
+      verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-      Text(
-        text = "Text Blur Test",
-        fontSize = 18.sp,
-        fontWeight = FontWeight.Bold,
-        color = M2MaterialTheme.colors.onSurface,
-      )
+      items(posters + posters) { poster ->
+        GridPosterItem(poster = poster, blurRadius = 0)
+      }
+    }
 
-      Spacer(modifier = Modifier.height(12.dp))
-
-      Column(
+    Box(
+      modifier = Modifier
+        .fillMaxWidth()
+        .height(56.dp)
+        .cloudy(radius = 15)
+        .background(M2MaterialTheme.colors.surface.copy(alpha = 0.3f)),
+    ) {
+      Row(
         modifier = Modifier
-          .fillMaxWidth()
-          .clip(textBlurShape)
-          .background(M2MaterialTheme.colors.surface, textBlurShape)
-          .cloudy(radius = radius),
+          .fillMaxSize()
+          .padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
       ) {
+        TextButton(onClick = onBackClick) {
+          Text(
+            text = "<-",
+            fontSize = 20.sp,
+            color = M2MaterialTheme.colors.onSurface,
+          )
+        }
+        Spacer(modifier = Modifier.width(8.dp))
         Text(
-          modifier = Modifier
-            .fillMaxWidth()
-            .padding(8.dp),
-          text = poster.name,
-          fontSize = 32.sp,
+          text = "Blur AppBar",
+          fontSize = 20.sp,
+          fontWeight = FontWeight.Bold,
           color = M2MaterialTheme.colors.onSurface,
-          textAlign = TextAlign.Center,
-        )
-
-        Text(
-          modifier = Modifier
-            .fillMaxWidth()
-            .padding(8.dp),
-          text = poster.description.take(100) + "...",
-          color = M2MaterialTheme.colors.onSurface.copy(alpha = 0.8f),
-          textAlign = TextAlign.Center,
         )
       }
     }
   }
 }
+
+// endregion
