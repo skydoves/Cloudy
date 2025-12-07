@@ -38,6 +38,25 @@ kotlin {
 
   androidTarget()
 
+  // JVM Desktop target
+  jvm("desktop") {
+    compilations.all {
+      compileTaskProvider.configure {
+        compilerOptions {
+          jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+        }
+      }
+    }
+  }
+
+  // WebAssembly target
+  @OptIn(org.jetbrains.kotlin.gradle.ExperimentalWasmDsl::class)
+  wasmJs {
+    browser()
+    binaries.executable()
+  }
+
+  // iOS targets
   listOf(
     iosX64(),
     iosArm64(),
@@ -49,7 +68,44 @@ kotlin {
     }
   }
 
+  // macOS targets
+  macosX64()
+  macosArm64()
+
+  // Configure skikoMain intermediate source set
+  @Suppress("OPT_IN_USAGE")
+  applyDefaultHierarchyTemplate {
+    common {
+      group("skiko") {
+        withJvm()
+        withIos()
+        withMacos()
+        withWasmJs()
+      }
+    }
+  }
+
   sourceSets {
+    val desktopMain by getting {
+      dependencies {
+        implementation(compose.desktop.currentOs)
+        implementation(libs.slf4j.simple)
+        implementation(libs.ktor.client.okhttp)
+      }
+    }
+
+    val wasmJsMain by getting {
+      dependencies {
+        implementation(libs.ktor.client.js)
+      }
+    }
+
+    val macosMain by getting {
+      dependencies {
+        implementation(libs.ktor.client.darwin)
+      }
+    }
+
     androidMain.dependencies {
       implementation(compose.preview)
       implementation(libs.androidx.activity.compose)
