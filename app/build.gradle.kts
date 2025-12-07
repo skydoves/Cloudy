@@ -25,6 +25,10 @@ plugins {
 }
 
 kotlin {
+  compilerOptions {
+    freeCompilerArgs.add("-Xexpect-actual-classes")
+  }
+
   targets
     .filterIsInstance<KotlinNativeTarget>()
     .forEach { target ->
@@ -69,8 +73,16 @@ kotlin {
   }
 
   // macOS targets
-  macosX64()
-  macosArm64()
+  macosX64 {
+    binaries.executable {
+      entryPoint = "main"
+    }
+  }
+  macosArm64 {
+    binaries.executable {
+      entryPoint = "main"
+    }
+  }
 
   // Configure skikoMain intermediate source set
   @Suppress("OPT_IN_USAGE")
