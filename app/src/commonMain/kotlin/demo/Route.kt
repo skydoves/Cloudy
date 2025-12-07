@@ -24,16 +24,34 @@ import kotlinx.serialization.Serializable
 sealed interface Route {
 
   /**
-   * The radius selection list screen.
+   * The menu home screen with demo scenario selection.
    */
   @Serializable
-  data object RadiusList : Route
+  data object MenuHome : Route
 
   /**
-   * The blur detail screen for a specific radius.
+   * The grid list screen showing Disney images in a 2-column grid with blur.
+   */
+  @Serializable
+  data object GridList : Route
+
+  /**
+   * The radius selection list screen with Disney thumbnails.
+   */
+  @Serializable
+  data object RadiusItems : Route
+
+  /**
+   * The blur detail screen for a specific radius with animated blur effect.
    *
    * @param radius The blur radius to demonstrate.
    */
   @Serializable
   data class RadiusDetail(val radius: Int) : Route
+
+  /**
+   * The grid screen with a blurred app bar overlay.
+   */
+  @Serializable
+  data object BlurAppBarGrid : Route
 }
