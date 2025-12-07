@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -40,7 +41,6 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -209,12 +209,7 @@ private fun MenuHomeScreen(
  * A clickable menu card with a poster background and title/description overlay.
  */
 @Composable
-private fun MenuCard(
-  title: String,
-  description: String,
-  poster: Poster,
-  onClick: () -> Unit,
-) {
+private fun MenuCard(title: String, description: String, poster: Poster, onClick: () -> Unit) {
   Card(
     modifier = Modifier
       .fillMaxWidth()
@@ -369,10 +364,7 @@ private fun GridPosterItem(poster: Poster, blurRadius: Int) {
  * @param onBackClick Callback when the back button is pressed.
  */
 @Composable
-private fun RadiusItemsScreen(
-  onRadiusSelected: (Int) -> Unit,
-  onBackClick: () -> Unit,
-) {
+private fun RadiusItemsScreen(onRadiusSelected: (Int) -> Unit, onBackClick: () -> Unit) {
   Scaffold(
     modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing),
     topBar = {
@@ -542,12 +534,7 @@ private fun RadiusDetailScreen(radius: Int, onBackClick: () -> Unit) {
  * A card displaying a poster with blur effect, optionally animated.
  */
 @Composable
-private fun RadiusDetailCard(
-  title: String,
-  radius: Int,
-  poster: Poster,
-  animated: Boolean,
-) {
+private fun RadiusDetailCard(title: String, radius: Int, poster: Poster, animated: Boolean) {
   var animationPlayed by remember { mutableStateOf(!animated) }
   val animatedRadius by animateIntAsState(
     targetValue = if (animationPlayed) radius else 0,
@@ -613,6 +600,11 @@ private fun RadiusDetailCard(
 /**
  * Grid screen with a blurred app bar overlay demonstrating real-time background blur.
  *
+ * NOTE: True backdrop blur (blurring content behind the app bar) is not yet supported in Cloudy.
+ * The `cloudy` modifier only blurs content inside the composable, not content behind it.
+ * This screen currently demonstrates the limitation and serves as a placeholder for future
+ * backdrop blur functionality.
+ *
  * @param onBackClick Callback when the back button is pressed.
  */
 @Composable
@@ -636,6 +628,8 @@ private fun BlurAppBarGridScreen(onBackClick: () -> Unit) {
       }
     }
 
+    // TODO: Replace with backdrop blur when Cloudy supports it.
+    // Currently, cloudy() only blurs content inside this Box, not the grid content behind it.
     Box(
       modifier = Modifier
         .fillMaxWidth()
