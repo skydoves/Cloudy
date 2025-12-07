@@ -15,7 +15,7 @@
  */
 package demo.model
 
-internal expect object MockUtil {
-  fun getMockPosters(): List<Poster>
-  fun getMockPoster(): Poster
+internal actual object MockUtil {
+  actual fun getMockPosters(): List<Poster> = createMockPosters()
+  actual fun getMockPoster(): Poster = getMockPosters().shuffled().first()
 }
