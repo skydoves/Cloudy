@@ -528,7 +528,8 @@ private fun RadiusDetailScreen(radius: Int, onBackClick: () -> Unit) {
       Spacer(modifier = Modifier.height(24.dp))
 
       Text(
-        text = "The blur effect animates smoothly from 0 to the target radius over 1.5 seconds, demonstrating Cloudy's animated blur capability.",
+        text = "The blur effect animates smoothly from 0 to the target radius over 1.5 seconds, " +
+          "demonstrating Cloudy's animated blur capability.",
         fontSize = 14.sp,
         color = M2MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
         textAlign = TextAlign.Center,
