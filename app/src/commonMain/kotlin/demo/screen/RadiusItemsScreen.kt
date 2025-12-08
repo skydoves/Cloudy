@@ -22,23 +22,21 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Card
+import androidx.compose.material.Icon
 import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Scaffold
 import androidx.compose.material.Text
-import androidx.compose.material.TextButton
-import androidx.compose.material.TopAppBar
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -49,50 +47,40 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.skydoves.cloudy.cloudy
 import com.skydoves.landscapist.coil3.CoilImage
+import demo.component.CollapsingAppBarScaffold
+import demo.component.MaxWidthContainer
 import demo.model.MockUtil
+import demo.theme.Dimens
 
 private val radiusList = listOf(0, 5, 10, 15, 20, 25, 30, 40, 50, 75, 100)
 
 /**
  * Radius items screen showing a list of blur radius options with Disney thumbnail previews.
+ * Content is constrained to a maximum width for better appearance on large screens.
+ * Features a collapsing large app bar that shrinks on scroll.
  *
  * @param onRadiusSelected Callback with the selected radius when a list item is tapped.
  * @param onBackClick Callback when the back button is pressed.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RadiusItemsScreen(onRadiusSelected: (Int) -> Unit, onBackClick: () -> Unit) {
-  Scaffold(
-    modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing),
-    topBar = {
-      TopAppBar(
-        title = { Text("Radius Items") },
-        backgroundColor = MaterialTheme.colors.primary,
-        contentColor = MaterialTheme.colors.onPrimary,
-        navigationIcon = {
-          TextButton(onClick = onBackClick) {
-            Text(
-              text = "<-",
-              fontSize = 20.sp,
-              color = MaterialTheme.colors.onPrimary,
-            )
-          }
-        },
-      )
-    },
-    backgroundColor = MaterialTheme.colors.background,
-  ) { paddingValues ->
-    LazyColumn(
-      modifier = Modifier
-        .fillMaxSize()
-        .padding(paddingValues),
-      verticalArrangement = Arrangement.spacedBy(8.dp),
-      contentPadding = PaddingValues(16.dp),
-    ) {
-      items(radiusList) { radius ->
-        RadiusItem(
-          radius = radius,
-          onClick = { onRadiusSelected(radius) },
-        )
+  CollapsingAppBarScaffold(
+    title = "Radius Items",
+    onBackClick = onBackClick,
+  ) { paddingValues, _ ->
+    MaxWidthContainer(modifier = Modifier.padding(paddingValues)) {
+      LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(Dimens.itemSpacing),
+        contentPadding = PaddingValues(Dimens.contentPadding),
+      ) {
+        items(radiusList) { radius ->
+          RadiusItem(
+            radius = radius,
+            onClick = { onRadiusSelected(radius) },
+          )
+        }
       }
     }
   }
@@ -100,6 +88,7 @@ fun RadiusItemsScreen(onRadiusSelected: (Int) -> Unit, onBackClick: () -> Unit) 
 
 /**
  * A clickable card representing a blur radius with a preview image and descriptive text.
+ * Features ChevronRight icon for navigation indication.
  */
 @Composable
 private fun RadiusItem(radius: Int, onClick: () -> Unit) {
@@ -109,18 +98,18 @@ private fun RadiusItem(radius: Int, onClick: () -> Unit) {
     modifier = Modifier
       .fillMaxWidth()
       .clickable(onClick = onClick),
-    elevation = 4.dp,
-    shape = RoundedCornerShape(12.dp),
+    elevation = Dimens.cardElevation,
+    shape = RoundedCornerShape(Dimens.cardCornerRadius),
     backgroundColor = MaterialTheme.colors.surface,
   ) {
     Row(
-      modifier = Modifier.padding(12.dp),
+      modifier = Modifier.padding(Dimens.itemSpacing),
       verticalAlignment = Alignment.CenterVertically,
     ) {
       Box(
         modifier = Modifier
           .size(80.dp)
-          .clip(RoundedCornerShape(8.dp)),
+          .clip(RoundedCornerShape(Dimens.itemSpacing)),
       ) {
         CoilImage(
           modifier = Modifier
@@ -130,7 +119,7 @@ private fun RadiusItem(radius: Int, onClick: () -> Unit) {
         )
       }
 
-      Spacer(modifier = Modifier.width(16.dp))
+      Spacer(modifier = Modifier.width(Dimens.contentPadding))
 
       Column(modifier = Modifier.weight(1f)) {
         Text(
@@ -146,10 +135,10 @@ private fun RadiusItem(radius: Int, onClick: () -> Unit) {
         )
       }
 
-      Text(
-        text = "->",
-        fontSize = 24.sp,
-        color = MaterialTheme.colors.primary,
+      Icon(
+        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+        contentDescription = "Navigate",
+        tint = MaterialTheme.colors.secondary,
       )
     }
   }

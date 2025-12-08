@@ -34,7 +34,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
-import androidx.compose.material.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -43,11 +42,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.skydoves.cloudy.cloudy
+import demo.component.BackButton
 import demo.component.GridPosterItem
+import demo.component.MaxWidthContainer
 import demo.model.MockUtil
+import demo.theme.Dimens
 
 /**
  * Grid screen with a blurred app bar overlay demonstrating real-time background blur.
+ * Content is constrained to a maximum width for better appearance on large screens.
  *
  * NOTE: True backdrop blur (blurring content behind the app bar) is not yet supported in Cloudy.
  * The `cloudy` modifier only blurs content inside the composable, not content behind it.
@@ -65,15 +68,22 @@ fun BlurAppBarGridScreen(onBackClick: () -> Unit) {
       .fillMaxSize()
       .windowInsetsPadding(WindowInsets.safeDrawing),
   ) {
-    LazyVerticalGrid(
-      columns = GridCells.Fixed(2),
-      modifier = Modifier.fillMaxSize(),
-      contentPadding = PaddingValues(top = 72.dp, start = 12.dp, end = 12.dp, bottom = 12.dp),
-      horizontalArrangement = Arrangement.spacedBy(12.dp),
-      verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-      items(posters + posters) { poster ->
-        GridPosterItem(poster = poster, blurRadius = 0)
+    MaxWidthContainer {
+      LazyVerticalGrid(
+        columns = GridCells.Fixed(2),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(
+          top = 72.dp,
+          start = Dimens.itemSpacing,
+          end = Dimens.itemSpacing,
+          bottom = Dimens.itemSpacing,
+        ),
+        horizontalArrangement = Arrangement.spacedBy(Dimens.itemSpacing),
+        verticalArrangement = Arrangement.spacedBy(Dimens.itemSpacing),
+      ) {
+        items(posters + posters) { poster ->
+          GridPosterItem(poster = poster, blurRadius = 0)
+        }
       }
     }
 
@@ -92,13 +102,10 @@ fun BlurAppBarGridScreen(onBackClick: () -> Unit) {
           .padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
       ) {
-        TextButton(onClick = onBackClick) {
-          Text(
-            text = "<-",
-            fontSize = 20.sp,
-            color = MaterialTheme.colors.onSurface,
-          )
-        }
+        BackButton(
+          onClick = onBackClick,
+          tint = MaterialTheme.colors.onSurface,
+        )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
           text = "Blur AppBar",
