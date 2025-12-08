@@ -85,7 +85,7 @@ fun MenuHomeScreen(
           MenuCard(
             title = "Interactive Slider",
             description = "Adjust blur radius in real-time with a slider",
-            poster = posters[3 % posters.size],
+            poster = posters[3],
             onClick = onInteractiveSliderClick,
           )
         }
