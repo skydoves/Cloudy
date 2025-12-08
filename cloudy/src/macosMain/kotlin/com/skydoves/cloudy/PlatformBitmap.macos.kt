@@ -151,19 +151,24 @@ public fun ImageBitmap.toNSImage(): NSImage? {
 
       context?.let { ctx ->
         val cgImage = CGBitmapContextCreateImage(ctx)
-        cgImage?.let {
-          val size = CGSizeMake(width.toDouble(), height.toDouble())
-          val nsImage = NSImage(size = size)
-          val rep = NSBitmapImageRep(cGImage = it)
-          nsImage.addRepresentation(rep)
-
+        if (cgImage == null) {
           CGContextRelease(ctx)
-          CGImageRelease(it)
           free(data)
           CGColorSpaceRelease(colorSpace)
-
-          return nsImage
+          return null
         }
+
+        val size = CGSizeMake(width.toDouble(), height.toDouble())
+        val nsImage = NSImage(size = size)
+        val rep = NSBitmapImageRep(cGImage = cgImage)
+        nsImage.addRepresentation(rep)
+
+        CGContextRelease(ctx)
+        CGImageRelease(cgImage)
+        free(data)
+        CGColorSpaceRelease(colorSpace)
+
+        return nsImage
       }
 
       free(data)
