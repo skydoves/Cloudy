@@ -131,6 +131,8 @@ kotlin {
       implementation(compose.ui)
       implementation(libs.compose.resources)
       implementation(compose.material)
+      implementation(compose.material3)
+      implementation(compose.materialIconsExtended)
 
       implementation(libs.landscapist.coil)
       implementation(libs.coil)

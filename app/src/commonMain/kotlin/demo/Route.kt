@@ -54,4 +54,10 @@ sealed interface Route {
    */
   @Serializable
   data object BlurAppBarGrid : Route
+
+  /**
+   * The interactive slider screen for real-time blur radius adjustment.
+   */
+  @Serializable
+  data object InteractiveSlider : Route
 }
