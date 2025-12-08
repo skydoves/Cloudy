@@ -17,28 +17,31 @@ package demo
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import kotlinx.browser.window
-import org.w3c.dom.PopStateEvent
 import org.w3c.dom.events.Event
-import kotlin.js.ExperimentalWasmJsInterop
 
 /**
  * WASM/Browser platform back-handler implementation.
  * Integrates with browser's history API to handle the back button.
  */
-@OptIn(ExperimentalWasmJsInterop::class)
 @Composable
 actual fun PlatformBackHandler(enabled: Boolean, onBack: () -> Unit) {
   val currentOnBack = rememberUpdatedState(onBack)
+  val hasState = remember { mutableStateOf(false) }
 
   DisposableEffect(enabled) {
     if (!enabled) {
       return@DisposableEffect onDispose { }
     }
 
-    // Push a state to history so we can intercept back navigation
-    window.history.pushState(null, "", null)
+    // Push a state to history only once to prevent history pollution
+    if (!hasState.value) {
+      window.history.pushState(null, "", null)
+      hasState.value = true
+    }
 
     val listener: (Event) -> Unit = { event ->
       event.preventDefault()
