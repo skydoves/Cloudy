@@ -189,9 +189,8 @@ public fun ImageBitmap.toNSImage(): NSImage? {
 @Suppress("UNCHECKED_CAST")
 public fun NSImage.asImageBitmap(): ImageBitmap? {
   return try {
-    val representations = this.representations as? List<NSBitmapImageRep> ?: return null
-    val rep = representations.firstOrNull() ?: return null
-    val cgImage = rep.CGImage ?: return null
+    val representations = this.representations.firstOrNull() as? NSBitmapImageRep ?: return null
+    val cgImage = representations.CGImage ?: return null
 
     val width = this.size.useContents { width }.roundToInt()
     val height = this.size.useContents { height }.roundToInt()
