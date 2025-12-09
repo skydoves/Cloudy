@@ -15,6 +15,7 @@
  */
 package demo.model
 
-import platform.Foundation.NSUUID
-
-actual fun generateUUID(): String = NSUUID().UUIDString()
+internal actual object MockUtil {
+  actual fun getMockPosters(): List<Poster> = createMockPosters()
+  actual fun getMockPoster(): Poster = getMockPosters().shuffled().first()
+}

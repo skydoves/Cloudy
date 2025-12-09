@@ -18,12 +18,11 @@ package demo
 import androidx.compose.runtime.Composable
 
 /**
- * Provides a platform back-handler implementation for iOS that performs no action because iOS relies on swipe gestures rather than a system back button.
- *
- * @param enabled Whether back handling would be active on platforms that support it; ignored on iOS.
- * @param onBack Callback to invoke when a back action occurs; never invoked on iOS.
+ * iOS platform back-handler implementation.
+ * iOS uses swipe gestures for back navigation handled by the navigation controller,
+ * so this is a no-op for Compose.
  */
 @Composable
 actual fun PlatformBackHandler(enabled: Boolean, onBack: () -> Unit) {
-  // iOS doesn't have a system back button, uses swipe gestures instead
+  // iOS uses UINavigationController's native swipe-back gesture
 }

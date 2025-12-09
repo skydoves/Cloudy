@@ -23,20 +23,22 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Card
-import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.skydoves.cloudy.cloudy
 import com.skydoves.landscapist.coil3.CoilImage
 import demo.model.Poster
+import demo.theme.Dimens
 
 /**
  * A grid item displaying a poster with applied blur effect.
+ * Features rounded corners and gradient overlay for text readability.
  *
  * @param poster The poster to display.
  * @param blurRadius The blur radius to apply to the poster image.
@@ -47,8 +49,8 @@ internal fun GridPosterItem(poster: Poster, blurRadius: Int) {
     modifier = Modifier
       .fillMaxWidth()
       .aspectRatio(0.7f),
-    elevation = 4.dp,
-    shape = RoundedCornerShape(8.dp),
+    elevation = Dimens.cardElevation,
+    shape = RoundedCornerShape(Dimens.cardCornerRadius),
   ) {
     Box {
       CoilImage(
@@ -58,19 +60,27 @@ internal fun GridPosterItem(poster: Poster, blurRadius: Int) {
         imageModel = { poster.image },
       )
 
+      // Gradient overlay for better text readability
       Box(
         modifier = Modifier
           .fillMaxWidth()
           .align(Alignment.BottomCenter)
-          .background(MaterialTheme.colors.surface.copy(alpha = 0.8f))
-          .padding(8.dp),
+          .background(
+            brush = Brush.verticalGradient(
+              colors = listOf(
+                Color.Transparent,
+                Color.Black.copy(alpha = 0.7f),
+              ),
+            ),
+          )
+          .padding(Dimens.contentPadding),
       ) {
         Text(
           text = poster.name,
-          fontSize = 12.sp,
-          fontWeight = FontWeight.Medium,
-          color = MaterialTheme.colors.onSurface,
-          maxLines = 1,
+          fontSize = 14.sp,
+          fontWeight = FontWeight.SemiBold,
+          color = Color.White,
+          maxLines = 2,
         )
       }
     }

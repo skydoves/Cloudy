@@ -17,67 +17,48 @@ package demo.screen
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Scaffold
-import androidx.compose.material.Text
-import androidx.compose.material.TextButton
-import androidx.compose.material.TopAppBar
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import demo.component.CollapsingAppBarScaffold
 import demo.component.GridPosterItem
+import demo.component.MaxWidthContainer
 import demo.model.MockUtil
+import demo.theme.Dimens
 
 /**
  * Grid list screen showing Disney posters in a 2-column grid with static blur.
+ * Content is constrained to a maximum width for better appearance on large screens.
+ * Features a collapsing large app bar that shrinks on scroll.
  *
  * @param onBackClick Callback when the back button is pressed.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GridListScreen(onBackClick: () -> Unit) {
   val posters = remember { MockUtil.getMockPosters() }
 
-  Scaffold(
-    modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing),
-    topBar = {
-      TopAppBar(
-        title = { Text("Grid List") },
-        backgroundColor = MaterialTheme.colors.primary,
-        contentColor = MaterialTheme.colors.onPrimary,
-        navigationIcon = {
-          TextButton(onClick = onBackClick) {
-            Text(
-              text = "<-",
-              fontSize = 20.sp,
-              color = MaterialTheme.colors.onPrimary,
-            )
-          }
-        },
-      )
-    },
-    backgroundColor = MaterialTheme.colors.background,
-  ) { paddingValues ->
-    LazyVerticalGrid(
-      columns = GridCells.Fixed(2),
-      modifier = Modifier
-        .fillMaxSize()
-        .padding(paddingValues),
-      contentPadding = PaddingValues(12.dp),
-      horizontalArrangement = Arrangement.spacedBy(12.dp),
-      verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-      items(posters) { poster ->
-        GridPosterItem(poster = poster, blurRadius = 15)
+  CollapsingAppBarScaffold(
+    title = "Grid List",
+    onBackClick = onBackClick,
+  ) { paddingValues, _ ->
+    MaxWidthContainer(modifier = Modifier.padding(paddingValues)) {
+      LazyVerticalGrid(
+        columns = GridCells.Fixed(2),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(Dimens.itemSpacing),
+        horizontalArrangement = Arrangement.spacedBy(Dimens.itemSpacing),
+        verticalArrangement = Arrangement.spacedBy(Dimens.itemSpacing),
+      ) {
+        items(posters) { poster ->
+          GridPosterItem(poster = poster, blurRadius = 15)
+        }
       }
     }
   }

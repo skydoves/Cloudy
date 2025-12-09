@@ -24,7 +24,8 @@ import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.graphicsLayer
 
 /**
- * iOS implementation using Skia's GPU-accelerated BlurEffect via Metal backend.
+ * Skiko implementation using GPU-accelerated BlurEffect.
+ * This implementation is shared across iOS, macOS, JVM Desktop, and WASM platforms.
  */
 @Composable
 public actual fun Modifier.cloudy(

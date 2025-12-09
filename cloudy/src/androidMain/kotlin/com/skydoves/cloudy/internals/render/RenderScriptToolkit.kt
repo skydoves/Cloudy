@@ -50,7 +50,7 @@ private const val EXTERNAL_NAME = "RenderScript Toolkit"
  * Intrinsics allow more flexibility for the type of allocation supported. In particular, this
  * toolkit does not support allocations of floats.
  */
-public object RenderScriptToolkit {
+internal object RenderScriptToolkit {
   /**
    * Blurs an image.
    *
@@ -140,7 +140,7 @@ public object RenderScriptToolkit {
    * @return The blurred Bitmap.
    */
   @JvmOverloads
-  public fun blur(
+  internal fun blur(
     inputBitmap: Bitmap?,
     outputBitmap: Bitmap,
     @androidx.annotation.IntRange(from = 0, to = 25) radius: Int = 5,
@@ -225,8 +225,8 @@ public object RenderScriptToolkit {
  * @property startY The index of the first value to be included on the Y axis.
  * @property endY The index after the last value to be included on the Y axis.
  */
-public data class Range2d(val startX: Int, val endX: Int, val startY: Int, val endY: Int) {
-  internal constructor() : this(0, 0, 0, 0)
+internal data class Range2d(val startX: Int, val endX: Int, val startY: Int, val endY: Int) {
+  constructor() : this(0, 0, 0, 0)
 }
 
 /**

@@ -51,9 +51,26 @@ kotlin {
     )
   }
 
-  applyDefaultHierarchyTemplate()
-
   androidTarget()
+
+  // JVM Desktop target
+  jvm("desktop") {
+    compilations.all {
+      compileTaskProvider.configure {
+        compilerOptions {
+          jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+        }
+      }
+    }
+  }
+
+  // WebAssembly target
+  @OptIn(org.jetbrains.kotlin.gradle.ExperimentalWasmDsl::class)
+  wasmJs {
+    browser()
+  }
+
+  // iOS targets
   when (activeArch) {
     Arch.ARM -> {
       iosSimulatorArm64()
@@ -69,6 +86,23 @@ kotlin {
       iosArm64()
       iosX64()
       iosSimulatorArm64()
+    }
+  }
+
+  // macOS native targets
+  macosX64()
+  macosArm64()
+
+  // Configure skikoMain intermediate source set
+  @Suppress("OPT_IN_USAGE")
+  applyDefaultHierarchyTemplate {
+    common {
+      group("skiko") {
+        withJvm()
+        withIos()
+        withMacos()
+        withWasmJs()
+      }
     }
   }
 
@@ -115,6 +149,14 @@ kotlin {
   }
 
   sourceSets {
+    val skikoMain by getting {
+      dependencies {
+        implementation(libs.compose.runtime)
+        implementation(libs.compose.foundation)
+        implementation(libs.compose.ui)
+      }
+    }
+
     androidMain.dependencies {
       implementation(libs.androidx.core.ktx)
       implementation(libs.androidx.compose.ui)
@@ -128,7 +170,6 @@ kotlin {
       implementation(libs.compose.ui)
       implementation(libs.compose.ui.tooling.preview)
     }
-
 
     commonTest.dependencies {
       implementation(libs.kotlin.test)

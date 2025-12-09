@@ -21,23 +21,18 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Card
 import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Scaffold
 import androidx.compose.material.Text
-import androidx.compose.material.TextButton
-import androidx.compose.material.TopAppBar
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -53,72 +48,64 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.skydoves.cloudy.cloudy
 import com.skydoves.landscapist.coil3.CoilImage
+import demo.component.CollapsingAppBarScaffold
+import demo.component.MaxWidthContainer
 import demo.model.MockUtil
 import demo.model.Poster
+import demo.theme.Dimens
 
 /**
  * Radius detail screen with animated blur effect from 0 to the selected radius.
+ * Content is constrained to a maximum width for better appearance on large screens.
+ * Features a collapsing large app bar that shrinks on scroll.
  *
  * @param radius The blur radius to demonstrate.
  * @param onBackClick Callback when the back button is pressed.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RadiusDetailScreen(radius: Int, onBackClick: () -> Unit) {
   val poster = remember { MockUtil.getMockPoster() }
 
-  Scaffold(
-    modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing),
-    topBar = {
-      TopAppBar(
-        title = { Text("Radius: $radius") },
-        backgroundColor = MaterialTheme.colors.primary,
-        contentColor = MaterialTheme.colors.onPrimary,
-        navigationIcon = {
-          TextButton(onClick = onBackClick) {
-            Text(
-              text = "<-",
-              fontSize = 20.sp,
-              color = MaterialTheme.colors.onPrimary,
-            )
-          }
-        },
-      )
-    },
-    backgroundColor = MaterialTheme.colors.background,
-  ) { paddingValues ->
-    Column(
-      modifier = Modifier
-        .fillMaxSize()
-        .padding(paddingValues)
-        .verticalScroll(rememberScrollState())
-        .padding(16.dp),
-      horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-      RadiusDetailCard(
-        title = "Static Blur",
-        radius = radius,
-        poster = poster,
-        animated = false,
-      )
+  CollapsingAppBarScaffold(
+    title = "Radius: $radius",
+    onBackClick = onBackClick,
+  ) { paddingValues, _ ->
+    MaxWidthContainer(modifier = Modifier.padding(paddingValues)) {
+      Column(
+        modifier = Modifier
+          .fillMaxSize()
+          .verticalScroll(rememberScrollState())
+          .padding(Dimens.contentPadding),
+        horizontalAlignment = Alignment.CenterHorizontally,
+      ) {
+        RadiusDetailCard(
+          title = "Static Blur",
+          radius = radius,
+          poster = poster,
+          animated = false,
+        )
 
-      Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
-      RadiusDetailCard(
-        title = "Animated Blur (0 -> $radius)",
-        radius = radius,
-        poster = poster,
-        animated = true,
-      )
+        RadiusDetailCard(
+          title = "Animated Blur (0 -> $radius)",
+          radius = radius,
+          poster = poster,
+          animated = true,
+        )
 
-      Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
-      Text(
-        text = "The blur effect animates smoothly from 0 to the target radius over 1.5 seconds, " +
-          "demonstrating Cloudy's animated blur capability.",
-        fontSize = 14.sp,
-        color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
-        textAlign = TextAlign.Center,
-      )
+        Text(
+          text =
+          "The blur effect animates smoothly from 0 to the target radius over 1.5 seconds, " +
+            "demonstrating Cloudy's animated blur capability.",
+          fontSize = 14.sp,
+          color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
+          textAlign = TextAlign.Center,
+        )
+      }
     }
   }
 }
@@ -145,16 +132,16 @@ private fun RadiusDetailCard(title: String, radius: Int, poster: Poster, animate
     }
   }
 
-  val imageShape = RoundedCornerShape(8.dp)
+  val imageShape = RoundedCornerShape(Dimens.itemSpacing)
 
   Card(
     modifier = Modifier.fillMaxWidth(),
-    elevation = 4.dp,
-    shape = RoundedCornerShape(12.dp),
+    elevation = Dimens.cardElevation,
+    shape = RoundedCornerShape(Dimens.cardCornerRadius),
     backgroundColor = MaterialTheme.colors.surface,
   ) {
     Column(
-      modifier = Modifier.padding(16.dp),
+      modifier = Modifier.padding(Dimens.contentPadding),
       horizontalAlignment = Alignment.CenterHorizontally,
     ) {
       Text(
@@ -164,7 +151,7 @@ private fun RadiusDetailCard(title: String, radius: Int, poster: Poster, animate
         color = MaterialTheme.colors.onSurface,
       )
 
-      Spacer(modifier = Modifier.height(12.dp))
+      Spacer(modifier = Modifier.height(Dimens.itemSpacing))
 
       CoilImage(
         modifier = Modifier

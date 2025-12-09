@@ -19,8 +19,12 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.darkColors
 import androidx.compose.material.lightColors
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.material3.MaterialTheme as Material3Theme
 
+// Material 2 color palettes
 private val DarkColorPalette = darkColors(
   background = backgroundDark,
   surface = surfaceDark,
@@ -45,8 +49,36 @@ private val LightColorPalette = lightColors(
   onSecondary = backgroundDark,
 )
 
+// Material 3 color schemes
+private val DarkColorScheme = darkColorScheme(
+  background = backgroundDark,
+  surface = surfaceDark,
+  surfaceContainer = surfaceDark,
+  primary = disneyBluePrimary,
+  secondary = disneyGold,
+  tertiary = disneyGold,
+  onBackground = onBackgroundDark,
+  onSurface = onBackgroundDark,
+  onPrimary = onBackgroundDark,
+  onSecondary = backgroundDark,
+)
+
+private val LightColorScheme = lightColorScheme(
+  background = backgroundLight,
+  surface = surfaceLight,
+  surfaceContainer = surfaceLight,
+  primary = disneyBluePrimary,
+  secondary = disneyGold,
+  tertiary = disneyGold,
+  onBackground = onBackgroundLight,
+  onSurface = onBackgroundLight,
+  onPrimary = surfaceLight,
+  onSecondary = backgroundDark,
+)
+
 /**
  * Applies the app's poster styling (colors and typography) to the given composable content.
+ * Includes both Material 2 and Material 3 themes for compatibility.
  *
  * When `darkTheme` is true the dark color palette and typography are used; otherwise the light
  * palette and typography are applied.
@@ -60,21 +92,15 @@ internal fun PosterTheme(
   darkTheme: Boolean = isSystemInDarkTheme(),
   content: @Composable () -> Unit,
 ) {
-  val colors = if (darkTheme) {
-    DarkColorPalette
-  } else {
-    LightColorPalette
-  }
+  val colors = if (darkTheme) DarkColorPalette else LightColorPalette
+  val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+  val typography = if (darkTheme) DarkTypography else LightTypography
 
-  val typography = if (darkTheme) {
-    DarkTypography
-  } else {
-    LightTypography
+  Material3Theme(colorScheme = colorScheme) {
+    MaterialTheme(
+      colors = colors,
+      typography = typography,
+      content = content,
+    )
   }
-
-  MaterialTheme(
-    colors = colors,
-    typography = typography,
-    content = content,
-  )
 }

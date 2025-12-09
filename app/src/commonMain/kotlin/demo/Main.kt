@@ -27,6 +27,7 @@ import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
 import demo.screen.BlurAppBarGridScreen
 import demo.screen.GridListScreen
+import demo.screen.InteractiveSliderScreen
 import demo.screen.MenuHomeScreen
 import demo.screen.RadiusDetailScreen
 import demo.screen.RadiusItemsScreen
@@ -53,6 +54,7 @@ fun CloudyDemoApp() {
               onGridListClick = { backStack.add(Route.GridList) },
               onRadiusItemsClick = { backStack.add(Route.RadiusItems) },
               onBlurAppBarGridClick = { backStack.add(Route.BlurAppBarGrid) },
+              onInteractiveSliderClick = { backStack.add(Route.InteractiveSlider) },
             )
           }
 
@@ -78,6 +80,12 @@ fun CloudyDemoApp() {
 
           is Route.BlurAppBarGrid -> NavEntry(route) {
             BlurAppBarGridScreen(
+              onBackClick = { backStack.removeLastOrNull() },
+            )
+          }
+
+          is Route.InteractiveSlider -> NavEntry(route) {
+            InteractiveSliderScreen(
               onBackClick = { backStack.removeLastOrNull() },
             )
           }

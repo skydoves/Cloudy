@@ -28,6 +28,8 @@ kotlinxCoroutinesTest = "1.10.2"
 mockito = "5.20.0"
 mockito-inline = "5.2.0"
 robolectric = "4.14.1"
+slf4j = "2.0.17"
+ktor = "3.3.3"
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
@@ -80,3 +82,7 @@ mockito-inline = { module = "org.mockito:mockito-inline", version.ref = "mockito
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
 androidx-nav3-ui = { module = "org.jetbrains.androidx.navigation3:navigation3-ui", version.ref = "androidxNav3" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
+slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j" }
+ktor-client-js = { module = "io.ktor:ktor-client-js", version.ref = "ktor" }
+ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
+ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }

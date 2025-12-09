@@ -26,9 +26,12 @@
 
 | Platform | Implementation | Performance | State Type |
 |----------|----------------|-------------|------------|
-| iOS | Skia BlurEffect (Metal GPU) | GPU-accelerated | `Success.Applied` |
 | Android 31+ | RenderEffect (GPU) | GPU-accelerated | `Success.Applied` |
 | Android 30- | Native C++ (CPU) | NEON/SIMD optimized | `Success.Captured` |
+| iOS | Skia BlurEffect (Metal GPU) | GPU-accelerated | `Success.Applied` |
+| macOS | Skia BlurEffect (Metal GPU) | GPU-accelerated | `Success.Applied` |
+| Desktop (JVM) | Skia BlurEffect (GPU) | GPU-accelerated | `Success.Applied` |
+| WASM (Browser) | Skia BlurEffect (WebGL) | GPU-accelerated | `Success.Applied` |
 
 ## Download
 
