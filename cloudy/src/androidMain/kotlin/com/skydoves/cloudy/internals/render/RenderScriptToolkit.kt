@@ -170,6 +170,77 @@ internal object RenderScriptToolkit {
       1f, 0f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 0f, 1f,
     )
 
+  /**
+   * Progressive blur direction for background blur.
+   */
+  enum class ProgressiveDirection(val value: Int) {
+    NONE(0),
+    TOP_TO_BOTTOM(1),
+    BOTTOM_TO_TOP(2),
+    EDGES(3),
+  }
+
+  /**
+   * Performs background blur with crop, scale, blur, progressive mask, and scale-up in one native call.
+   *
+   * This is optimized for glassmorphism/backdrop blur effects where you need to blur a region
+   * of the background behind a UI element.
+   *
+   * @param srcBitmap The source bitmap (full background).
+   * @param dstBitmap The destination bitmap (must be sized to cropWidth x cropHeight).
+   * @param cropX X offset of the region to blur.
+   * @param cropY Y offset of the region to blur.
+   * @param radius The blur radius (1-25).
+   * @param scale Downscale factor for performance (e.g., 0.25f = 4x smaller).
+   * @param progressiveDirection Direction of the progressive blur effect.
+   * @param fadeStart Normalized start position for progressive fade (0.0-1.0).
+   * @param fadeEnd Normalized end position for progressive fade (0.0-1.0).
+   * @return true if successful, false otherwise.
+   */
+  internal fun backgroundBlur(
+    srcBitmap: Bitmap,
+    dstBitmap: Bitmap,
+    cropX: Int,
+    cropY: Int,
+    radius: Int,
+    scale: Float = 0.25f,
+    progressiveDirection: ProgressiveDirection = ProgressiveDirection.NONE,
+    fadeStart: Float = 0f,
+    fadeEnd: Float = 1f,
+  ): Boolean {
+    validateBitmap("backgroundBlur", srcBitmap, alphaAllowed = false)
+    validateBitmap("backgroundBlur", dstBitmap, alphaAllowed = false)
+
+    require(radius in 1..25) {
+      "$EXTERNAL_NAME backgroundBlur. The radius should be between 1 and 25. $radius provided."
+    }
+    require(scale in 0f..1f) {
+      "$EXTERNAL_NAME backgroundBlur. The scale should be between 0 and 1. $scale provided."
+    }
+    require(cropX >= 0 && cropY >= 0) {
+      "$EXTERNAL_NAME backgroundBlur. Crop offsets must be non-negative."
+    }
+    require(cropX + dstBitmap.width <= srcBitmap.width) {
+      "$EXTERNAL_NAME backgroundBlur. Crop region exceeds source width."
+    }
+    require(cropY + dstBitmap.height <= srcBitmap.height) {
+      "$EXTERNAL_NAME backgroundBlur. Crop region exceeds source height."
+    }
+
+    return nativeBackgroundBlur(
+      nativeHandle,
+      srcBitmap,
+      dstBitmap,
+      cropX,
+      cropY,
+      radius,
+      scale,
+      progressiveDirection.value,
+      fadeStart,
+      fadeEnd,
+    )
+  }
+
   private var nativeHandle: Long = 0
 
   init {
@@ -212,6 +283,19 @@ internal object RenderScriptToolkit {
     radius: Int,
     restriction: Range2d?,
   )
+
+  private external fun nativeBackgroundBlur(
+    nativeHandle: Long,
+    srcBitmap: Bitmap,
+    dstBitmap: Bitmap,
+    cropX: Int,
+    cropY: Int,
+    radius: Int,
+    scale: Float,
+    progressiveDirection: Int,
+    fadeStart: Float,
+    fadeEnd: Float,
+  ): Boolean
 }
 
 /**

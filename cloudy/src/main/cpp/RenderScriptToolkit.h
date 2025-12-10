@@ -118,6 +118,51 @@ public:
      */
     void blur(const uint8_t *_Nonnull in, uint8_t *_Nonnull out, size_t sizeX, size_t sizeY,
               size_t vectorSize, int radius, const Restriction *_Nullable restriction = nullptr);
+
+    /**
+     * Progressive blur direction for background blur.
+     */
+    enum class ProgressiveDirection {
+        NONE = 0,
+        TOP_TO_BOTTOM = 1,
+        BOTTOM_TO_TOP = 2,
+        EDGES = 3
+    };
+
+    /**
+     * Blur a region of an image with optional progressive effect.
+     *
+     * This method performs an optimized pipeline for background blur effects:
+     * 1. Crops the specified region from the source
+     * 2. Scales down for faster processing
+     * 3. Applies Gaussian blur
+     * 4. Applies optional progressive (gradient) mask
+     * 5. Scales back up to original crop size
+     *
+     * All intermediate buffers are managed internally and reused across calls for efficiency.
+     *
+     * @param src The source image buffer (RGBA format, 4 bytes per pixel).
+     * @param dst The destination buffer for the blurred result (cropWidth * cropHeight * 4 bytes).
+     * @param srcWidth Width of the source image.
+     * @param srcHeight Height of the source image.
+     * @param cropX X offset of the region to blur.
+     * @param cropY Y offset of the region to blur.
+     * @param cropWidth Width of the region to blur (also the output width).
+     * @param cropHeight Height of the region to blur (also the output height).
+     * @param radius The blur radius (1-25).
+     * @param scale Downscale factor for performance (e.g., 0.25 = 4x smaller).
+     * @param progressiveDir Direction of the progressive blur effect.
+     * @param fadeStart Normalized start position for progressive fade (0.0-1.0).
+     * @param fadeEnd Normalized end position for progressive fade (0.0-1.0).
+     * @return true if successful, false if parameters are invalid.
+     */
+    bool backgroundBlur(const uint8_t *_Nonnull src, uint8_t *_Nonnull dst,
+                        size_t srcWidth, size_t srcHeight,
+                        size_t cropX, size_t cropY,
+                        size_t cropWidth, size_t cropHeight,
+                        int radius, float scale,
+                        ProgressiveDirection progressiveDir,
+                        float fadeStart, float fadeEnd);
 };
 }  // namespace renderscript
 

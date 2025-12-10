@@ -16,11 +16,6 @@
 package com.skydoves.cloudy
 
 import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.LinearGradient
-import android.graphics.Paint
-import android.graphics.PorterDuff
-import android.graphics.PorterDuffXfermode
 import android.graphics.RenderEffect
 import android.graphics.Shader
 import android.os.Build
@@ -57,7 +52,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.toSize
 import com.skydoves.cloudy.internals.SkySnapshot
-import com.skydoves.cloudy.internals.render.iterativeBlur
+import com.skydoves.cloudy.internals.render.RenderScriptToolkit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -229,13 +224,12 @@ private class CloudyBackgroundModifierNode(
   private var positionInRoot: Offset = Offset.Zero
   private var size: IntSize = IntSize.Zero
 
-  // Legacy blur state (API 30-)
+  // Legacy blur state (API < 31)
   private var blurredBitmap: PlatformBitmap? = null
+  private var cachedContentVersion: Long = -1L
   private var isProcessing: Boolean = false
   private var blurJob: Job? = null
-
-  // Track sky content changes for cache invalidation (API < 31 only)
-  private var lastContentVersion: Long = -1L
+  private var pendingContentVersion: Long = -1L
 
   fun update(
     sky: Sky,
@@ -260,6 +254,8 @@ private class CloudyBackgroundModifierNode(
       blurJob = null
       isProcessing = false
       blurredBitmap = null
+      cachedContentVersion = -1L
+      pendingContentVersion = -1L
       if (isAttached) {
         invalidateDraw()
       }
@@ -304,14 +300,16 @@ private class CloudyBackgroundModifierNode(
       tintColor = tint,
     )
 
+    // Strategy pattern based on API level:
+    // - API 31+ (S): GPU-accelerated RenderEffect (sync, fast)
+    // - API < 31: CPU-based bitmap blur (async, slower)
     when {
-      Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
-        drawWithRuntimeShader(backgroundLayer, snapshot)
-      }
-      Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && progressive == CloudyProgressive.None -> {
+      Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+        // GPU blur - progressive blur not supported on API 31-32
         drawWithRenderEffect(backgroundLayer, snapshot)
       }
       else -> {
+        // CPU blur - supports progressive blur
         drawWithBitmap(backgroundLayer, snapshot)
       }
     }
@@ -336,22 +334,19 @@ private class CloudyBackgroundModifierNode(
     onStateChanged(CloudyState.Success.Applied)
   }
 
-  @RequiresApi(Build.VERSION_CODES.TIRAMISU)
-  private fun ContentDrawScope.drawWithRuntimeShader(
-    layer: GraphicsLayer,
-    snapshot: SkySnapshot,
-  ) {
-    // For API 33+, use RenderEffect with uniform blur
-    // Progressive blur shader would be implemented here with AGSL RuntimeShader
-    // For now, fall back to RenderEffect
-    drawWithRenderEffect(layer, snapshot)
-  }
-
   @RequiresApi(Build.VERSION_CODES.S)
   private fun ContentDrawScope.drawWithRenderEffect(
     layer: GraphicsLayer,
     snapshot: SkySnapshot,
   ) {
+    // Log warning for progressive blur on API 31-32 (not supported with RenderEffect)
+    if (snapshot.direction != SkySnapshot.ProgressiveDirection.NONE &&
+      Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
+    ) {
+      // Only log once per session to avoid spam
+      logProgressiveBlurWarningOnce()
+    }
+
     val sigma = snapshot.radius / 2.0f
 
     // Create blur effect
@@ -390,67 +385,94 @@ private class CloudyBackgroundModifierNode(
     }
   }
 
+  private var hasLoggedProgressiveWarning = false
+
+  private fun logProgressiveBlurWarningOnce() {
+    if (!hasLoggedProgressiveWarning) {
+      hasLoggedProgressiveWarning = true
+      Log.w(
+        TAG,
+        "Progressive blur requires API 33+ for background blur. " +
+          "Falling back to uniform blur on API ${Build.VERSION.SDK_INT}.",
+      )
+    }
+  }
+
   private fun ContentDrawScope.drawWithBitmap(
     layer: GraphicsLayer,
     snapshot: SkySnapshot,
   ) {
     val currentVersion = sky.contentVersion
-
-    // Check if sky content has changed (scroll detected)
-    if (currentVersion != lastContentVersion && blurredBitmap != null) {
-      Log.d(TAG, "Sky content changed (v$lastContentVersion -> v$currentVersion), invalidating blur cache")
-      blurJob?.cancel()
-      blurJob = null
-      blurredBitmap = null
-      isProcessing = false
-    }
-
-    // Update tracking state
-    lastContentVersion = currentVersion
-
-    // Check for cached result
     val cached = blurredBitmap
+    val cacheValid = cached != null &&
+      !cached.bitmap.isRecycled &&
+      cachedContentVersion == currentVersion
 
-    if (cached != null && !cached.bitmap.isRecycled) {
+    // Draw cached blur if valid
+    if (cacheValid && cached != null) {
       clipRect {
         drawImage(
           image = cached.bitmap.asImageBitmap(),
           dstSize = androidx.compose.ui.unit.IntSize(size.width.toInt(), size.height.toInt()),
         )
-
-        // Apply tint
         if (snapshot.tintColor != Color.Transparent) {
           drawRect(color = snapshot.tintColor, blendMode = BlendMode.SrcOver)
         }
       }
-
       onStateChanged(CloudyState.Success.Captured(cached))
       return
     }
 
-    // Draw original content while processing (clipped)
-    clipRect {
-      drawContext.canvas.save()
-      drawContext.canvas.translate(-snapshot.offsetX, -snapshot.offsetY)
-      drawLayer(layer)
-      drawContext.canvas.restore()
-
-      // Apply tint even while processing
-      if (snapshot.tintColor != Color.Transparent) {
-        drawRect(color = snapshot.tintColor, blendMode = BlendMode.SrcOver)
+    // Draw stale cache or original content while processing
+    if (cached != null && !cached.bitmap.isRecycled) {
+      // Show stale blur to avoid flickering during scroll
+      clipRect {
+        drawImage(
+          image = cached.bitmap.asImageBitmap(),
+          dstSize = androidx.compose.ui.unit.IntSize(size.width.toInt(), size.height.toInt()),
+        )
+        if (snapshot.tintColor != Color.Transparent) {
+          drawRect(color = snapshot.tintColor, blendMode = BlendMode.SrcOver)
+        }
+      }
+    } else {
+      // No cache at all - show original content
+      clipRect {
+        drawContext.canvas.save()
+        drawContext.canvas.translate(-snapshot.offsetX, -snapshot.offsetY)
+        drawLayer(layer)
+        drawContext.canvas.restore()
+        if (snapshot.tintColor != Color.Transparent) {
+          drawRect(color = snapshot.tintColor, blendMode = BlendMode.SrcOver)
+        }
       }
     }
 
-    if (isProcessing) {
+    // Check if we need to start/restart blur processing
+    val needsNewBlur = currentVersion != cachedContentVersion &&
+      currentVersion != pendingContentVersion
+
+    if (!needsNewBlur) {
       return
+    }
+
+    // Cancel existing job if content changed
+    if (isProcessing) {
+      blurJob?.cancel()
+      blurJob = null
+      isProcessing = false
     }
 
     // Start async blur processing
     isProcessing = true
+    pendingContentVersion = currentVersion
     onStateChanged(CloudyState.Loading)
 
     val node = this@CloudyBackgroundModifierNode
     val capturedSnapshot = snapshot.copy()
+    val processingVersion = currentVersion
+    val outputWidth = capturedSnapshot.childWidth.toInt()
+    val outputHeight = capturedSnapshot.childHeight.toInt()
 
     blurJob = coroutineScope.launch(Dispatchers.Main) {
       try {
@@ -464,65 +486,72 @@ private class CloudyBackgroundModifierNode(
           return@launch
         }
 
-        Log.d(TAG, "Captured bitmap: ${capturedBitmap.width}x${capturedBitmap.height}, " +
-          "offset: (${capturedSnapshot.offsetX}, ${capturedSnapshot.offsetY}), " +
-          "child: ${capturedSnapshot.childWidth}x${capturedSnapshot.childHeight}")
+        // Convert HARDWARE bitmap to software bitmap if needed
+        val softwareBitmap = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+          capturedBitmap.config == Bitmap.Config.HARDWARE
+        ) {
+          try {
+            capturedBitmap.copy(Bitmap.Config.ARGB_8888, true)
+          } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            Log.e(TAG, "Failed to convert HARDWARE bitmap", e)
+            onStateChanged(CloudyState.Error(e))
+            return@launch
+          }
+        } else {
+          capturedBitmap
+        }
 
-        // Crop to child bounds with downsampling
-        val scale = 0.25f
-        val croppedBitmap = cropAndScale(
-          capturedBitmap,
-          capturedSnapshot.offsetX.toInt(),
-          capturedSnapshot.offsetY.toInt(),
-          capturedSnapshot.childWidth.toInt(),
-          capturedSnapshot.childHeight.toInt(),
-          scale,
-        )
-
-        if (croppedBitmap == null) {
-          Log.e(TAG, "Failed to crop bitmap - bounds may be invalid")
-          onStateChanged(CloudyState.Error(RuntimeException("Failed to crop bitmap")))
+        if (softwareBitmap == null) {
+          onStateChanged(CloudyState.Error(RuntimeException("Failed to create software bitmap")))
           return@launch
         }
 
-        Log.d(TAG, "Cropped bitmap: ${croppedBitmap.width}x${croppedBitmap.height}")
+        Log.d(TAG, "Captured bitmap: ${softwareBitmap.width}x${softwareBitmap.height}")
 
-        // Apply blur
-        val blurResult = withContext(Dispatchers.Default) {
-          val outputBitmap = Bitmap.createBitmap(
-            croppedBitmap.width,
-            croppedBitmap.height,
-            Bitmap.Config.ARGB_8888,
+        // Create output bitmap for native pipeline
+        val outputBitmap = Bitmap.createBitmap(
+          outputWidth,
+          outputHeight,
+          Bitmap.Config.ARGB_8888,
+        )
+
+        // Map progressive direction
+        val progressiveDir = when (capturedSnapshot.direction) {
+          SkySnapshot.ProgressiveDirection.TOP_TO_BOTTOM ->
+            RenderScriptToolkit.ProgressiveDirection.TOP_TO_BOTTOM
+          SkySnapshot.ProgressiveDirection.BOTTOM_TO_TOP ->
+            RenderScriptToolkit.ProgressiveDirection.BOTTOM_TO_TOP
+          else -> RenderScriptToolkit.ProgressiveDirection.NONE
+        }
+
+        // Run native background blur pipeline (crop -> scale down -> blur -> mask -> scale up)
+        val success = withContext(Dispatchers.Default) {
+          RenderScriptToolkit.backgroundBlur(
+            srcBitmap = softwareBitmap,
+            dstBitmap = outputBitmap,
+            cropX = capturedSnapshot.offsetX.toInt().coerceAtLeast(0),
+            cropY = capturedSnapshot.offsetY.toInt().coerceAtLeast(0),
+            radius = capturedSnapshot.radius.coerceIn(1, 25),
+            scale = 0.25f,
+            progressiveDirection = progressiveDir,
+            fadeStart = capturedSnapshot.fadeStart,
+            fadeEnd = capturedSnapshot.fadeEnd,
           )
-          val scaledRadius = (capturedSnapshot.radius * scale).toInt().coerceAtLeast(1)
-          iterativeBlur(
-            androidBitmap = croppedBitmap,
-            outputBitmap = outputBitmap,
-            radius = scaledRadius,
-          ).await()
         }
 
-        if (blurResult == null) {
-          Log.e(TAG, "Blur processing returned null")
-          onStateChanged(CloudyState.Error(RuntimeException("Blur processing failed")))
+        if (!success) {
+          Log.e(TAG, "Native background blur failed")
+          onStateChanged(CloudyState.Error(RuntimeException("Native blur processing failed")))
           return@launch
         }
 
-        // Apply progressive mask
-        val maskedResult = applyProgressiveMask(blurResult, capturedSnapshot)
-
-        // Scale back up
-        val finalBitmap = Bitmap.createScaledBitmap(
-          maskedResult,
-          capturedSnapshot.childWidth.toInt(),
-          capturedSnapshot.childHeight.toInt(),
-          true,
-        )
-
-        Log.d(TAG, "Blur complete: ${finalBitmap.width}x${finalBitmap.height}")
+        Log.d(TAG, "Blur complete: ${outputBitmap.width}x${outputBitmap.height}")
 
         if (node.isAttached) {
-          blurredBitmap = PlatformBitmap(finalBitmap)
+          blurredBitmap = PlatformBitmap(outputBitmap)
+          cachedContentVersion = processingVersion
+          onStateChanged(CloudyState.Success.Captured(blurredBitmap!!))
           node.invalidateDraw()
         }
       } catch (e: Exception) {
@@ -536,100 +565,12 @@ private class CloudyBackgroundModifierNode(
     }
   }
 
-  private fun ContentDrawScope.drawBackgroundRegionUnblurred(
-    layer: GraphicsLayer,
-    snapshot: SkySnapshot,
-  ) {
-    drawContext.canvas.save()
-    drawContext.canvas.translate(-snapshot.offsetX, -snapshot.offsetY)
-    drawLayer(layer)
-    drawContext.canvas.restore()
-  }
-
-  private fun applyProgressiveMask(
-    bitmap: Bitmap,
-    snapshot: SkySnapshot,
-  ): Bitmap {
-    if (snapshot.direction == SkySnapshot.ProgressiveDirection.NONE) return bitmap
-
-    val result = bitmap.copy(Bitmap.Config.ARGB_8888, true)
-    val canvas = Canvas(result)
-    val paint = Paint().apply {
-      xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
-    }
-
-    val gradient = when (snapshot.direction) {
-      SkySnapshot.ProgressiveDirection.TOP_TO_BOTTOM -> {
-        LinearGradient(
-          0f,
-          0f,
-          0f,
-          bitmap.height.toFloat(),
-          intArrayOf(
-            android.graphics.Color.BLACK,
-            android.graphics.Color.BLACK,
-            android.graphics.Color.TRANSPARENT,
-            android.graphics.Color.TRANSPARENT,
-          ),
-          floatArrayOf(0f, snapshot.fadeStart, snapshot.fadeEnd, 1f),
-          Shader.TileMode.CLAMP,
-        )
-      }
-      SkySnapshot.ProgressiveDirection.BOTTOM_TO_TOP -> {
-        LinearGradient(
-          0f,
-          0f,
-          0f,
-          bitmap.height.toFloat(),
-          intArrayOf(
-            android.graphics.Color.TRANSPARENT,
-            android.graphics.Color.TRANSPARENT,
-            android.graphics.Color.BLACK,
-            android.graphics.Color.BLACK,
-          ),
-          floatArrayOf(0f, snapshot.fadeEnd, snapshot.fadeStart, 1f),
-          Shader.TileMode.CLAMP,
-        )
-      }
-      else -> return bitmap
-    }
-
-    paint.shader = gradient
-    canvas.drawRect(0f, 0f, bitmap.width.toFloat(), bitmap.height.toFloat(), paint)
-
-    return result
-  }
-
-  private fun cropAndScale(
-    source: Bitmap,
-    x: Int,
-    y: Int,
-    width: Int,
-    height: Int,
-    scale: Float,
-  ): Bitmap? {
-    return try {
-      val safeX = x.coerceIn(0, source.width - 1)
-      val safeY = y.coerceIn(0, source.height - 1)
-      val safeWidth = width.coerceAtMost(source.width - safeX)
-      val safeHeight = height.coerceAtMost(source.height - safeY)
-
-      if (safeWidth <= 0 || safeHeight <= 0) return null
-
-      val cropped = Bitmap.createBitmap(source, safeX, safeY, safeWidth, safeHeight)
-      val scaledWidth = (safeWidth * scale).toInt().coerceAtLeast(1)
-      val scaledHeight = (safeHeight * scale).toInt().coerceAtLeast(1)
-
-      Bitmap.createScaledBitmap(cropped, scaledWidth, scaledHeight, true)
-    } catch (e: Exception) {
-      null
-    }
-  }
-
   override fun onDetach() {
     blurJob?.cancel()
     blurJob = null
     blurredBitmap = null
     isProcessing = false
+    cachedContentVersion = -1L
+    pendingContentVersion = -1L
   }
 }
