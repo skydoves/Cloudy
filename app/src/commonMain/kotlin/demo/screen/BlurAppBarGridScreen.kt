@@ -38,10 +38,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.skydoves.cloudy.cloudy
+import com.skydoves.cloudy.rememberSky
+import com.skydoves.cloudy.sky
 import demo.component.BackButton
 import demo.component.GridPosterItem
 import demo.component.MaxWidthContainer
@@ -49,26 +52,28 @@ import demo.model.MockUtil
 import demo.theme.Dimens
 
 /**
- * Grid screen with a blurred app bar overlay demonstrating real-time background blur.
+ * Grid screen with a frosted glass app bar overlay demonstrating background blur (backdrop blur).
  * Content is constrained to a maximum width for better appearance on large screens.
  *
- * NOTE: True backdrop blur (blurring content behind the app bar) is not yet supported in Cloudy.
- * The `cloudy` modifier only blurs content inside the composable, not content behind it.
- * This screen currently demonstrates the limitation and serves as a placeholder for future
- * backdrop blur functionality.
+ * This screen demonstrates the new background blur feature using [rememberSky], [sky], and [cloudy].
+ * The app bar blurs the grid content behind it, creating a glassmorphism effect.
  *
  * @param onBackClick Callback when the back button is pressed.
  */
 @Composable
 fun BlurAppBarGridScreen(onBackClick: () -> Unit) {
   val posters = remember { MockUtil.getMockPosters() }
+  val sky = rememberSky()
 
   Box(
     modifier = Modifier
       .fillMaxSize()
       .windowInsetsPadding(WindowInsets.safeDrawing),
   ) {
-    MaxWidthContainer {
+    // Background content that will be captured for blur
+    MaxWidthContainer(
+      modifier = Modifier.sky(sky),
+    ) {
       LazyVerticalGrid(
         columns = GridCells.Fixed(2),
         modifier = Modifier.fillMaxSize(),
@@ -87,14 +92,17 @@ fun BlurAppBarGridScreen(onBackClick: () -> Unit) {
       }
     }
 
-    // TODO: Replace with backdrop blur when Cloudy supports it.
-    // Currently, cloudy() only blurs content inside this Box, not the grid content behind it.
+    // Frosted glass app bar with background blur
     Box(
       modifier = Modifier
         .fillMaxWidth()
         .height(56.dp)
-        .cloudy(radius = 15)
-        .background(MaterialTheme.colors.surface.copy(alpha = 0.3f)),
+        .cloudy(
+          sky = sky,
+          radius = 20,
+          tint = MaterialTheme.colors.surface.copy(alpha = 0.3f),
+        )
+        .background(Color.Transparent),
     ) {
       Row(
         modifier = Modifier
