@@ -141,6 +141,14 @@ private class SkyModifierNode(
   private var graphicsLayer: GraphicsLayer? = null
   private var positionInRoot: Offset = Offset.Zero
 
+  // Throttle version increments to reduce blur processing frequency
+  private var lastVersionIncrementTime: Long = 0L
+
+  companion object {
+    // Only increment version every 100ms to prevent excessive blur updates
+    private const val VERSION_INCREMENT_INTERVAL_MS = 100L
+  }
+
   override fun onGloballyPositioned(coordinates: LayoutCoordinates) {
     positionInRoot = coordinates.positionInRoot()
     sky.sourceBounds = Rect(
@@ -163,6 +171,8 @@ private class SkyModifierNode(
     // Share layer with children
     sky.backgroundLayer = layer
     sky.isDirty = false
+
+    // Always increment version (throttling is handled in CloudyBackgroundModifierNode)
     sky.incrementContentVersion()
 
     // Draw original content to screen
@@ -231,6 +241,15 @@ private class CloudyBackgroundModifierNode(
   private var blurJob: Job? = null
   private var pendingContentVersion: Long = -1L
 
+  // Throttling state to prevent blur job cancellation cascade
+  private var lastBlurStartTime: Long = 0L
+  private var queuedVersion: Long = -1L
+
+  companion object {
+    // Minimum time between blur starts (ms) - prevents rapid cancellation
+    private const val MIN_BLUR_INTERVAL_MS = 50L
+  }
+
   fun update(
     sky: Sky,
     radius: Int,
@@ -250,12 +269,13 @@ private class CloudyBackgroundModifierNode(
     this.onStateChanged = onStateChanged
 
     if (needsRedraw) {
-      blurJob?.cancel()
-      blurJob = null
-      isProcessing = false
-      blurredBitmap = null
+      // DON'T cancel blurJob - let it complete to avoid flickering
+      // Reset throttle state and version tracking
+      queuedVersion = -1L
+      lastBlurStartTime = 0L
       cachedContentVersion = -1L
       pendingContentVersion = -1L
+      // DON'T clear blurredBitmap - keep showing stale blur to prevent flickering
       if (isAttached) {
         invalidateDraw()
       }
@@ -423,9 +443,8 @@ private class CloudyBackgroundModifierNode(
       return
     }
 
-    // Draw stale cache or original content while processing
+    // Show cached blur while processing new one
     if (cached != null && !cached.bitmap.isRecycled) {
-      // Show stale blur to avoid flickering during scroll
       clipRect {
         drawImage(
           image = cached.bitmap.asImageBitmap(),
@@ -435,35 +454,32 @@ private class CloudyBackgroundModifierNode(
           drawRect(color = snapshot.tintColor, blendMode = BlendMode.SrcOver)
         }
       }
-    } else {
-      // No cache at all - show original content
-      clipRect {
-        drawContext.canvas.save()
-        drawContext.canvas.translate(-snapshot.offsetX, -snapshot.offsetY)
-        drawLayer(layer)
-        drawContext.canvas.restore()
-        if (snapshot.tintColor != Color.Transparent) {
-          drawRect(color = snapshot.tintColor, blendMode = BlendMode.SrcOver)
-        }
-      }
     }
+    // No cache: draw nothing (transparent) - blur will appear when ready
 
-    // Check if we need to start/restart blur processing
-    val needsNewBlur = currentVersion != cachedContentVersion &&
-      currentVersion != pendingContentVersion
-
-    if (!needsNewBlur) {
+    // Completion-based throttling: DON'T cancel running jobs
+    // Instead, queue the request and let the current job complete
+    if (isProcessing) {
+      // Job in progress - queue this version for later processing
+      queuedVersion = currentVersion
       return
     }
 
-    // Cancel existing job if content changed
-    if (isProcessing) {
-      blurJob?.cancel()
-      blurJob = null
-      isProcessing = false
+    // Throttle blur requests to prevent rapid job restarts
+    val now = System.currentTimeMillis()
+    if (now - lastBlurStartTime < MIN_BLUR_INTERVAL_MS) {
+      // Too soon since last blur - queue for later
+      queuedVersion = currentVersion
+      return
+    }
+
+    // Check if blur is actually needed
+    if (currentVersion == cachedContentVersion) {
+      return
     }
 
     // Start async blur processing
+    lastBlurStartTime = now
     isProcessing = true
     pendingContentVersion = currentVersion
     onStateChanged(CloudyState.Loading)
@@ -515,6 +531,10 @@ private class CloudyBackgroundModifierNode(
           outputHeight,
           Bitmap.Config.ARGB_8888,
         )
+        // Ensure bitmap is configured for premultiplied alpha
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+          outputBitmap.isPremultiplied = true
+        }
 
         // Map progressive direction
         val progressiveDir = when (capturedSnapshot.direction) {
@@ -522,7 +542,10 @@ private class CloudyBackgroundModifierNode(
             RenderScriptToolkit.ProgressiveDirection.TOP_TO_BOTTOM
           SkySnapshot.ProgressiveDirection.BOTTOM_TO_TOP ->
             RenderScriptToolkit.ProgressiveDirection.BOTTOM_TO_TOP
-          else -> RenderScriptToolkit.ProgressiveDirection.NONE
+          SkySnapshot.ProgressiveDirection.EDGES ->
+            RenderScriptToolkit.ProgressiveDirection.EDGES
+          SkySnapshot.ProgressiveDirection.NONE ->
+            RenderScriptToolkit.ProgressiveDirection.NONE
         }
 
         // Run native background blur pipeline (crop -> scale down -> blur -> mask -> scale up)
@@ -552,6 +575,14 @@ private class CloudyBackgroundModifierNode(
           blurredBitmap = PlatformBitmap(outputBitmap)
           cachedContentVersion = processingVersion
           onStateChanged(CloudyState.Success.Captured(blurredBitmap!!))
+
+          // Process queued request if newer version is waiting
+          val queued = queuedVersion
+          queuedVersion = -1L
+          if (queued != -1L && queued != cachedContentVersion) {
+            // A newer version was queued - trigger redraw to process it
+            Log.d(TAG, "Processing queued version: $queued (cached: $cachedContentVersion)")
+          }
           node.invalidateDraw()
         }
       } catch (e: Exception) {
@@ -572,5 +603,7 @@ private class CloudyBackgroundModifierNode(
     isProcessing = false
     cachedContentVersion = -1L
     pendingContentVersion = -1L
+    queuedVersion = -1L
+    lastBlurStartTime = 0L
   }
 }
