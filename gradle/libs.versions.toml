@@ -28,6 +28,7 @@ kotlinxCoroutinesTest = "1.10.2"
 mockito = "5.20.0"
 mockito-inline = "5.2.0"
 robolectric = "4.14.1"
+kotest = "5.9.1"
 slf4j = "2.0.17"
 ktor = "3.3.3"
 
@@ -80,6 +81,9 @@ androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-te
 mockito = { module = "org.mockito:mockito-core", version.ref = "mockito" }
 mockito-inline = { module = "org.mockito:mockito-inline", version.ref = "mockito-inline" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
+kotest-framework-engine = { module = "io.kotest:kotest-framework-engine", version.ref = "kotest" }
+kotest-assertions-core = { module = "io.kotest:kotest-assertions-core", version.ref = "kotest" }
+kotest-runner-junit5 = { module = "io.kotest:kotest-runner-junit5", version.ref = "kotest" }
 androidx-nav3-ui = { module = "org.jetbrains.androidx.navigation3:navigation3-ui", version.ref = "androidxNav3" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j" }
