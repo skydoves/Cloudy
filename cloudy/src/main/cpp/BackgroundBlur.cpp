@@ -236,7 +236,8 @@ static void applyProgressiveMask(
                 } else if (normalizedY >= fadeEnd) {
                     alpha = 0.0f;
                 } else {
-                    alpha = 1.0f - (normalizedY - fadeStart) / (fadeEnd - fadeStart);
+                    float range = fadeEnd - fadeStart;
+                    alpha = (range > 0.0f) ? 1.0f - (normalizedY - fadeStart) / range : 1.0f;
                 }
                 break;
 
@@ -247,16 +248,19 @@ static void applyProgressiveMask(
                 } else if (normalizedY <= fadeEnd) {
                     alpha = 0.0f;
                 } else {
-                    alpha = (normalizedY - fadeEnd) / (fadeStart - fadeEnd);
+                    float range = fadeStart - fadeEnd;
+                    alpha = (range > 0.0f) ? (normalizedY - fadeEnd) / range : 1.0f;
                 }
                 break;
 
             case RenderScriptToolkit::ProgressiveDirection::EDGES:
-                // Fade at both edges
-                if (normalizedY < fadeStart) {
-                    alpha = normalizedY / fadeStart;
-                } else if (normalizedY > fadeEnd) {
-                    alpha = (1.0f - normalizedY) / (1.0f - fadeEnd);
+                // Fade at both edges - fixed boundary conditions
+                if (normalizedY <= fadeStart) {
+                    // Top edge fade: 0 at y=0, 1 at y=fadeStart
+                    alpha = (fadeStart > 0.0f) ? normalizedY / fadeStart : 1.0f;
+                } else if (normalizedY >= fadeEnd) {
+                    // Bottom edge fade: 1 at y=fadeEnd, 0 at y=1
+                    alpha = (fadeEnd < 1.0f) ? (1.0f - normalizedY) / (1.0f - fadeEnd) : 1.0f;
                 } else {
                     alpha = 1.0f;
                 }
@@ -342,16 +346,18 @@ bool RenderScriptToolkit::backgroundBlur(
         nullptr
     );
 
-    // Step 3: Apply progressive mask (in-place)
-    applyProgressiveMask(
-        gBuffers.blurOutput.data(), scaledWidth, scaledHeight,
-        progressiveDir, fadeStart, fadeEnd
-    );
-
-    // Step 4: Scale up to output
+    // Step 3: Scale up to output FIRST
+    // This prevents alpha gradient interpolation artifacts
     scaleUp(
         gBuffers.blurOutput.data(), scaledWidth, scaledHeight,
         dst, cropWidth, cropHeight
+    );
+
+    // Step 4: Apply progressive mask on FINAL full-resolution output
+    // This ensures crisp alpha gradients without interpolation artifacts
+    applyProgressiveMask(
+        dst, cropWidth, cropHeight,
+        progressiveDir, fadeStart, fadeEnd
     );
 
     return true;
