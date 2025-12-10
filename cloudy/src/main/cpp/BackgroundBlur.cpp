@@ -29,6 +29,48 @@ namespace renderscript {
 #define LOG_TAG "renderscript.toolkit.BackgroundBlur"
 
 /**
+ * sRGB Gamma correction lookup tables for correct bilinear interpolation.
+ * Bilinear interpolation must be performed in linear space, not gamma-encoded sRGB.
+ */
+class GammaLUT {
+public:
+    float srgbToLinear[256];
+    uint8_t linearToSrgb[4096];  // 12-bit precision for smooth gradients
+
+    GammaLUT() {
+        // Build sRGB to linear LUT
+        for (int i = 0; i < 256; i++) {
+            float s = i / 255.0f;
+            if (s <= 0.04045f) {
+                srgbToLinear[i] = s / 12.92f;
+            } else {
+                srgbToLinear[i] = std::pow((s + 0.055f) / 1.055f, 2.4f);
+            }
+        }
+
+        // Build linear to sRGB LUT (12-bit input for smooth gradients)
+        for (int i = 0; i < 4096; i++) {
+            float linear = i / 4095.0f;
+            float srgb;
+            if (linear <= 0.0031308f) {
+                srgb = linear * 12.92f;
+            } else {
+                srgb = 1.055f * std::pow(linear, 1.0f / 2.4f) - 0.055f;
+            }
+            linearToSrgb[i] = static_cast<uint8_t>(std::clamp(srgb * 255.0f + 0.5f, 0.0f, 255.0f));
+        }
+    }
+
+    inline uint8_t toSrgb(float linear) const {
+        int idx = static_cast<int>(std::clamp(linear * 4095.0f + 0.5f, 0.0f, 4095.0f));
+        return linearToSrgb[idx];
+    }
+};
+
+// Global LUT instance (constructed once)
+static const GammaLUT gGammaLUT;
+
+/**
  * Internal buffer manager for background blur operations.
  * Reuses buffers across calls to minimize allocations.
  */
@@ -52,7 +94,7 @@ static BackgroundBlurBuffers gBuffers;
 
 /**
  * Crops and scales down a region from the source image.
- * Uses bilinear interpolation for quality.
+ * Uses gamma-correct bilinear interpolation (sRGB → linear → interpolate → sRGB).
  */
 static void cropAndScaleDown(
     const uint8_t* src, size_t srcWidth, size_t srcHeight,
@@ -74,25 +116,42 @@ static void cropAndScaleDown(
             const size_t srcX1 = std::min(srcX0 + 1, srcWidth - 1);
             const float xFrac = srcXf - srcX0;
 
-            // Bilinear interpolation for each channel
-            for (int c = 0; c < 4; c++) {
-                const float p00 = src[(srcY0 * srcWidth + srcX0) * 4 + c];
-                const float p10 = src[(srcY0 * srcWidth + srcX1) * 4 + c];
-                const float p01 = src[(srcY1 * srcWidth + srcX0) * 4 + c];
-                const float p11 = src[(srcY1 * srcWidth + srcX1) * 4 + c];
+            // Gamma-correct bilinear interpolation for RGB channels
+            for (int c = 0; c < 3; c++) {
+                // Convert sRGB to linear
+                const float p00 = gGammaLUT.srgbToLinear[src[(srcY0 * srcWidth + srcX0) * 4 + c]];
+                const float p10 = gGammaLUT.srgbToLinear[src[(srcY0 * srcWidth + srcX1) * 4 + c]];
+                const float p01 = gGammaLUT.srgbToLinear[src[(srcY1 * srcWidth + srcX0) * 4 + c]];
+                const float p11 = gGammaLUT.srgbToLinear[src[(srcY1 * srcWidth + srcX1) * 4 + c]];
+
+                // Bilinear interpolation in linear space
+                const float top = p00 + (p10 - p00) * xFrac;
+                const float bottom = p01 + (p11 - p01) * xFrac;
+                const float linear = top + (bottom - top) * yFrac;
+
+                // Convert back to sRGB
+                dst[(y * dstWidth + x) * 4 + c] = gGammaLUT.toSrgb(linear);
+            }
+
+            // Alpha channel: linear interpolation (no gamma)
+            {
+                const float p00 = src[(srcY0 * srcWidth + srcX0) * 4 + 3];
+                const float p10 = src[(srcY0 * srcWidth + srcX1) * 4 + 3];
+                const float p01 = src[(srcY1 * srcWidth + srcX0) * 4 + 3];
+                const float p11 = src[(srcY1 * srcWidth + srcX1) * 4 + 3];
 
                 const float top = p00 + (p10 - p00) * xFrac;
                 const float bottom = p01 + (p11 - p01) * xFrac;
                 const float value = top + (bottom - top) * yFrac;
 
-                dst[(y * dstWidth + x) * 4 + c] = static_cast<uint8_t>(std::clamp(value, 0.0f, 255.0f));
+                dst[(y * dstWidth + x) * 4 + 3] = static_cast<uint8_t>(std::clamp(value, 0.0f, 255.0f));
             }
         }
     }
 }
 
 /**
- * Scales up an image using bilinear interpolation.
+ * Scales up an image using gamma-correct bilinear interpolation.
  */
 static void scaleUp(
     const uint8_t* src, size_t srcWidth, size_t srcHeight,
@@ -113,18 +172,35 @@ static void scaleUp(
             const size_t srcX1 = std::min(srcX0 + 1, srcWidth - 1);
             const float xFrac = srcXf - srcX0;
 
-            // Bilinear interpolation for each channel
-            for (int c = 0; c < 4; c++) {
-                const float p00 = src[(srcY0 * srcWidth + srcX0) * 4 + c];
-                const float p10 = src[(srcY0 * srcWidth + srcX1) * 4 + c];
-                const float p01 = src[(srcY1 * srcWidth + srcX0) * 4 + c];
-                const float p11 = src[(srcY1 * srcWidth + srcX1) * 4 + c];
+            // Gamma-correct bilinear interpolation for RGB channels
+            for (int c = 0; c < 3; c++) {
+                // Convert sRGB to linear
+                const float p00 = gGammaLUT.srgbToLinear[src[(srcY0 * srcWidth + srcX0) * 4 + c]];
+                const float p10 = gGammaLUT.srgbToLinear[src[(srcY0 * srcWidth + srcX1) * 4 + c]];
+                const float p01 = gGammaLUT.srgbToLinear[src[(srcY1 * srcWidth + srcX0) * 4 + c]];
+                const float p11 = gGammaLUT.srgbToLinear[src[(srcY1 * srcWidth + srcX1) * 4 + c]];
+
+                // Bilinear interpolation in linear space
+                const float top = p00 + (p10 - p00) * xFrac;
+                const float bottom = p01 + (p11 - p01) * xFrac;
+                const float linear = top + (bottom - top) * yFrac;
+
+                // Convert back to sRGB
+                dst[(y * dstWidth + x) * 4 + c] = gGammaLUT.toSrgb(linear);
+            }
+
+            // Alpha channel: linear interpolation (no gamma)
+            {
+                const float p00 = src[(srcY0 * srcWidth + srcX0) * 4 + 3];
+                const float p10 = src[(srcY0 * srcWidth + srcX1) * 4 + 3];
+                const float p01 = src[(srcY1 * srcWidth + srcX0) * 4 + 3];
+                const float p11 = src[(srcY1 * srcWidth + srcX1) * 4 + 3];
 
                 const float top = p00 + (p10 - p00) * xFrac;
                 const float bottom = p01 + (p11 - p01) * xFrac;
                 const float value = top + (bottom - top) * yFrac;
 
-                dst[(y * dstWidth + x) * 4 + c] = static_cast<uint8_t>(std::clamp(value, 0.0f, 255.0f));
+                dst[(y * dstWidth + x) * 4 + 3] = static_cast<uint8_t>(std::clamp(value, 0.0f, 255.0f));
             }
         }
     }
@@ -132,6 +208,8 @@ static void scaleUp(
 
 /**
  * Applies a progressive alpha mask to create fade effect.
+ * Uses PREMULTIPLIED ALPHA: RGB channels are also multiplied by alpha.
+ * This is required for correct compositing on Android (ARGB_8888 is premultiplied).
  * Modifies the buffer in-place.
  */
 static void applyProgressiveMask(
@@ -185,11 +263,18 @@ static void applyProgressiveMask(
                 break;
         }
 
-        // Apply alpha to entire row
+        // Clamp alpha to valid range to prevent overflow/underflow
+        alpha = std::clamp(alpha, 0.0f, 1.0f);
+
+        // Apply PREMULTIPLIED alpha to entire row
+        // Both RGB and A channels are multiplied by alpha
+        // Use rounding (+0.5f) instead of truncation for better precision
         for (size_t x = 0; x < width; x++) {
             size_t idx = (y * width + x) * 4;
-            // Multiply alpha channel
-            buffer[idx + 3] = static_cast<uint8_t>(buffer[idx + 3] * alpha);
+            buffer[idx + 0] = static_cast<uint8_t>(buffer[idx + 0] * alpha + 0.5f);  // R
+            buffer[idx + 1] = static_cast<uint8_t>(buffer[idx + 1] * alpha + 0.5f);  // G
+            buffer[idx + 2] = static_cast<uint8_t>(buffer[idx + 2] * alpha + 0.5f);  // B
+            buffer[idx + 3] = static_cast<uint8_t>(buffer[idx + 3] * alpha + 0.5f);  // A
         }
     }
 }
