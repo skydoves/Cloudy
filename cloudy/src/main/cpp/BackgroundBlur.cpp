@@ -221,8 +221,11 @@ static void applyProgressiveMask(
         return;
     }
 
+    // Prevent division by zero
+    const float heightDenom = (height > 1) ? static_cast<float>(height - 1) : 1.0f;
+
     for (size_t y = 0; y < height; y++) {
-        float normalizedY = static_cast<float>(y) / (height - 1);
+        float normalizedY = static_cast<float>(y) / heightDenom;
         float alpha = 1.0f;
 
         switch (direction) {
