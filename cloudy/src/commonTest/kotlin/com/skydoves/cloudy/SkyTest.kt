@@ -29,62 +29,63 @@ import io.kotest.matchers.shouldBe
  * - Invalidation behavior
  * - isDirty flag lifecycle
  */
-internal class SkyTest : FunSpec({
+internal class SkyTest :
+  FunSpec({
 
-  test("Sky should have null backgroundLayer initially") {
-    val sky = Sky()
-    sky.backgroundLayer.shouldBeNull()
-  }
+    test("Sky should have null backgroundLayer initially") {
+      val sky = Sky()
+      sky.backgroundLayer.shouldBeNull()
+    }
 
-  test("Sky should have zero bounds initially") {
-    val sky = Sky()
-    sky.sourceBounds.left.shouldBe(0f)
-    sky.sourceBounds.top.shouldBe(0f)
-    sky.sourceBounds.right.shouldBe(0f)
-    sky.sourceBounds.bottom.shouldBe(0f)
-  }
+    test("Sky should have zero bounds initially") {
+      val sky = Sky()
+      sky.sourceBounds.left.shouldBe(0f)
+      sky.sourceBounds.top.shouldBe(0f)
+      sky.sourceBounds.right.shouldBe(0f)
+      sky.sourceBounds.bottom.shouldBe(0f)
+    }
 
-  test("Sky should have isDirty true initially") {
-    val sky = Sky()
-    sky.isDirty.shouldBeTrue()
-  }
+    test("Sky should have isDirty true initially") {
+      val sky = Sky()
+      sky.isDirty.shouldBeTrue()
+    }
 
-  test("invalidate() should set isDirty to true") {
-    val sky = Sky()
-    sky.isDirty = false
+    test("invalidate() should set isDirty to true") {
+      val sky = Sky()
+      sky.isDirty = false
 
-    sky.invalidate()
+      sky.invalidate()
 
-    sky.isDirty.shouldBeTrue()
-  }
+      sky.isDirty.shouldBeTrue()
+    }
 
-  test("isDirty should remain false until invalidated") {
-    val sky = Sky()
-    sky.isDirty = false
+    test("isDirty should remain false until invalidated") {
+      val sky = Sky()
+      sky.isDirty = false
 
-    sky.isDirty.shouldBeFalse()
+      sky.isDirty.shouldBeFalse()
 
-    sky.invalidate()
+      sky.invalidate()
 
-    sky.isDirty.shouldBeTrue()
-  }
+      sky.isDirty.shouldBeTrue()
+    }
 
-  test("contentVersion should be 0 initially") {
-    val sky = Sky()
-    sky.contentVersion.shouldBe(0L)
-  }
+    test("contentVersion should be 0 initially") {
+      val sky = Sky()
+      sky.contentVersion.shouldBe(0L)
+    }
 
-  test("incrementContentVersion should increment version by 1") {
-    val sky = Sky()
-    sky.contentVersion.shouldBe(0L)
+    test("incrementContentVersion should increment version by 1") {
+      val sky = Sky()
+      sky.contentVersion.shouldBe(0L)
 
-    sky.incrementContentVersion()
-    sky.contentVersion.shouldBe(1L)
+      sky.incrementContentVersion()
+      sky.contentVersion.shouldBe(1L)
 
-    sky.incrementContentVersion()
-    sky.contentVersion.shouldBe(2L)
+      sky.incrementContentVersion()
+      sky.contentVersion.shouldBe(2L)
 
-    sky.incrementContentVersion()
-    sky.contentVersion.shouldBe(3L)
-  }
-})
+      sky.incrementContentVersion()
+      sky.contentVersion.shouldBe(3L)
+    }
+  })

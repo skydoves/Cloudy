@@ -129,10 +129,10 @@ public expect fun Modifier.sky(sky: Sky): Modifier
 @Composable
 public expect fun Modifier.cloudy(
   sky: Sky,
-  @androidx.annotation.IntRange(from = 0) radius: Int = CloudyDefaults.BackgroundRadius,
+  @androidx.annotation.IntRange(from = 0) radius: Int = CloudyDefaults.BACKGROUND_RADIUS,
   progressive: CloudyProgressive = CloudyProgressive.None,
   tint: Color = Color.Transparent,
   enabled: Boolean = true,
-  cpuBlurEnabled: Boolean = CloudyDefaults.CpuBlurEnabled,
+  cpuBlurEnabled: Boolean = CloudyDefaults.CPP_BLUR_ENABLED,
   onStateChanged: (CloudyState) -> Unit = {},
 ): Modifier

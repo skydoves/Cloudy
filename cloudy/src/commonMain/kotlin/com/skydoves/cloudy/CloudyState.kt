@@ -89,7 +89,7 @@ public sealed interface CloudyState {
      * Scrim-only fallback was applied (no blur processing).
      *
      * This state is returned when CPU-based blur is disabled on Android 30 and below:
-     * - When [CloudyDefaults.CpuBlurEnabled] is `false` (default)
+     * - When [CloudyDefaults.CPP_BLUR_ENABLED] is `false` (default)
      * - A semi-transparent scrim overlay is shown instead of blur
      *
      * This follows the Haze library approach for better performance on older devices.

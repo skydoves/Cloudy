@@ -28,7 +28,7 @@ public object CloudyDefaults {
    * This value provides a moderate blur suitable for glassmorphism effects
    * without excessive performance overhead.
    */
-  public const val BackgroundRadius: Int = 20
+  public const val BACKGROUND_RADIUS: Int = 20
 
   /**
    * Default end position for progressive blur fade.
@@ -36,7 +36,7 @@ public object CloudyDefaults {
    * For [CloudyProgressive.TopToBottom], blur fades from 0% to this value (50%).
    * For [CloudyProgressive.BottomToTop], blur fades from 100% to (1 - this value) (50%).
    */
-  public const val ProgressiveFadeEnd: Float = 0.5f
+  public const val PROGRESSIVE_FADE_END: Float = 0.5f
 
   /**
    * Default fade distance for [CloudyProgressive.Edges].
@@ -44,7 +44,7 @@ public object CloudyDefaults {
    * Represents the normalized distance from each edge where blur
    * transitions from full intensity to zero.
    */
-  public const val EdgesFadeDistance: Float = 0.2f
+  public const val EDGES_FADE_DISTANCE: Float = 0.2f
 
   /**
    * Default setting for CPU-based blur on Android 30 and below.
@@ -58,7 +58,7 @@ public object CloudyDefaults {
    * This setting only affects Android API 30 and below. GPU-accelerated blur
    * on API 31+ is always enabled regardless of this setting.
    */
-  public const val CpuBlurEnabled: Boolean = false
+  public const val CPP_BLUR_ENABLED: Boolean = false
 
   /**
    * Default scrim color used when CPU blur is disabled.

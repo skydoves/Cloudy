@@ -57,10 +57,13 @@ internal data class SkySnapshot(
   enum class ProgressiveDirection {
     /** Uniform blur across the entire region. */
     NONE,
+
     /** Blur decreases from top to bottom. */
     TOP_TO_BOTTOM,
+
     /** Blur decreases from bottom to top. */
     BOTTOM_TO_TOP,
+
     /** Blur at edges, clear in center. */
     EDGES,
   }

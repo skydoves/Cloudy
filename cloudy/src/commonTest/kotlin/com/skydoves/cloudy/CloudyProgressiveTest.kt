@@ -30,147 +30,148 @@ import io.kotest.matchers.types.shouldBeSameInstanceAs
  * - Edges: fadeDistance range 0..0.5 validation
  * - Default values for all progressive types
  */
-internal class CloudyProgressiveTest : FunSpec({
+internal class CloudyProgressiveTest :
+  FunSpec({
 
-  context("TopToBottom") {
-    test("should throw when start >= end") {
-      shouldThrow<IllegalArgumentException> {
-        CloudyProgressive.TopToBottom(start = 0.6f, end = 0.4f)
+    context("TopToBottom") {
+      test("should throw when start >= end") {
+        shouldThrow<IllegalArgumentException> {
+          CloudyProgressive.TopToBottom(start = 0.6f, end = 0.4f)
+        }
+      }
+
+      test("should throw when start equals end") {
+        shouldThrow<IllegalArgumentException> {
+          CloudyProgressive.TopToBottom(start = 0.5f, end = 0.5f)
+        }
+      }
+
+      test("should throw when start < 0") {
+        shouldThrow<IllegalArgumentException> {
+          CloudyProgressive.TopToBottom(start = -0.1f, end = 0.5f)
+        }
+      }
+
+      test("should throw when start > 1") {
+        shouldThrow<IllegalArgumentException> {
+          CloudyProgressive.TopToBottom(start = 1.1f, end = 1.5f)
+        }
+      }
+
+      test("should throw when end > 1") {
+        shouldThrow<IllegalArgumentException> {
+          CloudyProgressive.TopToBottom(start = 0f, end = 1.1f)
+        }
+      }
+
+      test("should throw when end < 0") {
+        shouldThrow<IllegalArgumentException> {
+          CloudyProgressive.TopToBottom(start = -0.5f, end = -0.1f)
+        }
+      }
+
+      test("should accept valid parameters") {
+        shouldNotThrow<IllegalArgumentException> {
+          CloudyProgressive.TopToBottom(start = 0f, end = 0.5f)
+        }
+      }
+
+      test("should accept boundary values") {
+        shouldNotThrow<IllegalArgumentException> {
+          CloudyProgressive.TopToBottom(start = 0f, end = 1f)
+        }
+      }
+
+      test("should have correct default values") {
+        val progressive = CloudyProgressive.TopToBottom()
+        progressive.start.shouldBe(0f)
+        progressive.end.shouldBe(CloudyDefaults.PROGRESSIVE_FADE_END)
       }
     }
 
-    test("should throw when start equals end") {
-      shouldThrow<IllegalArgumentException> {
-        CloudyProgressive.TopToBottom(start = 0.5f, end = 0.5f)
+    context("BottomToTop") {
+      test("should throw when start <= end") {
+        shouldThrow<IllegalArgumentException> {
+          CloudyProgressive.BottomToTop(start = 0.4f, end = 0.6f)
+        }
+      }
+
+      test("should throw when start equals end") {
+        shouldThrow<IllegalArgumentException> {
+          CloudyProgressive.BottomToTop(start = 0.5f, end = 0.5f)
+        }
+      }
+
+      test("should throw when start < 0") {
+        shouldThrow<IllegalArgumentException> {
+          CloudyProgressive.BottomToTop(start = -0.1f, end = -0.5f)
+        }
+      }
+
+      test("should throw when end > 1") {
+        shouldThrow<IllegalArgumentException> {
+          CloudyProgressive.BottomToTop(start = 1.5f, end = 1.1f)
+        }
+      }
+
+      test("should accept valid parameters") {
+        shouldNotThrow<IllegalArgumentException> {
+          CloudyProgressive.BottomToTop(start = 1f, end = 0.5f)
+        }
+      }
+
+      test("should accept boundary values") {
+        shouldNotThrow<IllegalArgumentException> {
+          CloudyProgressive.BottomToTop(start = 1f, end = 0f)
+        }
+      }
+
+      test("should have correct default values") {
+        val progressive = CloudyProgressive.BottomToTop()
+        progressive.start.shouldBe(1f)
+        progressive.end.shouldBe(1f - CloudyDefaults.PROGRESSIVE_FADE_END)
       }
     }
 
-    test("should throw when start < 0") {
-      shouldThrow<IllegalArgumentException> {
-        CloudyProgressive.TopToBottom(start = -0.1f, end = 0.5f)
+    context("Edges") {
+      test("should throw when fadeDistance > 0.5") {
+        shouldThrow<IllegalArgumentException> {
+          CloudyProgressive.Edges(fadeDistance = 0.6f)
+        }
+      }
+
+      test("should throw when fadeDistance < 0") {
+        shouldThrow<IllegalArgumentException> {
+          CloudyProgressive.Edges(fadeDistance = -0.1f)
+        }
+      }
+
+      test("should accept valid parameters") {
+        shouldNotThrow<IllegalArgumentException> {
+          CloudyProgressive.Edges(fadeDistance = 0.3f)
+        }
+      }
+
+      test("should accept boundary values") {
+        shouldNotThrow<IllegalArgumentException> {
+          CloudyProgressive.Edges(fadeDistance = 0f)
+        }
+        shouldNotThrow<IllegalArgumentException> {
+          CloudyProgressive.Edges(fadeDistance = 0.5f)
+        }
+      }
+
+      test("should have correct default values") {
+        val progressive = CloudyProgressive.Edges()
+        progressive.fadeDistance.shouldBe(CloudyDefaults.EDGES_FADE_DISTANCE)
       }
     }
 
-    test("should throw when start > 1") {
-      shouldThrow<IllegalArgumentException> {
-        CloudyProgressive.TopToBottom(start = 1.1f, end = 1.5f)
+    context("None") {
+      test("should be a singleton object") {
+        val none1 = CloudyProgressive.None
+        val none2 = CloudyProgressive.None
+        none1.shouldBeSameInstanceAs(none2)
       }
     }
-
-    test("should throw when end > 1") {
-      shouldThrow<IllegalArgumentException> {
-        CloudyProgressive.TopToBottom(start = 0f, end = 1.1f)
-      }
-    }
-
-    test("should throw when end < 0") {
-      shouldThrow<IllegalArgumentException> {
-        CloudyProgressive.TopToBottom(start = -0.5f, end = -0.1f)
-      }
-    }
-
-    test("should accept valid parameters") {
-      shouldNotThrow<IllegalArgumentException> {
-        CloudyProgressive.TopToBottom(start = 0f, end = 0.5f)
-      }
-    }
-
-    test("should accept boundary values") {
-      shouldNotThrow<IllegalArgumentException> {
-        CloudyProgressive.TopToBottom(start = 0f, end = 1f)
-      }
-    }
-
-    test("should have correct default values") {
-      val progressive = CloudyProgressive.TopToBottom()
-      progressive.start.shouldBe(0f)
-      progressive.end.shouldBe(CloudyDefaults.ProgressiveFadeEnd)
-    }
-  }
-
-  context("BottomToTop") {
-    test("should throw when start <= end") {
-      shouldThrow<IllegalArgumentException> {
-        CloudyProgressive.BottomToTop(start = 0.4f, end = 0.6f)
-      }
-    }
-
-    test("should throw when start equals end") {
-      shouldThrow<IllegalArgumentException> {
-        CloudyProgressive.BottomToTop(start = 0.5f, end = 0.5f)
-      }
-    }
-
-    test("should throw when start < 0") {
-      shouldThrow<IllegalArgumentException> {
-        CloudyProgressive.BottomToTop(start = -0.1f, end = -0.5f)
-      }
-    }
-
-    test("should throw when end > 1") {
-      shouldThrow<IllegalArgumentException> {
-        CloudyProgressive.BottomToTop(start = 1.5f, end = 1.1f)
-      }
-    }
-
-    test("should accept valid parameters") {
-      shouldNotThrow<IllegalArgumentException> {
-        CloudyProgressive.BottomToTop(start = 1f, end = 0.5f)
-      }
-    }
-
-    test("should accept boundary values") {
-      shouldNotThrow<IllegalArgumentException> {
-        CloudyProgressive.BottomToTop(start = 1f, end = 0f)
-      }
-    }
-
-    test("should have correct default values") {
-      val progressive = CloudyProgressive.BottomToTop()
-      progressive.start.shouldBe(1f)
-      progressive.end.shouldBe(1f - CloudyDefaults.ProgressiveFadeEnd)
-    }
-  }
-
-  context("Edges") {
-    test("should throw when fadeDistance > 0.5") {
-      shouldThrow<IllegalArgumentException> {
-        CloudyProgressive.Edges(fadeDistance = 0.6f)
-      }
-    }
-
-    test("should throw when fadeDistance < 0") {
-      shouldThrow<IllegalArgumentException> {
-        CloudyProgressive.Edges(fadeDistance = -0.1f)
-      }
-    }
-
-    test("should accept valid parameters") {
-      shouldNotThrow<IllegalArgumentException> {
-        CloudyProgressive.Edges(fadeDistance = 0.3f)
-      }
-    }
-
-    test("should accept boundary values") {
-      shouldNotThrow<IllegalArgumentException> {
-        CloudyProgressive.Edges(fadeDistance = 0f)
-      }
-      shouldNotThrow<IllegalArgumentException> {
-        CloudyProgressive.Edges(fadeDistance = 0.5f)
-      }
-    }
-
-    test("should have correct default values") {
-      val progressive = CloudyProgressive.Edges()
-      progressive.fadeDistance.shouldBe(CloudyDefaults.EdgesFadeDistance)
-    }
-  }
-
-  context("None") {
-    test("should be a singleton object") {
-      val none1 = CloudyProgressive.None
-      val none2 = CloudyProgressive.None
-      none1.shouldBeSameInstanceAs(none2)
-    }
-  }
-})
+  })

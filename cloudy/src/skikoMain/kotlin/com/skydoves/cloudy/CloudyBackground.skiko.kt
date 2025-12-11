@@ -49,9 +49,7 @@ import com.skydoves.cloudy.internals.SkySnapshot
  * This implementation is shared across iOS, macOS, JVM Desktop, and WASM platforms.
  */
 @Composable
-public actual fun Modifier.sky(sky: Sky): Modifier {
-  return this.then(SkyModifierElement(sky = sky))
-}
+public actual fun Modifier.sky(sky: Sky): Modifier = this.then(SkyModifierElement(sky = sky))
 
 /**
  * Skiko implementation of [Modifier.cloudy] for background blur.
@@ -102,9 +100,7 @@ public actual fun Modifier.cloudy(
 // Sky Modifier Implementation
 // ============================================================================
 
-private data class SkyModifierElement(
-  val sky: Sky,
-) : ModifierNodeElement<SkyModifierNode>() {
+private data class SkyModifierElement(val sky: Sky) : ModifierNodeElement<SkyModifierNode>() {
 
   override fun InspectorInfo.inspectableProperties() {
     name = "sky"
@@ -117,9 +113,8 @@ private data class SkyModifierElement(
   }
 }
 
-private class SkyModifierNode(
-  var sky: Sky,
-) : Modifier.Node(),
+private class SkyModifierNode(var sky: Sky) :
+  Modifier.Node(),
   DrawModifierNode,
   GlobalPositionAwareModifierNode {
 
@@ -291,10 +286,7 @@ private class CloudyBackgroundModifierNode(
     onStateChanged(CloudyState.Success.Applied)
   }
 
-  private fun ContentDrawScope.drawWithBlurEffect(
-    layer: GraphicsLayer,
-    snapshot: SkySnapshot,
-  ) {
+  private fun ContentDrawScope.drawWithBlurEffect(layer: GraphicsLayer, snapshot: SkySnapshot) {
     val sigma = snapshot.radius / 2.0f
 
     val context = requireGraphicsContext()

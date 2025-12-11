@@ -95,7 +95,7 @@ public sealed interface CloudyProgressive {
   @Immutable
   public data class TopToBottom(
     val start: Float = 0f,
-    val end: Float = CloudyDefaults.ProgressiveFadeEnd,
+    val end: Float = CloudyDefaults.PROGRESSIVE_FADE_END,
     val easing: Easing = FastOutSlowInEasing,
   ) : CloudyProgressive {
     init {
@@ -133,7 +133,7 @@ public sealed interface CloudyProgressive {
   @Immutable
   public data class BottomToTop(
     val start: Float = 1f,
-    val end: Float = 1f - CloudyDefaults.ProgressiveFadeEnd,
+    val end: Float = 1f - CloudyDefaults.PROGRESSIVE_FADE_END,
     val easing: Easing = FastOutSlowInEasing,
   ) : CloudyProgressive {
     init {
@@ -168,7 +168,7 @@ public sealed interface CloudyProgressive {
    */
   @Immutable
   public data class Edges(
-    val fadeDistance: Float = CloudyDefaults.EdgesFadeDistance,
+    val fadeDistance: Float = CloudyDefaults.EDGES_FADE_DISTANCE,
     val easing: Easing = FastOutSlowInEasing,
   ) : CloudyProgressive {
     init {

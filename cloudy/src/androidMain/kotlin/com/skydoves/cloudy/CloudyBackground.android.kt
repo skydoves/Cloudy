@@ -67,9 +67,7 @@ private const val TAG = "CloudyBackground"
  * Captures content to a [GraphicsLayer] and stores it in [Sky.backgroundLayer].
  */
 @Composable
-public actual fun Modifier.sky(sky: Sky): Modifier {
-  return this.then(SkyModifierElement(sky = sky))
-}
+public actual fun Modifier.sky(sky: Sky): Modifier = this.then(SkyModifierElement(sky = sky))
 
 /**
  * Android implementation of [Modifier.cloudy] for background blur.
@@ -119,9 +117,7 @@ public actual fun Modifier.cloudy(
 // Sky Modifier Implementation
 // ============================================================================
 
-private data class SkyModifierElement(
-  val sky: Sky,
-) : ModifierNodeElement<SkyModifierNode>() {
+private data class SkyModifierElement(val sky: Sky) : ModifierNodeElement<SkyModifierNode>() {
 
   override fun InspectorInfo.inspectableProperties() {
     name = "sky"
@@ -134,9 +130,8 @@ private data class SkyModifierElement(
   }
 }
 
-private class SkyModifierNode(
-  var sky: Sky,
-) : Modifier.Node(),
+private class SkyModifierNode(var sky: Sky) :
+  Modifier.Node(),
   DrawModifierNode,
   GlobalPositionAwareModifierNode {
 
@@ -374,10 +369,7 @@ private class CloudyBackgroundModifierNode(
    * This is used when CPU blur is disabled on API 30 and below for better performance.
    * Following the Haze library approach.
    */
-  private fun ContentDrawScope.drawScrimFallback(
-    layer: GraphicsLayer,
-    snapshot: SkySnapshot,
-  ) {
+  private fun ContentDrawScope.drawScrimFallback(layer: GraphicsLayer, snapshot: SkySnapshot) {
     // 1. Draw the background region without blur
     drawContext.canvas.save()
     drawContext.canvas.translate(-snapshot.offsetX, -snapshot.offsetY)
@@ -399,10 +391,7 @@ private class CloudyBackgroundModifierNode(
   }
 
   @RequiresApi(Build.VERSION_CODES.S)
-  private fun ContentDrawScope.drawWithRenderEffect(
-    layer: GraphicsLayer,
-    snapshot: SkySnapshot,
-  ) {
+  private fun ContentDrawScope.drawWithRenderEffect(layer: GraphicsLayer, snapshot: SkySnapshot) {
     // Log warning for progressive blur on API 31-32 (not supported with RenderEffect)
     if (snapshot.direction != SkySnapshot.ProgressiveDirection.NONE &&
       Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
@@ -462,10 +451,7 @@ private class CloudyBackgroundModifierNode(
     }
   }
 
-  private fun ContentDrawScope.drawWithBitmap(
-    layer: GraphicsLayer,
-    snapshot: SkySnapshot,
-  ) {
+  private fun ContentDrawScope.drawWithBitmap(layer: GraphicsLayer, snapshot: SkySnapshot) {
     val currentVersion = sky.contentVersion
     val cached = blurredBitmap
     val cacheValid = cached != null &&

@@ -23,89 +23,90 @@ import io.kotest.matchers.shouldBe
 /**
  * Unit tests for [SkySnapshot] creation and direction mapping.
  */
-internal class SkySnapshotTest : FunSpec({
+internal class SkySnapshotTest :
+  FunSpec({
 
-  context("fromProgressive") {
-    test("should create snapshot with NONE direction for CloudyProgressive.None") {
-      val snapshot = SkySnapshot.fromProgressive(
-        radius = 20,
-        offsetX = 10f,
-        offsetY = 20f,
-        childWidth = 100f,
-        childHeight = 200f,
-        progressive = CloudyProgressive.None,
-        tintColor = Color.Transparent,
-      )
+    context("fromProgressive") {
+      test("should create snapshot with NONE direction for CloudyProgressive.None") {
+        val snapshot = SkySnapshot.fromProgressive(
+          radius = 20,
+          offsetX = 10f,
+          offsetY = 20f,
+          childWidth = 100f,
+          childHeight = 200f,
+          progressive = CloudyProgressive.None,
+          tintColor = Color.Transparent,
+        )
 
-      snapshot.direction.shouldBe(SkySnapshot.ProgressiveDirection.NONE)
-      snapshot.radius.shouldBe(20)
-      snapshot.offsetX.shouldBe(10f)
-      snapshot.offsetY.shouldBe(20f)
-      snapshot.childWidth.shouldBe(100f)
-      snapshot.childHeight.shouldBe(200f)
+        snapshot.direction.shouldBe(SkySnapshot.ProgressiveDirection.NONE)
+        snapshot.radius.shouldBe(20)
+        snapshot.offsetX.shouldBe(10f)
+        snapshot.offsetY.shouldBe(20f)
+        snapshot.childWidth.shouldBe(100f)
+        snapshot.childHeight.shouldBe(200f)
+      }
+
+      test("should create snapshot with TOP_TO_BOTTOM direction") {
+        val snapshot = SkySnapshot.fromProgressive(
+          radius = 25,
+          offsetX = 0f,
+          offsetY = 0f,
+          childWidth = 100f,
+          childHeight = 100f,
+          progressive = CloudyProgressive.TopToBottom(start = 0.1f, end = 0.9f),
+          tintColor = Color.White,
+        )
+
+        snapshot.direction.shouldBe(SkySnapshot.ProgressiveDirection.TOP_TO_BOTTOM)
+        snapshot.fadeStart.shouldBe(0.1f)
+        snapshot.fadeEnd.shouldBe(0.9f)
+        snapshot.tintColor.shouldBe(Color.White)
+      }
+
+      test("should create snapshot with BOTTOM_TO_TOP direction") {
+        val snapshot = SkySnapshot.fromProgressive(
+          radius = 30,
+          offsetX = 0f,
+          offsetY = 0f,
+          childWidth = 100f,
+          childHeight = 100f,
+          progressive = CloudyProgressive.BottomToTop(start = 0.9f, end = 0.1f),
+          tintColor = Color.Black,
+        )
+
+        snapshot.direction.shouldBe(SkySnapshot.ProgressiveDirection.BOTTOM_TO_TOP)
+        snapshot.fadeStart.shouldBe(0.9f)
+        snapshot.fadeEnd.shouldBe(0.1f)
+        snapshot.tintColor.shouldBe(Color.Black)
+      }
+
+      test("should create snapshot with EDGES direction") {
+        val snapshot = SkySnapshot.fromProgressive(
+          radius = 15,
+          offsetX = 50f,
+          offsetY = 50f,
+          childWidth = 200f,
+          childHeight = 200f,
+          progressive = CloudyProgressive.Edges(fadeDistance = 0.3f),
+          tintColor = Color.Gray,
+        )
+
+        snapshot.direction.shouldBe(SkySnapshot.ProgressiveDirection.EDGES)
+        snapshot.fadeStart.shouldBe(0.3f)
+        snapshot.fadeEnd.shouldBe(0.7f) // 1 - 0.3
+      }
     }
 
-    test("should create snapshot with TOP_TO_BOTTOM direction") {
-      val snapshot = SkySnapshot.fromProgressive(
-        radius = 25,
-        offsetX = 0f,
-        offsetY = 0f,
-        childWidth = 100f,
-        childHeight = 100f,
-        progressive = CloudyProgressive.TopToBottom(start = 0.1f, end = 0.9f),
-        tintColor = Color.White,
-      )
+    context("ProgressiveDirection enum") {
+      test("should have correct ordinal values") {
+        SkySnapshot.ProgressiveDirection.NONE.ordinal.shouldBe(0)
+        SkySnapshot.ProgressiveDirection.TOP_TO_BOTTOM.ordinal.shouldBe(1)
+        SkySnapshot.ProgressiveDirection.BOTTOM_TO_TOP.ordinal.shouldBe(2)
+        SkySnapshot.ProgressiveDirection.EDGES.ordinal.shouldBe(3)
+      }
 
-      snapshot.direction.shouldBe(SkySnapshot.ProgressiveDirection.TOP_TO_BOTTOM)
-      snapshot.fadeStart.shouldBe(0.1f)
-      snapshot.fadeEnd.shouldBe(0.9f)
-      snapshot.tintColor.shouldBe(Color.White)
+      test("should have all four directions") {
+        SkySnapshot.ProgressiveDirection.entries.size.shouldBe(4)
+      }
     }
-
-    test("should create snapshot with BOTTOM_TO_TOP direction") {
-      val snapshot = SkySnapshot.fromProgressive(
-        radius = 30,
-        offsetX = 0f,
-        offsetY = 0f,
-        childWidth = 100f,
-        childHeight = 100f,
-        progressive = CloudyProgressive.BottomToTop(start = 0.9f, end = 0.1f),
-        tintColor = Color.Black,
-      )
-
-      snapshot.direction.shouldBe(SkySnapshot.ProgressiveDirection.BOTTOM_TO_TOP)
-      snapshot.fadeStart.shouldBe(0.9f)
-      snapshot.fadeEnd.shouldBe(0.1f)
-      snapshot.tintColor.shouldBe(Color.Black)
-    }
-
-    test("should create snapshot with EDGES direction") {
-      val snapshot = SkySnapshot.fromProgressive(
-        radius = 15,
-        offsetX = 50f,
-        offsetY = 50f,
-        childWidth = 200f,
-        childHeight = 200f,
-        progressive = CloudyProgressive.Edges(fadeDistance = 0.3f),
-        tintColor = Color.Gray,
-      )
-
-      snapshot.direction.shouldBe(SkySnapshot.ProgressiveDirection.EDGES)
-      snapshot.fadeStart.shouldBe(0.3f)
-      snapshot.fadeEnd.shouldBe(0.7f) // 1 - 0.3
-    }
-  }
-
-  context("ProgressiveDirection enum") {
-    test("should have correct ordinal values") {
-      SkySnapshot.ProgressiveDirection.NONE.ordinal.shouldBe(0)
-      SkySnapshot.ProgressiveDirection.TOP_TO_BOTTOM.ordinal.shouldBe(1)
-      SkySnapshot.ProgressiveDirection.BOTTOM_TO_TOP.ordinal.shouldBe(2)
-      SkySnapshot.ProgressiveDirection.EDGES.ordinal.shouldBe(3)
-    }
-
-    test("should have all four directions") {
-      SkySnapshot.ProgressiveDirection.entries.size.shouldBe(4)
-    }
-  }
-})
+  })
