@@ -5,11 +5,11 @@ public final class com/skydoves/cloudy/CloudyBackground_skikoKt {
 
 public final class com/skydoves/cloudy/CloudyDefaults {
 	public static final field $stable I
-	public static final field BackgroundRadius I
-	public static final field CpuBlurEnabled Z
-	public static final field EdgesFadeDistance F
+	public static final field BACKGROUND_RADIUS I
+	public static final field CPP_BLUR_ENABLED Z
+	public static final field EDGES_FADE_DISTANCE F
 	public static final field INSTANCE Lcom/skydoves/cloudy/CloudyDefaults;
-	public static final field ProgressiveFadeEnd F
+	public static final field PROGRESSIVE_FADE_END F
 	public final fun getDefaultScrimColor-0d7_KjU ()J
 }
 
