@@ -67,7 +67,11 @@ kotlin {
   // WebAssembly target
   @OptIn(org.jetbrains.kotlin.gradle.ExperimentalWasmDsl::class)
   wasmJs {
-    browser()
+    browser {
+      testTask {
+        enabled = false // Kotest doesn't support wasmJs yet
+      }
+    }
   }
 
   // iOS targets
