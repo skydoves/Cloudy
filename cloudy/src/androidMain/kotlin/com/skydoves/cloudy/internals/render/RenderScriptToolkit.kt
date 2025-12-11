@@ -214,8 +214,8 @@ internal object RenderScriptToolkit {
     require(radius in 1..25) {
       "$EXTERNAL_NAME backgroundBlur. The radius should be between 1 and 25. $radius provided."
     }
-    require(scale in 0f..1f) {
-      "$EXTERNAL_NAME backgroundBlur. The scale should be between 0 and 1. $scale provided."
+    require(scale > 0f && scale <= 1f) {
+      "$EXTERNAL_NAME backgroundBlur. The scale should be greater than 0 and at most 1. $scale provided."
     }
     require(cropX >= 0 && cropY >= 0) {
       "$EXTERNAL_NAME backgroundBlur. Crop offsets must be non-negative."

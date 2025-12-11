@@ -117,7 +117,7 @@ public expect fun Modifier.sky(sky: Sky): Modifier
  *                       When `false` (default), a scrim overlay is shown instead of blur.
  *                       When `true`, CPU blur is applied (may impact performance).
  *                       This setting only affects Android API 30 and below.
- *                       Defaults to [CloudyDefaults.CpuBlurEnabled].
+ *                       Defaults to [CloudyDefaults.CPP_BLUR_ENABLED].
  * @param onStateChanged Callback invoked when the blur state changes.
  * @return A [Modifier] with the background blur effect applied.
  *
@@ -129,7 +129,7 @@ public expect fun Modifier.sky(sky: Sky): Modifier
 @Composable
 public expect fun Modifier.cloudy(
   sky: Sky,
-  @androidx.annotation.IntRange(from = 0) radius: Int = CloudyDefaults.BACKGROUND_RADIUS,
+  radius: Int = CloudyDefaults.BACKGROUND_RADIUS,
   progressive: CloudyProgressive = CloudyProgressive.None,
   tint: Color = Color.Transparent,
   enabled: Boolean = true,

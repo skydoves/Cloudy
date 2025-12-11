@@ -90,7 +90,7 @@ public:
 };
 
 // Global buffer instance for reuse
-static BackgroundBlurBuffers gBuffers;
+static thread_local BackgroundBlurBuffers gBuffers;
 
 /**
  * Crops and scales down a region from the source image.
