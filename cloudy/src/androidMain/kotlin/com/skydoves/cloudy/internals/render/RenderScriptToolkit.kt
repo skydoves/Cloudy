@@ -217,6 +217,10 @@ internal object RenderScriptToolkit {
     require(scale > 0f && scale <= 1f) {
       "$EXTERNAL_NAME backgroundBlur. The scale should be greater than 0 and at most 1. $scale provided."
     }
+    require(fadeStart in 0f..1f && fadeEnd in 0f..1f) {
+      "$EXTERNAL_NAME backgroundBlur. fadeStart and fadeEnd must be in the range [0, 1]. " +
+        "fadeStart=$fadeStart, fadeEnd=$fadeEnd provided."
+    }
     require(cropX >= 0 && cropY >= 0) {
       "$EXTERNAL_NAME backgroundBlur. Crop offsets must be non-negative."
     }

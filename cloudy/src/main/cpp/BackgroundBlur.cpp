@@ -309,7 +309,7 @@ bool RenderScriptToolkit::backgroundBlur(
         return false;
     }
     if (scale <= 0.0f || scale > 1.0f) {
-        ALOGE("backgroundBlur: scale must be 0-1, got %f", scale);
+        ALOGE("backgroundBlur: scale must be > 0 and <= 1, got %f", scale);
         return false;
     }
     if (cropWidth == 0 || cropHeight == 0) {
