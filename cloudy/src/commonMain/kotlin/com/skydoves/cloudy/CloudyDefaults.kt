@@ -15,6 +15,8 @@
  */
 package com.skydoves.cloudy
 
+import androidx.compose.ui.graphics.Color
+
 /**
  * Default values and constants for Cloudy blur effects.
  */
@@ -43,4 +45,26 @@ public object CloudyDefaults {
    * transitions from full intensity to zero.
    */
   public const val EdgesFadeDistance: Float = 0.2f
+
+  /**
+   * Default setting for CPU-based blur on Android 30 and below.
+   *
+   * When `false` (default), CPU blur is disabled and a scrim overlay is shown instead.
+   * This follows the Haze library approach for better performance on older devices.
+   *
+   * When `true`, CPU-based blur is enabled, which may impact performance
+   * on older devices with large blur radii or frequent updates.
+   *
+   * This setting only affects Android API 30 and below. GPU-accelerated blur
+   * on API 31+ is always enabled regardless of this setting.
+   */
+  public const val CpuBlurEnabled: Boolean = false
+
+  /**
+   * Default scrim color used when CPU blur is disabled.
+   *
+   * This semi-transparent overlay provides a visual effect similar to blur
+   * without the performance overhead of CPU-based blur processing.
+   */
+  public val DefaultScrimColor: Color = Color.Black.copy(alpha = 0.3f)
 }

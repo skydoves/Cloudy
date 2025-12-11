@@ -186,6 +186,7 @@ internal class CloudyModifierTest {
       CloudyState.Loading,
       CloudyState.Success.Applied,
       CloudyState.Success.Captured(createMockPlatformBitmap()),
+      CloudyState.Success.Scrim,
       CloudyState.Error(RuntimeException("test")),
     )
 
@@ -195,6 +196,7 @@ internal class CloudyModifierTest {
         CloudyState.Loading -> "loading"
         is CloudyState.Success.Applied -> "applied"
         is CloudyState.Success.Captured -> "captured"
+        is CloudyState.Success.Scrim -> "scrim"
         is CloudyState.Error -> "error"
       }
       assertTrue(description.isNotEmpty())

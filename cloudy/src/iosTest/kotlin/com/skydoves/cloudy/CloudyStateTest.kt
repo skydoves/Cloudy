@@ -97,4 +97,30 @@ internal class CloudyStateTest {
     val state2 = CloudyState.Success.Captured(bitmap2)
     assertFalse(state1 == state2)
   }
+
+  @Test
+  fun successScrimStateShouldBeSingleton() {
+    val state1 = CloudyState.Success.Scrim
+    val state2 = CloudyState.Success.Scrim
+    assertTrue(state1 === state2)
+  }
+
+  @Test
+  fun successScrimShouldBeInstanceOfSuccess() {
+    val state: CloudyState = CloudyState.Success.Scrim
+    assertTrue(state is CloudyState.Success)
+  }
+
+  @Test
+  fun successTypeHierarchyAllowsPatternMatchingAllSubtypesIncludingScrim() {
+    val appliedState: CloudyState = CloudyState.Success.Applied
+    val capturedState: CloudyState = CloudyState.Success.Captured(
+      createTestPlatformBitmap(100, 100),
+    )
+    val scrimState: CloudyState = CloudyState.Success.Scrim
+
+    assertTrue(appliedState is CloudyState.Success.Applied)
+    assertTrue(capturedState is CloudyState.Success.Captured)
+    assertTrue(scrimState is CloudyState.Success.Scrim)
+  }
 }

@@ -60,6 +60,9 @@ public actual fun Modifier.sky(sky: Sky): Modifier {
  * using Skia's BlurEffect for GPU-accelerated rendering.
  *
  * This implementation is shared across iOS, macOS, JVM Desktop, and WASM platforms.
+ *
+ * Note: The [cpuBlurEnabled] parameter is ignored on Skiko platforms as they always use
+ * GPU-accelerated blur via Skia. This parameter exists for API consistency with Android.
  */
 @Composable
 public actual fun Modifier.cloudy(
@@ -68,6 +71,7 @@ public actual fun Modifier.cloudy(
   progressive: CloudyProgressive,
   tint: Color,
   enabled: Boolean,
+  @Suppress("UNUSED_PARAMETER") cpuBlurEnabled: Boolean,
   onStateChanged: (CloudyState) -> Unit,
 ): Modifier {
   require(radius >= 0) { "Blur radius must be non-negative, but was $radius" }

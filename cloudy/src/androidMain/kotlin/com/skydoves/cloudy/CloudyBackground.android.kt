@@ -83,6 +83,7 @@ public actual fun Modifier.cloudy(
   progressive: CloudyProgressive,
   tint: Color,
   enabled: Boolean,
+  cpuBlurEnabled: Boolean,
   onStateChanged: (CloudyState) -> Unit,
 ): Modifier {
   require(radius >= 0) { "Blur radius must be non-negative, but was $radius" }
@@ -91,9 +92,9 @@ public actual fun Modifier.cloudy(
     return this
   }
 
-  // Log performance warning for legacy API
-  LaunchedEffect(Unit) {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+  // Log performance warning for legacy API when CPU blur is enabled
+  LaunchedEffect(cpuBlurEnabled) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S && cpuBlurEnabled) {
       Log.w(
         TAG,
         "cloudy(sky) on API ${Build.VERSION.SDK_INT} uses CPU-based blur. " +
@@ -108,6 +109,7 @@ public actual fun Modifier.cloudy(
       radius = radius,
       progressive = progressive,
       tint = tint,
+      cpuBlurEnabled = cpuBlurEnabled,
       onStateChanged = onStateChanged,
     ),
   )
@@ -195,6 +197,7 @@ private data class CloudyBackgroundModifierElement(
   val radius: Int,
   val progressive: CloudyProgressive,
   val tint: Color,
+  val cpuBlurEnabled: Boolean,
   val onStateChanged: (CloudyState) -> Unit,
 ) : ModifierNodeElement<CloudyBackgroundModifierNode>() {
 
@@ -204,6 +207,7 @@ private data class CloudyBackgroundModifierElement(
     properties["radius"] = radius
     properties["progressive"] = progressive
     properties["tint"] = tint
+    properties["cpuBlurEnabled"] = cpuBlurEnabled
   }
 
   override fun create(): CloudyBackgroundModifierNode = CloudyBackgroundModifierNode(
@@ -211,11 +215,12 @@ private data class CloudyBackgroundModifierElement(
     radius = radius,
     progressive = progressive,
     tint = tint,
+    cpuBlurEnabled = cpuBlurEnabled,
     onStateChanged = onStateChanged,
   )
 
   override fun update(node: CloudyBackgroundModifierNode) {
-    node.update(sky, radius, progressive, tint, onStateChanged)
+    node.update(sky, radius, progressive, tint, cpuBlurEnabled, onStateChanged)
   }
 }
 
@@ -224,6 +229,7 @@ private class CloudyBackgroundModifierNode(
   private var radius: Int,
   private var progressive: CloudyProgressive,
   private var tint: Color,
+  private var cpuBlurEnabled: Boolean,
   private var onStateChanged: (CloudyState) -> Unit,
 ) : Modifier.Node(),
   DrawModifierNode,
@@ -255,17 +261,20 @@ private class CloudyBackgroundModifierNode(
     radius: Int,
     progressive: CloudyProgressive,
     tint: Color,
+    cpuBlurEnabled: Boolean,
     onStateChanged: (CloudyState) -> Unit,
   ) {
     val needsRedraw = this.sky != sky ||
       this.radius != radius ||
       this.progressive != progressive ||
-      this.tint != tint
+      this.tint != tint ||
+      this.cpuBlurEnabled != cpuBlurEnabled
 
     this.sky = sky
     this.radius = radius
     this.progressive = progressive
     this.tint = tint
+    this.cpuBlurEnabled = cpuBlurEnabled
     this.onStateChanged = onStateChanged
 
     if (needsRedraw) {
@@ -322,15 +331,20 @@ private class CloudyBackgroundModifierNode(
 
     // Strategy pattern based on API level:
     // - API 31+ (S): GPU-accelerated RenderEffect (sync, fast)
-    // - API < 31: CPU-based bitmap blur (async, slower)
+    // - API < 31 + cpuBlurEnabled: CPU-based bitmap blur (async, slower)
+    // - API < 31 + !cpuBlurEnabled: Scrim fallback (no blur, sync, fast)
     when {
       Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
         // GPU blur - progressive blur not supported on API 31-32
         drawWithRenderEffect(backgroundLayer, snapshot)
       }
-      else -> {
+      cpuBlurEnabled -> {
         // CPU blur - supports progressive blur
         drawWithBitmap(backgroundLayer, snapshot)
+      }
+      else -> {
+        // Scrim fallback - no blur, just tint overlay
+        drawScrimFallback(backgroundLayer, snapshot)
       }
     }
     drawContent()
@@ -352,6 +366,36 @@ private class CloudyBackgroundModifierNode(
     }
 
     onStateChanged(CloudyState.Success.Applied)
+  }
+
+  /**
+   * Draws a scrim (semi-transparent overlay) instead of blur.
+   *
+   * This is used when CPU blur is disabled on API 30 and below for better performance.
+   * Following the Haze library approach.
+   */
+  private fun ContentDrawScope.drawScrimFallback(
+    layer: GraphicsLayer,
+    snapshot: SkySnapshot,
+  ) {
+    // 1. Draw the background region without blur
+    drawContext.canvas.save()
+    drawContext.canvas.translate(-snapshot.offsetX, -snapshot.offsetY)
+    drawLayer(layer)
+    drawContext.canvas.restore()
+
+    // 2. Apply scrim overlay (use tint if specified, otherwise use default scrim color)
+    val scrimColor = if (snapshot.tintColor == Color.Transparent) {
+      CloudyDefaults.DefaultScrimColor
+    } else {
+      snapshot.tintColor
+    }
+
+    clipRect {
+      drawRect(color = scrimColor, blendMode = BlendMode.SrcOver)
+    }
+
+    onStateChanged(CloudyState.Success.Scrim)
   }
 
   @RequiresApi(Build.VERSION_CODES.S)

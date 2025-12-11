@@ -1,14 +1,16 @@
 public final class com/skydoves/cloudy/CloudyBackground_skikoKt {
-	public static final fun cloudy-3f6hBDE (Landroidx/compose/ui/Modifier;Lcom/skydoves/cloudy/Sky;ILcom/skydoves/cloudy/CloudyProgressive;JZLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
+	public static final fun cloudy-NpZTi58 (Landroidx/compose/ui/Modifier;Lcom/skydoves/cloudy/Sky;ILcom/skydoves/cloudy/CloudyProgressive;JZZLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
 	public static final fun sky (Landroidx/compose/ui/Modifier;Lcom/skydoves/cloudy/Sky;Landroidx/compose/runtime/Composer;I)Landroidx/compose/ui/Modifier;
 }
 
 public final class com/skydoves/cloudy/CloudyDefaults {
 	public static final field $stable I
 	public static final field BackgroundRadius I
+	public static final field CpuBlurEnabled Z
 	public static final field EdgesFadeDistance F
 	public static final field INSTANCE Lcom/skydoves/cloudy/CloudyDefaults;
 	public static final field ProgressiveFadeEnd F
+	public final fun getDefaultScrimColor-0d7_KjU ()J
 }
 
 public abstract interface class com/skydoves/cloudy/CloudyProgressive {
@@ -124,6 +126,14 @@ public final class com/skydoves/cloudy/CloudyState$Success$Captured : com/skydov
 	public static synthetic fun copy$default (Lcom/skydoves/cloudy/CloudyState$Success$Captured;Lcom/skydoves/cloudy/PlatformBitmap;ILjava/lang/Object;)Lcom/skydoves/cloudy/CloudyState$Success$Captured;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getBitmap ()Lcom/skydoves/cloudy/PlatformBitmap;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/skydoves/cloudy/CloudyState$Success$Scrim : com/skydoves/cloudy/CloudyState$Success {
+	public static final field $stable I
+	public static final field INSTANCE Lcom/skydoves/cloudy/CloudyState$Success$Scrim;
+	public fun equals (Ljava/lang/Object;)Z
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }

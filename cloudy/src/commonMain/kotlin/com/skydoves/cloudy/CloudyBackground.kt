@@ -71,7 +71,7 @@ public expect fun Modifier.sky(sky: Sky): Modifier
  * |----------|-----------|----------------|------------------|
  * | Android | 33+ | AGSL RuntimeShader | Supported |
  * | Android | 31-32 | RenderEffect | Uniform only |
- * | Android | 30- | Bitmap + CPU | Uniform only |
+ * | Android | 30- | Bitmap + CPU (if enabled) or Scrim | Uniform only |
  * | iOS/macOS/Desktop/WASM | - | Skia BlurEffect | Supported |
  *
  * ## Usage
@@ -113,6 +113,11 @@ public expect fun Modifier.sky(sky: Sky): Modifier
  *             Use semi-transparent colors for best results.
  *             Defaults to [Color.Transparent] (no tint).
  * @param enabled If false, disables the blur effect and renders nothing (transparent).
+ * @param cpuBlurEnabled Whether to enable CPU-based blur on Android 30 and below.
+ *                       When `false` (default), a scrim overlay is shown instead of blur.
+ *                       When `true`, CPU blur is applied (may impact performance).
+ *                       This setting only affects Android API 30 and below.
+ *                       Defaults to [CloudyDefaults.CpuBlurEnabled].
  * @param onStateChanged Callback invoked when the blur state changes.
  * @return A [Modifier] with the background blur effect applied.
  *
@@ -128,5 +133,6 @@ public expect fun Modifier.cloudy(
   progressive: CloudyProgressive = CloudyProgressive.None,
   tint: Color = Color.Transparent,
   enabled: Boolean = true,
+  cpuBlurEnabled: Boolean = CloudyDefaults.CpuBlurEnabled,
   onStateChanged: (CloudyState) -> Unit = {},
 ): Modifier

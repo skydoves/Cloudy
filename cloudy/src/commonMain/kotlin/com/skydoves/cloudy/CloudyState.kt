@@ -84,6 +84,18 @@ public sealed interface CloudyState {
      */
     @Stable
     public data class Captured(public val bitmap: PlatformBitmap) : Success
+
+    /**
+     * Scrim-only fallback was applied (no blur processing).
+     *
+     * This state is returned when CPU-based blur is disabled on Android 30 and below:
+     * - When [CloudyDefaults.CpuBlurEnabled] is `false` (default)
+     * - A semi-transparent scrim overlay is shown instead of blur
+     *
+     * This follows the Haze library approach for better performance on older devices.
+     */
+    @Immutable
+    public data object Scrim : Success
   }
 
   /**

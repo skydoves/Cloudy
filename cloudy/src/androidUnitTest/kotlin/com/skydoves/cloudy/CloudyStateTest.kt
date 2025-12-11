@@ -126,4 +126,32 @@ internal class CloudyStateTest {
 
     assertNotEquals(state1, state2)
   }
+
+  @Test
+  fun `Success Scrim state should be singleton`() {
+    val state1 = CloudyState.Success.Scrim
+    val state2 = CloudyState.Success.Scrim
+
+    assertSame(state1, state2)
+  }
+
+  @Test
+  fun `Success Scrim should be instance of Success`() {
+    val state: CloudyState = CloudyState.Success.Scrim
+
+    assertTrue(state is CloudyState.Success)
+  }
+
+  @Test
+  fun `Success type hierarchy allows pattern matching all subtypes including Scrim`() {
+    val appliedState: CloudyState = CloudyState.Success.Applied
+    val capturedState: CloudyState = CloudyState.Success.Captured(
+      createMockPlatformBitmap(100, 100),
+    )
+    val scrimState: CloudyState = CloudyState.Success.Scrim
+
+    assertTrue(appliedState is CloudyState.Success.Applied)
+    assertTrue(capturedState is CloudyState.Success.Captured)
+    assertTrue(scrimState is CloudyState.Success.Scrim)
+  }
 }
