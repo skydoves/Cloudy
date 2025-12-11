@@ -129,6 +129,7 @@ kotlin {
       implementation(compose.runtime)
       implementation(compose.foundation)
       implementation(compose.ui)
+      implementation(compose.components.uiToolingPreview)
       implementation(libs.compose.resources)
       implementation(compose.material)
       implementation(compose.material3)

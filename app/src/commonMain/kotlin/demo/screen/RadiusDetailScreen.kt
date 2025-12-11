@@ -115,6 +115,33 @@ fun RadiusDetailScreen(radius: Int, onBackClick: () -> Unit) {
  */
 @Composable
 private fun RadiusDetailCard(title: String, radius: Int, poster: Poster, animated: Boolean) {
+  RadiusDetailCardLayout(
+    title = title,
+    radius = radius,
+    animated = animated,
+  ) { modifier ->
+    CoilImage(
+      modifier = modifier,
+      imageModel = { poster.image },
+    )
+  }
+}
+
+/**
+ * Layout component for radius detail card, separated for preview support.
+ *
+ * @param title The card title.
+ * @param radius The target blur radius.
+ * @param animated Whether to animate from 0 to radius.
+ * @param imageContent Slot for the image content with blur modifier applied.
+ */
+@Composable
+internal fun RadiusDetailCardLayout(
+  title: String,
+  radius: Int,
+  animated: Boolean,
+  imageContent: @Composable (Modifier) -> Unit,
+) {
   var animationPlayed by remember { mutableStateOf(!animated) }
   val animatedRadius by animateIntAsState(
     targetValue = if (animationPlayed) radius else 0,
@@ -133,6 +160,7 @@ private fun RadiusDetailCard(title: String, radius: Int, poster: Poster, animate
   }
 
   val imageShape = RoundedCornerShape(Dimens.itemSpacing)
+  val currentRadius = if (animated) animatedRadius else radius
 
   Card(
     modifier = Modifier.fillMaxWidth(),
@@ -153,19 +181,18 @@ private fun RadiusDetailCard(title: String, radius: Int, poster: Poster, animate
 
       Spacer(modifier = Modifier.height(Dimens.itemSpacing))
 
-      CoilImage(
-        modifier = Modifier
+      imageContent(
+        Modifier
           .size(300.dp)
           .clip(imageShape)
           .background(MaterialTheme.colors.surface, imageShape)
-          .cloudy(radius = if (animated) animatedRadius else radius),
-        imageModel = { poster.image },
+          .cloudy(radius = currentRadius),
       )
 
       Spacer(modifier = Modifier.height(8.dp))
 
       Text(
-        text = "Current radius: ${if (animated) animatedRadius else radius}",
+        text = "Current radius: $currentRadius",
         fontSize = 14.sp,
         color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
       )

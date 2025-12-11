@@ -64,6 +64,38 @@ internal fun MenuCard(
   onClick: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
+  MenuCardLayout(
+    title = title,
+    description = description,
+    onClick = onClick,
+    modifier = modifier,
+  ) { imageModifier ->
+    CoilImage(
+      modifier = imageModifier,
+      imageModel = { poster.image },
+    )
+  }
+}
+
+/**
+ * Layout component for menu card, separated for preview support.
+ *
+ * @param title The title to display on the card.
+ * @param description A brief description of the menu item.
+ * @param onClick Callback when the card is clicked.
+ * @param modifier Modifier to apply to the card.
+ * @param blurRadius The blur radius to apply to the background image.
+ * @param imageContent Slot for the background image content with blur modifier applied.
+ */
+@Composable
+internal fun MenuCardLayout(
+  title: String,
+  description: String,
+  onClick: () -> Unit,
+  modifier: Modifier = Modifier,
+  blurRadius: Int = 10,
+  imageContent: @Composable (Modifier) -> Unit,
+) {
   Card(
     modifier = modifier
       .fillMaxWidth()
@@ -73,11 +105,10 @@ internal fun MenuCard(
     shape = RoundedCornerShape(Dimens.cardCornerRadius),
   ) {
     Box {
-      CoilImage(
-        modifier = Modifier
+      imageContent(
+        Modifier
           .fillMaxSize()
-          .cloudy(radius = 10),
-        imageModel = { poster.image },
+          .cloudy(radius = blurRadius),
       )
 
       // Gradient overlay for better text readability
