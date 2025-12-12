@@ -316,6 +316,22 @@ bool RenderScriptToolkit::backgroundBlur(
         ALOGE("backgroundBlur: crop dimensions are zero");
         return false;
     }
+    if (fadeStart < 0.0f || fadeStart > 1.0f || fadeEnd < 0.0f || fadeEnd > 1.0f) {
+        ALOGE("backgroundBlur: fadeStart and fadeEnd must be in [0.0, 1.0], got %f, %f", fadeStart, fadeEnd);
+        return false;
+    }
+    if (progressiveDir == ProgressiveDirection::TOP_TO_BOTTOM && fadeStart >= fadeEnd) {
+        ALOGE("backgroundBlur: TOP_TO_BOTTOM requires fadeStart < fadeEnd, got %f >= %f", fadeStart, fadeEnd);
+        return false;
+    }
+    if (progressiveDir == ProgressiveDirection::BOTTOM_TO_TOP && fadeEnd >= fadeStart) {
+        ALOGE("backgroundBlur: BOTTOM_TO_TOP requires fadeEnd < fadeStart, got %f >= %f", fadeEnd, fadeStart);
+        return false;
+    }
+    if (progressiveDir == ProgressiveDirection::EDGES && fadeStart >= fadeEnd) {
+        ALOGE("backgroundBlur: EDGES requires fadeStart < fadeEnd, got %f >= %f", fadeStart, fadeEnd);
+        return false;
+    }
 
     // Calculate scaled dimensions
     const size_t scaledWidth = std::max(static_cast<size_t>(cropWidth * scale), size_t(1));
