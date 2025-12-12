@@ -45,6 +45,30 @@ import demo.theme.Dimens
  */
 @Composable
 internal fun GridPosterItem(poster: Poster, blurRadius: Int) {
+  GridPosterItemLayout(
+    name = poster.name,
+    blurRadius = blurRadius,
+  ) { modifier ->
+    CoilImage(
+      modifier = modifier,
+      imageModel = { poster.image },
+    )
+  }
+}
+
+/**
+ * Layout component for grid poster item, separated for preview support.
+ *
+ * @param name The name to display on the poster.
+ * @param blurRadius The blur radius to apply.
+ * @param imageContent Slot for the image content with blur modifier applied.
+ */
+@Composable
+internal fun GridPosterItemLayout(
+  name: String,
+  blurRadius: Int,
+  imageContent: @Composable (Modifier) -> Unit,
+) {
   Card(
     modifier = Modifier
       .fillMaxWidth()
@@ -53,11 +77,10 @@ internal fun GridPosterItem(poster: Poster, blurRadius: Int) {
     shape = RoundedCornerShape(Dimens.cardCornerRadius),
   ) {
     Box {
-      CoilImage(
-        modifier = Modifier
+      imageContent(
+        Modifier
           .fillMaxSize()
           .cloudy(radius = blurRadius),
-        imageModel = { poster.image },
       )
 
       // Gradient overlay for better text readability
@@ -76,7 +99,7 @@ internal fun GridPosterItem(poster: Poster, blurRadius: Int) {
           .padding(Dimens.contentPadding),
       ) {
         Text(
-          text = poster.name,
+          text = name,
           fontSize = 14.sp,
           fontWeight = FontWeight.SemiBold,
           color = Color.White,

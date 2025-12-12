@@ -29,6 +29,7 @@ import demo.screen.BlurAppBarGridScreen
 import demo.screen.GridListScreen
 import demo.screen.InteractiveSliderScreen
 import demo.screen.MenuHomeScreen
+import demo.screen.ProgressiveBlurDemoScreen
 import demo.screen.RadiusDetailScreen
 import demo.screen.RadiusItemsScreen
 import demo.theme.PosterTheme
@@ -55,6 +56,7 @@ fun CloudyDemoApp() {
               onRadiusItemsClick = { backStack.add(Route.RadiusItems) },
               onBlurAppBarGridClick = { backStack.add(Route.BlurAppBarGrid) },
               onInteractiveSliderClick = { backStack.add(Route.InteractiveSlider) },
+              onProgressiveBlurClick = { backStack.add(Route.ProgressiveBlur) },
             )
           }
 
@@ -86,6 +88,12 @@ fun CloudyDemoApp() {
 
           is Route.InteractiveSlider -> NavEntry(route) {
             InteractiveSliderScreen(
+              onBackClick = { backStack.removeLastOrNull() },
+            )
+          }
+
+          is Route.ProgressiveBlur -> NavEntry(route) {
+            ProgressiveBlurDemoScreen(
               onBackClick = { backStack.removeLastOrNull() },
             )
           }

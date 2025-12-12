@@ -235,3 +235,34 @@ Java_com_skydoves_cloudy_internals_render_RenderScriptToolkit_nativeBlurBitmap(
     toolkit->blur(input.get(), output.get(), input.width(), input.height(), input.vectorSize(),
                   radius, restrict.get());
 }
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_com_skydoves_cloudy_internals_render_RenderScriptToolkit_nativeBackgroundBlur(
+        JNIEnv *env, jobject /*thiz*/, jlong native_handle,
+        jobject src_bitmap, jobject dst_bitmap,
+        jint cropX, jint cropY,
+        jint radius, jfloat scale,
+        jint progressiveDirection, jfloat fadeStart, jfloat fadeEnd) {
+    RenderScriptToolkit *toolkit = reinterpret_cast<RenderScriptToolkit *>(native_handle);
+    BitmapGuard src{env, src_bitmap};
+    BitmapGuard dst{env, dst_bitmap};
+
+    if (src.vectorSize() != 4 || dst.vectorSize() != 4) {
+        ALOGE("backgroundBlur requires ARGB_8888 bitmaps");
+        return JNI_FALSE;
+    }
+
+    RenderScriptToolkit::ProgressiveDirection dir =
+        static_cast<RenderScriptToolkit::ProgressiveDirection>(progressiveDirection);
+
+    bool result = toolkit->backgroundBlur(
+        src.get(), dst.get(),
+        src.width(), src.height(),
+        cropX, cropY,
+        dst.width(), dst.height(),
+        radius, scale,
+        dir, fadeStart, fadeEnd
+    );
+
+    return result ? JNI_TRUE : JNI_FALSE;
+}

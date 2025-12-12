@@ -67,7 +67,11 @@ kotlin {
   // WebAssembly target
   @OptIn(org.jetbrains.kotlin.gradle.ExperimentalWasmDsl::class)
   wasmJs {
-    browser()
+    browser {
+      testTask {
+        enabled = false // Kotest doesn't support wasmJs yet
+      }
+    }
   }
 
   // iOS targets
@@ -174,6 +178,14 @@ kotlin {
     commonTest.dependencies {
       implementation(libs.kotlin.test)
       implementation(libs.kotlinx.coroutines.test)
+      implementation(libs.kotest.framework.engine)
+      implementation(libs.kotest.assertions.core)
+    }
+
+    val desktopTest by getting {
+      dependencies {
+        implementation(libs.kotest.runner.junit5)
+      }
     }
 
     androidUnitTest.dependencies {
@@ -192,4 +204,8 @@ kotlin {
       implementation(libs.kotlinx.coroutines.test)
     }
   }
+}
+
+tasks.named<Test>("desktopTest") {
+  useJUnitPlatform()
 }

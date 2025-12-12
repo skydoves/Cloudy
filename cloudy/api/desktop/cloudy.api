@@ -1,3 +1,81 @@
+public final class com/skydoves/cloudy/CloudyBackground_skikoKt {
+	public static final fun cloudy-NpZTi58 (Landroidx/compose/ui/Modifier;Lcom/skydoves/cloudy/Sky;ILcom/skydoves/cloudy/CloudyProgressive;JZZLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
+	public static final fun sky (Landroidx/compose/ui/Modifier;Lcom/skydoves/cloudy/Sky;Landroidx/compose/runtime/Composer;I)Landroidx/compose/ui/Modifier;
+}
+
+public final class com/skydoves/cloudy/CloudyDefaults {
+	public static final field $stable I
+	public static final field BACKGROUND_RADIUS I
+	public static final field CPP_BLUR_ENABLED Z
+	public static final field EDGES_FADE_DISTANCE F
+	public static final field INSTANCE Lcom/skydoves/cloudy/CloudyDefaults;
+	public static final field PROGRESSIVE_FADE_END F
+	public final fun getDefaultScrimColor-0d7_KjU ()J
+}
+
+public abstract interface class com/skydoves/cloudy/CloudyProgressive {
+}
+
+public final class com/skydoves/cloudy/CloudyProgressive$BottomToTop : com/skydoves/cloudy/CloudyProgressive {
+	public static final field $stable I
+	public fun <init> ()V
+	public fun <init> (FFLandroidx/compose/animation/core/Easing;)V
+	public synthetic fun <init> (FFLandroidx/compose/animation/core/Easing;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()F
+	public final fun component2 ()F
+	public final fun component3 ()Landroidx/compose/animation/core/Easing;
+	public final fun copy (FFLandroidx/compose/animation/core/Easing;)Lcom/skydoves/cloudy/CloudyProgressive$BottomToTop;
+	public static synthetic fun copy$default (Lcom/skydoves/cloudy/CloudyProgressive$BottomToTop;FFLandroidx/compose/animation/core/Easing;ILjava/lang/Object;)Lcom/skydoves/cloudy/CloudyProgressive$BottomToTop;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEasing ()Landroidx/compose/animation/core/Easing;
+	public final fun getEnd ()F
+	public final fun getStart ()F
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/skydoves/cloudy/CloudyProgressive$Edges : com/skydoves/cloudy/CloudyProgressive {
+	public static final field $stable I
+	public fun <init> ()V
+	public fun <init> (FLandroidx/compose/animation/core/Easing;)V
+	public synthetic fun <init> (FLandroidx/compose/animation/core/Easing;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()F
+	public final fun component2 ()Landroidx/compose/animation/core/Easing;
+	public final fun copy (FLandroidx/compose/animation/core/Easing;)Lcom/skydoves/cloudy/CloudyProgressive$Edges;
+	public static synthetic fun copy$default (Lcom/skydoves/cloudy/CloudyProgressive$Edges;FLandroidx/compose/animation/core/Easing;ILjava/lang/Object;)Lcom/skydoves/cloudy/CloudyProgressive$Edges;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEasing ()Landroidx/compose/animation/core/Easing;
+	public final fun getFadeDistance ()F
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/skydoves/cloudy/CloudyProgressive$None : com/skydoves/cloudy/CloudyProgressive {
+	public static final field $stable I
+	public static final field INSTANCE Lcom/skydoves/cloudy/CloudyProgressive$None;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/skydoves/cloudy/CloudyProgressive$TopToBottom : com/skydoves/cloudy/CloudyProgressive {
+	public static final field $stable I
+	public fun <init> ()V
+	public fun <init> (FFLandroidx/compose/animation/core/Easing;)V
+	public synthetic fun <init> (FFLandroidx/compose/animation/core/Easing;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()F
+	public final fun component2 ()F
+	public final fun component3 ()Landroidx/compose/animation/core/Easing;
+	public final fun copy (FFLandroidx/compose/animation/core/Easing;)Lcom/skydoves/cloudy/CloudyProgressive$TopToBottom;
+	public static synthetic fun copy$default (Lcom/skydoves/cloudy/CloudyProgressive$TopToBottom;FFLandroidx/compose/animation/core/Easing;ILjava/lang/Object;)Lcom/skydoves/cloudy/CloudyProgressive$TopToBottom;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEasing ()Landroidx/compose/animation/core/Easing;
+	public final fun getEnd ()F
+	public final fun getStart ()F
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public abstract interface class com/skydoves/cloudy/CloudyState {
 }
 
@@ -52,6 +130,14 @@ public final class com/skydoves/cloudy/CloudyState$Success$Captured : com/skydov
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class com/skydoves/cloudy/CloudyState$Success$Scrim : com/skydoves/cloudy/CloudyState$Success {
+	public static final field $stable I
+	public static final field INSTANCE Lcom/skydoves/cloudy/CloudyState$Success$Scrim;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class com/skydoves/cloudy/Cloudy_skikoKt {
 	public static final fun cloudy (Landroidx/compose/ui/Modifier;IZLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
 }
@@ -76,5 +162,14 @@ public final class com/skydoves/cloudy/PlatformBitmap_desktopKt {
 
 public final class com/skydoves/cloudy/RememberCloudyStateKt {
 	public static final fun rememberCloudyState (Lcom/skydoves/cloudy/CloudyState;Ljava/lang/Object;Landroidx/compose/runtime/Composer;II)Landroidx/compose/runtime/MutableState;
+}
+
+public final class com/skydoves/cloudy/Sky {
+	public static final field $stable I
+	public final fun invalidate ()V
+}
+
+public final class com/skydoves/cloudy/SkyKt {
+	public static final fun rememberSky (Landroidx/compose/runtime/Composer;I)Lcom/skydoves/cloudy/Sky;
 }
 

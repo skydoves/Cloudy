@@ -39,6 +39,7 @@ import demo.theme.Dimens
  * @param onRadiusItemsClick Callback when the Radius Items demo is selected.
  * @param onBlurAppBarGridClick Callback when the Blur AppBar Grid demo is selected.
  * @param onInteractiveSliderClick Callback when the Interactive Slider demo is selected.
+ * @param onProgressiveBlurClick Callback when the Progressive Blur demo is selected.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,6 +48,7 @@ fun MenuHomeScreen(
   onRadiusItemsClick: () -> Unit,
   onBlurAppBarGridClick: () -> Unit,
   onInteractiveSliderClick: () -> Unit,
+  onProgressiveBlurClick: () -> Unit,
 ) {
   val posters = remember { MockUtil.getMockPosters() }
 
@@ -87,6 +89,14 @@ fun MenuHomeScreen(
             description = "Adjust blur radius in real-time with a slider",
             poster = posters[3],
             onClick = onInteractiveSliderClick,
+          )
+        }
+        item {
+          MenuCard(
+            title = "Progressive Blur",
+            description = "Gradient blur effects: Top-to-Bottom, Bottom-to-Top, Edges",
+            poster = posters[4],
+            onClick = onProgressiveBlurClick,
           )
         }
       }

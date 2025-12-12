@@ -60,4 +60,10 @@ sealed interface Route {
    */
   @Serializable
   data object InteractiveSlider : Route
+
+  /**
+   * The progressive blur demo screen showcasing different progressive blur types.
+   */
+  @Serializable
+  data object ProgressiveBlur : Route
 }

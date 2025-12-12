@@ -94,6 +94,30 @@ fun RadiusItemsScreen(onRadiusSelected: (Int) -> Unit, onBackClick: () -> Unit) 
 private fun RadiusItem(radius: Int, onClick: () -> Unit) {
   val poster = remember { MockUtil.getMockPoster() }
 
+  RadiusItemLayout(
+    radius = radius,
+    onClick = onClick,
+  ) { modifier ->
+    CoilImage(
+      modifier = modifier,
+      imageModel = { poster.image },
+    )
+  }
+}
+
+/**
+ * Layout component for radius item, separated for preview support.
+ *
+ * @param radius The blur radius to display and apply.
+ * @param onClick Callback when the item is clicked.
+ * @param imageContent Slot for the thumbnail image with blur modifier applied.
+ */
+@Composable
+internal fun RadiusItemLayout(
+  radius: Int,
+  onClick: () -> Unit,
+  imageContent: @Composable (Modifier) -> Unit,
+) {
   Card(
     modifier = Modifier
       .fillMaxWidth()
@@ -111,11 +135,10 @@ private fun RadiusItem(radius: Int, onClick: () -> Unit) {
           .size(80.dp)
           .clip(RoundedCornerShape(Dimens.itemSpacing)),
       ) {
-        CoilImage(
-          modifier = Modifier
+        imageContent(
+          Modifier
             .fillMaxSize()
             .cloudy(radius = radius),
-          imageModel = { poster.image },
         )
       }
 

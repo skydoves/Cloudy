@@ -63,6 +63,7 @@ add_library(# Sets the name of the library.
             # Sets the library as a shared library.
             SHARED
             # Provides a relative path to your source file(s).
+        BackgroundBlur.cpp
         Blur.cpp
         JniEntryPoints.cpp
             RenderScriptToolkit.cpp
