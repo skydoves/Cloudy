@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="screenshots/cloudy_logo.png" width="280" height="305" alt="cloudy_logo" />
+  <img src="screenshots/cloudy_logo_dark.png" width="280" height="305" alt="cloudy_logo_dark" />
+</p>
 <h1 align="center">Cloudy</h1></br>
 
 <p align="center">
