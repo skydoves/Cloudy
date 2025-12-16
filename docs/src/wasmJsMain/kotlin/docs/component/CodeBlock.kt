@@ -37,11 +37,7 @@ import androidx.compose.ui.unit.dp
 import docs.theme.DocsTheme
 
 @Composable
-fun CodeBlock(
-  code: String,
-  modifier: Modifier = Modifier,
-  language: String = "kotlin",
-) {
+fun CodeBlock(code: String, modifier: Modifier = Modifier, language: String = "kotlin") {
   Box(
     modifier = modifier
       .fillMaxWidth()
@@ -109,7 +105,7 @@ private fun highlightKotlinSyntax(code: String): AnnotatedString {
         }
         // Annotations
         code[i] == '@' -> {
-          val end = findWordEnd(code, i + 1)  // Skip '@' and find word end
+          val end = findWordEnd(code, i + 1) // Skip '@' and find word end
           val word = code.substring(i, end)
           withStyle(SpanStyle(color = colors.codeKeyword)) {
             append(word)
@@ -156,7 +152,9 @@ private fun findStringEnd(code: String, start: Int): Int {
 
 private fun findNumberEnd(code: String, start: Int): Int {
   var i = start
-  while (i < code.length && (code[i].isDigit() || code[i] == '.' || code[i] == 'f' || code[i] == 'L')) {
+  while (i < code.length &&
+    (code[i].isDigit() || code[i] == '.' || code[i] == 'f' || code[i] == 'L')
+  ) {
     i++
   }
   return i

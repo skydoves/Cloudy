@@ -54,7 +54,8 @@ fun PlatformSupportScreen() {
     Spacer(modifier = Modifier.height(16.dp))
 
     Text(
-      text = "Cloudy supports all Kotlin Multiplatform targets with platform-optimized implementations.",
+      text = "Cloudy supports all Kotlin Multiplatform targets " +
+        "with platform-optimized implementations.",
       style = DocsTheme.typography.body,
       color = DocsTheme.colors.onSurfaceVariant,
     )
@@ -208,11 +209,7 @@ private fun ProgressiveRow(platform: String, support: String, notes: String) {
 }
 
 @Composable
-private fun RowScope.TableCell(
-  text: String,
-  weight: Float,
-  isHeader: Boolean = false,
-) {
+private fun RowScope.TableCell(text: String, weight: Float, isHeader: Boolean = false) {
   Text(
     text = text,
     style = DocsTheme.typography.bodySmall,

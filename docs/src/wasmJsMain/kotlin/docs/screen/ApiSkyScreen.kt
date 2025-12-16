@@ -54,7 +54,8 @@ fun ApiSkyScreen() {
     Spacer(modifier = Modifier.height(16.dp))
 
     Text(
-      text = "Apply backdrop blur effects using Modifier.sky() and Modifier.cloudy(sky:) for glassmorphism UI.",
+      text = "Apply backdrop blur effects using Modifier.sky() " +
+        "and Modifier.cloudy(sky:) for glassmorphism UI.",
       style = DocsTheme.typography.body,
       color = DocsTheme.colors.onSurfaceVariant,
     )

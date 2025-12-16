@@ -39,9 +39,6 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import cloudydemo.docs.generated.resources.Res
-import cloudydemo.docs.generated.resources.cloudy_transparent
-import org.jetbrains.compose.resources.painterResource
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,8 +47,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import cloudydemo.docs.generated.resources.Res
+import cloudydemo.docs.generated.resources.cloudy_transparent
 import docs.navigation.DocsRoute
 import docs.theme.DocsTheme
+import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun DocsSidebar(
@@ -154,10 +154,7 @@ private fun SidebarHeader(onNavigate: (DocsRoute) -> Unit) {
 }
 
 @Composable
-private fun SidebarSection(
-  title: String,
-  icon: ImageVector,
-) {
+private fun SidebarSection(title: String, icon: ImageVector) {
   Row(
     modifier = Modifier
       .fillMaxWidth()

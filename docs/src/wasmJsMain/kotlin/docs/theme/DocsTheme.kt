@@ -103,10 +103,7 @@ object DocsTheme {
 }
 
 @Composable
-fun DocsTheme(
-  darkTheme: Boolean = isSystemInDarkTheme(),
-  content: @Composable () -> Unit,
-) {
+fun DocsTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
   val colors = DocsColors()
   val typography = DocsTypography()
 

@@ -50,7 +50,8 @@ fun ApiStateScreen() {
     Spacer(modifier = Modifier.height(16.dp))
 
     Text(
-      text = "Represents the state of the blur processing operation. Use this to track blur progress and handle results.",
+      text = "Represents the state of the blur processing operation. " +
+        "Use this to track blur progress and handle results.",
       style = DocsTheme.typography.body,
       color = DocsTheme.colors.onSurfaceVariant,
     )
@@ -104,7 +105,8 @@ fun ApiStateScreen() {
 
     StateCard(
       name = "CloudyState.Success.Applied",
-      description = "GPU-accelerated blur was applied directly in the rendering pipeline. No bitmap is extracted for performance reasons.",
+      description = "GPU-accelerated blur was applied directly in the rendering pipeline. " +
+        "No bitmap is extracted for performance reasons.",
       when_ = "iOS (Skia Metal), Android 31+ (RenderEffect), Desktop, WASM.",
     )
 
@@ -121,7 +123,8 @@ fun ApiStateScreen() {
 
     StateCard(
       name = "CloudyState.Success.Scrim",
-      description = "Scrim-only fallback was applied instead of blur. A semi-transparent overlay is shown.",
+      description = "Scrim-only fallback was applied instead of blur. " +
+        "A semi-transparent overlay is shown.",
       when_ = "Android 30- when cpuBlurEnabled = false (default).",
     )
 

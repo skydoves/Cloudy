@@ -94,7 +94,8 @@ fun PlaygroundScreen() {
     Spacer(modifier = Modifier.height(16.dp))
 
     Text(
-      text = "Adjust parameters and see blur effects in real-time. The code snippet updates automatically.",
+      text = "Adjust parameters and see blur effects in real-time. " +
+        "The code snippet updates automatically.",
       style = DocsTheme.typography.body,
       color = DocsTheme.colors.onSurfaceVariant,
     )
@@ -544,7 +545,7 @@ private fun buildBackgroundBlurCode(
       append(
         "        start = ${
           progressiveStart.coerceAtLeast(progressiveEnd + 0.01f).format()
-        }f,\n"
+        }f,\n",
       )
       append("        end = ${progressiveEnd.format()}f,\n")
       append("      ),\n")

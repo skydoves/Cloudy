@@ -47,9 +47,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import cloudydemo.docs.generated.resources.Res
-import cloudydemo.docs.generated.resources.cloudy_transparent
-import org.jetbrains.compose.resources.painterResource
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,8 +54,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import cloudydemo.docs.generated.resources.Res
+import cloudydemo.docs.generated.resources.cloudy_transparent
 import docs.navigation.DocsRoute
 import docs.theme.DocsTheme
+import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun HomeScreen(onNavigate: (DocsRoute) -> Unit) {
@@ -174,7 +174,8 @@ private fun FeaturesSection() {
       FeatureCard(
         icon = Icons.Default.Speed,
         title = "GPU-Accelerated",
-        description = "Uses RenderEffect (Android 31+) and Skia (other platforms) for optimal performance",
+        description = "Uses RenderEffect (Android 31+) " +
+          "and Skia (other platforms) for optimal performance",
       )
 
       FeatureCard(
@@ -192,7 +193,8 @@ private fun FeaturesSection() {
       FeatureCard(
         icon = Icons.Default.BlurOn,
         title = "Glassmorphism",
-        description = "Easy backdrop blur with Modifier.sky() and Modifier.cloudy() for frosted glass effects",
+        description = "Easy backdrop blur with Modifier.sky() " +
+          "and Modifier.cloudy() for frosted glass effects",
       )
 
       FeatureCard(
@@ -205,11 +207,7 @@ private fun FeaturesSection() {
 }
 
 @Composable
-private fun FeatureCard(
-  icon: ImageVector,
-  title: String,
-  description: String,
-) {
+private fun FeatureCard(icon: ImageVector, title: String, description: String) {
   Card(
     modifier = Modifier
       .width(280.dp)
@@ -284,11 +282,7 @@ private fun QuickLinksSection(onNavigate: (DocsRoute) -> Unit) {
 }
 
 @Composable
-private fun QuickLinkCard(
-  title: String,
-  description: String,
-  onClick: () -> Unit,
-) {
+private fun QuickLinkCard(title: String, description: String, onClick: () -> Unit) {
   Card(
     onClick = onClick,
     modifier = Modifier.width(200.dp),

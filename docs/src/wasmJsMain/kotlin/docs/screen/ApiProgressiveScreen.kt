@@ -59,7 +59,8 @@ fun ApiProgressiveScreen() {
     Spacer(modifier = Modifier.height(16.dp))
 
     Text(
-      text = "Configuration for progressive (gradient) blur effects that vary blur intensity based on position.",
+      text = "Configuration for progressive (gradient) blur effects " +
+        "that vary blur intensity based on position.",
       style = DocsTheme.typography.body,
       color = DocsTheme.colors.onSurfaceVariant,
     )
@@ -115,7 +116,8 @@ fun ApiProgressiveScreen() {
     // BottomToTop
     ProgressiveTypeSection(
       title = "CloudyProgressive.BottomToTop",
-      description = "Blur intensity decreases from bottom to top. Creates a 'rising from mist' effect.",
+      description = "Blur intensity decreases from bottom to top. " +
+        "Creates a 'rising from mist' effect.",
       code = """
         // Default: blur from 100% to 50%
         CloudyProgressive.BottomToTop()
