@@ -142,8 +142,18 @@ private fun highlightKotlinSyntax(code: String): AnnotatedString {
 private fun findStringEnd(code: String, start: Int): Int {
   var i = start + 1
   while (i < code.length) {
-    if (code[i] == '"' && code.getOrNull(i - 1) != '\\') {
-      return i + 1
+    if (code[i] == '"') {
+      // Count preceding backslashes
+      var backslashCount = 0
+      var j = i - 1
+      while (j >= start && code[j] == '\\') {
+        backslashCount++
+        j--
+      }
+      // Quote is escaped only if preceded by odd number of backslashes
+      if (backslashCount % 2 == 0) {
+        return i + 1
+      }
     }
     i++
   }

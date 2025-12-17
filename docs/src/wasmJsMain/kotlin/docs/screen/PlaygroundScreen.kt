@@ -332,17 +332,17 @@ private fun BackgroundBlurDemo() {
             }
 
             ProgressiveTypeOption.BottomToTop -> {
-              Text("Start: ${progressiveStart.coerceAtLeast(0.5f).format()}")
+              Text("Start: ${progressiveStart.format()}")
               Slider(
-                value = progressiveStart.coerceAtLeast(0.5f),
-                onValueChange = { progressiveStart = it },
-                valueRange = 0.01f..1f,
+                value = progressiveStart,
+                onValueChange = { progressiveStart = it.coerceAtLeast(progressiveEnd + 0.01f) },
+                valueRange = 0.5f..1f,
               )
-              Text("End: ${progressiveEnd.coerceAtMost(0.5f).format()}")
+              Text("End: ${progressiveEnd.format()}")
               Slider(
-                value = progressiveEnd.coerceAtMost(0.5f),
-                onValueChange = { progressiveEnd = it },
-                valueRange = 0f..0.99f,
+                value = progressiveEnd,
+                onValueChange = { progressiveEnd = it.coerceAtMost(progressiveStart - 0.01f) },
+                valueRange = 0f..0.5f,
               )
             }
 

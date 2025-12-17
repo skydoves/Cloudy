@@ -219,7 +219,7 @@ fun ApiSkyScreen() {
     Spacer(modifier = Modifier.height(12.dp))
 
     Text(
-      text = "Call invalidate() when background content changes to trigger re-capture.",
+      text = "Call invalidate() when background content changes to invalidate cached blur results.",
       style = DocsTheme.typography.body,
       color = DocsTheme.colors.onSurfaceVariant,
     )
@@ -234,7 +234,7 @@ fun ApiSkyScreen() {
         Box(modifier = Modifier.sky(sky)) {
           AsyncImage(
             model = imageUrl,
-            onSuccess = { sky.invalidate() } // Re-capture when image loads
+            onSuccess = { sky.invalidate() } // Invalidate blur cache when image loads
           )
 
           Card(modifier = Modifier.cloudy(sky = sky, radius = 20)) {
