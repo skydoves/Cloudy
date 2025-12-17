@@ -167,9 +167,6 @@ private class SkyModifierNode(var sky: Sky) :
 
     // Share layer with children
     sky.backgroundLayer = layer
-    sky.isDirty = false
-
-    // Always increment version (throttling is handled in CloudyBackgroundModifierNode)
     sky.incrementContentVersion()
 
     // Draw original content to screen

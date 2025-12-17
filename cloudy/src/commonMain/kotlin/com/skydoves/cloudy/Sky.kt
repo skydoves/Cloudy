@@ -81,14 +81,6 @@ public class Sky internal constructor() {
   internal var sourceBounds: Rect by mutableStateOf(Rect.Zero)
 
   /**
-   * Dirty flag to trigger re-capture when content changes.
-   * Initially `true` to ensure first capture occurs.
-   *
-   * Set to `false` after capture, and back to `true` via [invalidate].
-   */
-  internal var isDirty: Boolean by mutableStateOf(true)
-
-  /**
    * Content version counter that increments every time the background
    * content is re-captured. Used by child modifiers to detect when
    * cached blur results should be invalidated.
@@ -111,9 +103,9 @@ public class Sky internal constructor() {
    * Invalidates the captured background content.
    *
    * Call this method when the background content changes and needs
-   * to be re-captured for blur rendering. This sets [isDirty] to `true`,
-   * which triggers dependent [Modifier.cloudy] modifiers to re-capture
-   * the background on the next frame.
+   * to be re-captured for blur rendering. This increments [contentVersion],
+   * which triggers dependent [Modifier.cloudy] modifiers to invalidate
+   * their cached blur results.
    *
    * ## Example
    *
@@ -134,7 +126,7 @@ public class Sky internal constructor() {
    * ```
    */
   public fun invalidate() {
-    isDirty = true
+    incrementContentVersion()
   }
 }
 

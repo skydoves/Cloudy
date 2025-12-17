@@ -142,7 +142,6 @@ private class SkyModifierNode(var sky: Sky) :
 
     // Share layer with children
     sky.backgroundLayer = layer
-    sky.isDirty = false
     sky.incrementContentVersion()
 
     // Draw original content to screen
