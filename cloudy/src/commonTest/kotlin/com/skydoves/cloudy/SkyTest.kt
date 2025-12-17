@@ -16,8 +16,6 @@
 package com.skydoves.cloudy
 
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.booleans.shouldBeFalse
-import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
 
@@ -25,9 +23,9 @@ import io.kotest.matchers.shouldBe
  * Unit tests for [Sky] state holder.
  *
  * Tests verify:
- * - Initial state (backgroundLayer null, isDirty true, bounds zero)
- * - Invalidation behavior
- * - isDirty flag lifecycle
+ * - Initial state (backgroundLayer null, bounds zero, contentVersion 0)
+ * - Invalidation behavior (contentVersion increment)
+ * - contentVersion lifecycle
  */
 internal class SkyTest :
   FunSpec({
@@ -45,34 +43,18 @@ internal class SkyTest :
       sky.sourceBounds.bottom.shouldBe(0f)
     }
 
-    test("Sky should have isDirty true initially") {
-      val sky = Sky()
-      sky.isDirty.shouldBeTrue()
-    }
-
-    test("invalidate() should set isDirty to true") {
-      val sky = Sky()
-      sky.isDirty = false
-
-      sky.invalidate()
-
-      sky.isDirty.shouldBeTrue()
-    }
-
-    test("isDirty should remain false until invalidated") {
-      val sky = Sky()
-      sky.isDirty = false
-
-      sky.isDirty.shouldBeFalse()
-
-      sky.invalidate()
-
-      sky.isDirty.shouldBeTrue()
-    }
-
     test("contentVersion should be 0 initially") {
       val sky = Sky()
       sky.contentVersion.shouldBe(0L)
+    }
+
+    test("invalidate() should increment contentVersion") {
+      val sky = Sky()
+      sky.contentVersion.shouldBe(0L)
+
+      sky.invalidate()
+
+      sky.contentVersion.shouldBe(1L)
     }
 
     test("incrementContentVersion should increment version by 1") {
