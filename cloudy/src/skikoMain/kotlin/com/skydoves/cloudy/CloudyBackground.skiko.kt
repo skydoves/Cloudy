@@ -257,8 +257,8 @@ private class CloudyBackgroundModifierNode(
       radius = radius,
       offsetX = offsetX,
       offsetY = offsetY,
-      childWidth = size.width.toFloat(),
-      childHeight = size.height.toFloat(),
+      childWidth = size.width,
+      childHeight = size.height,
       progressive = progressive,
       tintColor = tint,
     )
