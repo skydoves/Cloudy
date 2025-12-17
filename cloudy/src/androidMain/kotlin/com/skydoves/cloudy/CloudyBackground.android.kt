@@ -315,8 +315,8 @@ private class CloudyBackgroundModifierNode(
       radius = radius,
       offsetX = offsetX,
       offsetY = offsetY,
-      childWidth = size.width.toFloat(),
-      childHeight = size.height.toFloat(),
+      childWidth = size.width,
+      childHeight = size.height,
       progressive = progressive,
       tintColor = tint,
     )
@@ -456,7 +456,7 @@ private class CloudyBackgroundModifierNode(
       cachedContentVersion == currentVersion
 
     // Draw cached blur if valid
-    if (cacheValid && cached != null) {
+    if (cacheValid) {
       clipRect {
         drawImage(
           image = cached.bitmap.asImageBitmap(),

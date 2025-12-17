@@ -22,3 +22,4 @@ dependencyResolutionManagement {
 rootProject.name = "CloudyDemo"
 include(":app")
 include(":cloudy")
+include(":docs")
