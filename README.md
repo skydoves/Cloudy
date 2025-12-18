@@ -14,7 +14,7 @@
 </p><br>
 
 <p align="center">
-☁️ Kotlin Multiplatform blur effect library for Compose, with GPU-accelerated rendering and CPU fallback for older devices.
+☁️ Kotlin Multiplatform blur effect library for Compose, with GPU-accelerated rendering and CPU fallback for older devices. See <a href="https://skydoves.github.io/Cloudy/">documentation</a> for more details.
 </p><br>
 
 > <p align="center">The `blur` modifier supports only Android 12 and higher, and `RenderScript` APIs are deprecated starting in Android 12.
@@ -48,7 +48,7 @@ If you're using Version Catalog, you can configure the dependency by adding it t
 ```toml
 [versions]
 #...
-cloudy = "0.3.0"
+cloudy = "0.4.0"
 
 [libraries]
 #...
@@ -60,7 +60,7 @@ Add the dependency below to your **module**'s `build.gradle.kts` file:
 
 ```gradle
 dependencies {
-    implementation("com.github.skydoves:cloudy:0.3.0")
+    implementation("com.github.skydoves:cloudy:0.4.0")
     
     // if you're using Version Catalog
     implementation(libs.compose.cloudy)
