@@ -39,7 +39,6 @@ import androidx.compose.material.icons.filled.Gradient
 import androidx.compose.material.icons.filled.PhoneIphone
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Rocket
-import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -172,10 +171,10 @@ private fun FeaturesSection() {
       )
 
       FeatureCard(
-        icon = Icons.Default.Speed,
-        title = "GPU-Accelerated",
-        description = "Uses RenderEffect (Android 31+) " +
-          "and Skia (other platforms) for optimal performance",
+        icon = Icons.Default.BlurOn,
+        title = "Smooth & Seamless",
+        description = "Silky smooth blur animations with minimal overhead, " +
+          "seamlessly integrating into your Compose UI",
       )
 
       FeatureCard(
@@ -188,13 +187,6 @@ private fun FeaturesSection() {
         icon = Icons.Default.Android,
         title = "Legacy Support",
         description = "CPU-based blur for Android API 23-30 using native C++ SIMD optimizations",
-      )
-
-      FeatureCard(
-        icon = Icons.Default.BlurOn,
-        title = "Glassmorphism",
-        description = "Easy backdrop blur with Modifier.sky() " +
-          "and Modifier.cloudy() for frosted glass effects",
       )
 
       FeatureCard(
@@ -211,7 +203,7 @@ private fun FeatureCard(icon: ImageVector, title: String, description: String) {
   Card(
     modifier = Modifier
       .width(280.dp)
-      .height(160.dp),
+      .height(180.dp),
     colors = CardDefaults.cardColors(
       containerColor = DocsTheme.colors.surface,
     ),

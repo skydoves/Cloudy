@@ -35,6 +35,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import docs.component.Callout
+import docs.component.CalloutType
 import docs.theme.DocsTheme
 
 @Composable
@@ -91,11 +93,18 @@ fun PlatformSupportScreen() {
         • API 33+: AGSL RuntimeShader for progressive blur with custom shaders
         • API 31-32: RenderEffect.createBlurEffect() for GPU-accelerated uniform blur
         • API 23-30: Native C++ with NEON/SIMD optimizations for CPU-based blur
-
-        On API 30 and below, background blur (Modifier.cloudy(sky:)) can optionally use CPU blur by setting cpuBlurEnabled = true, or show a scrim overlay (default behavior).
       """.trimIndent(),
       style = DocsTheme.typography.body,
       color = DocsTheme.colors.onSurfaceVariant,
+    )
+
+    Spacer(modifier = Modifier.height(16.dp))
+
+    Callout(
+      text = "Android API 30 and below: Background blur (Modifier.cloudy(sky:)) shows a scrim " +
+        "overlay by default. To enable CPU-based blur instead, set cpuBlurEnabled = true. " +
+        "Note that CPU blur may impact performance on lower-end devices.",
+      type = CalloutType.WARNING,
     )
 
     Spacer(modifier = Modifier.height(32.dp))
@@ -141,10 +150,10 @@ private fun PlatformTable() {
     TableRow("Android 33+", "AGSL RuntimeShader")
     TableRow("Android 31-32", "RenderEffect (GPU)")
     TableRow("Android 23-30", "Native C++ (CPU)")
-    TableRow("iOS", "Skia (Metal GPU)")
-    TableRow("macOS", "Skia (Metal GPU)")
-    TableRow("Desktop (JVM)", "Skia (OpenGL/Metal)")
-    TableRow("Web (WASM)", "Skia (WebGL)")
+    TableRow("iOS", "Skia")
+    TableRow("macOS", "Skia")
+    TableRow("Desktop (JVM)", "Skia")
+    TableRow("Web (WASM)", "Skia")
   }
 }
 
