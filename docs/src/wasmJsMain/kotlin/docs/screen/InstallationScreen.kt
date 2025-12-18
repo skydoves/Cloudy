@@ -27,9 +27,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import docs.component.CodeBlock
+import docs.config.BuildConfig
 import docs.theme.DocsTheme
-
-private const val CLOUDY_VERSION = "0.3.0"
 
 @Composable
 fun InstallationScreen() {
@@ -75,7 +74,7 @@ fun InstallationScreen() {
     CodeBlock(
       code = """
         [versions]
-        cloudy = "$CLOUDY_VERSION"
+        cloudy = "${BuildConfig.CLOUDY_VERSION}"
 
         [libraries]
         cloudy = { module = "com.github.skydoves:cloudy", version.ref = "cloudy" }
@@ -161,7 +160,7 @@ fun InstallationScreen() {
 
     CodeBlock(
       code = """
-        implementation("com.github.skydoves:cloudy:$CLOUDY_VERSION")
+        implementation("com.github.skydoves:cloudy:${BuildConfig.CLOUDY_VERSION}")
       """,
     )
 

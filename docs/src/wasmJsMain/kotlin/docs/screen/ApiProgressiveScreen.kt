@@ -105,9 +105,24 @@ fun ApiProgressiveScreen() {
         DocsTheme.colors.primary.copy(alpha = 0.1f),
       ),
       parameters = listOf(
-        "start" to "0f" to "Position where blur is at full intensity (0 = top)",
-        "end" to "0.5f" to "Position where blur reaches zero intensity",
-        "easing" to "FastOutSlowInEasing" to "Easing function for the transition",
+        ParameterInfo(
+          name = "start",
+          type = "Float",
+          default = "0f",
+          description = "Starting position (0 = top). Blur is at full intensity at this position.",
+        ),
+        ParameterInfo(
+          name = "end",
+          type = "Float",
+          default = "0.5f",
+          description = "Ending position. Blur fades to zero intensity at this position.",
+        ),
+        ParameterInfo(
+          name = "easing",
+          type = "Easing",
+          default = "FastOutSlowInEasing",
+          description = "Easing function that controls the blur intensity transition curve.",
+        ),
       ),
     )
 
@@ -134,9 +149,25 @@ fun ApiProgressiveScreen() {
         DocsTheme.colors.primary.copy(alpha = 0.8f),
       ),
       parameters = listOf(
-        "start" to "1f" to "Position where blur is at full intensity (1 = bottom)",
-        "end" to "0.5f" to "Position where blur reaches zero intensity",
-        "easing" to "FastOutSlowInEasing" to "Easing function for the transition",
+        ParameterInfo(
+          name = "start",
+          type = "Float",
+          default = "1f",
+          description = "Starting position (1 = bottom). " +
+            "Blur is at full intensity at this position.",
+        ),
+        ParameterInfo(
+          name = "end",
+          type = "Float",
+          default = "0.5f",
+          description = "Ending position. Blur fades to zero intensity at this position.",
+        ),
+        ParameterInfo(
+          name = "easing",
+          type = "Easing",
+          default = "FastOutSlowInEasing",
+          description = "Easing function that controls the blur intensity transition curve.",
+        ),
       ),
     )
 
@@ -163,8 +194,18 @@ fun ApiProgressiveScreen() {
         DocsTheme.colors.primary.copy(alpha = 0.8f),
       ),
       parameters = listOf(
-        "fadeDistance" to "0.2f" to "Distance from edge where blur fades (0..0.5)",
-        "easing" to "FastOutSlowInEasing" to "Easing function for the transition",
+        ParameterInfo(
+          name = "fadeDistance",
+          type = "Float",
+          default = "0.2f",
+          description = "Distance from each edge where blur fades to center (range: 0..0.5).",
+        ),
+        ParameterInfo(
+          name = "easing",
+          type = "Easing",
+          default = "FastOutSlowInEasing",
+          description = "Easing function that controls the blur intensity transition curve.",
+        ),
       ),
     )
 
@@ -194,13 +235,20 @@ fun ApiProgressiveScreen() {
   }
 }
 
+private data class ParameterInfo(
+  val name: String,
+  val type: String,
+  val default: String,
+  val description: String,
+)
+
 @Composable
 private fun ProgressiveTypeSection(
   title: String,
   description: String,
   code: String,
   gradientColors: List<Color>,
-  parameters: List<Triple<String, String, String>>? = null,
+  parameters: List<ParameterInfo>? = null,
 ) {
   Card(
     modifier = Modifier.fillMaxWidth(),
@@ -249,18 +297,30 @@ private fun ProgressiveTypeSection(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        parameters.forEach { (name, default, desc) ->
-          Row(modifier = Modifier.padding(vertical = 2.dp)) {
+        parameters.forEach { param ->
+          Column(modifier = Modifier.padding(vertical = 4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+              Text(
+                text = param.name,
+                style = DocsTheme.typography.code,
+                color = DocsTheme.colors.primary,
+              )
+              Text(
+                text = ": ${param.type}",
+                style = DocsTheme.typography.code,
+                color = DocsTheme.colors.onSurfaceVariant,
+              )
+              Text(
+                text = " = ${param.default}",
+                style = DocsTheme.typography.code,
+                color = DocsTheme.colors.secondary,
+              )
+            }
             Text(
-              text = "$name = $default",
-              style = DocsTheme.typography.code,
-              color = DocsTheme.colors.secondary,
-              modifier = Modifier.width(200.dp),
-            )
-            Text(
-              text = desc,
+              text = param.description,
               style = DocsTheme.typography.caption,
               color = DocsTheme.colors.onSurfaceVariant,
+              modifier = Modifier.padding(start = 8.dp, top = 2.dp),
             )
           }
         }
@@ -272,5 +332,3 @@ private fun ProgressiveTypeSection(
     }
   }
 }
-
-private infix fun <A, B, C> Pair<A, B>.to(that: C): Triple<A, B, C> = Triple(first, second, that)
