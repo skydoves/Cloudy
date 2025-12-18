@@ -15,16 +15,14 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
-permissions: { }
+permissions:
+  contents: write
 
 jobs:
-  build:
-    name: Build Kotlin/Wasm Docs
+  build-and-deploy:
+    name: Build and Deploy Kotlin/Wasm Docs
     runs-on: ubuntu-latest
     timeout-minutes: 60
-
-    permissions:
-      contents: read
 
     steps:
       - name: Checkout
@@ -45,32 +43,11 @@ jobs:
       - name: Build WASM
         run: ./gradlew :docs:wasmJsBrowserDistribution --stacktrace
 
-      - name: Fix permissions
-        run: |
-          chmod -v -R +rX "docs/build/dist/wasmJs/productionExecutable/" | while read line; do
-            echo "::warning title=Invalid file permissions automatically fixed::$line"
-          done
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Deploy to gh-pages branch
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          path: ./docs/build/dist/wasmJs/productionExecutable
-
-  deploy:
-    name: Deploy to GitHub Pages
-    needs: build
-
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs/build/dist/wasmJs/productionExecutable
+          publish_branch: gh-pages
+          force_orphan: true
+          commit_message: 'docs: deploy production build'
