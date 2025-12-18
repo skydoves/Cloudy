@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Cloudy - Cross-platform blur effects for Compose Multiplatform. Interactive documentation and playground.">
+    <meta name="keywords" content="Cloudy, Compose, Multiplatform, Kotlin, Blur, Glassmorphism, Android, iOS, WASM">
+    <meta name="author" content="skydoves">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="favicon.png">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Cloudy Documentation">
+    <meta property="og:description" content="Cross-platform blur effects for Compose Multiplatform">
+    <meta property="og:type" content="website">
+
+    <title>Cloudy - Blur Effects for Compose Multiplatform</title>
+
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #121212;
+        }
+
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: #121212;
+            color: #E0E0E0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            z-index: 9999;
+        }
+
+        #loading h1 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #BB86FC, #6200EE);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        #loading p {
+            color: #9E9E9E;
+            font-size: 0.9rem;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #333;
+            border-top-color: #BB86FC;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        #ComposeTarget {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <div class="spinner"></div>
+        <h1>Cloudy</h1>
+        <p>Loading documentation...</p>
+    </div>
+
+    <div id="ComposeTarget"></div>
+
+    <script>
+        // Hide loading when Compose is ready
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                var loading = document.getElementById('loading');
+                if (loading) {
+                    loading.style.opacity = '0';
+                    loading.style.transition = 'opacity 0.3s ease';
+                    setTimeout(function() {
+                        loading.style.display = 'none';
+                    }, 300);
+                }
+            }, 100);
+        });
+    </script>
+    <script src="cloudy-docs.js"></script>
+</body>
+</html>
