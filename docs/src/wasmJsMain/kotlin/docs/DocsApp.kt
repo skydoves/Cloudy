@@ -40,13 +40,16 @@ import docs.theme.DocsTheme
 
 @Composable
 fun DocsApp() {
-  DocsTheme {
-    var currentRoute by remember { mutableStateOf<DocsRoute>(DocsRoute.Home) }
+  var isDarkTheme by remember { mutableStateOf(true) }
+  var currentRoute by remember { mutableStateOf<DocsRoute>(DocsRoute.Home) }
 
+  DocsTheme(darkTheme = isDarkTheme) {
     Row(modifier = Modifier.fillMaxSize().background(DocsTheme.colors.background)) {
       DocsSidebar(
         currentRoute = currentRoute,
         onNavigate = { currentRoute = it },
+        isDarkTheme = isDarkTheme,
+        onToggleTheme = { isDarkTheme = !isDarkTheme },
       )
 
       Box(modifier = Modifier.weight(1f).fillMaxSize()) {

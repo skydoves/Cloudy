@@ -18,6 +18,7 @@ package docs.component
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -29,21 +30,26 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -57,77 +63,152 @@ import org.jetbrains.compose.resources.painterResource
 fun DocsSidebar(
   currentRoute: DocsRoute,
   onNavigate: (DocsRoute) -> Unit,
+  isDarkTheme: Boolean,
+  onToggleTheme: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
+  val uriHandler = LocalUriHandler.current
+
   Column(
     modifier = modifier
       .width(260.dp)
       .fillMaxHeight()
       .background(DocsTheme.colors.sidebarBackground)
-      .verticalScroll(rememberScrollState())
       .padding(vertical = 16.dp),
   ) {
-    // Logo/Header
-    SidebarHeader(onNavigate = onNavigate)
+    Column(
+      modifier = Modifier
+        .weight(1f)
+        .verticalScroll(rememberScrollState()),
+    ) {
+      // Logo/Header
+      SidebarHeader(onNavigate = onNavigate)
 
-    Spacer(modifier = Modifier.height(24.dp))
+      Spacer(modifier = Modifier.height(24.dp))
 
-    // Home
-    SidebarItem(
-      route = DocsRoute.Home,
-      icon = Icons.Default.Home,
-      isSelected = currentRoute == DocsRoute.Home,
-      onClick = { onNavigate(DocsRoute.Home) },
-    )
-
-    Spacer(modifier = Modifier.height(16.dp))
-    HorizontalDivider(color = DocsTheme.colors.divider, thickness = 1.dp)
-    Spacer(modifier = Modifier.height(16.dp))
-
-    // Guide Section
-    SidebarSection(
-      title = "Guide",
-      icon = Icons.Default.Book,
-    )
-    DocsRoute.guideRoutes.forEach { route ->
+      // Home
       SidebarItem(
-        route = route,
-        isSelected = currentRoute == route,
-        onClick = { onNavigate(route) },
-        indented = true,
+        route = DocsRoute.Home,
+        icon = Icons.Default.Home,
+        isSelected = currentRoute == DocsRoute.Home,
+        onClick = { onNavigate(DocsRoute.Home) },
+      )
+
+      Spacer(modifier = Modifier.height(16.dp))
+      HorizontalDivider(color = DocsTheme.colors.divider, thickness = 1.dp)
+      Spacer(modifier = Modifier.height(16.dp))
+
+      // Guide Section
+      SidebarSection(
+        title = "Guide",
+        icon = Icons.Default.Book,
+      )
+      DocsRoute.guideRoutes.forEach { route ->
+        SidebarItem(
+          route = route,
+          isSelected = currentRoute == route,
+          onClick = { onNavigate(route) },
+          indented = true,
+        )
+      }
+
+      Spacer(modifier = Modifier.height(16.dp))
+      HorizontalDivider(color = DocsTheme.colors.divider, thickness = 1.dp)
+      Spacer(modifier = Modifier.height(16.dp))
+
+      // API Reference Section
+      SidebarSection(
+        title = "API Reference",
+        icon = Icons.Default.Code,
+      )
+      DocsRoute.apiRoutes.forEach { route ->
+        SidebarItem(
+          route = route,
+          isSelected = currentRoute == route,
+          onClick = { onNavigate(route) },
+          indented = true,
+        )
+      }
+
+      Spacer(modifier = Modifier.height(16.dp))
+      HorizontalDivider(color = DocsTheme.colors.divider, thickness = 1.dp)
+      Spacer(modifier = Modifier.height(16.dp))
+
+      // Playground
+      SidebarItem(
+        route = DocsRoute.Playground,
+        icon = Icons.Default.PlayArrow,
+        isSelected = currentRoute == DocsRoute.Playground,
+        onClick = { onNavigate(DocsRoute.Playground) },
       )
     }
 
-    Spacer(modifier = Modifier.height(16.dp))
+    // Bottom section with Theme toggle and GitHub button
     HorizontalDivider(color = DocsTheme.colors.divider, thickness = 1.dp)
-    Spacer(modifier = Modifier.height(16.dp))
+    Spacer(modifier = Modifier.height(12.dp))
 
-    // API Reference Section
-    SidebarSection(
-      title = "API Reference",
-      icon = Icons.Default.Code,
-    )
-    DocsRoute.apiRoutes.forEach { route ->
-      SidebarItem(
-        route = route,
-        isSelected = currentRoute == route,
-        onClick = { onNavigate(route) },
-        indented = true,
-      )
+    Row(
+      modifier = Modifier
+        .fillMaxWidth()
+        .padding(horizontal = 16.dp),
+      horizontalArrangement = Arrangement.spacedBy(8.dp),
+      verticalAlignment = Alignment.CenterVertically,
+    ) {
+      // Theme toggle button
+      IconButton(
+        onClick = onToggleTheme,
+        modifier = Modifier
+          .size(40.dp)
+          .clip(CircleShape)
+          .background(DocsTheme.colors.surfaceVariant),
+      ) {
+        Icon(
+          imageVector = if (isDarkTheme) Icons.Default.LightMode else Icons.Default.DarkMode,
+          contentDescription = if (isDarkTheme) "Switch to Light Mode" else "Switch to Dark Mode",
+          tint = DocsTheme.colors.onSurface,
+          modifier = Modifier.size(20.dp),
+        )
+      }
+
+      // GitHub button
+      Box(
+        modifier = Modifier
+          .weight(1f)
+          .height(40.dp)
+          .clip(RoundedCornerShape(8.dp))
+          .background(DocsTheme.colors.surfaceVariant)
+          .clickable { uriHandler.openUri("https://github.com/skydoves/cloudy") }
+          .padding(horizontal = 12.dp),
+        contentAlignment = Alignment.Center,
+      ) {
+        Row(
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.Center,
+        ) {
+          GitHubIcon(modifier = Modifier.size(18.dp))
+          Spacer(modifier = Modifier.width(8.dp))
+          Text(
+            text = "GitHub",
+            style = DocsTheme.typography.bodySmall,
+            color = DocsTheme.colors.onSurface,
+            fontWeight = FontWeight.Medium,
+          )
+        }
+      }
     }
-
-    Spacer(modifier = Modifier.height(16.dp))
-    HorizontalDivider(color = DocsTheme.colors.divider, thickness = 1.dp)
-    Spacer(modifier = Modifier.height(16.dp))
-
-    // Playground
-    SidebarItem(
-      route = DocsRoute.Playground,
-      icon = Icons.Default.PlayArrow,
-      isSelected = currentRoute == DocsRoute.Playground,
-      onClick = { onNavigate(DocsRoute.Playground) },
-    )
   }
+}
+
+@Composable
+private fun GitHubIcon(modifier: Modifier = Modifier) {
+  // Simple GitHub icon using Canvas or just use text/emoji as fallback
+  // For simplicity, using a custom path
+  Icon(
+    imageVector = Icons.Default.Code,
+    contentDescription = "GitHub",
+    tint = DocsTheme.colors.onSurface,
+    modifier = modifier,
+  )
 }
 
 @Composable
