@@ -29,7 +29,7 @@ import androidx.compose.ui.graphics.Color
  *
  * @param onClick Callback when the back button is pressed.
  * @param modifier Modifier to apply to the button.
- * @param tint Color of the icon. Defaults to [MaterialTheme.colors.onPrimary].
+ * @param tint Color of the icon. Defaults to [MaterialTheme.colorScheme.onPrimary].
  */
 @Composable
 internal fun BackButton(
