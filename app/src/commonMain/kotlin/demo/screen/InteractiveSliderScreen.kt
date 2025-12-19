@@ -27,7 +27,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Card
-import androidx.compose.material.MaterialTheme
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material.Slider
 import androidx.compose.material.SliderDefaults
 import androidx.compose.material.Text
@@ -122,7 +122,7 @@ internal fun InteractiveSliderContent(
       text = "Drag the slider to adjust the blur radius in real-time. " +
         "This demonstrates Cloudy's ability to dynamically change blur intensity.",
       fontSize = 14.sp,
-      color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
+      color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
       textAlign = TextAlign.Center,
     )
   }
@@ -140,7 +140,7 @@ internal fun BlurPreviewCard(radius: Int, imageContent: @Composable (Modifier) -
     modifier = Modifier.fillMaxWidth(),
     elevation = Dimens.cardElevation,
     shape = RoundedCornerShape(Dimens.cardCornerRadius),
-    backgroundColor = MaterialTheme.colors.surface,
+    backgroundColor = MaterialTheme.colorScheme.surface,
   ) {
     Column(
       modifier = Modifier.padding(Dimens.contentPadding),
@@ -150,7 +150,7 @@ internal fun BlurPreviewCard(radius: Int, imageContent: @Composable (Modifier) -
         text = "Live Blur Preview",
         fontSize = 18.sp,
         fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colors.onSurface,
+        color = MaterialTheme.colorScheme.onSurface,
       )
 
       Spacer(modifier = Modifier.height(Dimens.contentPadding))
@@ -160,7 +160,7 @@ internal fun BlurPreviewCard(radius: Int, imageContent: @Composable (Modifier) -
           .size(280.dp)
           .clip(RoundedCornerShape(Dimens.itemSpacing))
           .background(
-            MaterialTheme.colors.surface,
+            MaterialTheme.colorScheme.surface,
             RoundedCornerShape(Dimens.itemSpacing),
           )
           .cloudy(radius = radius),
@@ -172,7 +172,7 @@ internal fun BlurPreviewCard(radius: Int, imageContent: @Composable (Modifier) -
         text = "Radius: $radius",
         fontSize = 32.sp,
         fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colors.secondary,
+        color = MaterialTheme.colorScheme.secondary,
       )
 
       Spacer(modifier = Modifier.height(8.dp))
@@ -180,7 +180,7 @@ internal fun BlurPreviewCard(radius: Int, imageContent: @Composable (Modifier) -
       Text(
         text = if (radius == 0) "No blur effect" else "Sigma: ${radius / 2.0f}",
         fontSize = 14.sp,
-        color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
       )
     }
   }
@@ -198,7 +198,7 @@ internal fun BlurSliderCard(sliderValue: Float, onSliderValueChange: (Float) -> 
     modifier = Modifier.fillMaxWidth(),
     elevation = Dimens.cardElevation,
     shape = RoundedCornerShape(Dimens.cardCornerRadius),
-    backgroundColor = MaterialTheme.colors.surface,
+    backgroundColor = MaterialTheme.colorScheme.surface,
   ) {
     Column(
       modifier = Modifier.padding(Dimens.contentPadding),
@@ -208,7 +208,7 @@ internal fun BlurSliderCard(sliderValue: Float, onSliderValueChange: (Float) -> 
         text = "Adjust Blur Radius",
         fontSize = 16.sp,
         fontWeight = FontWeight.SemiBold,
-        color = MaterialTheme.colors.onSurface,
+        color = MaterialTheme.colorScheme.onSurface,
       )
 
       Spacer(modifier = Modifier.height(Dimens.itemSpacing))
@@ -220,9 +220,9 @@ internal fun BlurSliderCard(sliderValue: Float, onSliderValueChange: (Float) -> 
         steps = 19,
         modifier = Modifier.fillMaxWidth(),
         colors = SliderDefaults.colors(
-          thumbColor = MaterialTheme.colors.secondary,
-          activeTrackColor = MaterialTheme.colors.secondary,
-          inactiveTrackColor = MaterialTheme.colors.onSurface.copy(alpha = 0.2f),
+          thumbColor = MaterialTheme.colorScheme.secondary,
+          activeTrackColor = MaterialTheme.colorScheme.secondary,
+          inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
         ),
       )
 
@@ -231,7 +231,7 @@ internal fun BlurSliderCard(sliderValue: Float, onSliderValueChange: (Float) -> 
       Text(
         text = "0 - 100",
         fontSize = 12.sp,
-        color = MaterialTheme.colors.onSurface.copy(alpha = 0.5f),
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
       )
     }
   }

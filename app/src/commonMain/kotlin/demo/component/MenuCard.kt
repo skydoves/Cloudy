@@ -29,7 +29,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Card
 import androidx.compose.material.Icon
-import androidx.compose.material.MaterialTheme
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -152,7 +152,7 @@ internal fun MenuCardLayout(
         Icon(
           imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
           contentDescription = "Navigate",
-          tint = MaterialTheme.colors.secondary,
+          tint = MaterialTheme.colorScheme.secondary,
           modifier = Modifier.padding(start = 8.dp),
         )
       }

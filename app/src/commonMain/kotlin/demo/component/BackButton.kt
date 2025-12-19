@@ -17,7 +17,7 @@ package demo.component
 
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
-import androidx.compose.material.MaterialTheme
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.runtime.Composable
@@ -35,7 +35,7 @@ import androidx.compose.ui.graphics.Color
 internal fun BackButton(
   onClick: () -> Unit,
   modifier: Modifier = Modifier,
-  tint: Color = MaterialTheme.colors.onPrimary,
+  tint: Color = MaterialTheme.colorScheme.onPrimary,
 ) {
   IconButton(
     onClick = onClick,

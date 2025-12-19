@@ -30,7 +30,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.MaterialTheme
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
@@ -137,7 +137,7 @@ private fun ProgressiveBlurCard(
     modifier = Modifier
       .fillMaxWidth()
       .clip(RoundedCornerShape(16.dp))
-      .background(MaterialTheme.colors.surface),
+      .background(MaterialTheme.colorScheme.surface),
   ) {
     Box(
       modifier = Modifier
@@ -189,27 +189,27 @@ private fun ProgressiveBlurCard(
           text = title,
           fontSize = 16.sp,
           fontWeight = FontWeight.SemiBold,
-          color = MaterialTheme.colors.onSurface,
+          color = MaterialTheme.colorScheme.onSurface,
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
           text = description,
           fontSize = 14.sp,
-          color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
+          color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
         )
       }
       Spacer(modifier = Modifier.width(16.dp))
       Box(
         modifier = Modifier
           .clip(RoundedCornerShape(8.dp))
-          .background(MaterialTheme.colors.primary.copy(alpha = 0.1f))
+          .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
           .padding(horizontal = 12.dp, vertical = 6.dp),
       ) {
         Text(
           text = progressive::class.simpleName ?: "Progressive",
           fontSize = 12.sp,
           fontWeight = FontWeight.Medium,
-          color = MaterialTheme.colors.primary,
+          color = MaterialTheme.colorScheme.primary,
         )
       }
     }
