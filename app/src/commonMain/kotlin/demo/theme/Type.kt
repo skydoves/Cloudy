@@ -15,36 +15,36 @@
  */
 package demo.theme
 
-import androidx.compose.material.Typography
+import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
 internal val LightTypography: Typography = Typography(
-  h1 = TextStyle(
+  titleLarge = TextStyle(
     fontWeight = FontWeight.Normal,
     fontSize = 16.sp,
   ),
-  body1 = TextStyle(
+  bodyMedium = TextStyle(
     fontWeight = FontWeight.Normal,
     fontSize = 14.sp,
   ),
-  caption = TextStyle(
+  labelSmall = TextStyle(
     fontWeight = FontWeight.Normal,
     fontSize = 12.sp,
   ),
 )
 
 internal val DarkTypography: Typography = Typography(
-  h1 = TextStyle(
+  titleLarge = TextStyle(
     fontWeight = FontWeight.Normal,
     fontSize = 16.sp,
   ),
-  body1 = TextStyle(
+  bodyMedium = TextStyle(
     fontWeight = FontWeight.Normal,
     fontSize = 14.sp,
   ),
-  caption = TextStyle(
+  labelSmall = TextStyle(
     fontWeight = FontWeight.Normal,
     fontSize = 12.sp,
   ),
