@@ -32,8 +32,8 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Text
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -100,7 +100,7 @@ fun BlurAppBarGridScreen(onBackClick: () -> Unit) {
         .cloudy(
           sky = sky,
           radius = 20,
-          tint = MaterialTheme.colors.surface.copy(alpha = 0.3f),
+          tint = MaterialTheme.colorScheme.surface.copy(alpha = 0.3f),
         )
         .background(Color.Transparent),
     ) {
@@ -112,14 +112,14 @@ fun BlurAppBarGridScreen(onBackClick: () -> Unit) {
       ) {
         BackButton(
           onClick = onBackClick,
-          tint = MaterialTheme.colors.onSurface,
+          tint = MaterialTheme.colorScheme.onSurface,
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
           text = "Blur AppBar",
           fontSize = 20.sp,
           fontWeight = FontWeight.Bold,
-          color = MaterialTheme.colors.onSurface,
+          color = MaterialTheme.colorScheme.onSurface,
         )
       }
     }

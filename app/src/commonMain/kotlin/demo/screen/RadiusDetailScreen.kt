@@ -29,10 +29,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.Card
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Text
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -102,7 +103,7 @@ fun RadiusDetailScreen(radius: Int, onBackClick: () -> Unit) {
           "The blur effect animates smoothly from 0 to the target radius over 1.5 seconds, " +
             "demonstrating Cloudy's animated blur capability.",
           fontSize = 14.sp,
-          color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
+          color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
           textAlign = TextAlign.Center,
         )
       }
@@ -164,9 +165,9 @@ internal fun RadiusDetailCardLayout(
 
   Card(
     modifier = Modifier.fillMaxWidth(),
-    elevation = Dimens.cardElevation,
+    elevation = CardDefaults.cardElevation(Dimens.cardElevation),
     shape = RoundedCornerShape(Dimens.cardCornerRadius),
-    backgroundColor = MaterialTheme.colors.surface,
+    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
   ) {
     Column(
       modifier = Modifier.padding(Dimens.contentPadding),
@@ -176,7 +177,7 @@ internal fun RadiusDetailCardLayout(
         text = title,
         fontSize = 18.sp,
         fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colors.onSurface,
+        color = MaterialTheme.colorScheme.onSurface,
       )
 
       Spacer(modifier = Modifier.height(Dimens.itemSpacing))
@@ -185,7 +186,7 @@ internal fun RadiusDetailCardLayout(
         Modifier
           .size(300.dp)
           .clip(imageShape)
-          .background(MaterialTheme.colors.surface, imageShape)
+          .background(MaterialTheme.colorScheme.surface, imageShape)
           .cloudy(radius = currentRadius),
       )
 
@@ -194,7 +195,7 @@ internal fun RadiusDetailCardLayout(
       Text(
         text = "Current radius: $currentRadius",
         fontSize = 14.sp,
-        color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
       )
     }
   }

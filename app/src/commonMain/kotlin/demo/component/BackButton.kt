@@ -15,11 +15,11 @@
  */
 package demo.component
 
-import androidx.compose.material.Icon
-import androidx.compose.material.IconButton
-import androidx.compose.material.MaterialTheme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -29,13 +29,13 @@ import androidx.compose.ui.graphics.Color
  *
  * @param onClick Callback when the back button is pressed.
  * @param modifier Modifier to apply to the button.
- * @param tint Color of the icon. Defaults to [MaterialTheme.colors.onPrimary].
+ * @param tint Color of the icon. Defaults to [MaterialTheme.colorScheme.onPrimary].
  */
 @Composable
 internal fun BackButton(
   onClick: () -> Unit,
   modifier: Modifier = Modifier,
-  tint: Color = MaterialTheme.colors.onPrimary,
+  tint: Color = MaterialTheme.colorScheme.onPrimary,
 ) {
   IconButton(
     onClick = onClick,

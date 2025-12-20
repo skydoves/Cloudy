@@ -30,13 +30,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.Card
-import androidx.compose.material.Icon
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -122,9 +123,9 @@ internal fun RadiusItemLayout(
     modifier = Modifier
       .fillMaxWidth()
       .clickable(onClick = onClick),
-    elevation = Dimens.cardElevation,
+    elevation = CardDefaults.cardElevation(defaultElevation = Dimens.cardElevation),
     shape = RoundedCornerShape(Dimens.cardCornerRadius),
-    backgroundColor = MaterialTheme.colors.surface,
+    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
   ) {
     Row(
       modifier = Modifier.padding(Dimens.itemSpacing),
@@ -149,19 +150,19 @@ internal fun RadiusItemLayout(
           text = "Radius: $radius",
           fontSize = 20.sp,
           fontWeight = FontWeight.Bold,
-          color = MaterialTheme.colors.onSurface,
+          color = MaterialTheme.colorScheme.onSurface,
         )
         Text(
           text = if (radius == 0) "No blur" else "Sigma: ${radius / 2.0f}",
           fontSize = 14.sp,
-          color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
+          color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
         )
       }
 
       Icon(
         imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
         contentDescription = "Navigate",
-        tint = MaterialTheme.colors.secondary,
+        tint = MaterialTheme.colorScheme.secondary,
       )
     }
   }

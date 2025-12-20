@@ -16,38 +16,10 @@
 package demo.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.darkColors
-import androidx.compose.material.lightColors
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.material3.MaterialTheme as Material3Theme
-
-// Material 2 color palettes
-private val DarkColorPalette = darkColors(
-  background = backgroundDark,
-  surface = surfaceDark,
-  primary = disneyBluePrimary,
-  primaryVariant = disneyBlueDark,
-  secondary = disneyGold,
-  onBackground = onBackgroundDark,
-  onSurface = onBackgroundDark,
-  onPrimary = onBackgroundDark,
-  onSecondary = backgroundDark,
-)
-
-private val LightColorPalette = lightColors(
-  background = backgroundLight,
-  surface = surfaceLight,
-  primary = disneyBluePrimary,
-  primaryVariant = disneyBlueDark,
-  secondary = disneyGold,
-  onBackground = onBackgroundLight,
-  onSurface = onBackgroundLight,
-  onPrimary = surfaceLight,
-  onSecondary = backgroundDark,
-)
 
 // Material 3 color schemes
 private val DarkColorScheme = darkColorScheme(
@@ -78,7 +50,6 @@ private val LightColorScheme = lightColorScheme(
 
 /**
  * Applies the app's poster styling (colors and typography) to the given composable content.
- * Includes both Material 2 and Material 3 themes for compatibility.
  *
  * When `darkTheme` is true the dark color palette and typography are used; otherwise the light
  * palette and typography are applied.
@@ -92,15 +63,12 @@ internal fun PosterTheme(
   darkTheme: Boolean = isSystemInDarkTheme(),
   content: @Composable () -> Unit,
 ) {
-  val colors = if (darkTheme) DarkColorPalette else LightColorPalette
   val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
   val typography = if (darkTheme) DarkTypography else LightTypography
 
-  Material3Theme(colorScheme = colorScheme) {
-    MaterialTheme(
-      colors = colors,
-      typography = typography,
-      content = content,
-    )
-  }
+  MaterialTheme(
+    colorScheme = colorScheme,
+    typography = typography,
+    content = content,
+  )
 }
