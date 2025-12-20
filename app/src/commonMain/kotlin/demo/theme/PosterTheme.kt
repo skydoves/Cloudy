@@ -50,7 +50,6 @@ private val LightColorScheme = lightColorScheme(
 
 /**
  * Applies the app's poster styling (colors and typography) to the given composable content.
- * Includes both Material 2 and Material 3 themes for compatibility.
  *
  * When `darkTheme` is true the dark color palette and typography are used; otherwise the light
  * palette and typography are applied.
