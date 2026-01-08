@@ -20,6 +20,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import org.jetbrains.skia.ImageFilter
@@ -38,18 +39,23 @@ public actual fun Modifier.liquidGlass(
   lensSize: Size,
   cornerRadius: Float,
   refraction: Float,
+  curve: Float,
   blur: Float,
-  aberration: Float,
+  dispersion: Float,
   saturation: Float,
-  edgeBrightness: Float,
+  contrast: Float,
+  tint: Color,
+  edge: Float,
   enabled: Boolean,
 ): Modifier {
   // Validation
   require(cornerRadius >= 0f) { "cornerRadius must be >= 0, but was $cornerRadius" }
   require(refraction >= 0f) { "refraction must be >= 0, but was $refraction" }
+  require(curve >= 0f) { "curve must be >= 0, but was $curve" }
   require(blur >= 0f) { "blur must be >= 0, but was $blur" }
-  require(aberration >= 0f) { "aberration must be >= 0, but was $aberration" }
+  require(dispersion >= 0f) { "dispersion must be >= 0, but was $dispersion" }
   require(saturation >= 0f) { "saturation must be >= 0, but was $saturation" }
+  require(contrast >= 0f) { "contrast must be >= 0, but was $contrast" }
 
   if (!enabled) {
     return this
@@ -81,10 +87,13 @@ public actual fun Modifier.liquidGlass(
         uniform("lensSize", lensSize.width, lensSize.height)
         uniform("cornerRadius", cornerRadius)
         uniform("refraction", refraction)
+        uniform("curve", curve)
         uniform("blur", blur)
-        uniform("aberration", aberration)
+        uniform("dispersion", dispersion)
         uniform("saturation", saturation)
-        uniform("edgeBrightness", edgeBrightness)
+        uniform("contrast", contrast)
+        uniform("tint", tint.red, tint.green, tint.blue, tint.alpha)
+        uniform("edge", edge)
       }
 
       // Create ImageFilter with RuntimeShader

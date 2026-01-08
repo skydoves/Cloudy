@@ -201,16 +201,19 @@ You can easily implement blur effect with [Landscapist](https://github.com/skydo
 
 ## Liquid Glass Effect
 
-Cloudy also provides a `Modifier.liquidGlass()` that creates a realistic frosted glass lens effect with SDF-based crisp edges, normal-based refraction, blur, and chromatic aberration.
+Cloudy also provides a `Modifier.liquidGlass()` that creates a realistic frosted glass lens effect with SDF-based crisp edges, normal-based refraction, frosted blur, and chromatic dispersion.
 
 ### Platform Support
 
-| Platform | Implementation | Minimum Version |
-|----------|----------------|-----------------|
-| Android | RuntimeShader (AGSL) | API 33+ |
-| iOS | Skia RuntimeEffect | All versions |
-| macOS | Skia RuntimeEffect | All versions |
-| Desktop (JVM) | Skia RuntimeEffect | All versions |
+| Platform | Implementation | Features |
+|----------|----------------|----------|
+| Android 33+ | RuntimeShader (AGSL) | Full effect |
+| Android 12-32 | Fallback | Blur + saturation + edge (no refraction/dispersion) |
+| Android <12 | Fallback | Blur + saturation + edge (no refraction/dispersion) |
+| iOS | Skia RuntimeEffect | Full effect |
+| macOS | Skia RuntimeEffect | Full effect |
+| Desktop (JVM) | Skia RuntimeEffect | Full effect |
+| WASM | Skia RuntimeEffect | Full effect |
 
 ### Basic Usage
 
@@ -243,28 +246,34 @@ You can customize the liquid glass effect with various parameters:
 .liquidGlass(
   mousePosition = mousePosition,
   lensSize = Size(350f, 350f),  // Size of the glass lens
-  cornerRadius = 32f,           // Rounded corners
-  refraction = 0.5f,            // Distortion strength
-  blur = 8f,                    // Frosted blur radius
-  aberration = 0.5f,            // Chromatic aberration (RGB separation)
+  cornerRadius = 50f,           // Rounded corners
+  refraction = 0.25f,           // Distortion amount
+  curve = 0.25f,                // Lens curvature strength
+  blur = 8f,                    // Frosted blur radius (Cloudy unique!)
+  dispersion = 0.0f,            // Chromatic dispersion (RGB separation)
   saturation = 1.0f,            // Color saturation
-  edgeBrightness = 0.3f,        // Edge lighting intensity
+  contrast = 1.0f,              // Light/dark contrast
+  tint = Color.Transparent,     // Optional color tint
+  edge = 0.2f,                  // Edge lighting width
 )
 ```
 
 ### Parameters
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `mousePosition` | - | Center position of the glass lens (required) |
-| `lensSize` | 350x350 | Size of the lens in pixels |
-| `cornerRadius` | 32f | Corner radius for rounded rectangle shape |
-| `refraction` | 0.5f | Refraction/distortion strength (0 = none) |
-| `blur` | 8f | Frosted glass blur radius |
-| `aberration` | 0.5f | Chromatic aberration intensity |
-| `saturation` | 1.0f | Color saturation (1.0 = normal) |
-| `edgeBrightness` | 0.3f | Edge lighting/highlight intensity |
-| `enabled` | true | Enable/disable the effect |
+| Parameter | Default | Description | Fallback Support |
+|-----------|---------|-------------|------------------|
+| `mousePosition` | - | Center position of the glass lens (required) | Yes |
+| `lensSize` | 350x350 | Size of the lens in pixels | Yes |
+| `cornerRadius` | 50f | Corner radius for rounded rectangle shape | Yes |
+| `refraction` | 0.25f | Controls how much background distorts through lens | No-op on Android <33 |
+| `curve` | 0.25f | Controls how strongly lens curves at center vs edges | No-op on Android <33 |
+| `blur` | 8f | Frosted glass blur radius (Cloudy unique feature!) | Yes |
+| `dispersion` | 0.0f | Chromatic dispersion/aberration intensity | No-op on Android <33 |
+| `saturation` | 1.0f | Color saturation (1.0 = normal) | Yes |
+| `contrast` | 1.0f | Light/dark contrast (1.0 = normal) | Yes |
+| `tint` | Transparent | Optional color tint overlay | Yes |
+| `edge` | 0.2f | Edge lighting width (0 = none) | Boolean on Android <33 |
+| `enabled` | true | Enable/disable the effect | Yes |
 
 ## Find this repository useful? :heart:
 Support it by joining __[stargazers](https://github.com/skydoves/cloudy/stargazers)__ for this repository. :star: <br>

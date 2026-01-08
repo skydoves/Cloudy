@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 
 /**
  * Default values for the Liquid Glass effect.
@@ -28,25 +29,37 @@ public object LiquidGlassDefaults {
   public val LENS_SIZE: Size = Size(350f, 350f)
 
   /** Default corner radius for the lens shape. */
-  public const val CORNER_RADIUS: Float = 32f
+  public const val CORNER_RADIUS: Float = 50f
 
-  /** Default refraction strength. 0.0 = no refraction, higher = more distortion. */
-  public const val REFRACTION: Float = 0.5f
+  /** Default refraction strength. Controls how much the background distorts. */
+  public const val REFRACTION: Float = 0.25f
 
-  /** Default blur radius in pixels. */
+  /** Default curve strength. Controls how strongly the lens curves at center vs edges. */
+  public const val CURVE: Float = 0.25f
+
+  /** Default blur radius in pixels for frosted glass effect. */
   public const val BLUR: Float = 8f
 
-  /** Default chromatic aberration strength. 0.0 = none, higher = more color separation. */
-  public const val ABERRATION: Float = 0.5f
+  /** Default dispersion (chromatic aberration) strength. */
+  public const val DISPERSION: Float = 0.0f
 
   /** Default saturation. 1.0 = normal, <1.0 = desaturated, >1.0 = oversaturated. */
   public const val SATURATION: Float = 1.0f
 
-  /** Default edge brightness/lighting intensity. */
-  public const val EDGE_BRIGHTNESS: Float = 0.3f
+  /** Default contrast. 1.0 = normal, <1.0 = less contrast, >1.0 = more contrast. */
+  public const val CONTRAST: Float = 1.0f
 
-  /** Minimum Android API level required for the liquid glass effect. */
-  public const val MIN_ANDROID_API: Int = 33
+  /** Default tint color (transparent = no tint). */
+  public val TINT: Color = Color.Transparent
+
+  /** Default edge lighting width. 0.0 = no edge, higher = wider edge lighting. */
+  public const val EDGE: Float = 0.2f
+
+  /** Minimum Android API level required for the full liquid glass effect. */
+  public const val MIN_ANDROID_API_FULL: Int = 33
+
+  /** Minimum Android API level for fallback support. */
+  public const val MIN_ANDROID_API_FALLBACK: Int = 23
 }
 
 /**
@@ -54,15 +67,16 @@ public object LiquidGlassDefaults {
  *
  * This modifier creates an interactive glass lens effect that distorts the dynamic content
  * beneath it in real-time. The effect uses SDF (Signed Distance Field) for crisp edges,
- * normal-based refraction, frosted blur, and chromatic aberration.
+ * normal-based refraction, frosted blur, and chromatic dispersion.
  *
  * ## Platform Behavior
  *
- * | Platform | Implementation |
- * |----------|----------------|
- * | Android 33+ | RenderEffect with RuntimeShader (AGSL) |
- * | Android 32- | No-op fallback (returns content unchanged) |
- * | iOS/macOS/Desktop | ImageFilter with RuntimeEffect (SKSL via Skia) |
+ * | Platform | Implementation | Features |
+ * |----------|----------------|----------|
+ * | Android 33+ | RuntimeShader (AGSL) | Full effect |
+ * | Android 12-32 | Fallback | Blur + saturation + edge (no refraction/dispersion) |
+ * | Android <12 | Fallback | Blur + saturation + edge (no refraction/dispersion) |
+ * | iOS/macOS/Desktop | Skia RuntimeEffect (SKSL) | Full effect |
  *
  * ## Example Usage
  *
@@ -79,13 +93,13 @@ public object LiquidGlassDefaults {
  *     }
  *     .liquidGlass(
  *       mousePosition = mousePosition,
- *       lensSize = Size(200f, 200f),
- *       cornerRadius = 32f,
- *       refraction = 0.5f,
+ *       lensSize = Size(350f, 350f),
+ *       cornerRadius = 50f,
+ *       refraction = 0.25f,
+ *       curve = 0.25f,
  *       blur = 8f,
  *     )
  * ) {
- *   // Your dynamic content here (images, videos, animations)
  *   Image(painter = painterResource(R.drawable.photo), ...)
  * }
  * ```
@@ -94,27 +108,45 @@ public object LiquidGlassDefaults {
  *   This should be updated based on touch/mouse input for interactive effects.
  *
  * @param lensSize The size of the lens in pixels (width, height).
- *   Default: [LiquidGlassDefaults.LENS_SIZE] (200x200).
+ *   Default: [LiquidGlassDefaults.LENS_SIZE] (350x350).
  *
  * @param cornerRadius The corner radius of the rounded rectangle lens shape.
- *   Default: [LiquidGlassDefaults.CORNER_RADIUS] (32).
+ *   Use higher values for more rounded corners, or set to half of lensSize for circular.
+ *   Default: [LiquidGlassDefaults.CORNER_RADIUS] (50).
  *
- * @param refraction The refraction/distortion strength.
- *   Controls how much the content is displaced through the lens.
- *   Default: [LiquidGlassDefaults.REFRACTION] (0.5).
+ * @param refraction Controls how much the background distorts through the liquid lens.
+ *   Setting to 0 removes the liquid effect. No-op on Android 12 and lower.
+ *   Default: [LiquidGlassDefaults.REFRACTION] (0.25).
+ *
+ * @param curve Controls how strongly the liquid lens curves at its center vs edges.
+ *   Setting to 0 removes the liquid effect. No-op on Android 12 and lower.
+ *   Default: [LiquidGlassDefaults.CURVE] (0.25).
  *
  * @param blur The blur radius for the frosted glass effect.
+ *   This is Cloudy's unique addition - works on all platforms.
  *   Default: [LiquidGlassDefaults.BLUR] (8).
  *
- * @param aberration The chromatic aberration intensity.
- *   Controls the RGB channel separation that creates the "rainbow fringe" effect.
- *   Default: [LiquidGlassDefaults.ABERRATION] (0.5).
+ * @param dispersion The chromatic dispersion (aberration) intensity.
+ *   Controls the RGB channel separation that creates the prism-like effect.
+ *   No-op on Android 12 and lower.
+ *   Default: [LiquidGlassDefaults.DISPERSION] (0.0).
  *
  * @param saturation Color saturation adjustment. 1.0 = normal.
+ *   Works on all platforms including fallback.
  *   Default: [LiquidGlassDefaults.SATURATION] (1.0).
  *
- * @param edgeBrightness The edge lighting/highlight intensity.
- *   Default: [LiquidGlassDefaults.EDGE_BRIGHTNESS] (0.3).
+ * @param contrast Adjusts the difference between light and dark areas.
+ *   1.0 = normal, >1.0 = more contrast, <1.0 = less contrast.
+ *   Default: [LiquidGlassDefaults.CONTRAST] (1.0).
+ *
+ * @param tint Optional color tint to apply over the glass effect.
+ *   Use Color.Transparent for no tint.
+ *   Default: [LiquidGlassDefaults.TINT] (Transparent).
+ *
+ * @param edge The edge lighting/rim width. Higher values create wider, softer edges.
+ *   Set to 0 to disable edge lighting. On Android 12 and lower, this becomes
+ *   a boolean where value > 0 draws a fixed width edge effect.
+ *   Default: [LiquidGlassDefaults.EDGE] (0.2).
  *
  * @param enabled If false, disables the effect and returns the original modifier.
  *
@@ -129,9 +161,12 @@ public expect fun Modifier.liquidGlass(
   lensSize: Size = LiquidGlassDefaults.LENS_SIZE,
   cornerRadius: Float = LiquidGlassDefaults.CORNER_RADIUS,
   refraction: Float = LiquidGlassDefaults.REFRACTION,
+  curve: Float = LiquidGlassDefaults.CURVE,
   blur: Float = LiquidGlassDefaults.BLUR,
-  aberration: Float = LiquidGlassDefaults.ABERRATION,
+  dispersion: Float = LiquidGlassDefaults.DISPERSION,
   saturation: Float = LiquidGlassDefaults.SATURATION,
-  edgeBrightness: Float = LiquidGlassDefaults.EDGE_BRIGHTNESS,
+  contrast: Float = LiquidGlassDefaults.CONTRAST,
+  tint: Color = LiquidGlassDefaults.TINT,
+  edge: Float = LiquidGlassDefaults.EDGE,
   enabled: Boolean = true,
 ): Modifier

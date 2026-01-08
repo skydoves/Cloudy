@@ -19,10 +19,11 @@ package com.skydoves.cloudy
  * Shared shader source code for the Liquid Glass effect.
  *
  * This shader creates a realistic liquid glass lens effect with:
- * - SDF-based shape for crisp edges
- * - Normal-based refraction distortion
- * - Frosted glass blur effect
- * - Chromatic aberration (RGB channel separation)
+ * - Rounded rectangle distance field for crisp edges
+ * - Surface gradient-based refraction and curve distortion
+ * - Frosted glass blur effect (Cloudy's unique feature)
+ * - Chromatic dispersion (RGB channel separation)
+ * - Saturation, contrast, and tint adjustments
  * - Edge lighting and anti-aliasing
  *
  * The shader is compatible with both AGSL (Android 13+) and SKSL (Skia platforms).
@@ -40,118 +41,147 @@ uniform float2 mouse;
 uniform float2 lensSize;
 uniform float cornerRadius;
 uniform float refraction;
+uniform float curve;
 uniform float blur;
-uniform float aberration;
+uniform float dispersion;
 uniform float saturation;
-uniform float edgeBrightness;
+uniform float contrast;
+uniform float4 tint;
+uniform float edge;
 uniform shader content;
 
-const float AA_WIDTH_PX = 1.5;
-const float BLUR_SAMPLES = 3.0;
+const float ANTIALIAS_RADIUS = 1.5;
+const float BLUR_KERNEL_SIZE = 3.0;
 
-// Signed distance function for rounded rectangle
-float computeSdf(float2 p, float2 halfSize, float r) {
-    float2 q = abs(p) - halfSize + r;
-    return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r;
+// Calculate distance from point to rounded rectangle boundary
+// Returns negative inside, positive outside
+float roundedRectDistance(float2 point, float2 boxExtent, float radius) {
+    float2 offsetFromCorner = abs(point) - boxExtent + float2(radius);
+    float outsideDistance = length(max(offsetFromCorner, 0.0));
+    float insideDistance = min(max(offsetFromCorner.x, offsetFromCorner.y), 0.0);
+    return outsideDistance + insideDistance - radius;
 }
 
-// Compute the gradient/normal of the SDF
-float2 computeSdfNormal(float2 p, float2 halfSize, float r) {
-    float2 w = abs(p) - (halfSize - r);
-    float2 s = float2(p.x < 0.0 ? -1.0 : 1.0, p.y < 0.0 ? -1.0 : 1.0);
-    float g = max(w.x, w.y);
-    float2 q = max(w, 0.0);
-    float l = length(q);
-    return s * ((g > 0.0) ? q / l : ((w.x > w.y) ? float2(1.0, 0.0) : float2(0.0, 1.0)));
+// Calculate outward-pointing surface gradient at a point
+float2 calculateSurfaceGradient(float2 point, float2 boxExtent, float radius) {
+    float2 innerOffset = abs(point) - boxExtent + float2(radius);
+    float2 signVector = float2(
+        point.x >= 0.0 ? 1.0 : -1.0,
+        point.y >= 0.0 ? 1.0 : -1.0
+    );
+
+    // Outside the inner rounded region
+    if (max(innerOffset.x, innerOffset.y) > 0.0) {
+        float2 clampedOffset = max(innerOffset, 0.0);
+        return signVector * normalize(clampedOffset);
+    }
+
+    // Inside - gradient points toward nearest edge
+    if (innerOffset.x > innerOffset.y) {
+        return float2(signVector.x, 0.0);
+    }
+    return float2(0.0, signVector.y);
 }
 
-half3 applyColorAdjustments(half3 color, float sat) {
-    float lum = dot(color, half3(0.2126, 0.7152, 0.0722));
-    return half3(clamp(mix(half3(lum), color, sat), 0.0, 1.0));
+// Compute perceived luminance using Rec. 709 coefficients
+float getLuminance(half3 rgb) {
+    return dot(rgb, half3(0.2126, 0.7152, 0.0722));
+}
+
+// Apply color grading: saturation, contrast, and tint overlay
+half3 applyColorGrading(half3 inputColor, float satLevel, float contrastLevel, float4 tintOverlay) {
+    // Saturation adjustment via luminance mixing
+    float gray = getLuminance(inputColor);
+    half3 saturatedColor = half3(clamp(mix(half3(gray), inputColor, satLevel), 0.0, 1.0));
+
+    // Contrast adjustment around middle gray
+    half3 contrastedColor = half3(clamp((saturatedColor - 0.5) * contrastLevel + 0.5, 0.0, 1.0));
+
+    // Blend with tint based on tint alpha
+    return mix(contrastedColor, half3(tintOverlay.rgb), tintOverlay.a);
 }
 
 half4 main(float2 fragCoord) {
-    float2 center = mouse;
-    float2 halfSize = lensSize * 0.5;
-    float r = min(cornerRadius, min(halfSize.x, halfSize.y));
+    float2 lensCenter = mouse;
+    float2 halfExtent = lensSize * 0.5;
+    float clampedRadius = min(cornerRadius, min(halfExtent.x, halfExtent.y));
 
-    // Position relative to lens center
-    float2 p = fragCoord - center;
-    float sdf = computeSdf(p, halfSize, r);
+    // Get position relative to lens center
+    float2 localPos = fragCoord - lensCenter;
+    float dist = roundedRectDistance(localPos, halfExtent, clampedRadius);
 
-    // Anti-aliasing width
-    float aaWidth = AA_WIDTH_PX;
-
-    // Outside the lens - return original content
-    if (sdf > aaWidth) {
+    // Early exit for pixels clearly outside the lens
+    if (dist > ANTIALIAS_RADIUS) {
         return content.eval(fragCoord);
     }
 
-    // Compute normal for refraction and lighting
-    float2 normal = computeSdfNormal(p, halfSize, r);
+    // Calculate surface gradient for refraction direction
+    float2 surfaceDir = calculateSurfaceGradient(localPos, halfExtent, clampedRadius);
 
-    // Calculate base coordinate with refraction
-    float2 baseCoord = fragCoord;
-    if (refraction > 0.0) {
-        float lensDepth = 1.0 - clamp(-sdf / (min(halfSize.x, halfSize.y) * refraction), 0.0, 1.0);
-        float distortion = 1.0 - sqrt(1.0 - lensDepth * lensDepth);
-        float normalDisplacement = distortion * -refraction * min(halfSize.x, halfSize.y) * 0.5;
-        baseCoord = fragCoord + normalDisplacement * normal;
+    // Apply lens refraction effect
+    float2 samplingCoord = fragCoord;
+    if (refraction > 0.0 && curve > 0.0) {
+        float minExtent = min(halfExtent.x, halfExtent.y);
+        float normalizedDepth = clamp(-dist / (minExtent * refraction), 0.0, 1.0);
+        float sphericalFactor = 1.0 - normalizedDepth;
+        float bendAmount = 1.0 - sqrt(1.0 - sphericalFactor * sphericalFactor);
+        float displacement = bendAmount * curve * minExtent;
+        samplingCoord = fragCoord - displacement * surfaceDir;
     }
 
-    // Sample with blur and chromatic aberration
-    half4 fragColor = half4(0.0);
-    float sampleCount = 0.0;
-    float blurRadius = blur;
+    // Frosted glass blur with chromatic dispersion
+    half4 accumulatedColor = half4(0.0);
+    float totalSamples = 0.0;
 
-    // Distance from center for aberration strength
-    float2 distFromCenter = p / halfSize;
-    float2 aberrationOffset = aberration * distFromCenter * distFromCenter * distFromCenter * min(halfSize.x, halfSize.y) * 0.1;
+    // Dispersion offset based on distance from center (cubic falloff for realism)
+    float2 normalizedPos = localPos / halfExtent;
+    float2 chromaticShift = dispersion * normalizedPos * normalizedPos * normalizedPos * min(halfExtent.x, halfExtent.y) * 0.1;
 
-    for (float x = -BLUR_SAMPLES; x <= BLUR_SAMPLES; x++) {
-        for (float y = -BLUR_SAMPLES; y <= BLUR_SAMPLES; y++) {
-            float2 sampleOffset = float2(x, y) * blurRadius / BLUR_SAMPLES;
+    // Box blur kernel
+    for (float dx = -BLUR_KERNEL_SIZE; dx <= BLUR_KERNEL_SIZE; dx++) {
+        for (float dy = -BLUR_KERNEL_SIZE; dy <= BLUR_KERNEL_SIZE; dy++) {
+            float2 blurOffset = float2(dx, dy) * blur / BLUR_KERNEL_SIZE;
 
-            // Sample with chromatic aberration
-            float2 coordR = baseCoord + sampleOffset - aberrationOffset;
-            float2 coordG = baseCoord + sampleOffset;
-            float2 coordB = baseCoord + sampleOffset + aberrationOffset;
+            // Separate RGB channels for chromatic dispersion
+            float2 redCoord = samplingCoord + blurOffset - chromaticShift;
+            float2 greenCoord = samplingCoord + blurOffset;
+            float2 blueCoord = samplingCoord + blurOffset + chromaticShift;
 
-            // Check if samples are within lens bounds
-            float sdfR = computeSdf(coordR - center, halfSize, r);
-            float sdfB = computeSdf(coordB - center, halfSize, r);
+            // Validate red/blue samples are within lens bounds
+            float redDist = roundedRectDistance(redCoord - lensCenter, halfExtent, clampedRadius);
+            float blueDist = roundedRectDistance(blueCoord - lensCenter, halfExtent, clampedRadius);
 
-            half4 colorG = content.eval(coordG);
-            half4 colorR = (sdfR <= 0.0) ? content.eval(coordR) : colorG;
-            half4 colorB = (sdfB <= 0.0) ? content.eval(coordB) : colorG;
+            half4 greenSample = content.eval(greenCoord);
+            half4 redSample = (redDist <= 0.0) ? content.eval(redCoord) : greenSample;
+            half4 blueSample = (blueDist <= 0.0) ? content.eval(blueCoord) : greenSample;
 
-            fragColor += half4(colorR.r, colorG.g, colorB.b, colorG.a);
-            sampleCount += 1.0;
+            accumulatedColor += half4(redSample.r, greenSample.g, blueSample.b, greenSample.a);
+            totalSamples += 1.0;
         }
     }
-    fragColor /= sampleCount;
+    half4 blurredColor = accumulatedColor / totalSamples;
 
-    // Handle case where sampled alpha is zero
-    if (fragColor.a <= 0.0) {
-        fragColor = content.eval(fragCoord);
+    // Fallback if alpha is zero (transparent region)
+    if (blurredColor.a <= 0.0) {
+        blurredColor = content.eval(fragCoord);
     }
 
-    // Apply saturation adjustment
-    fragColor.rgb = applyColorAdjustments(fragColor.rgb, saturation);
+    // Apply color grading
+    blurredColor.rgb = applyColorGrading(blurredColor.rgb, saturation, contrast, tint);
 
-    // Edge lighting based on normal
-    float edgeSmooth = smoothstep(-edgeBrightness * 10.0, 0.0, sdf);
-    float2 lightDirection = float2(-0.15, -0.15);
-    float nDotL = abs(dot(normal, lightDirection));
-    float edgeLighting = edgeSmooth * nDotL * edgeBrightness;
-    fragColor.rgb += half3(edgeLighting);
+    // Edge rim lighting effect
+    if (edge > 0.0) {
+        float rimFactor = smoothstep(-edge * 10.0, 0.0, dist);
+        float2 lightDir = normalize(float2(-1.0, -1.0));
+        float lightIntensity = abs(dot(surfaceDir, lightDir));
+        blurredColor.rgb += half3(rimFactor * lightIntensity * edge);
+    }
 
-    // Anti-aliased alpha at edges
-    float aaAlpha = 1.0 - smoothstep(-aaWidth * 0.5, aaWidth * 0.5, sdf);
+    // Smooth alpha blend at edges for anti-aliasing
+    float edgeAlpha = 1.0 - smoothstep(-ANTIALIAS_RADIUS * 0.5, ANTIALIAS_RADIUS * 0.5, dist);
 
-    // Blend with original content at edges
     half4 originalColor = content.eval(fragCoord);
-    return mix(originalColor, fragColor, aaAlpha);
+    return mix(originalColor, blurredColor, edgeAlpha);
 }
 """
 
@@ -167,118 +197,147 @@ uniform float2 mouse;
 uniform float2 lensSize;
 uniform float cornerRadius;
 uniform float refraction;
+uniform float curve;
 uniform float blur;
-uniform float aberration;
+uniform float dispersion;
 uniform float saturation;
-uniform float edgeBrightness;
+uniform float contrast;
+uniform float4 tint;
+uniform float edge;
 uniform shader content;
 
-const float AA_WIDTH_PX = 1.5;
-const float BLUR_SAMPLES = 3.0;
+const float ANTIALIAS_RADIUS = 1.5;
+const float BLUR_KERNEL_SIZE = 3.0;
 
-// Signed distance function for rounded rectangle
-float computeSdf(float2 p, float2 halfSize, float r) {
-    float2 q = abs(p) - halfSize + r;
-    return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r;
+// Calculate distance from point to rounded rectangle boundary
+// Returns negative inside, positive outside
+float roundedRectDistance(float2 point, float2 boxExtent, float radius) {
+    float2 offsetFromCorner = abs(point) - boxExtent + float2(radius);
+    float outsideDistance = length(max(offsetFromCorner, 0.0));
+    float insideDistance = min(max(offsetFromCorner.x, offsetFromCorner.y), 0.0);
+    return outsideDistance + insideDistance - radius;
 }
 
-// Compute the gradient/normal of the SDF
-float2 computeSdfNormal(float2 p, float2 halfSize, float r) {
-    float2 w = abs(p) - (halfSize - r);
-    float2 s = float2(p.x < 0.0 ? -1.0 : 1.0, p.y < 0.0 ? -1.0 : 1.0);
-    float g = max(w.x, w.y);
-    float2 q = max(w, 0.0);
-    float l = length(q);
-    return s * ((g > 0.0) ? q / l : ((w.x > w.y) ? float2(1.0, 0.0) : float2(0.0, 1.0)));
+// Calculate outward-pointing surface gradient at a point
+float2 calculateSurfaceGradient(float2 point, float2 boxExtent, float radius) {
+    float2 innerOffset = abs(point) - boxExtent + float2(radius);
+    float2 signVector = float2(
+        point.x >= 0.0 ? 1.0 : -1.0,
+        point.y >= 0.0 ? 1.0 : -1.0
+    );
+
+    // Outside the inner rounded region
+    if (max(innerOffset.x, innerOffset.y) > 0.0) {
+        float2 clampedOffset = max(innerOffset, 0.0);
+        return signVector * normalize(clampedOffset);
+    }
+
+    // Inside - gradient points toward nearest edge
+    if (innerOffset.x > innerOffset.y) {
+        return float2(signVector.x, 0.0);
+    }
+    return float2(0.0, signVector.y);
 }
 
-half3 applyColorAdjustments(half3 color, float sat) {
-    float lum = dot(color, half3(0.2126, 0.7152, 0.0722));
-    return half3(clamp(mix(half3(lum), color, sat), 0.0, 1.0));
+// Compute perceived luminance using Rec. 709 coefficients
+float getLuminance(half3 rgb) {
+    return dot(rgb, half3(0.2126, 0.7152, 0.0722));
+}
+
+// Apply color grading: saturation, contrast, and tint overlay
+half3 applyColorGrading(half3 inputColor, float satLevel, float contrastLevel, float4 tintOverlay) {
+    // Saturation adjustment via luminance mixing
+    float gray = getLuminance(inputColor);
+    half3 saturatedColor = half3(clamp(mix(half3(gray), inputColor, satLevel), 0.0, 1.0));
+
+    // Contrast adjustment around middle gray
+    half3 contrastedColor = half3(clamp((saturatedColor - 0.5) * contrastLevel + 0.5, 0.0, 1.0));
+
+    // Blend with tint based on tint alpha
+    return mix(contrastedColor, half3(tintOverlay.rgb), tintOverlay.a);
 }
 
 half4 main(float2 fragCoord) {
-    float2 center = mouse;
-    float2 halfSize = lensSize * 0.5;
-    float r = min(cornerRadius, min(halfSize.x, halfSize.y));
+    float2 lensCenter = mouse;
+    float2 halfExtent = lensSize * 0.5;
+    float clampedRadius = min(cornerRadius, min(halfExtent.x, halfExtent.y));
 
-    // Position relative to lens center
-    float2 p = fragCoord - center;
-    float sdf = computeSdf(p, halfSize, r);
+    // Get position relative to lens center
+    float2 localPos = fragCoord - lensCenter;
+    float dist = roundedRectDistance(localPos, halfExtent, clampedRadius);
 
-    // Anti-aliasing width
-    float aaWidth = AA_WIDTH_PX;
-
-    // Outside the lens - return original content
-    if (sdf > aaWidth) {
+    // Early exit for pixels clearly outside the lens
+    if (dist > ANTIALIAS_RADIUS) {
         return content.eval(fragCoord);
     }
 
-    // Compute normal for refraction and lighting
-    float2 normal = computeSdfNormal(p, halfSize, r);
+    // Calculate surface gradient for refraction direction
+    float2 surfaceDir = calculateSurfaceGradient(localPos, halfExtent, clampedRadius);
 
-    // Calculate base coordinate with refraction
-    float2 baseCoord = fragCoord;
-    if (refraction > 0.0) {
-        float lensDepth = 1.0 - clamp(-sdf / (min(halfSize.x, halfSize.y) * refraction), 0.0, 1.0);
-        float distortion = 1.0 - sqrt(1.0 - lensDepth * lensDepth);
-        float normalDisplacement = distortion * -refraction * min(halfSize.x, halfSize.y) * 0.5;
-        baseCoord = fragCoord + normalDisplacement * normal;
+    // Apply lens refraction effect
+    float2 samplingCoord = fragCoord;
+    if (refraction > 0.0 && curve > 0.0) {
+        float minExtent = min(halfExtent.x, halfExtent.y);
+        float normalizedDepth = clamp(-dist / (minExtent * refraction), 0.0, 1.0);
+        float sphericalFactor = 1.0 - normalizedDepth;
+        float bendAmount = 1.0 - sqrt(1.0 - sphericalFactor * sphericalFactor);
+        float displacement = bendAmount * curve * minExtent;
+        samplingCoord = fragCoord - displacement * surfaceDir;
     }
 
-    // Sample with blur and chromatic aberration
-    half4 fragColor = half4(0.0);
-    float sampleCount = 0.0;
-    float blurRadius = blur;
+    // Frosted glass blur with chromatic dispersion
+    half4 accumulatedColor = half4(0.0);
+    float totalSamples = 0.0;
 
-    // Distance from center for aberration strength
-    float2 distFromCenter = p / halfSize;
-    float2 aberrationOffset = aberration * distFromCenter * distFromCenter * distFromCenter * min(halfSize.x, halfSize.y) * 0.1;
+    // Dispersion offset based on distance from center (cubic falloff for realism)
+    float2 normalizedPos = localPos / halfExtent;
+    float2 chromaticShift = dispersion * normalizedPos * normalizedPos * normalizedPos * min(halfExtent.x, halfExtent.y) * 0.1;
 
-    for (float x = -BLUR_SAMPLES; x <= BLUR_SAMPLES; x++) {
-        for (float y = -BLUR_SAMPLES; y <= BLUR_SAMPLES; y++) {
-            float2 sampleOffset = float2(x, y) * blurRadius / BLUR_SAMPLES;
+    // Box blur kernel
+    for (float dx = -BLUR_KERNEL_SIZE; dx <= BLUR_KERNEL_SIZE; dx++) {
+        for (float dy = -BLUR_KERNEL_SIZE; dy <= BLUR_KERNEL_SIZE; dy++) {
+            float2 blurOffset = float2(dx, dy) * blur / BLUR_KERNEL_SIZE;
 
-            // Sample with chromatic aberration
-            float2 coordR = baseCoord + sampleOffset - aberrationOffset;
-            float2 coordG = baseCoord + sampleOffset;
-            float2 coordB = baseCoord + sampleOffset + aberrationOffset;
+            // Separate RGB channels for chromatic dispersion
+            float2 redCoord = samplingCoord + blurOffset - chromaticShift;
+            float2 greenCoord = samplingCoord + blurOffset;
+            float2 blueCoord = samplingCoord + blurOffset + chromaticShift;
 
-            // Check if samples are within lens bounds
-            float sdfR = computeSdf(coordR - center, halfSize, r);
-            float sdfB = computeSdf(coordB - center, halfSize, r);
+            // Validate red/blue samples are within lens bounds
+            float redDist = roundedRectDistance(redCoord - lensCenter, halfExtent, clampedRadius);
+            float blueDist = roundedRectDistance(blueCoord - lensCenter, halfExtent, clampedRadius);
 
-            half4 colorG = content.eval(coordG);
-            half4 colorR = (sdfR <= 0.0) ? content.eval(coordR) : colorG;
-            half4 colorB = (sdfB <= 0.0) ? content.eval(coordB) : colorG;
+            half4 greenSample = content.eval(greenCoord);
+            half4 redSample = (redDist <= 0.0) ? content.eval(redCoord) : greenSample;
+            half4 blueSample = (blueDist <= 0.0) ? content.eval(blueCoord) : greenSample;
 
-            fragColor += half4(colorR.r, colorG.g, colorB.b, colorG.a);
-            sampleCount += 1.0;
+            accumulatedColor += half4(redSample.r, greenSample.g, blueSample.b, greenSample.a);
+            totalSamples += 1.0;
         }
     }
-    fragColor /= sampleCount;
+    half4 blurredColor = accumulatedColor / totalSamples;
 
-    // Handle case where sampled alpha is zero
-    if (fragColor.a <= 0.0) {
-        fragColor = content.eval(fragCoord);
+    // Fallback if alpha is zero (transparent region)
+    if (blurredColor.a <= 0.0) {
+        blurredColor = content.eval(fragCoord);
     }
 
-    // Apply saturation adjustment
-    fragColor.rgb = applyColorAdjustments(fragColor.rgb, saturation);
+    // Apply color grading
+    blurredColor.rgb = applyColorGrading(blurredColor.rgb, saturation, contrast, tint);
 
-    // Edge lighting based on normal
-    float edgeSmooth = smoothstep(-edgeBrightness * 10.0, 0.0, sdf);
-    float2 lightDirection = float2(-0.15, -0.15);
-    float nDotL = abs(dot(normal, lightDirection));
-    float edgeLighting = edgeSmooth * nDotL * edgeBrightness;
-    fragColor.rgb += half3(edgeLighting);
+    // Edge rim lighting effect
+    if (edge > 0.0) {
+        float rimFactor = smoothstep(-edge * 10.0, 0.0, dist);
+        float2 lightDir = normalize(float2(-1.0, -1.0));
+        float lightIntensity = abs(dot(surfaceDir, lightDir));
+        blurredColor.rgb += half3(rimFactor * lightIntensity * edge);
+    }
 
-    // Anti-aliased alpha at edges
-    float aaAlpha = 1.0 - smoothstep(-aaWidth * 0.5, aaWidth * 0.5, sdf);
+    // Smooth alpha blend at edges for anti-aliasing
+    float edgeAlpha = 1.0 - smoothstep(-ANTIALIAS_RADIUS * 0.5, ANTIALIAS_RADIUS * 0.5, dist);
 
-    // Blend with original content at edges
     half4 originalColor = content.eval(fragCoord);
-    return mix(originalColor, fragColor, aaAlpha);
+    return mix(originalColor, blurredColor, edgeAlpha);
 }
 """
 }
