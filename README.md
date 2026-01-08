@@ -199,6 +199,73 @@ private fun HomePoster(poster: Poster) {
 
 You can easily implement blur effect with [Landscapist](https://github.com/skydoves/landscapist), which is a Jetpack Compose image loading library that fetches and displays network images with Glide, Coil, and Fresco. For more information, see the [Transformation](https://github.com/skydoves/landscapist#transformation) section.
 
+## Liquid Glass Effect
+
+Cloudy also provides a `Modifier.liquidGlass()` that creates a realistic frosted glass lens effect with SDF-based crisp edges, normal-based refraction, blur, and chromatic aberration.
+
+### Platform Support
+
+| Platform | Implementation | Minimum Version |
+|----------|----------------|-----------------|
+| Android | RuntimeShader (AGSL) | API 33+ |
+| iOS | Skia RuntimeEffect | All versions |
+| macOS | Skia RuntimeEffect | All versions |
+| Desktop (JVM) | Skia RuntimeEffect | All versions |
+
+### Basic Usage
+
+```kotlin
+var mousePosition by remember { mutableStateOf(Offset(100f, 100f)) }
+
+Box(
+  modifier = Modifier
+    .fillMaxSize()
+    .pointerInput(Unit) {
+      detectDragGestures { change, _ ->
+        mousePosition = change.position
+      }
+    }
+    .liquidGlass(mousePosition = mousePosition)
+) {
+  Image(
+    painter = painterResource(R.drawable.photo),
+    contentDescription = null,
+    modifier = Modifier.fillMaxSize()
+  )
+}
+```
+
+### Customization
+
+You can customize the liquid glass effect with various parameters:
+
+```kotlin
+.liquidGlass(
+  mousePosition = mousePosition,
+  lensSize = Size(350f, 350f),  // Size of the glass lens
+  cornerRadius = 32f,           // Rounded corners
+  refraction = 0.5f,            // Distortion strength
+  blur = 8f,                    // Frosted blur radius
+  aberration = 0.5f,            // Chromatic aberration (RGB separation)
+  saturation = 1.0f,            // Color saturation
+  edgeBrightness = 0.3f,        // Edge lighting intensity
+)
+```
+
+### Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `mousePosition` | - | Center position of the glass lens (required) |
+| `lensSize` | 350x350 | Size of the lens in pixels |
+| `cornerRadius` | 32f | Corner radius for rounded rectangle shape |
+| `refraction` | 0.5f | Refraction/distortion strength (0 = none) |
+| `blur` | 8f | Frosted glass blur radius |
+| `aberration` | 0.5f | Chromatic aberration intensity |
+| `saturation` | 1.0f | Color saturation (1.0 = normal) |
+| `edgeBrightness` | 0.3f | Edge lighting/highlight intensity |
+| `enabled` | true | Enable/disable the effect |
+
 ## Find this repository useful? :heart:
 Support it by joining __[stargazers](https://github.com/skydoves/cloudy/stargazers)__ for this repository. :star: <br>
 Also, __[follow me](https://github.com/skydoves)__ on GitHub for my next creations! 🤩

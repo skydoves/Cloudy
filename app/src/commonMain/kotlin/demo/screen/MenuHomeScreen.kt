@@ -40,6 +40,7 @@ import demo.theme.Dimens
  * @param onBlurAppBarGridClick Callback when the Blur AppBar Grid demo is selected.
  * @param onInteractiveSliderClick Callback when the Interactive Slider demo is selected.
  * @param onProgressiveBlurClick Callback when the Progressive Blur demo is selected.
+ * @param onLiquidGlassClick Callback when the Liquid Glass demo is selected.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,6 +50,7 @@ fun MenuHomeScreen(
   onBlurAppBarGridClick: () -> Unit,
   onInteractiveSliderClick: () -> Unit,
   onProgressiveBlurClick: () -> Unit,
+  onLiquidGlassClick: () -> Unit,
 ) {
   val posters = remember { MockUtil.getMockPosters() }
 
@@ -97,6 +99,14 @@ fun MenuHomeScreen(
             description = "Gradient blur effects: Top-to-Bottom, Bottom-to-Top, Edges",
             poster = posters[4],
             onClick = onProgressiveBlurClick,
+          )
+        }
+        item {
+          MenuCard(
+            title = "Liquid Glass",
+            description = "Interactive glass lens with magnification and chromatic aberration",
+            poster = posters[5 % posters.size],
+            onClick = onLiquidGlassClick,
           )
         }
       }
