@@ -19,11 +19,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -31,9 +33,12 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -41,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
@@ -58,7 +64,7 @@ import demo.theme.Dimens
 
 /**
  * Liquid Glass demo screen that showcases the interactive glass lens effect.
- * Users can drag on the image to move the glass lens.
+ * Users can drag on the image to move the glass lens and adjust parameters with sliders.
  *
  * @param onBackClick Callback when the back button is pressed.
  */
@@ -66,6 +72,17 @@ import demo.theme.Dimens
 @Composable
 fun LiquidGlassDemoScreen(onBackClick: () -> Unit) {
   val poster = remember { MockUtil.getMockPoster() }
+
+  // Effect parameters
+  var cornerRadius by remember { mutableFloatStateOf(50f) }
+  var refraction by remember { mutableFloatStateOf(0.25f) }
+  var curve by remember { mutableFloatStateOf(0.25f) }
+  var blur by remember { mutableFloatStateOf(8f) }
+  var edge by remember { mutableFloatStateOf(0.2f) }
+  var saturation by remember { mutableFloatStateOf(1.0f) }
+  var dispersion by remember { mutableFloatStateOf(0.0f) }
+
+  // Lens position
   var mousePosition by remember { mutableStateOf(Offset.Zero) }
 
   CollapsingAppBarScaffold(
@@ -123,7 +140,17 @@ fun LiquidGlassDemoScreen(onBackClick: () -> Unit) {
                     },
                   )
                 }
-                .liquidGlass(mousePosition = mousePosition),
+                .liquidGlass(
+                  mousePosition = mousePosition,
+                  lensSize = Size(350f, 350f),
+                  cornerRadius = cornerRadius,
+                  refraction = refraction,
+                  curve = curve,
+                  blur = blur,
+                  edge = edge,
+                  saturation = saturation,
+                  dispersion = dispersion,
+                ),
             ) {
               CoilImage(
                 modifier = Modifier.fillMaxSize(),
@@ -138,15 +165,129 @@ fun LiquidGlassDemoScreen(onBackClick: () -> Unit) {
 
         Spacer(modifier = Modifier.height(24.dp))
 
+        // Sliders Card
+        Card(
+          modifier = Modifier.fillMaxWidth(),
+          elevation = CardDefaults.cardElevation(defaultElevation = Dimens.cardElevation),
+          shape = RoundedCornerShape(Dimens.cardCornerRadius),
+          colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        ) {
+          Column(
+            modifier = Modifier.padding(Dimens.contentPadding),
+          ) {
+            Text(
+              text = "Parameters",
+              fontSize = 18.sp,
+              fontWeight = FontWeight.Bold,
+              color = MaterialTheme.colorScheme.onSurface,
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            ParameterSlider(
+              label = "Shape",
+              value = cornerRadius,
+              onValueChange = { cornerRadius = it },
+              valueRange = 0f..175f,
+            )
+
+            ParameterSlider(
+              label = "Refraction",
+              value = refraction,
+              onValueChange = { refraction = it },
+              valueRange = 0f..1f,
+            )
+
+            ParameterSlider(
+              label = "Curve",
+              value = curve,
+              onValueChange = { curve = it },
+              valueRange = 0f..1f,
+            )
+
+            ParameterSlider(
+              label = "Blur",
+              value = blur,
+              onValueChange = { blur = it },
+              valueRange = 0f..20f,
+            )
+
+            ParameterSlider(
+              label = "Edge",
+              value = edge,
+              onValueChange = { edge = it },
+              valueRange = 0f..1f,
+            )
+
+            ParameterSlider(
+              label = "Saturation",
+              value = saturation,
+              onValueChange = { saturation = it },
+              valueRange = 0f..2f,
+            )
+
+            ParameterSlider(
+              label = "Dispersion",
+              value = dispersion,
+              onValueChange = { dispersion = it },
+              valueRange = 0f..2f,
+            )
+          }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
         Text(
           text = "The Liquid Glass effect creates a realistic frosted glass lens " +
-            "with SDF-based crisp edges, normal-based refraction, blur, and " +
-            "chromatic aberration. Requires Android 13+ or Skia platforms.",
+            "with crisp edges, refraction, blur, and chromatic dispersion. " +
+            "Requires Android 13+ or Skia platforms.",
           fontSize = 14.sp,
           color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
           textAlign = TextAlign.Center,
         )
       }
     }
+  }
+}
+
+@Composable
+private fun ParameterSlider(
+  label: String,
+  value: Float,
+  onValueChange: (Float) -> Unit,
+  valueRange: ClosedFloatingPointRange<Float>,
+) {
+  Row(
+    modifier = Modifier
+      .fillMaxWidth()
+      .padding(vertical = 4.dp),
+    verticalAlignment = Alignment.CenterVertically,
+  ) {
+    Text(
+      text = label,
+      fontSize = 14.sp,
+      color = MaterialTheme.colorScheme.onSurface,
+      modifier = Modifier.width(80.dp),
+    )
+
+    Slider(
+      value = value,
+      onValueChange = onValueChange,
+      valueRange = valueRange,
+      modifier = Modifier.weight(1f),
+      colors = SliderDefaults.colors(
+        thumbColor = MaterialTheme.colorScheme.primary,
+        activeTrackColor = MaterialTheme.colorScheme.primary,
+        inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
+      ),
+    )
+
+    Text(
+      text = ((value * 100).toInt() / 100f).toString(),
+      fontSize = 12.sp,
+      color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+      modifier = Modifier.width(48.dp),
+      textAlign = TextAlign.End,
+    )
   }
 }
