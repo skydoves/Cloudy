@@ -221,18 +221,18 @@ Cloudy provides a `Modifier.liquidGlass()` that creates a realistic glass lens e
 ### Basic Usage
 
 ```kotlin
-var mousePosition by remember { mutableStateOf(Offset(100f, 100f)) }
+var lensCenter by remember { mutableStateOf(Offset(100f, 100f)) }
 
 Box(
   modifier = Modifier
     .fillMaxSize()
     .pointerInput(Unit) {
       detectDragGestures { change, _ ->
-        mousePosition = change.position
+        lensCenter = change.position
       }
     }
     .cloudy(radius = 15) // Use Cloudy for blur (independent)
-    .liquidGlass(mousePosition = mousePosition) // Lens distortion effect
+    .liquidGlass(lensCenter = lensCenter) // Lens distortion effect
 ) {
   Image(
     painter = painterResource(R.drawable.photo),
@@ -251,11 +251,11 @@ The `liquidGlass()` and `cloudy()` modifiers are independent and composable:
 .cloudy(radius = 20)
 
 // Lens effect only
-.liquidGlass(mousePosition = mousePosition)
+.liquidGlass(lensCenter = lensCenter)
 
 // Both effects combined
 .cloudy(radius = 15)
-.liquidGlass(mousePosition = mousePosition)
+.liquidGlass(lensCenter = lensCenter)
 ```
 
 This separation gives you full access to Cloudy's blur API (`radius`, `onStateChanged`, `CloudyState`) while using the liquid glass lens effect.
@@ -266,7 +266,7 @@ You can customize the liquid glass effect with various parameters:
 
 ```kotlin
 .liquidGlass(
-  mousePosition = mousePosition,
+  lensCenter = lensCenter,
   lensSize = Size(350f, 350f),  // Size of the glass lens
   cornerRadius = 50f,           // Rounded corners
   refraction = 0.25f,           // Distortion amount
@@ -283,7 +283,7 @@ You can customize the liquid glass effect with various parameters:
 
 | Parameter | Default | Description | Fallback (Android 32-) |
 |-----------|---------|-------------|------------------------|
-| `mousePosition` | - | Center position of the glass lens (required) | Yes |
+| `lensCenter` | - | Center position of the glass lens (required) | Yes |
 | `lensSize` | 350x350 | Size of the lens in pixels | Yes |
 | `cornerRadius` | 50f | Corner radius for rounded rectangle shape | Yes |
 | `refraction` | 0.25f | Controls how much background distorts through lens | No (requires API 33+) |

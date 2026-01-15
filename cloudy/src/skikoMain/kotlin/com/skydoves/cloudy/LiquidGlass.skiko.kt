@@ -37,7 +37,7 @@ import org.jetbrains.skia.RuntimeShaderBuilder
  */
 @Composable
 public actual fun Modifier.liquidGlass(
-  mousePosition: Offset,
+  lensCenter: Offset,
   lensSize: Size,
   cornerRadius: Float,
   refraction: Float,
@@ -83,7 +83,7 @@ public actual fun Modifier.liquidGlass(
       // Create RuntimeShaderBuilder and set uniforms
       val shaderBuilder = RuntimeShaderBuilder(runtimeEffect).apply {
         uniform("resolution", width, height)
-        uniform("mouse", mousePosition.x, mousePosition.y)
+        uniform("mouse", lensCenter.x, lensCenter.y)
         uniform("lensSize", lensSize.width, lensSize.height)
         uniform("cornerRadius", cornerRadius)
         uniform("refraction", refraction)

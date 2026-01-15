@@ -82,19 +82,19 @@ public object LiquidGlassDefaults {
  * ## Example Usage
  *
  * ```kotlin
- * var mousePosition by remember { mutableStateOf(Offset(100f, 100f)) }
+ * var lensCenter by remember { mutableStateOf(Offset(100f, 100f)) }
  *
  * Box(
  *   modifier = Modifier
  *     .fillMaxSize()
  *     .pointerInput(Unit) {
  *       detectDragGestures { change, _ ->
- *         mousePosition = change.position
+ *         lensCenter = change.position
  *       }
  *     }
  *     .cloudy(radius = 15) // Use Cloudy for blur
  *     .liquidGlass(
- *       mousePosition = mousePosition,
+ *       lensCenter = lensCenter,
  *       lensSize = Size(350f, 350f),
  *       cornerRadius = 50f,
  *       refraction = 0.25f,
@@ -105,8 +105,8 @@ public object LiquidGlassDefaults {
  * }
  * ```
  *
- * @param mousePosition The current position of the glass lens center in pixels.
- *   This should be updated based on touch/mouse input for interactive effects.
+ * @param lensCenter The current position of the glass lens center in pixels.
+ *   This should be updated based on touch/pointer input for interactive effects.
  *
  * @param lensSize The size of the lens in pixels (width, height).
  *   Default: [LiquidGlassDefaults.LENS_SIZE] (350x350).
@@ -155,7 +155,7 @@ public object LiquidGlassDefaults {
  */
 @Composable
 public expect fun Modifier.liquidGlass(
-  mousePosition: Offset,
+  lensCenter: Offset,
   lensSize: Size = LiquidGlassDefaults.LENS_SIZE,
   cornerRadius: Float = LiquidGlassDefaults.CORNER_RADIUS,
   refraction: Float = LiquidGlassDefaults.REFRACTION,

@@ -45,7 +45,7 @@ import androidx.compose.ui.platform.LocalInspectionMode
  */
 @Composable
 public actual fun Modifier.liquidGlass(
-  mousePosition: Offset,
+  lensCenter: Offset,
   lensSize: Size,
   cornerRadius: Float,
   refraction: Float,
@@ -77,7 +77,7 @@ public actual fun Modifier.liquidGlass(
   // API level check - RuntimeShader requires API 33+
   return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
     liquidGlassApi33(
-      mousePosition = mousePosition,
+      lensCenter = lensCenter,
       lensSize = lensSize,
       cornerRadius = cornerRadius,
       refraction = refraction,
@@ -92,7 +92,7 @@ public actual fun Modifier.liquidGlass(
     // Fallback for older Android versions
     // Provides saturation, contrast, tint, and edge effects without lens refraction
     liquidGlassFallback(
-      mousePosition = mousePosition,
+      lensCenter = lensCenter,
       lensSize = lensSize,
       cornerRadius = cornerRadius,
       saturation = saturation,
@@ -106,7 +106,7 @@ public actual fun Modifier.liquidGlass(
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @Composable
 private fun Modifier.liquidGlassApi33(
-  mousePosition: Offset,
+  lensCenter: Offset,
   lensSize: Size,
   cornerRadius: Float,
   refraction: Float,
@@ -139,7 +139,7 @@ private fun Modifier.liquidGlassApi33(
     if (width > 0 && height > 0) {
       // Update shader uniforms
       shader.setFloatUniform("resolution", width, height)
-      shader.setFloatUniform("mouse", mousePosition.x, mousePosition.y)
+      shader.setFloatUniform("mouse", lensCenter.x, lensCenter.y)
       shader.setFloatUniform("lensSize", lensSize.width, lensSize.height)
       shader.setFloatUniform("cornerRadius", cornerRadius)
       shader.setFloatUniform("refraction", refraction)
@@ -168,7 +168,7 @@ private fun Modifier.liquidGlassApi33(
  */
 @Composable
 private fun Modifier.liquidGlassFallback(
-  mousePosition: Offset,
+  lensCenter: Offset,
   lensSize: Size,
   cornerRadius: Float,
   saturation: Float,
@@ -179,11 +179,11 @@ private fun Modifier.liquidGlassFallback(
   // Draw original content first
   drawContent()
 
-  // Calculate lens bounds centered on mouse position
+  // Calculate lens bounds centered on lens center position
   val halfWidth = lensSize.width / 2f
   val halfHeight = lensSize.height / 2f
-  val lensLeft = mousePosition.x - halfWidth
-  val lensTop = mousePosition.y - halfHeight
+  val lensLeft = lensCenter.x - halfWidth
+  val lensTop = lensCenter.y - halfHeight
   val clampedCornerRadius = cornerRadius.coerceAtMost(minOf(halfWidth, halfHeight))
 
   // Create lens path

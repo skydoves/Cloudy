@@ -90,7 +90,7 @@ fun LiquidGlassDemoScreen(onBackClick: () -> Unit) {
   var dispersion by remember { mutableFloatStateOf(0.0f) }
 
   // Lens position
-  var mousePosition by remember { mutableStateOf(Offset.Zero) }
+  var lensCenter by remember { mutableStateOf(Offset.Zero) }
 
   CollapsingAppBarScaffold(
     title = "Liquid Glass",
@@ -131,15 +131,15 @@ fun LiquidGlassDemoScreen(onBackClick: () -> Unit) {
                 .clip(RoundedCornerShape(Dimens.itemSpacing))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
                 .onSizeChanged { size ->
-                  // Initialize mouse position to center
-                  if (mousePosition == Offset.Zero) {
-                    mousePosition = Offset(size.width / 2f, size.height / 2f)
+                  // Initialize lens position to center
+                  if (lensCenter == Offset.Zero) {
+                    lensCenter = Offset(size.width / 2f, size.height / 2f)
                   }
                 }
                 .pointerInput(Unit) {
                   detectDragGestures(
                     onDrag = { change, dragAmount ->
-                      mousePosition += dragAmount
+                      lensCenter += dragAmount
                       change.consume()
                     },
                   )
@@ -148,7 +148,7 @@ fun LiquidGlassDemoScreen(onBackClick: () -> Unit) {
                 .cloudy(radius = blurRadius)
                 // Liquid Glass lens effect - separate from blur
                 .liquidGlass(
-                  mousePosition = mousePosition,
+                  lensCenter = lensCenter,
                   lensSize = Size(350f, 350f),
                   cornerRadius = cornerRadius,
                   refraction = refraction,
