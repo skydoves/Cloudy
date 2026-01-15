@@ -105,7 +105,7 @@ fun MenuHomeScreen(
           MenuCard(
             title = "Liquid Glass",
             description = "Interactive glass lens with magnification and chromatic aberration",
-            poster = posters[5 % posters.size],
+            poster = posters[5],
             onClick = onLiquidGlassClick,
           )
         }
