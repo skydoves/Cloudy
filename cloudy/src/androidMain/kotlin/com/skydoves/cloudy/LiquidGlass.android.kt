@@ -34,9 +34,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalInspectionMode
-import androidx.compose.ui.unit.IntSize
 
 /**
  * Android implementation of [Modifier.liquidGlass].
@@ -134,37 +132,30 @@ private fun Modifier.liquidGlassApi33(
     return this
   }
 
-  // Track size for resolution uniform
-  var currentSize = remember { IntSize.Zero }
+  return this.graphicsLayer {
+    val width = size.width
+    val height = size.height
 
-  return this
-    .onSizeChanged { size ->
-      currentSize = size
+    if (width > 0 && height > 0) {
+      // Update shader uniforms
+      shader.setFloatUniform("resolution", width, height)
+      shader.setFloatUniform("mouse", mousePosition.x, mousePosition.y)
+      shader.setFloatUniform("lensSize", lensSize.width, lensSize.height)
+      shader.setFloatUniform("cornerRadius", cornerRadius)
+      shader.setFloatUniform("refraction", refraction)
+      shader.setFloatUniform("curve", curve)
+      shader.setFloatUniform("dispersion", dispersion)
+      shader.setFloatUniform("saturation", saturation)
+      shader.setFloatUniform("contrast", contrast)
+      shader.setFloatUniform("tint", tint.red, tint.green, tint.blue, tint.alpha)
+      shader.setFloatUniform("edge", edge)
+
+      // Apply shader as RenderEffect - "content" binds to underlying layer
+      renderEffect = RenderEffect
+        .createRuntimeShaderEffect(shader, "content")
+        .asComposeRenderEffect()
     }
-    .graphicsLayer {
-      val width = size.width
-      val height = size.height
-
-      if (width > 0 && height > 0) {
-        // Update shader uniforms
-        shader.setFloatUniform("resolution", width, height)
-        shader.setFloatUniform("mouse", mousePosition.x, mousePosition.y)
-        shader.setFloatUniform("lensSize", lensSize.width, lensSize.height)
-        shader.setFloatUniform("cornerRadius", cornerRadius)
-        shader.setFloatUniform("refraction", refraction)
-        shader.setFloatUniform("curve", curve)
-        shader.setFloatUniform("dispersion", dispersion)
-        shader.setFloatUniform("saturation", saturation)
-        shader.setFloatUniform("contrast", contrast)
-        shader.setFloatUniform("tint", tint.red, tint.green, tint.blue, tint.alpha)
-        shader.setFloatUniform("edge", edge)
-
-        // Apply shader as RenderEffect - "content" binds to underlying layer
-        renderEffect = RenderEffect
-          .createRuntimeShaderEffect(shader, "content")
-          .asComposeRenderEffect()
-      }
-    }
+  }
 }
 
 /**
