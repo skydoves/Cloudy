@@ -18,6 +18,7 @@ package com.skydoves.cloudy
 import android.graphics.RenderEffect
 import android.graphics.RuntimeShader
 import android.os.Build
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -121,6 +122,7 @@ private fun Modifier.liquidGlassApi33(
     try {
       RuntimeShader(LiquidGlassShaderSource.AGSL)
     } catch (e: Exception) {
+      Log.w("LiquidGlass", "RuntimeShader compilation failed", e)
       null
     }
   }
