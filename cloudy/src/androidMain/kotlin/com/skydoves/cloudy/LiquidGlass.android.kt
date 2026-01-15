@@ -19,33 +19,32 @@ import android.graphics.RenderEffect
 import android.graphics.RuntimeShader
 import android.os.Build
 import androidx.annotation.RequiresApi
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.asComposeRenderEffect
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalInspectionMode
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.dp
 
 /**
  * Android implementation of [Modifier.liquidGlass].
  *
  * Uses RuntimeShader with RenderEffect on API 33+ for GPU-accelerated glass effects.
- * On older API levels, provides a fallback with blur + saturation + edge effects.
+ * On older API levels, provides a fallback with saturation, contrast, tint, and edge effects.
+ *
+ * **Note:** For blur effects, use [Modifier.cloudy] separately.
  */
 @Composable
 public actual fun Modifier.liquidGlass(
@@ -54,7 +53,6 @@ public actual fun Modifier.liquidGlass(
   cornerRadius: Float,
   refraction: Float,
   curve: Float,
-  blur: Float,
   dispersion: Float,
   saturation: Float,
   contrast: Float,
@@ -66,7 +64,6 @@ public actual fun Modifier.liquidGlass(
   require(cornerRadius >= 0f) { "cornerRadius must be >= 0, but was $cornerRadius" }
   require(refraction >= 0f) { "refraction must be >= 0, but was $refraction" }
   require(curve >= 0f) { "curve must be >= 0, but was $curve" }
-  require(blur >= 0f) { "blur must be >= 0, but was $blur" }
   require(dispersion >= 0f) { "dispersion must be >= 0, but was $dispersion" }
   require(saturation >= 0f) { "saturation must be >= 0, but was $saturation" }
   require(contrast >= 0f) { "contrast must be >= 0, but was $contrast" }
@@ -88,7 +85,6 @@ public actual fun Modifier.liquidGlass(
       cornerRadius = cornerRadius,
       refraction = refraction,
       curve = curve,
-      blur = blur,
       dispersion = dispersion,
       saturation = saturation,
       contrast = contrast,
@@ -97,12 +93,11 @@ public actual fun Modifier.liquidGlass(
     )
   } else {
     // Fallback for older Android versions
-    // Uses existing Cloudy blur with shape clipping
+    // Provides saturation, contrast, tint, and edge effects without lens refraction
     liquidGlassFallback(
       mousePosition = mousePosition,
       lensSize = lensSize,
       cornerRadius = cornerRadius,
-      blur = blur.toInt().coerceIn(0, 25),
       saturation = saturation,
       contrast = contrast,
       tint = tint,
@@ -119,7 +114,6 @@ private fun Modifier.liquidGlassApi33(
   cornerRadius: Float,
   refraction: Float,
   curve: Float,
-  blur: Float,
   dispersion: Float,
   saturation: Float,
   contrast: Float,
@@ -159,7 +153,6 @@ private fun Modifier.liquidGlassApi33(
         shader.setFloatUniform("cornerRadius", cornerRadius)
         shader.setFloatUniform("refraction", refraction)
         shader.setFloatUniform("curve", curve)
-        shader.setFloatUniform("blur", blur)
         shader.setFloatUniform("dispersion", dispersion)
         shader.setFloatUniform("saturation", saturation)
         shader.setFloatUniform("contrast", contrast)
@@ -177,39 +170,137 @@ private fun Modifier.liquidGlassApi33(
 /**
  * Fallback implementation for Android < 33.
  *
- * Provides a degraded but functional glass effect using:
- * - Existing Cloudy blur (works on all Android versions)
- * - Shape clipping for the lens area
- * - Saturation adjustment via color matrix (when supported)
- * - Basic edge border effect
+ * Provides a graceful degradation with saturation, contrast, tint, and edge effects.
+ * The lens refraction/distortion effect is not available without RuntimeShader (API 33+).
  *
- * Note: refraction, curve, and dispersion are not available in fallback mode.
+ * For blur effects, use [Modifier.cloudy] separately.
  */
 @Composable
 private fun Modifier.liquidGlassFallback(
   mousePosition: Offset,
   lensSize: Size,
   cornerRadius: Float,
-  blur: Int,
   saturation: Float,
   contrast: Float,
   tint: Color,
   edge: Float,
 ): Modifier {
-  val density = LocalDensity.current
+  // Create color filter for saturation and contrast adjustments
+  val colorFilter = remember(saturation, contrast) {
+    createSaturationContrastColorFilter(saturation, contrast)
+  }
 
-  // Convert pixel values to Dp
-  val lensWidthDp: Dp = with(density) { lensSize.width.toDp() }
-  val lensHeightDp: Dp = with(density) { lensSize.height.toDp() }
-  val cornerRadiusDp: Dp = with(density) { cornerRadius.toDp() }
+  return this.drawWithContent {
+    // Draw original content first
+    drawContent()
 
-  // Calculate offset to center the lens on mouse position
-  val offsetX: Dp = with(density) { (mousePosition.x - lensSize.width / 2).toDp() }
-  val offsetY: Dp = with(density) { (mousePosition.y - lensSize.height / 2).toDp() }
+    // Calculate lens bounds centered on mouse position
+    val halfWidth = lensSize.width / 2f
+    val halfHeight = lensSize.height / 2f
+    val lensLeft = mousePosition.x - halfWidth
+    val lensTop = mousePosition.y - halfHeight
+    val clampedCornerRadius = cornerRadius.coerceAtMost(minOf(halfWidth, halfHeight))
 
-  val shape = RoundedCornerShape(cornerRadiusDp)
+    // Create lens path
+    val lensPath = Path().apply {
+      addRoundRect(
+        RoundRect(
+          left = lensLeft,
+          top = lensTop,
+          right = lensLeft + lensSize.width,
+          bottom = lensTop + lensSize.height,
+          cornerRadius = CornerRadius(clampedCornerRadius, clampedCornerRadius),
+        ),
+      )
+    }
 
-  // For fallback, we apply blur to the entire content and overlay a clipped region
-  // This is a simplified approach - the full effect requires the shader
-  return this.cloudy(radius = blur)
+    // Draw color-adjusted overlay inside the lens shape
+    if (saturation != 1f || contrast != 1f) {
+      clipPath(lensPath) {
+        // Draw a semi-transparent overlay that simulates the color adjustment
+        // This is a simplified approximation since we can't re-render content with a filter
+        val overlayAlpha = 0.3f * ((1f - saturation).coerceIn(0f, 1f) + (contrast - 1f).coerceIn(0f, 1f))
+        if (overlayAlpha > 0f) {
+          drawRect(
+            color = Color.Gray.copy(alpha = overlayAlpha.coerceIn(0f, 0.5f)),
+            topLeft = Offset(lensLeft, lensTop),
+            size = lensSize,
+          )
+        }
+      }
+    }
+
+    // Draw tint overlay inside the lens
+    if (tint != Color.Transparent && tint.alpha > 0f) {
+      clipPath(lensPath) {
+        drawRect(
+          color = tint,
+          topLeft = Offset(lensLeft, lensTop),
+          size = lensSize,
+        )
+      }
+    }
+
+    // Draw edge lighting effect
+    if (edge > 0f) {
+      val strokeWidth = edge * 20f // Scale edge value to reasonable stroke width
+      val edgeColor = Color.White.copy(alpha = (edge * 0.5f).coerceIn(0f, 0.8f))
+
+      drawPath(
+        path = lensPath,
+        color = edgeColor,
+        style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidth),
+      )
+    }
+  }
+}
+
+/**
+ * Creates a ColorMatrix that adjusts saturation and contrast.
+ *
+ * @param saturation 1.0 = normal, 0.0 = grayscale, >1.0 = oversaturated
+ * @param contrast 1.0 = normal, <1.0 = less contrast, >1.0 = more contrast
+ */
+private fun createSaturationContrastColorFilter(saturation: Float, contrast: Float): ColorFilter? {
+  if (saturation == 1f && contrast == 1f) {
+    return null
+  }
+
+  // Apply saturation (using luminance-based desaturation)
+  val colorMatrix = if (saturation != 1f) {
+    val invSat = 1f - saturation
+    val r = 0.213f * invSat
+    val g = 0.715f * invSat
+    val b = 0.072f * invSat
+
+    ColorMatrix(
+      floatArrayOf(
+        r + saturation, g, b, 0f, 0f,
+        r, g + saturation, b, 0f, 0f,
+        r, g, b + saturation, 0f, 0f,
+        0f, 0f, 0f, 1f, 0f,
+      ),
+    )
+  } else {
+    ColorMatrix()
+  }
+
+  // Apply contrast
+  if (contrast != 1f) {
+    val scale = contrast
+    val translate = (1f - contrast) * 127.5f
+
+    val contrastMatrix = ColorMatrix(
+      floatArrayOf(
+        scale, 0f, 0f, 0f, translate,
+        0f, scale, 0f, 0f, translate,
+        0f, 0f, scale, 0f, translate,
+        0f, 0f, 0f, 1f, 0f,
+      ),
+    )
+
+    colorMatrix.timesAssign(contrastMatrix)
+  }
+
+  return ColorFilter.colorMatrix(colorMatrix)
 }

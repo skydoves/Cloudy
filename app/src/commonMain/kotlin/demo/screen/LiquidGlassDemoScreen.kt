@@ -39,6 +39,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -54,6 +55,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.skydoves.cloudy.cloudy
 import com.skydoves.cloudy.liquidGlass
 import com.skydoves.landscapist.ImageOptions
 import com.skydoves.landscapist.coil3.CoilImage
@@ -66,6 +68,9 @@ import demo.theme.Dimens
  * Liquid Glass demo screen that showcases the interactive glass lens effect.
  * Users can drag on the image to move the glass lens and adjust parameters with sliders.
  *
+ * This demo shows how to combine Cloudy's blur with the Liquid Glass lens effect
+ * as two independent, composable modifiers.
+ *
  * @param onBackClick Callback when the back button is pressed.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -73,11 +78,13 @@ import demo.theme.Dimens
 fun LiquidGlassDemoScreen(onBackClick: () -> Unit) {
   val poster = remember { MockUtil.getMockPoster() }
 
-  // Effect parameters
+  // Cloudy blur parameter (independent from liquid glass)
+  var blurRadius by remember { mutableIntStateOf(8) }
+
+  // Liquid Glass effect parameters
   var cornerRadius by remember { mutableFloatStateOf(50f) }
   var refraction by remember { mutableFloatStateOf(0.25f) }
   var curve by remember { mutableFloatStateOf(0.25f) }
-  var blur by remember { mutableFloatStateOf(8f) }
   var edge by remember { mutableFloatStateOf(0.2f) }
   var saturation by remember { mutableFloatStateOf(1.0f) }
   var dispersion by remember { mutableFloatStateOf(0.0f) }
@@ -131,22 +138,21 @@ fun LiquidGlassDemoScreen(onBackClick: () -> Unit) {
                 }
                 .pointerInput(Unit) {
                   detectDragGestures(
-                    onDragStart = { offset ->
-                      mousePosition = offset
-                    },
-                    onDrag = { change, _ ->
-                      mousePosition = change.position
+                    onDrag = { change, dragAmount ->
+                      mousePosition += dragAmount
                       change.consume()
                     },
                   )
                 }
+                // Cloudy blur - independent modifier with full Cloudy API
+                .cloudy(radius = blurRadius)
+                // Liquid Glass lens effect - separate from blur
                 .liquidGlass(
                   mousePosition = mousePosition,
                   lensSize = Size(350f, 350f),
                   cornerRadius = cornerRadius,
                   refraction = refraction,
                   curve = curve,
-                  blur = blur,
                   edge = edge,
                   saturation = saturation,
                   dispersion = dispersion,
@@ -165,7 +171,7 @@ fun LiquidGlassDemoScreen(onBackClick: () -> Unit) {
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Sliders Card
+        // Blur Slider Card (Cloudy)
         Card(
           modifier = Modifier.fillMaxWidth(),
           elevation = CardDefaults.cardElevation(defaultElevation = Dimens.cardElevation),
@@ -176,10 +182,56 @@ fun LiquidGlassDemoScreen(onBackClick: () -> Unit) {
             modifier = Modifier.padding(Dimens.contentPadding),
           ) {
             Text(
-              text = "Parameters",
+              text = "Cloudy Blur",
               fontSize = 18.sp,
               fontWeight = FontWeight.Bold,
               color = MaterialTheme.colorScheme.onSurface,
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+              text = "Independent blur using Modifier.cloudy()",
+              fontSize = 12.sp,
+              color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            ParameterSlider(
+              label = "Radius",
+              value = blurRadius.toFloat(),
+              onValueChange = { blurRadius = it.toInt() },
+              valueRange = 0f..25f,
+            )
+          }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Liquid Glass Sliders Card
+        Card(
+          modifier = Modifier.fillMaxWidth(),
+          elevation = CardDefaults.cardElevation(defaultElevation = Dimens.cardElevation),
+          shape = RoundedCornerShape(Dimens.cardCornerRadius),
+          colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        ) {
+          Column(
+            modifier = Modifier.padding(Dimens.contentPadding),
+          ) {
+            Text(
+              text = "Liquid Glass Lens",
+              fontSize = 18.sp,
+              fontWeight = FontWeight.Bold,
+              color = MaterialTheme.colorScheme.onSurface,
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+              text = "Lens distortion using Modifier.liquidGlass()",
+              fontSize = 12.sp,
+              color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -203,13 +255,6 @@ fun LiquidGlassDemoScreen(onBackClick: () -> Unit) {
               value = curve,
               onValueChange = { curve = it },
               valueRange = 0f..1f,
-            )
-
-            ParameterSlider(
-              label = "Blur",
-              value = blur,
-              onValueChange = { blur = it },
-              valueRange = 0f..20f,
             )
 
             ParameterSlider(
@@ -238,9 +283,9 @@ fun LiquidGlassDemoScreen(onBackClick: () -> Unit) {
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-          text = "The Liquid Glass effect creates a realistic frosted glass lens " +
-            "with crisp edges, refraction, blur, and chromatic dispersion. " +
-            "Requires Android 13+ or Skia platforms.",
+          text = "This demo shows Cloudy blur and Liquid Glass as independent, " +
+            "composable modifiers. Adjust blur radius separately from lens effects. " +
+            "Requires Android 13+ or Skia platforms for full liquid glass effect.",
           fontSize = 14.sp,
           color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
           textAlign = TextAlign.Center,

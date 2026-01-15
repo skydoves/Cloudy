@@ -21,10 +21,12 @@ package com.skydoves.cloudy
  * This shader creates a realistic liquid glass lens effect with:
  * - Rounded rectangle distance field for crisp edges
  * - Surface gradient-based refraction and curve distortion
- * - Frosted glass blur effect (Cloudy's unique feature)
  * - Chromatic dispersion (RGB channel separation)
  * - Saturation, contrast, and tint adjustments
  * - Edge lighting and anti-aliasing
+ *
+ * **Note:** For blur effects, use [Modifier.cloudy] separately. This shader focuses on
+ * lens distortion and can be combined with Cloudy's blur for a complete frosted glass look.
  *
  * The shader is compatible with both AGSL (Android 13+) and SKSL (Skia platforms).
  */
@@ -42,7 +44,6 @@ uniform float2 lensSize;
 uniform float cornerRadius;
 uniform float refraction;
 uniform float curve;
-uniform float blur;
 uniform float dispersion;
 uniform float saturation;
 uniform float contrast;
@@ -51,7 +52,6 @@ uniform float edge;
 uniform shader content;
 
 const float ANTIALIAS_RADIUS = 1.5;
-const float BLUR_KERNEL_SIZE = 3.0;
 
 // Calculate distance from point to rounded rectangle boundary
 // Returns negative inside, positive outside
@@ -129,59 +129,52 @@ half4 main(float2 fragCoord) {
         samplingCoord = fragCoord - displacement * surfaceDir;
     }
 
-    // Frosted glass blur with chromatic dispersion
-    half4 accumulatedColor = half4(0.0);
-    float totalSamples = 0.0;
+    // Sample with chromatic dispersion (RGB channel separation)
+    half4 sampledColor;
+    if (dispersion > 0.0) {
+        // Dispersion offset based on distance from center (cubic falloff for realism)
+        float2 normalizedPos = localPos / halfExtent;
+        float2 chromaticShift = dispersion * normalizedPos * normalizedPos * normalizedPos * min(halfExtent.x, halfExtent.y) * 0.1;
 
-    // Dispersion offset based on distance from center (cubic falloff for realism)
-    float2 normalizedPos = localPos / halfExtent;
-    float2 chromaticShift = dispersion * normalizedPos * normalizedPos * normalizedPos * min(halfExtent.x, halfExtent.y) * 0.1;
+        // Separate RGB channels for chromatic dispersion
+        float2 redCoord = samplingCoord - chromaticShift;
+        float2 greenCoord = samplingCoord;
+        float2 blueCoord = samplingCoord + chromaticShift;
 
-    // Box blur kernel
-    for (float dx = -BLUR_KERNEL_SIZE; dx <= BLUR_KERNEL_SIZE; dx++) {
-        for (float dy = -BLUR_KERNEL_SIZE; dy <= BLUR_KERNEL_SIZE; dy++) {
-            float2 blurOffset = float2(dx, dy) * blur / BLUR_KERNEL_SIZE;
+        // Validate red/blue samples are within lens bounds
+        float redDist = roundedRectDistance(redCoord - lensCenter, halfExtent, clampedRadius);
+        float blueDist = roundedRectDistance(blueCoord - lensCenter, halfExtent, clampedRadius);
 
-            // Separate RGB channels for chromatic dispersion
-            float2 redCoord = samplingCoord + blurOffset - chromaticShift;
-            float2 greenCoord = samplingCoord + blurOffset;
-            float2 blueCoord = samplingCoord + blurOffset + chromaticShift;
+        half4 greenSample = content.eval(greenCoord);
+        half4 redSample = (redDist <= 0.0) ? content.eval(redCoord) : greenSample;
+        half4 blueSample = (blueDist <= 0.0) ? content.eval(blueCoord) : greenSample;
 
-            // Validate red/blue samples are within lens bounds
-            float redDist = roundedRectDistance(redCoord - lensCenter, halfExtent, clampedRadius);
-            float blueDist = roundedRectDistance(blueCoord - lensCenter, halfExtent, clampedRadius);
-
-            half4 greenSample = content.eval(greenCoord);
-            half4 redSample = (redDist <= 0.0) ? content.eval(redCoord) : greenSample;
-            half4 blueSample = (blueDist <= 0.0) ? content.eval(blueCoord) : greenSample;
-
-            accumulatedColor += half4(redSample.r, greenSample.g, blueSample.b, greenSample.a);
-            totalSamples += 1.0;
-        }
+        sampledColor = half4(redSample.r, greenSample.g, blueSample.b, greenSample.a);
+    } else {
+        sampledColor = content.eval(samplingCoord);
     }
-    half4 blurredColor = accumulatedColor / totalSamples;
 
     // Fallback if alpha is zero (transparent region)
-    if (blurredColor.a <= 0.0) {
-        blurredColor = content.eval(fragCoord);
+    if (sampledColor.a <= 0.0) {
+        sampledColor = content.eval(fragCoord);
     }
 
     // Apply color grading
-    blurredColor.rgb = applyColorGrading(blurredColor.rgb, saturation, contrast, tint);
+    sampledColor.rgb = applyColorGrading(sampledColor.rgb, saturation, contrast, tint);
 
     // Edge rim lighting effect
     if (edge > 0.0) {
         float rimFactor = smoothstep(-edge * 10.0, 0.0, dist);
         float2 lightDir = normalize(float2(-1.0, -1.0));
         float lightIntensity = abs(dot(surfaceDir, lightDir));
-        blurredColor.rgb += half3(rimFactor * lightIntensity * edge);
+        sampledColor.rgb += half3(rimFactor * lightIntensity * edge);
     }
 
     // Smooth alpha blend at edges for anti-aliasing
     float edgeAlpha = 1.0 - smoothstep(-ANTIALIAS_RADIUS * 0.5, ANTIALIAS_RADIUS * 0.5, dist);
 
     half4 originalColor = content.eval(fragCoord);
-    return mix(originalColor, blurredColor, edgeAlpha);
+    return mix(originalColor, sampledColor, edgeAlpha);
 }
 """
 
@@ -198,7 +191,6 @@ uniform float2 lensSize;
 uniform float cornerRadius;
 uniform float refraction;
 uniform float curve;
-uniform float blur;
 uniform float dispersion;
 uniform float saturation;
 uniform float contrast;
@@ -207,7 +199,6 @@ uniform float edge;
 uniform shader content;
 
 const float ANTIALIAS_RADIUS = 1.5;
-const float BLUR_KERNEL_SIZE = 3.0;
 
 // Calculate distance from point to rounded rectangle boundary
 // Returns negative inside, positive outside
@@ -285,59 +276,52 @@ half4 main(float2 fragCoord) {
         samplingCoord = fragCoord - displacement * surfaceDir;
     }
 
-    // Frosted glass blur with chromatic dispersion
-    half4 accumulatedColor = half4(0.0);
-    float totalSamples = 0.0;
+    // Sample with chromatic dispersion (RGB channel separation)
+    half4 sampledColor;
+    if (dispersion > 0.0) {
+        // Dispersion offset based on distance from center (cubic falloff for realism)
+        float2 normalizedPos = localPos / halfExtent;
+        float2 chromaticShift = dispersion * normalizedPos * normalizedPos * normalizedPos * min(halfExtent.x, halfExtent.y) * 0.1;
 
-    // Dispersion offset based on distance from center (cubic falloff for realism)
-    float2 normalizedPos = localPos / halfExtent;
-    float2 chromaticShift = dispersion * normalizedPos * normalizedPos * normalizedPos * min(halfExtent.x, halfExtent.y) * 0.1;
+        // Separate RGB channels for chromatic dispersion
+        float2 redCoord = samplingCoord - chromaticShift;
+        float2 greenCoord = samplingCoord;
+        float2 blueCoord = samplingCoord + chromaticShift;
 
-    // Box blur kernel
-    for (float dx = -BLUR_KERNEL_SIZE; dx <= BLUR_KERNEL_SIZE; dx++) {
-        for (float dy = -BLUR_KERNEL_SIZE; dy <= BLUR_KERNEL_SIZE; dy++) {
-            float2 blurOffset = float2(dx, dy) * blur / BLUR_KERNEL_SIZE;
+        // Validate red/blue samples are within lens bounds
+        float redDist = roundedRectDistance(redCoord - lensCenter, halfExtent, clampedRadius);
+        float blueDist = roundedRectDistance(blueCoord - lensCenter, halfExtent, clampedRadius);
 
-            // Separate RGB channels for chromatic dispersion
-            float2 redCoord = samplingCoord + blurOffset - chromaticShift;
-            float2 greenCoord = samplingCoord + blurOffset;
-            float2 blueCoord = samplingCoord + blurOffset + chromaticShift;
+        half4 greenSample = content.eval(greenCoord);
+        half4 redSample = (redDist <= 0.0) ? content.eval(redCoord) : greenSample;
+        half4 blueSample = (blueDist <= 0.0) ? content.eval(blueCoord) : greenSample;
 
-            // Validate red/blue samples are within lens bounds
-            float redDist = roundedRectDistance(redCoord - lensCenter, halfExtent, clampedRadius);
-            float blueDist = roundedRectDistance(blueCoord - lensCenter, halfExtent, clampedRadius);
-
-            half4 greenSample = content.eval(greenCoord);
-            half4 redSample = (redDist <= 0.0) ? content.eval(redCoord) : greenSample;
-            half4 blueSample = (blueDist <= 0.0) ? content.eval(blueCoord) : greenSample;
-
-            accumulatedColor += half4(redSample.r, greenSample.g, blueSample.b, greenSample.a);
-            totalSamples += 1.0;
-        }
+        sampledColor = half4(redSample.r, greenSample.g, blueSample.b, greenSample.a);
+    } else {
+        sampledColor = content.eval(samplingCoord);
     }
-    half4 blurredColor = accumulatedColor / totalSamples;
 
     // Fallback if alpha is zero (transparent region)
-    if (blurredColor.a <= 0.0) {
-        blurredColor = content.eval(fragCoord);
+    if (sampledColor.a <= 0.0) {
+        sampledColor = content.eval(fragCoord);
     }
 
     // Apply color grading
-    blurredColor.rgb = applyColorGrading(blurredColor.rgb, saturation, contrast, tint);
+    sampledColor.rgb = applyColorGrading(sampledColor.rgb, saturation, contrast, tint);
 
     // Edge rim lighting effect
     if (edge > 0.0) {
         float rimFactor = smoothstep(-edge * 10.0, 0.0, dist);
         float2 lightDir = normalize(float2(-1.0, -1.0));
         float lightIntensity = abs(dot(surfaceDir, lightDir));
-        blurredColor.rgb += half3(rimFactor * lightIntensity * edge);
+        sampledColor.rgb += half3(rimFactor * lightIntensity * edge);
     }
 
     // Smooth alpha blend at edges for anti-aliasing
     float edgeAlpha = 1.0 - smoothstep(-ANTIALIAS_RADIUS * 0.5, ANTIALIAS_RADIUS * 0.5, dist);
 
     half4 originalColor = content.eval(fragCoord);
-    return mix(originalColor, blurredColor, edgeAlpha);
+    return mix(originalColor, sampledColor, edgeAlpha);
 }
 """
 }

@@ -32,6 +32,8 @@ import org.jetbrains.skia.RuntimeShaderBuilder
  *
  * Uses Skia's RuntimeEffect with ImageFilter.makeRuntimeShader for GPU-accelerated glass effects.
  * This implementation is shared across iOS, macOS, JVM Desktop, and WASM platforms.
+ *
+ * **Note:** For blur effects, use [Modifier.cloudy] separately.
  */
 @Composable
 public actual fun Modifier.liquidGlass(
@@ -40,7 +42,6 @@ public actual fun Modifier.liquidGlass(
   cornerRadius: Float,
   refraction: Float,
   curve: Float,
-  blur: Float,
   dispersion: Float,
   saturation: Float,
   contrast: Float,
@@ -52,7 +53,6 @@ public actual fun Modifier.liquidGlass(
   require(cornerRadius >= 0f) { "cornerRadius must be >= 0, but was $cornerRadius" }
   require(refraction >= 0f) { "refraction must be >= 0, but was $refraction" }
   require(curve >= 0f) { "curve must be >= 0, but was $curve" }
-  require(blur >= 0f) { "blur must be >= 0, but was $blur" }
   require(dispersion >= 0f) { "dispersion must be >= 0, but was $dispersion" }
   require(saturation >= 0f) { "saturation must be >= 0, but was $saturation" }
   require(contrast >= 0f) { "contrast must be >= 0, but was $contrast" }
@@ -88,7 +88,6 @@ public actual fun Modifier.liquidGlass(
         uniform("cornerRadius", cornerRadius)
         uniform("refraction", refraction)
         uniform("curve", curve)
-        uniform("blur", blur)
         uniform("dispersion", dispersion)
         uniform("saturation", saturation)
         uniform("contrast", contrast)

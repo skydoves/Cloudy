@@ -37,9 +37,6 @@ public object LiquidGlassDefaults {
   /** Default curve strength. Controls how strongly the lens curves at center vs edges. */
   public const val CURVE: Float = 0.25f
 
-  /** Default blur radius in pixels for frosted glass effect. */
-  public const val BLUR: Float = 8f
-
   /** Default dispersion (chromatic aberration) strength. */
   public const val DISPERSION: Float = 0.0f
 
@@ -67,15 +64,19 @@ public object LiquidGlassDefaults {
  *
  * This modifier creates an interactive glass lens effect that distorts the dynamic content
  * beneath it in real-time. The effect uses SDF (Signed Distance Field) for crisp edges,
- * normal-based refraction, frosted blur, and chromatic dispersion.
+ * normal-based refraction, and chromatic dispersion.
+ *
+ * **Note:** For blur effects, use [Modifier.cloudy] separately. This modifier focuses on
+ * the lens distortion effect and can be combined with Cloudy's blur for a complete
+ * frosted glass look.
  *
  * ## Platform Behavior
  *
  * | Platform | Implementation | Features |
  * |----------|----------------|----------|
  * | Android 33+ | RuntimeShader (AGSL) | Full effect |
- * | Android 12-32 | Fallback | Blur + saturation + edge (no refraction/dispersion) |
- * | Android <12 | Fallback | Blur + saturation + edge (no refraction/dispersion) |
+ * | Android 12-32 | Fallback | Saturation + edge (no refraction/dispersion) |
+ * | Android <12 | Fallback | Saturation + edge (no refraction/dispersion) |
  * | iOS/macOS/Desktop | Skia RuntimeEffect (SKSL) | Full effect |
  *
  * ## Example Usage
@@ -91,13 +92,13 @@ public object LiquidGlassDefaults {
  *         mousePosition = change.position
  *       }
  *     }
+ *     .cloudy(radius = 15) // Use Cloudy for blur
  *     .liquidGlass(
  *       mousePosition = mousePosition,
  *       lensSize = Size(350f, 350f),
  *       cornerRadius = 50f,
  *       refraction = 0.25f,
  *       curve = 0.25f,
- *       blur = 8f,
  *     )
  * ) {
  *   Image(painter = painterResource(R.drawable.photo), ...)
@@ -121,10 +122,6 @@ public object LiquidGlassDefaults {
  * @param curve Controls how strongly the liquid lens curves at its center vs edges.
  *   Setting to 0 removes the liquid effect. No-op on Android 12 and lower.
  *   Default: [LiquidGlassDefaults.CURVE] (0.25).
- *
- * @param blur The blur radius for the frosted glass effect.
- *   This is Cloudy's unique addition - works on all platforms.
- *   Default: [LiquidGlassDefaults.BLUR] (8).
  *
  * @param dispersion The chromatic dispersion (aberration) intensity.
  *   Controls the RGB channel separation that creates the prism-like effect.
@@ -154,6 +151,7 @@ public object LiquidGlassDefaults {
  *
  * @see LiquidGlassDefaults
  * @see LiquidGlassShaderSource
+ * @see cloudy
  */
 @Composable
 public expect fun Modifier.liquidGlass(
@@ -162,7 +160,6 @@ public expect fun Modifier.liquidGlass(
   cornerRadius: Float = LiquidGlassDefaults.CORNER_RADIUS,
   refraction: Float = LiquidGlassDefaults.REFRACTION,
   curve: Float = LiquidGlassDefaults.CURVE,
-  blur: Float = LiquidGlassDefaults.BLUR,
   dispersion: Float = LiquidGlassDefaults.DISPERSION,
   saturation: Float = LiquidGlassDefaults.SATURATION,
   contrast: Float = LiquidGlassDefaults.CONTRAST,
