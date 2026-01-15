@@ -219,7 +219,8 @@ private fun Modifier.liquidGlassFallback(
       clipPath(lensPath) {
         // Draw a semi-transparent overlay that simulates the color adjustment
         // This is a simplified approximation since we can't re-render content with a filter
-        val overlayAlpha = 0.3f * ((1f - saturation).coerceIn(0f, 1f) + (contrast - 1f).coerceIn(0f, 1f))
+        val overlayAlpha =
+          0.3f * ((1f - saturation).coerceIn(0f, 1f) + (contrast - 1f).coerceIn(0f, 1f))
         if (overlayAlpha > 0f) {
           drawRect(
             color = Color.Gray.copy(alpha = overlayAlpha.coerceIn(0f, 0.5f)),
