@@ -28,8 +28,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.drawscope.clipPath
@@ -175,124 +173,67 @@ private fun Modifier.liquidGlassFallback(
   contrast: Float,
   tint: Color,
   edge: Float,
-): Modifier {
-  // Create color filter for saturation and contrast adjustments
-  val colorFilter = remember(saturation, contrast) {
-    createSaturationContrastColorFilter(saturation, contrast)
+): Modifier = this.drawWithContent {
+  // Draw original content first
+  drawContent()
+
+  // Calculate lens bounds centered on mouse position
+  val halfWidth = lensSize.width / 2f
+  val halfHeight = lensSize.height / 2f
+  val lensLeft = mousePosition.x - halfWidth
+  val lensTop = mousePosition.y - halfHeight
+  val clampedCornerRadius = cornerRadius.coerceAtMost(minOf(halfWidth, halfHeight))
+
+  // Create lens path
+  val lensPath = Path().apply {
+    addRoundRect(
+      RoundRect(
+        left = lensLeft,
+        top = lensTop,
+        right = lensLeft + lensSize.width,
+        bottom = lensTop + lensSize.height,
+        cornerRadius = CornerRadius(clampedCornerRadius, clampedCornerRadius),
+      ),
+    )
   }
 
-  return this.drawWithContent {
-    // Draw original content first
-    drawContent()
-
-    // Calculate lens bounds centered on mouse position
-    val halfWidth = lensSize.width / 2f
-    val halfHeight = lensSize.height / 2f
-    val lensLeft = mousePosition.x - halfWidth
-    val lensTop = mousePosition.y - halfHeight
-    val clampedCornerRadius = cornerRadius.coerceAtMost(minOf(halfWidth, halfHeight))
-
-    // Create lens path
-    val lensPath = Path().apply {
-      addRoundRect(
-        RoundRect(
-          left = lensLeft,
-          top = lensTop,
-          right = lensLeft + lensSize.width,
-          bottom = lensTop + lensSize.height,
-          cornerRadius = CornerRadius(clampedCornerRadius, clampedCornerRadius),
-        ),
-      )
-    }
-
-    // Draw color-adjusted overlay inside the lens shape
-    if (saturation != 1f || contrast != 1f) {
-      clipPath(lensPath) {
-        // Draw a semi-transparent overlay that simulates the color adjustment
-        // This is a simplified approximation since we can't re-render content with a filter
-        val overlayAlpha =
-          0.3f * ((1f - saturation).coerceIn(0f, 1f) + (contrast - 1f).coerceIn(0f, 1f))
-        if (overlayAlpha > 0f) {
-          drawRect(
-            color = Color.Gray.copy(alpha = overlayAlpha.coerceIn(0f, 0.5f)),
-            topLeft = Offset(lensLeft, lensTop),
-            size = lensSize,
-          )
-        }
-      }
-    }
-
-    // Draw tint overlay inside the lens
-    if (tint != Color.Transparent && tint.alpha > 0f) {
-      clipPath(lensPath) {
+  // Draw color-adjusted overlay inside the lens shape
+  if (saturation != 1f || contrast != 1f) {
+    clipPath(lensPath) {
+      // Draw a semi-transparent overlay that simulates the color adjustment
+      // This is a simplified approximation since we can't re-render content with a filter
+      val overlayAlpha =
+        0.3f * ((1f - saturation).coerceIn(0f, 1f) + (contrast - 1f).coerceIn(0f, 1f))
+      if (overlayAlpha > 0f) {
         drawRect(
-          color = tint,
+          color = Color.Gray.copy(alpha = overlayAlpha.coerceIn(0f, 0.5f)),
           topLeft = Offset(lensLeft, lensTop),
           size = lensSize,
         )
       }
     }
+  }
 
-    // Draw edge lighting effect
-    if (edge > 0f) {
-      val strokeWidth = edge * 20f // Scale edge value to reasonable stroke width
-      val edgeColor = Color.White.copy(alpha = (edge * 0.5f).coerceIn(0f, 0.8f))
-
-      drawPath(
-        path = lensPath,
-        color = edgeColor,
-        style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidth),
+  // Draw tint overlay inside the lens
+  if (tint != Color.Transparent && tint.alpha > 0f) {
+    clipPath(lensPath) {
+      drawRect(
+        color = tint,
+        topLeft = Offset(lensLeft, lensTop),
+        size = lensSize,
       )
     }
   }
-}
 
-/**
- * Creates a ColorMatrix that adjusts saturation and contrast.
- *
- * @param saturation 1.0 = normal, 0.0 = grayscale, >1.0 = oversaturated
- * @param contrast 1.0 = normal, <1.0 = less contrast, >1.0 = more contrast
- */
-private fun createSaturationContrastColorFilter(saturation: Float, contrast: Float): ColorFilter? {
-  if (saturation == 1f && contrast == 1f) {
-    return null
-  }
+  // Draw edge lighting effect
+  if (edge > 0f) {
+    val strokeWidth = edge * 20f // Scale edge value to reasonable stroke width
+    val edgeColor = Color.White.copy(alpha = (edge * 0.5f).coerceIn(0f, 0.8f))
 
-  // Apply saturation (using luminance-based desaturation)
-  val colorMatrix = if (saturation != 1f) {
-    val invSat = 1f - saturation
-    val r = 0.213f * invSat
-    val g = 0.715f * invSat
-    val b = 0.072f * invSat
-
-    ColorMatrix(
-      floatArrayOf(
-        r + saturation, g, b, 0f, 0f,
-        r, g + saturation, b, 0f, 0f,
-        r, g, b + saturation, 0f, 0f,
-        0f, 0f, 0f, 1f, 0f,
-      ),
+    drawPath(
+      path = lensPath,
+      color = edgeColor,
+      style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidth),
     )
-  } else {
-    ColorMatrix()
   }
-
-  // Apply contrast
-  if (contrast != 1f) {
-    val scale = contrast
-    val translate = (1f - contrast) * 127.5f
-
-    val contrastMatrix = ColorMatrix(
-      floatArrayOf(
-        scale, 0f, 0f, 0f, translate,
-        0f, scale, 0f, 0f, translate,
-        0f, 0f, scale, 0f, translate,
-        0f, 0f, 0f, 1f, 0f,
-      ),
-    )
-
-    colorMatrix.timesAssign(contrastMatrix)
-  }
-
-  return ColorFilter.colorMatrix(colorMatrix)
 }
