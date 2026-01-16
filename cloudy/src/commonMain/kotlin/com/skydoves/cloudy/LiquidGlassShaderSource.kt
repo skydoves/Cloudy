@@ -39,7 +39,7 @@ public object LiquidGlassShaderSource {
    */
   public const val AGSL: String = """
 uniform float2 resolution;
-uniform float2 mouse;
+uniform float2 lensCenter;
 uniform float2 lensSize;
 uniform float cornerRadius;
 uniform float refraction;
@@ -102,7 +102,6 @@ half3 applyColorGrading(half3 inputColor, float satLevel, float contrastLevel, f
 }
 
 half4 main(float2 fragCoord) {
-    float2 lensCenter = mouse;
     float2 halfExtent = lensSize * 0.5;
     float clampedRadius = min(cornerRadius, min(halfExtent.x, halfExtent.y));
 
@@ -186,7 +185,7 @@ half4 main(float2 fragCoord) {
    */
   public const val SKSL: String = """
 uniform float2 resolution;
-uniform float2 mouse;
+uniform float2 lensCenter;
 uniform float2 lensSize;
 uniform float cornerRadius;
 uniform float refraction;
@@ -249,7 +248,6 @@ half3 applyColorGrading(half3 inputColor, float satLevel, float contrastLevel, f
 }
 
 half4 main(float2 fragCoord) {
-    float2 lensCenter = mouse;
     float2 halfExtent = lensSize * 0.5;
     float clampedRadius = min(cornerRadius, min(halfExtent.x, halfExtent.y));
 

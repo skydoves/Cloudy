@@ -87,8 +87,8 @@ internal class LiquidGlassTest :
         LiquidGlassShaderSource.AGSL.contains("uniform float2 resolution").shouldBe(true)
       }
 
-      test("should contain mouse uniform") {
-        LiquidGlassShaderSource.AGSL.contains("uniform float2 mouse").shouldBe(true)
+      test("should contain lensCenter uniform") {
+        LiquidGlassShaderSource.AGSL.contains("uniform float2 lensCenter").shouldBe(true)
       }
 
       test("should contain lensSize uniform") {
@@ -162,8 +162,8 @@ internal class LiquidGlassTest :
         LiquidGlassShaderSource.SKSL.contains("uniform float2 resolution").shouldBe(true)
       }
 
-      test("should contain mouse uniform") {
-        LiquidGlassShaderSource.SKSL.contains("uniform float2 mouse").shouldBe(true)
+      test("should contain lensCenter uniform") {
+        LiquidGlassShaderSource.SKSL.contains("uniform float2 lensCenter").shouldBe(true)
       }
 
       test("should contain lensSize uniform") {
@@ -231,7 +231,7 @@ internal class LiquidGlassTest :
       test("AGSL and SKSL should have same uniforms") {
         val agslUniforms = listOf(
           "resolution",
-          "mouse",
+          "lensCenter",
           "lensSize",
           "cornerRadius",
           "refraction",
