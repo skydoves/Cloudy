@@ -74,9 +74,8 @@ public object LiquidGlassDefaults {
  *
  * | Platform | Implementation | Features |
  * |----------|----------------|----------|
- * | Android 33+ | RuntimeShader (AGSL) | Full effect |
- * | Android 12-32 | Fallback | Saturation + edge (no refraction/dispersion) |
- * | Android <12 | Fallback | Saturation + edge (no refraction/dispersion) |
+ * | Android API 33+ | RuntimeShader (AGSL) | Full effect |
+ * | Android API 23-32 | Fallback | Saturation + edge (no refraction/dispersion) |
  * | iOS/macOS/Desktop | Skia RuntimeEffect (SKSL) | Full effect |
  *
  * ## Example Usage
@@ -116,16 +115,16 @@ public object LiquidGlassDefaults {
  *   Default: [LiquidGlassDefaults.CORNER_RADIUS] (50).
  *
  * @param refraction Controls how much the background distorts through the liquid lens.
- *   Setting to 0 removes the liquid effect. No-op on Android 12 and lower.
+ *   Setting to 0 removes the liquid effect. No-op on Android API < 33.
  *   Default: [LiquidGlassDefaults.REFRACTION] (0.25).
  *
  * @param curve Controls how strongly the liquid lens curves at its center vs edges.
- *   Setting to 0 removes the liquid effect. No-op on Android 12 and lower.
+ *   Setting to 0 removes the liquid effect. No-op on Android API < 33.
  *   Default: [LiquidGlassDefaults.CURVE] (0.25).
  *
  * @param dispersion The chromatic dispersion (aberration) intensity.
  *   Controls the RGB channel separation that creates the prism-like effect.
- *   No-op on Android 12 and lower.
+ *   No-op on Android API < 33.
  *   Default: [LiquidGlassDefaults.DISPERSION] (0.0).
  *
  * @param saturation Color saturation adjustment. 1.0 = normal.
@@ -141,7 +140,7 @@ public object LiquidGlassDefaults {
  *   Default: [LiquidGlassDefaults.TINT] (Transparent).
  *
  * @param edge The edge lighting/rim width. Higher values create wider, softer edges.
- *   Set to 0 to disable edge lighting. On Android 12 and lower, this becomes
+ *   Set to 0 to disable edge lighting. On Android API < 33, this becomes
  *   a boolean where value > 0 draws a fixed width edge effect.
  *   Default: [LiquidGlassDefaults.EDGE] (0.2).
  *
