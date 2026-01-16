@@ -58,12 +58,15 @@ public actual fun Modifier.liquidGlass(
   enabled: Boolean,
 ): Modifier {
   // Validation
+  require(lensSize.width > 0f) { "lensSize.width must be > 0, but was ${lensSize.width}" }
+  require(lensSize.height > 0f) { "lensSize.height must be > 0, but was ${lensSize.height}" }
   require(cornerRadius >= 0f) { "cornerRadius must be >= 0, but was $cornerRadius" }
   require(refraction >= 0f) { "refraction must be >= 0, but was $refraction" }
   require(curve >= 0f) { "curve must be >= 0, but was $curve" }
   require(dispersion >= 0f) { "dispersion must be >= 0, but was $dispersion" }
   require(saturation >= 0f) { "saturation must be >= 0, but was $saturation" }
   require(contrast >= 0f) { "contrast must be >= 0, but was $contrast" }
+  require(edge >= 0f) { "edge must be >= 0, but was $edge" }
 
   if (!enabled) {
     return this
@@ -139,7 +142,7 @@ private fun Modifier.liquidGlassApi33(
     if (width > 0 && height > 0) {
       // Update shader uniforms
       shader.setFloatUniform("resolution", width, height)
-      shader.setFloatUniform("mouse", lensCenter.x, lensCenter.y)
+      shader.setFloatUniform("lensCenter", lensCenter.x, lensCenter.y)
       shader.setFloatUniform("lensSize", lensSize.width, lensSize.height)
       shader.setFloatUniform("cornerRadius", cornerRadius)
       shader.setFloatUniform("refraction", refraction)
@@ -204,8 +207,10 @@ private fun Modifier.liquidGlassFallback(
     clipPath(lensPath) {
       // Draw a semi-transparent overlay that simulates the color adjustment
       // This is a simplified approximation since we can't re-render content with a filter
-      val overlayAlpha =
-        0.3f * ((1f - saturation).coerceIn(0f, 1f) + (contrast - 1f).coerceIn(0f, 1f))
+      // Use absolute deviation from 1.0 to handle both directions (over/under saturation/contrast)
+      val saturationDelta = kotlin.math.abs(1f - saturation).coerceIn(0f, 1f)
+      val contrastDelta = kotlin.math.abs(1f - contrast).coerceIn(0f, 1f)
+      val overlayAlpha = 0.3f * (saturationDelta + contrastDelta)
       if (overlayAlpha > 0f) {
         drawRect(
           color = Color.Gray.copy(alpha = overlayAlpha.coerceIn(0f, 0.5f)),

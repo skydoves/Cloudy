@@ -50,28 +50,32 @@ public actual fun Modifier.liquidGlass(
   enabled: Boolean,
 ): Modifier {
   // Validation
+  require(lensSize.width > 0f) { "lensSize.width must be > 0, but was ${lensSize.width}" }
+  require(lensSize.height > 0f) { "lensSize.height must be > 0, but was ${lensSize.height}" }
   require(cornerRadius >= 0f) { "cornerRadius must be >= 0, but was $cornerRadius" }
   require(refraction >= 0f) { "refraction must be >= 0, but was $refraction" }
   require(curve >= 0f) { "curve must be >= 0, but was $curve" }
   require(dispersion >= 0f) { "dispersion must be >= 0, but was $dispersion" }
   require(saturation >= 0f) { "saturation must be >= 0, but was $saturation" }
   require(contrast >= 0f) { "contrast must be >= 0, but was $contrast" }
+  require(edge >= 0f) { "edge must be >= 0, but was $edge" }
 
   if (!enabled) {
     return this
   }
 
-  // Create and cache the RuntimeEffect
-  val runtimeEffect = remember {
+  // Create and cache the RuntimeEffect and RuntimeShaderBuilder
+  val shaderBuilder = remember {
     try {
-      RuntimeEffect.makeForShader(LiquidGlassShaderSource.SKSL)
+      val effect = RuntimeEffect.makeForShader(LiquidGlassShaderSource.SKSL)
+      RuntimeShaderBuilder(effect)
     } catch (e: Exception) {
       null
     }
   }
 
   // If shader failed to compile, return unchanged
-  if (runtimeEffect == null) {
+  if (shaderBuilder == null) {
     return this
   }
 
@@ -80,20 +84,18 @@ public actual fun Modifier.liquidGlass(
     val height = size.height
 
     if (width > 0 && height > 0) {
-      // Create RuntimeShaderBuilder and set uniforms
-      val shaderBuilder = RuntimeShaderBuilder(runtimeEffect).apply {
-        uniform("resolution", width, height)
-        uniform("mouse", lensCenter.x, lensCenter.y)
-        uniform("lensSize", lensSize.width, lensSize.height)
-        uniform("cornerRadius", cornerRadius)
-        uniform("refraction", refraction)
-        uniform("curve", curve)
-        uniform("dispersion", dispersion)
-        uniform("saturation", saturation)
-        uniform("contrast", contrast)
-        uniform("tint", tint.red, tint.green, tint.blue, tint.alpha)
-        uniform("edge", edge)
-      }
+      // Update uniforms on the cached builder
+      shaderBuilder.uniform("resolution", width, height)
+      shaderBuilder.uniform("lensCenter", lensCenter.x, lensCenter.y)
+      shaderBuilder.uniform("lensSize", lensSize.width, lensSize.height)
+      shaderBuilder.uniform("cornerRadius", cornerRadius)
+      shaderBuilder.uniform("refraction", refraction)
+      shaderBuilder.uniform("curve", curve)
+      shaderBuilder.uniform("dispersion", dispersion)
+      shaderBuilder.uniform("saturation", saturation)
+      shaderBuilder.uniform("contrast", contrast)
+      shaderBuilder.uniform("tint", tint.red, tint.green, tint.blue, tint.alpha)
+      shaderBuilder.uniform("edge", edge)
 
       // Create ImageFilter with RuntimeShader
       // "content" binds to the underlying content (null input = source content)
