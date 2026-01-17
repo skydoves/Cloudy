@@ -142,6 +142,33 @@ public final class com/skydoves/cloudy/Cloudy_androidKt {
 	public static final fun cloudy (Landroidx/compose/ui/Modifier;IZLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
 }
 
+public final class com/skydoves/cloudy/LiquidGlassDefaults {
+	public static final field $stable I
+	public static final field CONTRAST F
+	public static final field CORNER_RADIUS F
+	public static final field CURVE F
+	public static final field DISPERSION F
+	public static final field EDGE F
+	public static final field INSTANCE Lcom/skydoves/cloudy/LiquidGlassDefaults;
+	public static final field MIN_ANDROID_API_FALLBACK I
+	public static final field MIN_ANDROID_API_FULL I
+	public static final field REFRACTION F
+	public static final field SATURATION F
+	public final fun getLENS_SIZE-NH-jbRc ()J
+	public final fun getTINT-0d7_KjU ()J
+}
+
+public final class com/skydoves/cloudy/LiquidGlassShaderSource {
+	public static final field $stable I
+	public static final field AGSL Ljava/lang/String;
+	public static final field INSTANCE Lcom/skydoves/cloudy/LiquidGlassShaderSource;
+	public static final field SKSL Ljava/lang/String;
+}
+
+public final class com/skydoves/cloudy/LiquidGlass_androidKt {
+	public static final fun liquidGlass-K15iNKo (Landroidx/compose/ui/Modifier;JJFFFFFFJFZLandroidx/compose/runtime/Composer;III)Landroidx/compose/ui/Modifier;
+}
+
 public final class com/skydoves/cloudy/PlatformBitmap {
 	public static final field $stable I
 	public fun <init> (Landroid/graphics/Bitmap;)V

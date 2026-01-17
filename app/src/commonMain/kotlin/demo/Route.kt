@@ -66,4 +66,10 @@ sealed interface Route {
    */
   @Serializable
   data object ProgressiveBlur : Route
+
+  /**
+   * The liquid glass demo screen showcasing the interactive glass lens effect.
+   */
+  @Serializable
+  data object LiquidGlass : Route
 }

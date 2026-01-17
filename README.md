@@ -26,7 +26,7 @@
 <img src="preview/img2.png" width="268"/>
 </p>
 
-### Supported Platforms
+### Supported Platforms (Blur Effect)
 
 | Platform | Implementation | Performance | State Type |
 |----------|----------------|-------------|------------|
@@ -36,6 +36,8 @@
 | macOS | Skia BlurEffect (Metal GPU) | GPU-accelerated | `Success.Applied` |
 | Desktop (JVM) | Skia BlurEffect (GPU) | GPU-accelerated | `Success.Applied` |
 | WASM (Browser) | Skia BlurEffect (WebGL) | GPU-accelerated | `Success.Applied` |
+
+> See [Liquid Glass Effect](#liquid-glass-effect) for liquid glass platform support.
 
 ## Download
 
@@ -198,6 +200,102 @@ private fun HomePoster(poster: Poster) {
 ## Blur Effect with Network Images
 
 You can easily implement blur effect with [Landscapist](https://github.com/skydoves/landscapist), which is a Jetpack Compose image loading library that fetches and displays network images with Glide, Coil, and Fresco. For more information, see the [Transformation](https://github.com/skydoves/landscapist#transformation) section.
+
+## Liquid Glass Effect
+
+Cloudy provides a `Modifier.liquidGlass()` that creates a realistic glass lens effect with SDF-based crisp edges, normal-based refraction, and chromatic dispersion.
+
+**Note:** For blur effects, use `Modifier.cloudy()` separately. The two modifiers are designed to work independently, giving you full control over each effect.
+
+### Platform Support (Liquid Glass)
+
+| Platform | Implementation | Features |
+|----------|----------------|----------|
+| Android 33+ | RuntimeShader (AGSL) | Full effect |
+| Android 32- | Fallback | Tint + edge + shape (no lens refraction) |
+| iOS | Skia RuntimeEffect | Full effect |
+| macOS | Skia RuntimeEffect | Full effect |
+| Desktop (JVM) | Skia RuntimeEffect | Full effect |
+| WASM | Skia RuntimeEffect | Full effect |
+
+### Basic Usage
+
+```kotlin
+var lensCenter by remember { mutableStateOf(Offset(100f, 100f)) }
+
+Box(
+  modifier = Modifier
+    .fillMaxSize()
+    .pointerInput(Unit) {
+      detectDragGestures { change, _ ->
+        lensCenter = change.position
+      }
+    }
+    .cloudy(radius = 15) // Use Cloudy for blur (independent)
+    .liquidGlass(lensCenter = lensCenter) // Lens distortion effect
+) {
+  Image(
+    painter = painterResource(R.drawable.photo),
+    contentDescription = null,
+    modifier = Modifier.fillMaxSize()
+  )
+}
+```
+
+### Combining with Cloudy Blur
+
+The `liquidGlass()` and `cloudy()` modifiers are independent and composable:
+
+```kotlin
+// Blur only
+.cloudy(radius = 20)
+
+// Lens effect only
+.liquidGlass(lensCenter = lensCenter)
+
+// Both effects combined
+.cloudy(radius = 15)
+.liquidGlass(lensCenter = lensCenter)
+```
+
+This separation gives you full access to Cloudy's blur API (`radius`, `onStateChanged`, `CloudyState`) while using the liquid glass lens effect.
+
+### Customization
+
+You can customize the liquid glass effect with various parameters:
+
+```kotlin
+.liquidGlass(
+  lensCenter = lensCenter,
+  lensSize = Size(350f, 350f),  // Size of the glass lens
+  cornerRadius = 50f,           // Rounded corners
+  refraction = 0.25f,           // Distortion amount
+  curve = 0.25f,                // Lens curvature strength
+  dispersion = 0.0f,            // Chromatic dispersion (RGB separation)
+  saturation = 1.0f,            // Color saturation
+  contrast = 1.0f,              // Light/dark contrast
+  tint = Color.Transparent,     // Optional color tint
+  edge = 0.2f,                  // Edge lighting width
+)
+```
+
+### Parameters
+
+| Parameter | Default | Description | Fallback (Android 32-) |
+|-----------|---------|-------------|------------------------|
+| `lensCenter` | - | Center position of the glass lens (required) | Yes |
+| `lensSize` | 350x350 | Size of the lens in pixels | Yes |
+| `cornerRadius` | 50f | Corner radius for rounded rectangle shape | Yes |
+| `refraction` | 0.25f | Controls how much background distorts through lens | No (requires API 33+) |
+| `curve` | 0.25f | Controls how strongly lens curves at center vs edges | No (requires API 33+) |
+| `dispersion` | 0.0f | Chromatic dispersion/aberration intensity | No (requires API 33+) |
+| `saturation` | 1.0f | Color saturation (1.0 = normal) | Approximation |
+| `contrast` | 1.0f | Light/dark contrast (1.0 = normal) | Approximation |
+| `tint` | Transparent | Optional color tint overlay | Yes |
+| `edge` | 0.2f | Edge lighting width (0 = none) | Yes (as stroke) |
+| `enabled` | true | Enable/disable the effect | Yes |
+
+> **Note:** On Android 32 and below, the lens refraction effect is not available since it requires `RuntimeShader` (API 33+). The fallback draws a visible lens shape with tint, edge lighting, and color adjustments. For blur effects, use `Modifier.cloudy()` separately.
 
 ## Find this repository useful? :heart:
 Support it by joining __[stargazers](https://github.com/skydoves/cloudy/stargazers)__ for this repository. :star: <br>
