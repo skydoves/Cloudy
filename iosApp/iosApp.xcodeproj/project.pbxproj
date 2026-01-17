@@ -76,10 +76,10 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 7555FF8F242A565B00829871 /* Build configuration list for PBXNativeTarget "iosApp" */;
 			buildPhases = (
+				F85CB1118929364A00FDF5E5 /* Compile Kotlin Framework */,
 				7555FF77242A565900829871 /* Sources */,
 				7555FF78242A565900829871 /* Frameworks */,
 				7555FF79242A565900829871 /* Resources */,
-				F85CB1118929364A00FDF5E5 /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
@@ -136,7 +136,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		F85CB1118929364A00FDF5E5 /* Embed Frameworks */ = {
+		F85CB1118929364A00FDF5E5 /* Compile Kotlin Framework */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -145,7 +145,7 @@
 			);
 			inputPaths = (
 			);
-			name = "Embed Frameworks";
+			name = "Compile Kotlin Framework";
 			outputFileListPaths = (
 			);
 			outputPaths = (
