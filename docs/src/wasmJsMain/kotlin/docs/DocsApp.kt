@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import docs.component.DocsSidebar
 import docs.navigation.DocsRoute
 import docs.screen.ApiCloudyScreen
+import docs.screen.ApiLiquidGlassScreen
 import docs.screen.ApiProgressiveScreen
 import docs.screen.ApiSkyScreen
 import docs.screen.ApiStateScreen
@@ -62,6 +63,7 @@ fun DocsApp() {
           DocsRoute.ApiSky -> ApiSkyScreen()
           DocsRoute.ApiProgressive -> ApiProgressiveScreen()
           DocsRoute.ApiState -> ApiStateScreen()
+          DocsRoute.ApiLiquidGlass -> ApiLiquidGlassScreen()
           DocsRoute.Playground -> PlaygroundScreen()
         }
       }
