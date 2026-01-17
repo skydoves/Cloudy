@@ -17,6 +17,7 @@ package docs.screen
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -54,12 +55,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.skydoves.cloudy.CloudyProgressive
+import com.skydoves.cloudy.LiquidGlassDefaults
 import com.skydoves.cloudy.cloudy
+import com.skydoves.cloudy.liquidGlass
 import com.skydoves.cloudy.rememberSky
 import com.skydoves.cloudy.sky
 import docs.component.CodeBlock
@@ -106,6 +112,11 @@ fun PlaygroundScreen() {
 
     // Basic Blur Demo
     BasicBlurDemo()
+
+    Spacer(modifier = Modifier.height(48.dp))
+
+    // Liquid Glass Demo
+    LiquidGlassDemo()
 
     Spacer(modifier = Modifier.height(48.dp))
 
@@ -230,6 +241,268 @@ private fun BasicBlurDemo() {
       }
 
       CodeBlock(code = basicBlurCode)
+    }
+  }
+}
+
+@Composable
+private fun LiquidGlassDemo() {
+  var lensCenter by remember { mutableStateOf(Offset.Zero) }
+  var cornerRadius by remember { mutableFloatStateOf(50f) }
+  var refraction by remember { mutableFloatStateOf(0.25f) }
+  var curve by remember { mutableFloatStateOf(0.25f) }
+  var dispersion by remember { mutableFloatStateOf(0f) }
+  var edge by remember { mutableFloatStateOf(0.2f) }
+  var saturation by remember { mutableFloatStateOf(1f) }
+  var enabled by remember { mutableStateOf(true) }
+
+  Card(
+    modifier = Modifier.fillMaxWidth(),
+    colors = CardDefaults.cardColors(containerColor = DocsTheme.colors.surface),
+    shape = RoundedCornerShape(16.dp),
+  ) {
+    Column(modifier = Modifier.padding(24.dp)) {
+      Text(
+        text = "Liquid Glass (Modifier.liquidGlass)",
+        style = DocsTheme.typography.h2,
+        color = DocsTheme.colors.onBackground,
+      )
+
+      Spacer(modifier = Modifier.height(8.dp))
+
+      Text(
+        text = "Drag on the preview to move the glass lens",
+        style = DocsTheme.typography.bodySmall,
+        color = DocsTheme.colors.onSurfaceVariant,
+      )
+
+      Spacer(modifier = Modifier.height(24.dp))
+
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(24.dp),
+      ) {
+        // Controls
+        Column(modifier = Modifier.weight(1f)) {
+          // Corner Radius Slider
+          Text(
+            text = "Corner Radius: ${cornerRadius.toInt()}",
+            style = DocsTheme.typography.bodySmall,
+            color = DocsTheme.colors.onSurface,
+          )
+          Slider(
+            value = cornerRadius,
+            onValueChange = { cornerRadius = it },
+            valueRange = 0f..175f,
+            colors = SliderDefaults.colors(
+              thumbColor = DocsTheme.colors.primary,
+              activeTrackColor = DocsTheme.colors.primary,
+            ),
+          )
+
+          Spacer(modifier = Modifier.height(8.dp))
+
+          // Refraction Slider
+          Text(
+            text = "Refraction: ${refraction.format()}",
+            style = DocsTheme.typography.bodySmall,
+            color = DocsTheme.colors.onSurface,
+          )
+          Slider(
+            value = refraction,
+            onValueChange = { refraction = it },
+            valueRange = 0f..1f,
+            colors = SliderDefaults.colors(
+              thumbColor = DocsTheme.colors.primary,
+              activeTrackColor = DocsTheme.colors.primary,
+            ),
+          )
+
+          Spacer(modifier = Modifier.height(8.dp))
+
+          // Curve Slider
+          Text(
+            text = "Curve: ${curve.format()}",
+            style = DocsTheme.typography.bodySmall,
+            color = DocsTheme.colors.onSurface,
+          )
+          Slider(
+            value = curve,
+            onValueChange = { curve = it },
+            valueRange = 0f..1f,
+            colors = SliderDefaults.colors(
+              thumbColor = DocsTheme.colors.primary,
+              activeTrackColor = DocsTheme.colors.primary,
+            ),
+          )
+
+          Spacer(modifier = Modifier.height(8.dp))
+
+          // Dispersion Slider
+          Text(
+            text = "Dispersion: ${dispersion.format()}",
+            style = DocsTheme.typography.bodySmall,
+            color = DocsTheme.colors.onSurface,
+          )
+          Slider(
+            value = dispersion,
+            onValueChange = { dispersion = it },
+            valueRange = 0f..2f,
+            colors = SliderDefaults.colors(
+              thumbColor = DocsTheme.colors.primary,
+              activeTrackColor = DocsTheme.colors.primary,
+            ),
+          )
+
+          Spacer(modifier = Modifier.height(8.dp))
+
+          // Edge Slider
+          Text(
+            text = "Edge: ${edge.format()}",
+            style = DocsTheme.typography.bodySmall,
+            color = DocsTheme.colors.onSurface,
+          )
+          Slider(
+            value = edge,
+            onValueChange = { edge = it },
+            valueRange = 0f..1f,
+            colors = SliderDefaults.colors(
+              thumbColor = DocsTheme.colors.primary,
+              activeTrackColor = DocsTheme.colors.primary,
+            ),
+          )
+
+          Spacer(modifier = Modifier.height(8.dp))
+
+          // Saturation Slider
+          Text(
+            text = "Saturation: ${saturation.format()}",
+            style = DocsTheme.typography.bodySmall,
+            color = DocsTheme.colors.onSurface,
+          )
+          Slider(
+            value = saturation,
+            onValueChange = { saturation = it },
+            valueRange = 0f..2f,
+            colors = SliderDefaults.colors(
+              thumbColor = DocsTheme.colors.primary,
+              activeTrackColor = DocsTheme.colors.primary,
+            ),
+          )
+
+          Spacer(modifier = Modifier.height(16.dp))
+
+          // Enabled Toggle
+          Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(
+              checked = enabled,
+              onCheckedChange = { enabled = it },
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+              text = "Enabled",
+              style = DocsTheme.typography.bodySmall,
+              color = DocsTheme.colors.onSurface,
+            )
+          }
+        }
+
+        // Preview
+        Box(
+          modifier = Modifier
+            .size(280.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .border(1.dp, DocsTheme.colors.divider, RoundedCornerShape(12.dp))
+            .onSizeChanged { size ->
+              if (lensCenter == Offset.Zero) {
+                lensCenter = Offset(size.width / 2f, size.height / 2f)
+              }
+            }
+            .pointerInput(Unit) {
+              detectDragGestures { change, dragAmount ->
+                lensCenter += dragAmount
+                change.consume()
+              }
+            }
+            .liquidGlass(
+              lensCenter = lensCenter,
+              lensSize = Size(200f, 200f),
+              cornerRadius = cornerRadius,
+              refraction = refraction,
+              curve = curve,
+              dispersion = dispersion,
+              edge = edge,
+              saturation = saturation,
+              enabled = enabled,
+            ),
+          contentAlignment = Alignment.Center,
+        ) {
+          // Sample gradient background
+          GradientBackground()
+
+          // Label
+          Text(
+            text = if (enabled) "Drag to move lens" else "disabled",
+            style = DocsTheme.typography.caption,
+            color = Color.White,
+            fontWeight = FontWeight.Bold,
+          )
+        }
+      }
+
+      Spacer(modifier = Modifier.height(24.dp))
+
+      // Generated Code
+      Text(
+        text = "Generated Code",
+        style = DocsTheme.typography.bodySmall,
+        fontWeight = FontWeight.SemiBold,
+        color = DocsTheme.colors.onSurface,
+      )
+
+      Spacer(modifier = Modifier.height(8.dp))
+
+      val liquidGlassCode = buildString {
+        append("var lensCenter by remember { mutableStateOf(Offset.Zero) }\n\n")
+        append("Box(\n")
+        append("  modifier = Modifier\n")
+        append("    .pointerInput(Unit) {\n")
+        append("      detectDragGestures { change, dragAmount ->\n")
+        append("        lensCenter += dragAmount\n")
+        append("        change.consume()\n")
+        append("      }\n")
+        append("    }\n")
+        append("    .liquidGlass(\n")
+        append("      lensCenter = lensCenter,\n")
+        append("      lensSize = Size(200f, 200f),\n")
+        if (cornerRadius != LiquidGlassDefaults.CORNER_RADIUS) {
+          append("      cornerRadius = ${cornerRadius.toInt()}f,\n")
+        }
+        if (refraction != LiquidGlassDefaults.REFRACTION) {
+          append("      refraction = ${refraction.format()}f,\n")
+        }
+        if (curve != LiquidGlassDefaults.CURVE) {
+          append("      curve = ${curve.format()}f,\n")
+        }
+        if (dispersion != LiquidGlassDefaults.DISPERSION) {
+          append("      dispersion = ${dispersion.format()}f,\n")
+        }
+        if (edge != LiquidGlassDefaults.EDGE) {
+          append("      edge = ${edge.format()}f,\n")
+        }
+        if (saturation != LiquidGlassDefaults.SATURATION) {
+          append("      saturation = ${saturation.format()}f,\n")
+        }
+        if (!enabled) {
+          append("      enabled = false,\n")
+        }
+        append("    )\n")
+        append(") {\n")
+        append("  // Your content here\n")
+        append("}")
+      }
+
+      CodeBlock(code = liquidGlassCode)
     }
   }
 }
