@@ -203,6 +203,8 @@ You can easily implement blur effect with [Landscapist](https://github.com/skydo
 
 ## Liquid Glass Effect
 
+![image](screenshots/liquidglass.gif)
+
 Cloudy provides a `Modifier.liquidGlass()` that creates a realistic glass lens effect with SDF-based crisp edges, normal-based refraction, and chromatic dispersion.
 
 **Note:** For blur effects, use `Modifier.cloudy()` separately. The two modifiers are designed to work independently, giving you full control over each effect.
