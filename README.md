@@ -303,6 +303,10 @@ You can customize the liquid glass effect with various parameters:
 Support it by joining __[stargazers](https://github.com/skydoves/cloudy/stargazers)__ for this repository. :star: <br>
 Also, __[follow me](https://github.com/skydoves)__ on GitHub for my next creations! 🤩
 
+## Acknowledgements
+
+The liquid glass shader implementation was inspired by [FletchMcKee/liquid](https://github.com/FletchMcKee/liquid).
+
 # License
 ```xml
 Designed and developed by 2022 skydoves (Jaewoong Eum)
