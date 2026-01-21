@@ -132,23 +132,23 @@ internal class LiquidGlassTest :
       }
 
       test("should contain main function") {
-        LiquidGlassShaderSource.AGSL.contains("half4 main(float2 fragCoord)").shouldBe(true)
+        LiquidGlassShaderSource.AGSL.contains("half4 main(float2 xy)").shouldBe(true)
       }
 
-      test("should contain roundedRectDistance function") {
-        LiquidGlassShaderSource.AGSL.contains("float roundedRectDistance").shouldBe(true)
+      test("should contain boxRoundedSDF function") {
+        LiquidGlassShaderSource.AGSL.contains("float boxRoundedSDF").shouldBe(true)
       }
 
-      test("should contain calculateSurfaceGradient function") {
-        LiquidGlassShaderSource.AGSL.contains("float2 calculateSurfaceGradient").shouldBe(true)
+      test("should contain lensNormalDirection function") {
+        LiquidGlassShaderSource.AGSL.contains("float2 lensNormalDirection").shouldBe(true)
       }
 
-      test("should contain getLuminance function") {
-        LiquidGlassShaderSource.AGSL.contains("float getLuminance").shouldBe(true)
+      test("should contain toBrightness function") {
+        LiquidGlassShaderSource.AGSL.contains("float toBrightness").shouldBe(true)
       }
 
-      test("should contain applyColorGrading function") {
-        LiquidGlassShaderSource.AGSL.contains("half3 applyColorGrading").shouldBe(true)
+      test("should contain processColor function") {
+        LiquidGlassShaderSource.AGSL.contains("half3 processColor").shouldBe(true)
       }
     }
 
@@ -207,23 +207,23 @@ internal class LiquidGlassTest :
       }
 
       test("should contain main function") {
-        LiquidGlassShaderSource.SKSL.contains("half4 main(float2 fragCoord)").shouldBe(true)
+        LiquidGlassShaderSource.SKSL.contains("half4 main(float2 xy)").shouldBe(true)
       }
 
-      test("should contain roundedRectDistance function") {
-        LiquidGlassShaderSource.SKSL.contains("float roundedRectDistance").shouldBe(true)
+      test("should contain boxRoundedSDF function") {
+        LiquidGlassShaderSource.SKSL.contains("float boxRoundedSDF").shouldBe(true)
       }
 
-      test("should contain calculateSurfaceGradient function") {
-        LiquidGlassShaderSource.SKSL.contains("float2 calculateSurfaceGradient").shouldBe(true)
+      test("should contain lensNormalDirection function") {
+        LiquidGlassShaderSource.SKSL.contains("float2 lensNormalDirection").shouldBe(true)
       }
 
-      test("should contain getLuminance function") {
-        LiquidGlassShaderSource.SKSL.contains("float getLuminance").shouldBe(true)
+      test("should contain toBrightness function") {
+        LiquidGlassShaderSource.SKSL.contains("float toBrightness").shouldBe(true)
       }
 
-      test("should contain applyColorGrading function") {
-        LiquidGlassShaderSource.SKSL.contains("half3 applyColorGrading").shouldBe(true)
+      test("should contain processColor function") {
+        LiquidGlassShaderSource.SKSL.contains("half3 processColor").shouldBe(true)
       }
     }
 
@@ -252,10 +252,10 @@ internal class LiquidGlassTest :
 
       test("AGSL and SKSL should have same helper functions") {
         val functions = listOf(
-          "roundedRectDistance",
-          "calculateSurfaceGradient",
-          "getLuminance",
-          "applyColorGrading",
+          "boxRoundedSDF",
+          "lensNormalDirection",
+          "toBrightness",
+          "processColor",
         )
 
         functions.forEach { function ->
@@ -264,9 +264,9 @@ internal class LiquidGlassTest :
         }
       }
 
-      test("AGSL and SKSL should have same ANTIALIAS_RADIUS constant") {
-        LiquidGlassShaderSource.AGSL.contains("const float ANTIALIAS_RADIUS = 1.5").shouldBe(true)
-        LiquidGlassShaderSource.SKSL.contains("const float ANTIALIAS_RADIUS = 1.5").shouldBe(true)
+      test("AGSL and SKSL should have same SMOOTH_EDGE_PX constant") {
+        LiquidGlassShaderSource.AGSL.contains("const float SMOOTH_EDGE_PX = 1.5").shouldBe(true)
+        LiquidGlassShaderSource.SKSL.contains("const float SMOOTH_EDGE_PX = 1.5").shouldBe(true)
       }
     }
   })
