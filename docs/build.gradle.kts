@@ -50,6 +50,7 @@ kotlin {
     browser {
       commonWebpackConfig {
         outputFileName = "cloudy-docs.js"
+        configDirectory = project.projectDir.resolve("webpack.config.d")
       }
     }
     binaries.executable()
