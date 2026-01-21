@@ -16,26 +16,24 @@
 package com.skydoves.cloudy
 
 /**
- * Shared shader source code for the Liquid Glass effect.
+ * Cloudy's Liquid Glass shader implementation for creating realistic glass lens distortion effects.
  *
- * This shader creates a realistic liquid glass lens effect with:
- * - Rounded rectangle distance field for crisp edges
- * - Surface gradient-based refraction and curve distortion
- * - Chromatic dispersion (RGB channel separation)
- * - Saturation, contrast, and tint adjustments
- * - Edge lighting and anti-aliasing
+ * This GPU shader provides an interactive liquid glass visualization featuring:
+ * - Smooth-cornered rectangular lens geometry with configurable radius
+ * - Physically-inspired light bending through curved glass surfaces
+ * - RGB wavelength separation for prismatic color fringing
+ * - Real-time color manipulation (vibrancy, intensity, overlay)
+ * - Specular rim highlights with directional illumination
+ * - Sub-pixel edge smoothing for crisp boundaries
  *
- * **Note:** For blur effects, use [Modifier.cloudy] separately. This shader focuses on
- * lens distortion and can be combined with Cloudy's blur for a complete frosted glass look.
+ * Pair with [Modifier.cloudy] for combined blur + glass aesthetics.
  *
- * The shader is compatible with both AGSL (Android 13+) and SKSL (Skia platforms).
+ * Supports AGSL (Android 13+) and SKSL (Skia-based platforms).
  */
 public object LiquidGlassShaderSource {
 
   /**
-   * AGSL shader source for Android API 33+.
-   *
-   * Uses `uniform shader content` for the input content.
+   * AGSL shader for Android RuntimeShader (API 33+).
    */
   public const val AGSL: String = """
 uniform float2 resolution;
@@ -51,137 +49,111 @@ uniform float4 tint;
 uniform float edge;
 uniform shader content;
 
-const float ANTIALIAS_RADIUS = 1.5;
+const float SMOOTH_EDGE_PX = 1.5;
 
-// Calculate distance from point to rounded rectangle boundary
-// Returns negative inside, positive outside
-float roundedRectDistance(float2 point, float2 boxExtent, float radius) {
-    float2 offsetFromCorner = abs(point) - boxExtent + float2(radius);
-    float outsideDistance = length(max(offsetFromCorner, 0.0));
-    float insideDistance = min(max(offsetFromCorner.x, offsetFromCorner.y), 0.0);
-    return outsideDistance + insideDistance - radius;
+// Signed distance to a box with rounded corners
+// Negative = inside, Positive = outside, Zero = on boundary
+float boxRoundedSDF(float2 p, float2 halfDim, float r) {
+    float2 d = abs(p) - halfDim + float2(r);
+    float exterior = length(max(d, 0.0));
+    float interior = min(max(d.x, d.y), 0.0);
+    return exterior + interior - r;
 }
 
-// Calculate outward-pointing surface gradient at a point
-float2 calculateSurfaceGradient(float2 point, float2 boxExtent, float radius) {
-    float2 innerOffset = abs(point) - boxExtent + float2(radius);
-    float2 signVector = float2(
-        point.x >= 0.0 ? 1.0 : -1.0,
-        point.y >= 0.0 ? 1.0 : -1.0
-    );
+// Outward-facing direction vector from the lens surface
+float2 lensNormalDirection(float2 p, float2 halfDim, float r) {
+    float2 d = abs(p) - halfDim + float2(r);
+    float2 s = float2(p.x >= 0.0 ? 1.0 : -1.0, p.y >= 0.0 ? 1.0 : -1.0);
 
-    // Outside the inner rounded region
-    if (max(innerOffset.x, innerOffset.y) > 0.0) {
-        float2 clampedOffset = max(innerOffset, 0.0);
-        return signVector * normalize(clampedOffset);
+    if (max(d.x, d.y) > 0.0) {
+        return s * normalize(max(d, 0.0));
+    }
+    return d.x > d.y ? float2(s.x, 0.0) : float2(0.0, s.y);
+}
+
+// Perceptual brightness (ITU-R BT.709 standard)
+float toBrightness(half3 c) {
+    return dot(c, half3(0.2126, 0.7152, 0.0722));
+}
+
+// Color processing: vibrancy, intensity adjustment, and color overlay
+half3 processColor(half3 src, float vibrancy, float intensity, float4 overlay) {
+    float mono = toBrightness(src);
+    half3 vibrant = half3(clamp(mix(half3(mono), src, vibrancy), 0.0, 1.0));
+    half3 adjusted = half3(clamp((vibrant - 0.5) * intensity + 0.5, 0.0, 1.0));
+    return mix(adjusted, half3(overlay.rgb), overlay.a);
+}
+
+half4 main(float2 xy) {
+    float2 halfDim = lensSize * 0.5;
+    float r = min(cornerRadius, min(halfDim.x, halfDim.y));
+
+    float2 p = xy - lensCenter;
+    float sdf = boxRoundedSDF(p, halfDim, r);
+
+    // Skip pixels outside the lens boundary
+    if (sdf > SMOOTH_EDGE_PX) {
+        return content.eval(xy);
     }
 
-    // Inside - gradient points toward nearest edge
-    if (innerOffset.x > innerOffset.y) {
-        return float2(signVector.x, 0.0);
-    }
-    return float2(0.0, signVector.y);
-}
+    float2 normal = lensNormalDirection(p, halfDim, r);
 
-// Compute perceived luminance using Rec. 709 coefficients
-float getLuminance(half3 rgb) {
-    return dot(rgb, half3(0.2126, 0.7152, 0.0722));
-}
-
-// Apply color grading: saturation, contrast, and tint overlay
-half3 applyColorGrading(half3 inputColor, float satLevel, float contrastLevel, float4 tintOverlay) {
-    // Saturation adjustment via luminance mixing
-    float gray = getLuminance(inputColor);
-    half3 saturatedColor = half3(clamp(mix(half3(gray), inputColor, satLevel), 0.0, 1.0));
-
-    // Contrast adjustment around middle gray
-    half3 contrastedColor = half3(clamp((saturatedColor - 0.5) * contrastLevel + 0.5, 0.0, 1.0));
-
-    // Blend with tint based on tint alpha
-    return mix(contrastedColor, half3(tintOverlay.rgb), tintOverlay.a);
-}
-
-half4 main(float2 fragCoord) {
-    float2 halfExtent = lensSize * 0.5;
-    float clampedRadius = min(cornerRadius, min(halfExtent.x, halfExtent.y));
-
-    // Get position relative to lens center
-    float2 localPos = fragCoord - lensCenter;
-    float dist = roundedRectDistance(localPos, halfExtent, clampedRadius);
-
-    // Early exit for pixels clearly outside the lens
-    if (dist > ANTIALIAS_RADIUS) {
-        return content.eval(fragCoord);
-    }
-
-    // Calculate surface gradient for refraction direction
-    float2 surfaceDir = calculateSurfaceGradient(localPos, halfExtent, clampedRadius);
-
-    // Apply lens refraction effect
-    float2 samplingCoord = fragCoord;
+    // Compute refracted sample position
+    float2 sampleXY = xy;
     if (refraction > 0.0 && curve > 0.0) {
-        float minExtent = min(halfExtent.x, halfExtent.y);
-        float normalizedDepth = clamp(-dist / (minExtent * refraction), 0.0, 1.0);
-        float sphericalFactor = 1.0 - normalizedDepth;
-        float bendAmount = 1.0 - sqrt(1.0 - sphericalFactor * sphericalFactor);
-        float displacement = bendAmount * curve * minExtent;
-        samplingCoord = fragCoord - displacement * surfaceDir;
+        float minDim = min(halfDim.x, halfDim.y);
+        float depth = clamp(-sdf / (minDim * refraction), 0.0, 1.0);
+        float curvature = 1.0 - depth;
+        float bend = 1.0 - sqrt(1.0 - curvature * curvature);
+        sampleXY = xy - bend * curve * minDim * normal;
     }
 
-    // Sample with chromatic dispersion (RGB channel separation)
-    half4 sampledColor;
+    // RGB channel separation for prismatic effect
+    half4 pixel;
     if (dispersion > 0.0) {
-        // Dispersion offset based on distance from center (cubic falloff for realism)
-        float2 normalizedPos = localPos / halfExtent;
-        float2 chromaticShift = dispersion * normalizedPos * normalizedPos * normalizedPos * min(halfExtent.x, halfExtent.y) * 0.1;
+        float2 normP = p / halfDim;
+        float2 shift = dispersion * normP * normP * normP * min(halfDim.x, halfDim.y) * 0.1;
 
-        // Separate RGB channels for chromatic dispersion
-        float2 redCoord = samplingCoord - chromaticShift;
-        float2 greenCoord = samplingCoord;
-        float2 blueCoord = samplingCoord + chromaticShift;
+        float2 xyR = sampleXY - shift;
+        float2 xyG = sampleXY;
+        float2 xyB = sampleXY + shift;
 
-        // Validate red/blue samples are within lens bounds
-        float redDist = roundedRectDistance(redCoord - lensCenter, halfExtent, clampedRadius);
-        float blueDist = roundedRectDistance(blueCoord - lensCenter, halfExtent, clampedRadius);
+        float sdfR = boxRoundedSDF(xyR - lensCenter, halfDim, r);
+        float sdfB = boxRoundedSDF(xyB - lensCenter, halfDim, r);
 
-        half4 greenSample = content.eval(greenCoord);
-        half4 redSample = (redDist <= 0.0) ? content.eval(redCoord) : greenSample;
-        half4 blueSample = (blueDist <= 0.0) ? content.eval(blueCoord) : greenSample;
+        half4 gVal = content.eval(xyG);
+        half4 rVal = (sdfR <= 0.0) ? content.eval(xyR) : gVal;
+        half4 bVal = (sdfB <= 0.0) ? content.eval(xyB) : gVal;
 
-        sampledColor = half4(redSample.r, greenSample.g, blueSample.b, greenSample.a);
+        pixel = half4(rVal.r, gVal.g, bVal.b, gVal.a);
     } else {
-        sampledColor = content.eval(samplingCoord);
+        pixel = content.eval(sampleXY);
     }
 
-    // Fallback if alpha is zero (transparent region)
-    if (sampledColor.a <= 0.0) {
-        sampledColor = content.eval(fragCoord);
+    // Handle fully transparent samples
+    if (pixel.a <= 0.0) {
+        pixel = content.eval(xy);
     }
 
-    // Apply color grading
-    sampledColor.rgb = applyColorGrading(sampledColor.rgb, saturation, contrast, tint);
+    pixel.rgb = processColor(pixel.rgb, saturation, contrast, tint);
 
-    // Edge rim lighting effect
+    // Specular rim highlight
     if (edge > 0.0) {
-        float rimFactor = smoothstep(-edge * 10.0, 0.0, dist);
-        float2 lightDir = normalize(float2(-1.0, -1.0));
-        float lightIntensity = abs(dot(surfaceDir, lightDir));
-        sampledColor.rgb += half3(rimFactor * lightIntensity * edge);
+        float rimBlend = smoothstep(-edge * 10.0, 0.0, sdf);
+        float2 lightVec = normalize(float2(-1.0, -1.0));
+        float specular = abs(dot(normal, lightVec));
+        pixel.rgb += half3(rimBlend * specular * edge);
     }
 
-    // Smooth alpha blend at edges for anti-aliasing
-    float edgeAlpha = 1.0 - smoothstep(-ANTIALIAS_RADIUS * 0.5, ANTIALIAS_RADIUS * 0.5, dist);
-
-    half4 originalColor = content.eval(fragCoord);
-    return mix(originalColor, sampledColor, edgeAlpha);
+    // Anti-aliased edge transition
+    float alpha = 1.0 - smoothstep(-SMOOTH_EDGE_PX * 0.5, SMOOTH_EDGE_PX * 0.5, sdf);
+    half4 bg = content.eval(xy);
+    return mix(bg, pixel, alpha);
 }
 """
 
   /**
-   * SKSL shader source for Skia-based platforms (iOS, macOS, Desktop, WASM).
-   *
-   * Uses `uniform shader content` for the input content.
-   * Note: SKSL syntax is nearly identical to AGSL for this shader.
+   * SKSL shader for Skia RuntimeEffect (iOS, macOS, Desktop, WASM).
    */
   public const val SKSL: String = """
 uniform float2 resolution;
@@ -197,129 +169,106 @@ uniform float4 tint;
 uniform float edge;
 uniform shader content;
 
-const float ANTIALIAS_RADIUS = 1.5;
+const float SMOOTH_EDGE_PX = 1.5;
 
-// Calculate distance from point to rounded rectangle boundary
-// Returns negative inside, positive outside
-float roundedRectDistance(float2 point, float2 boxExtent, float radius) {
-    float2 offsetFromCorner = abs(point) - boxExtent + float2(radius);
-    float outsideDistance = length(max(offsetFromCorner, 0.0));
-    float insideDistance = min(max(offsetFromCorner.x, offsetFromCorner.y), 0.0);
-    return outsideDistance + insideDistance - radius;
+// Signed distance to a box with rounded corners
+// Negative = inside, Positive = outside, Zero = on boundary
+float boxRoundedSDF(float2 p, float2 halfDim, float r) {
+    float2 d = abs(p) - halfDim + float2(r);
+    float exterior = length(max(d, 0.0));
+    float interior = min(max(d.x, d.y), 0.0);
+    return exterior + interior - r;
 }
 
-// Calculate outward-pointing surface gradient at a point
-float2 calculateSurfaceGradient(float2 point, float2 boxExtent, float radius) {
-    float2 innerOffset = abs(point) - boxExtent + float2(radius);
-    float2 signVector = float2(
-        point.x >= 0.0 ? 1.0 : -1.0,
-        point.y >= 0.0 ? 1.0 : -1.0
-    );
+// Outward-facing direction vector from the lens surface
+float2 lensNormalDirection(float2 p, float2 halfDim, float r) {
+    float2 d = abs(p) - halfDim + float2(r);
+    float2 s = float2(p.x >= 0.0 ? 1.0 : -1.0, p.y >= 0.0 ? 1.0 : -1.0);
 
-    // Outside the inner rounded region
-    if (max(innerOffset.x, innerOffset.y) > 0.0) {
-        float2 clampedOffset = max(innerOffset, 0.0);
-        return signVector * normalize(clampedOffset);
+    if (max(d.x, d.y) > 0.0) {
+        return s * normalize(max(d, 0.0));
+    }
+    return d.x > d.y ? float2(s.x, 0.0) : float2(0.0, s.y);
+}
+
+// Perceptual brightness (ITU-R BT.709 standard)
+float toBrightness(half3 c) {
+    return dot(c, half3(0.2126, 0.7152, 0.0722));
+}
+
+// Color processing: vibrancy, intensity adjustment, and color overlay
+half3 processColor(half3 src, float vibrancy, float intensity, float4 overlay) {
+    float mono = toBrightness(src);
+    half3 vibrant = half3(clamp(mix(half3(mono), src, vibrancy), 0.0, 1.0));
+    half3 adjusted = half3(clamp((vibrant - 0.5) * intensity + 0.5, 0.0, 1.0));
+    return mix(adjusted, half3(overlay.rgb), overlay.a);
+}
+
+half4 main(float2 xy) {
+    float2 halfDim = lensSize * 0.5;
+    float r = min(cornerRadius, min(halfDim.x, halfDim.y));
+
+    float2 p = xy - lensCenter;
+    float sdf = boxRoundedSDF(p, halfDim, r);
+
+    // Skip pixels outside the lens boundary
+    if (sdf > SMOOTH_EDGE_PX) {
+        return content.eval(xy);
     }
 
-    // Inside - gradient points toward nearest edge
-    if (innerOffset.x > innerOffset.y) {
-        return float2(signVector.x, 0.0);
-    }
-    return float2(0.0, signVector.y);
-}
+    float2 normal = lensNormalDirection(p, halfDim, r);
 
-// Compute perceived luminance using Rec. 709 coefficients
-float getLuminance(half3 rgb) {
-    return dot(rgb, half3(0.2126, 0.7152, 0.0722));
-}
-
-// Apply color grading: saturation, contrast, and tint overlay
-half3 applyColorGrading(half3 inputColor, float satLevel, float contrastLevel, float4 tintOverlay) {
-    // Saturation adjustment via luminance mixing
-    float gray = getLuminance(inputColor);
-    half3 saturatedColor = half3(clamp(mix(half3(gray), inputColor, satLevel), 0.0, 1.0));
-
-    // Contrast adjustment around middle gray
-    half3 contrastedColor = half3(clamp((saturatedColor - 0.5) * contrastLevel + 0.5, 0.0, 1.0));
-
-    // Blend with tint based on tint alpha
-    return mix(contrastedColor, half3(tintOverlay.rgb), tintOverlay.a);
-}
-
-half4 main(float2 fragCoord) {
-    float2 halfExtent = lensSize * 0.5;
-    float clampedRadius = min(cornerRadius, min(halfExtent.x, halfExtent.y));
-
-    // Get position relative to lens center
-    float2 localPos = fragCoord - lensCenter;
-    float dist = roundedRectDistance(localPos, halfExtent, clampedRadius);
-
-    // Early exit for pixels clearly outside the lens
-    if (dist > ANTIALIAS_RADIUS) {
-        return content.eval(fragCoord);
-    }
-
-    // Calculate surface gradient for refraction direction
-    float2 surfaceDir = calculateSurfaceGradient(localPos, halfExtent, clampedRadius);
-
-    // Apply lens refraction effect
-    float2 samplingCoord = fragCoord;
+    // Compute refracted sample position
+    float2 sampleXY = xy;
     if (refraction > 0.0 && curve > 0.0) {
-        float minExtent = min(halfExtent.x, halfExtent.y);
-        float normalizedDepth = clamp(-dist / (minExtent * refraction), 0.0, 1.0);
-        float sphericalFactor = 1.0 - normalizedDepth;
-        float bendAmount = 1.0 - sqrt(1.0 - sphericalFactor * sphericalFactor);
-        float displacement = bendAmount * curve * minExtent;
-        samplingCoord = fragCoord - displacement * surfaceDir;
+        float minDim = min(halfDim.x, halfDim.y);
+        float depth = clamp(-sdf / (minDim * refraction), 0.0, 1.0);
+        float curvature = 1.0 - depth;
+        float bend = 1.0 - sqrt(1.0 - curvature * curvature);
+        sampleXY = xy - bend * curve * minDim * normal;
     }
 
-    // Sample with chromatic dispersion (RGB channel separation)
-    half4 sampledColor;
+    // RGB channel separation for prismatic effect
+    half4 pixel;
     if (dispersion > 0.0) {
-        // Dispersion offset based on distance from center (cubic falloff for realism)
-        float2 normalizedPos = localPos / halfExtent;
-        float2 chromaticShift = dispersion * normalizedPos * normalizedPos * normalizedPos * min(halfExtent.x, halfExtent.y) * 0.1;
+        float2 normP = p / halfDim;
+        float2 shift = dispersion * normP * normP * normP * min(halfDim.x, halfDim.y) * 0.1;
 
-        // Separate RGB channels for chromatic dispersion
-        float2 redCoord = samplingCoord - chromaticShift;
-        float2 greenCoord = samplingCoord;
-        float2 blueCoord = samplingCoord + chromaticShift;
+        float2 xyR = sampleXY - shift;
+        float2 xyG = sampleXY;
+        float2 xyB = sampleXY + shift;
 
-        // Validate red/blue samples are within lens bounds
-        float redDist = roundedRectDistance(redCoord - lensCenter, halfExtent, clampedRadius);
-        float blueDist = roundedRectDistance(blueCoord - lensCenter, halfExtent, clampedRadius);
+        float sdfR = boxRoundedSDF(xyR - lensCenter, halfDim, r);
+        float sdfB = boxRoundedSDF(xyB - lensCenter, halfDim, r);
 
-        half4 greenSample = content.eval(greenCoord);
-        half4 redSample = (redDist <= 0.0) ? content.eval(redCoord) : greenSample;
-        half4 blueSample = (blueDist <= 0.0) ? content.eval(blueCoord) : greenSample;
+        half4 gVal = content.eval(xyG);
+        half4 rVal = (sdfR <= 0.0) ? content.eval(xyR) : gVal;
+        half4 bVal = (sdfB <= 0.0) ? content.eval(xyB) : gVal;
 
-        sampledColor = half4(redSample.r, greenSample.g, blueSample.b, greenSample.a);
+        pixel = half4(rVal.r, gVal.g, bVal.b, gVal.a);
     } else {
-        sampledColor = content.eval(samplingCoord);
+        pixel = content.eval(sampleXY);
     }
 
-    // Fallback if alpha is zero (transparent region)
-    if (sampledColor.a <= 0.0) {
-        sampledColor = content.eval(fragCoord);
+    // Handle fully transparent samples
+    if (pixel.a <= 0.0) {
+        pixel = content.eval(xy);
     }
 
-    // Apply color grading
-    sampledColor.rgb = applyColorGrading(sampledColor.rgb, saturation, contrast, tint);
+    pixel.rgb = processColor(pixel.rgb, saturation, contrast, tint);
 
-    // Edge rim lighting effect
+    // Specular rim highlight
     if (edge > 0.0) {
-        float rimFactor = smoothstep(-edge * 10.0, 0.0, dist);
-        float2 lightDir = normalize(float2(-1.0, -1.0));
-        float lightIntensity = abs(dot(surfaceDir, lightDir));
-        sampledColor.rgb += half3(rimFactor * lightIntensity * edge);
+        float rimBlend = smoothstep(-edge * 10.0, 0.0, sdf);
+        float2 lightVec = normalize(float2(-1.0, -1.0));
+        float specular = abs(dot(normal, lightVec));
+        pixel.rgb += half3(rimBlend * specular * edge);
     }
 
-    // Smooth alpha blend at edges for anti-aliasing
-    float edgeAlpha = 1.0 - smoothstep(-ANTIALIAS_RADIUS * 0.5, ANTIALIAS_RADIUS * 0.5, dist);
-
-    half4 originalColor = content.eval(fragCoord);
-    return mix(originalColor, sampledColor, edgeAlpha);
+    // Anti-aliased edge transition
+    float alpha = 1.0 - smoothstep(-SMOOTH_EDGE_PX * 0.5, SMOOTH_EDGE_PX * 0.5, sdf);
+    half4 bg = content.eval(xy);
+    return mix(bg, pixel, alpha);
 }
 """
 }
