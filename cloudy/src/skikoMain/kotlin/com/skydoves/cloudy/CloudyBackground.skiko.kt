@@ -309,8 +309,9 @@ private class CloudyBackgroundModifierNode(
   }
 
   private fun ContentDrawScope.drawWithBlurEffect(layer: GraphicsLayer, snapshot: SkySnapshot) {
-    // BlurEffect's radiusX/radiusY are blur radii in pixels (Skia converts to sigma
-    // internally); pass the requested radius through directly.
+    // BlurEffect's radiusX/radiusY are blur radii in pixels; Compose's Skiko backend
+    // converts the radius to a sigma internally (same 0.57735 * radius + 0.5 as HWUI)
+    // before handing it to Skia, so pass the requested radius through directly.
     val blurRadius = snapshot.radius.toFloat()
 
     val context = requireGraphicsContext()

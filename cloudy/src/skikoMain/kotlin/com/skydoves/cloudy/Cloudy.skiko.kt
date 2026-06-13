@@ -51,8 +51,9 @@ public actual fun Modifier.cloudy(
   }
 
   // BlurEffect's radiusX/radiusY are blur *radii* in pixels, not Gaussian sigmas.
-  // Skia performs the radius -> sigma conversion internally, so pass the user-supplied
-  // radius through directly to match Modifier.blur and the Android RenderEffect path.
+  // Compose's Skiko backend converts the radius to a sigma internally (using the same
+  // sigma = 0.57735 * radius + 0.5 as HWUI) before handing it to Skia, so pass the
+  // user-supplied radius through directly to match Modifier.blur and the Android path.
   val blurRadius = radius.toFloat()
 
   // Apply GPU-accelerated blur using Skia's BlurEffect
