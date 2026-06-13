@@ -72,4 +72,11 @@ sealed interface Route {
    */
   @Serializable
   data object LiquidGlass : Route
+
+  /**
+   * Reproduction of issue #112: backdrop blur (`Modifier.cloudy(sky)`) on a bottom navigation
+   * bar over a scrolling list, with `Modifier.sky` on the outer container.
+   */
+  @Serializable
+  data object Issue112BottomNav : Route
 }

@@ -28,6 +28,7 @@ import androidx.navigation3.ui.NavDisplay
 import demo.screen.BlurAppBarGridScreen
 import demo.screen.GridListScreen
 import demo.screen.InteractiveSliderScreen
+import demo.screen.Issue112BottomNavScreen
 import demo.screen.LiquidGlassDemoScreen
 import demo.screen.MenuHomeScreen
 import demo.screen.ProgressiveBlurDemoScreen
@@ -59,6 +60,7 @@ fun CloudyDemoApp() {
               onInteractiveSliderClick = { backStack.add(Route.InteractiveSlider) },
               onProgressiveBlurClick = { backStack.add(Route.ProgressiveBlur) },
               onLiquidGlassClick = { backStack.add(Route.LiquidGlass) },
+              onIssue112Click = { backStack.add(Route.Issue112BottomNav) },
             )
           }
 
@@ -102,6 +104,12 @@ fun CloudyDemoApp() {
 
           is Route.LiquidGlass -> NavEntry(route) {
             LiquidGlassDemoScreen(
+              onBackClick = { backStack.removeLastOrNull() },
+            )
+          }
+
+          is Route.Issue112BottomNav -> NavEntry(route) {
+            Issue112BottomNavScreen(
               onBackClick = { backStack.removeLastOrNull() },
             )
           }
