@@ -15,8 +15,11 @@
  */
 package demo.component
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -28,13 +31,16 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.text.font.FontWeight
-import demo.theme.disneyBluePrimary
+import demo.theme.rememberSkyBackgroundBrush
 
 /**
  * A scaffold with a Material3 LargeTopAppBar that collapses on scroll.
- * Provides a modern, dynamic app bar experience.
+ *
+ * The whole screen sits on a soft vertical "sky" gradient and the app bar itself
+ * is transparent, so the bar blends into the background instead of reading as a
+ * flat, saturated color block. This keeps focus on the blurred content.
  *
  * @param title The title to display in the app bar.
  * @param onBackClick Optional callback for back navigation. If null, no back button is shown.
@@ -50,38 +56,42 @@ internal fun CollapsingAppBarScaffold(
   content: @Composable (PaddingValues, TopAppBarScrollBehavior) -> Unit,
 ) {
   val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
+  val skyBrush = rememberSkyBackgroundBrush()
 
-  Scaffold(
-    modifier = modifier
-      .windowInsetsPadding(WindowInsets.safeDrawing)
-      .nestedScroll(scrollBehavior.nestedScrollConnection),
-    topBar = {
-      LargeTopAppBar(
-        title = {
-          Text(
-            text = title,
-            fontWeight = FontWeight.Bold,
-          )
-        },
-        navigationIcon = {
-          if (onBackClick != null) {
-            BackButton(
-              onClick = onBackClick,
-              tint = MaterialTheme.colorScheme.onSurface,
+  Box(modifier = Modifier.fillMaxSize().background(skyBrush)) {
+    Scaffold(
+      modifier = modifier
+        .windowInsetsPadding(WindowInsets.safeDrawing)
+        .nestedScroll(scrollBehavior.nestedScrollConnection),
+      topBar = {
+        LargeTopAppBar(
+          title = {
+            Text(
+              text = title,
+              style = MaterialTheme.typography.headlineLarge,
+              color = MaterialTheme.colorScheme.onBackground,
             )
-          }
-        },
-        scrollBehavior = scrollBehavior,
-        colors = TopAppBarDefaults.topAppBarColors(
-          containerColor = disneyBluePrimary,
-          scrolledContainerColor = disneyBluePrimary,
-          titleContentColor = MaterialTheme.colorScheme.onPrimary,
-          navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
-        ),
-      )
-    },
-    containerColor = MaterialTheme.colorScheme.background,
-  ) { paddingValues ->
-    content(paddingValues, scrollBehavior)
+          },
+          navigationIcon = {
+            if (onBackClick != null) {
+              BackButton(
+                onClick = onBackClick,
+                tint = MaterialTheme.colorScheme.onBackground,
+              )
+            }
+          },
+          scrollBehavior = scrollBehavior,
+          colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = Color.Transparent,
+            scrolledContainerColor = Color.Transparent,
+            titleContentColor = MaterialTheme.colorScheme.onBackground,
+            navigationIconContentColor = MaterialTheme.colorScheme.onBackground,
+          ),
+        )
+      },
+      containerColor = Color.Transparent,
+    ) { paddingValues ->
+      content(paddingValues, scrollBehavior)
+    }
   }
 }

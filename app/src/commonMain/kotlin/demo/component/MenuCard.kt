@@ -26,6 +26,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -37,11 +39,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.skydoves.cloudy.cloudy
 import com.skydoves.landscapist.coil3.CoilImage
 import demo.model.Poster
@@ -100,7 +101,8 @@ internal fun MenuCardLayout(
   Card(
     modifier = modifier
       .fillMaxWidth()
-      .height(180.dp)
+      .height(184.dp)
+      .clip(RoundedCornerShape(Dimens.cardCornerRadius))
       .clickable(onClick = onClick),
     elevation = CardDefaults.cardElevation(defaultElevation = Dimens.cardElevation),
     shape = RoundedCornerShape(Dimens.cardCornerRadius),
@@ -112,15 +114,17 @@ internal fun MenuCardLayout(
           .cloudy(radius = blurRadius),
       )
 
-      // Gradient overlay for better text readability
+      // Layered scrim: a gentle top wash plus a deeper bottom gradient so the
+      // title stays legible without flattening the image.
       Box(
         modifier = Modifier
           .fillMaxSize()
           .background(
             brush = Brush.verticalGradient(
               colors = listOf(
-                Color.Black.copy(alpha = 0.3f),
-                Color.Black.copy(alpha = 0.7f),
+                Color.Black.copy(alpha = 0.15f),
+                Color.Black.copy(alpha = 0.45f),
+                Color.Black.copy(alpha = 0.82f),
               ),
             ),
           ),
@@ -130,32 +134,40 @@ internal fun MenuCardLayout(
         modifier = Modifier
           .fillMaxSize()
           .padding(Dimens.contentPadding),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalAlignment = Alignment.Bottom,
       ) {
         Column(
           modifier = Modifier.weight(1f),
-          verticalArrangement = Arrangement.Center,
+          verticalArrangement = Arrangement.Bottom,
         ) {
           Text(
             text = title,
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.headlineSmall,
             color = Color.White,
           )
-          Spacer(modifier = Modifier.height(8.dp))
+          Spacer(modifier = Modifier.height(4.dp))
           Text(
             text = description,
-            fontSize = 14.sp,
-            color = Color.White.copy(alpha = 0.9f),
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color.White.copy(alpha = 0.82f),
           )
         }
 
-        Icon(
-          imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-          contentDescription = "Navigate",
-          tint = MaterialTheme.colorScheme.secondary,
-          modifier = Modifier.padding(start = 8.dp),
-        )
+        Box(
+          modifier = Modifier
+            .padding(start = 12.dp)
+            .size(34.dp)
+            .clip(CircleShape)
+            .background(Color.White.copy(alpha = 0.16f)),
+          contentAlignment = Alignment.Center,
+        ) {
+          Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = "Navigate",
+            tint = Color.White,
+            modifier = Modifier.size(20.dp),
+          )
+        }
       }
     }
   }
