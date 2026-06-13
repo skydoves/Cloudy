@@ -420,11 +420,13 @@ private class CloudyBackgroundModifierNode(
       logProgressiveBlurWarningOnce()
     }
 
-    val sigma = snapshot.radius / 2.0f
+    // createBlurEffect expects a blur radius in pixels (HWUI converts to sigma
+    // internally); pass the requested radius through directly.
+    val blurRadius = snapshot.radius.toFloat()
 
     // Create blur effect
     val blurEffect = RenderEffect
-      .createBlurEffect(sigma, sigma, Shader.TileMode.CLAMP)
+      .createBlurEffect(blurRadius, blurRadius, Shader.TileMode.CLAMP)
       .asComposeRenderEffect()
 
     val context = requireGraphicsContext()

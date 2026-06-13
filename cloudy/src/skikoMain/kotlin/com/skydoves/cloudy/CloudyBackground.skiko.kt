@@ -309,7 +309,9 @@ private class CloudyBackgroundModifierNode(
   }
 
   private fun ContentDrawScope.drawWithBlurEffect(layer: GraphicsLayer, snapshot: SkySnapshot) {
-    val sigma = snapshot.radius / 2.0f
+    // BlurEffect's radiusX/radiusY are blur radii in pixels (Skia converts to sigma
+    // internally); pass the requested radius through directly.
+    val blurRadius = snapshot.radius.toFloat()
 
     val context = requireGraphicsContext()
     val blurLayer = context.createGraphicsLayer()
@@ -326,8 +328,8 @@ private class CloudyBackgroundModifierNode(
 
       // Apply blur effect using Skia
       blurLayer.renderEffect = BlurEffect(
-        radiusX = sigma,
-        radiusY = sigma,
+        radiusX = blurRadius,
+        radiusY = blurRadius,
         edgeTreatment = TileMode.Clamp,
       )
 

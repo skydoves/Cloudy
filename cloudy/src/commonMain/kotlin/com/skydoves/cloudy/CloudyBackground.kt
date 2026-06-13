@@ -105,7 +105,9 @@ public expect fun Modifier.sky(sky: Sky): Modifier
  *
  * @param sky The [Sky] state holder containing the captured background content.
  * @param radius The blur radius in pixels. Must be non-negative.
- *               Converted to sigma using `sigma = radius / 2.0`.
+ *               The radius is passed through to the platform blur (RenderEffect on API 31+,
+ *               Skia BlurEffect on Skiko targets), which converts it to a Gaussian sigma
+ *               internally (HWUI uses `sigma = 0.57735 * radius + 0.5`).
  * @param progressive The progressive blur configuration. Use [CloudyProgressive.None]
  *                    for uniform blur, or [CloudyProgressive.TopToBottom]/[CloudyProgressive.BottomToTop]
  *                    for gradient blur effects. Defaults to [CloudyProgressive.None].

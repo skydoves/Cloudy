@@ -181,7 +181,14 @@ internal fun BlurPreviewCard(radius: Int, imageContent: @Composable (Modifier) -
       Spacer(modifier = Modifier.height(8.dp))
 
       Text(
-        text = if (radius == 0) "No blur effect" else "Sigma: ${radius / 2.0f}",
+        text = if (radius == 0) {
+          "No blur effect"
+        } else {
+          // The platform converts the blur radius to a Gaussian sigma internally
+          // (HWUI: sigma = 0.57735 * radius + 0.5).
+          val sigma = 0.57735f * radius + 0.5f
+          "Sigma: ${(sigma * 10).toInt() / 10f}"
+        },
         fontSize = 14.sp,
         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
       )

@@ -161,6 +161,18 @@ internal fun RadiusItemLayout(
           style = MaterialTheme.typography.titleMedium,
           color = MaterialTheme.colorScheme.onSurface,
         )
+        Text(
+          text = if (radius == 0) {
+            "No blur"
+          } else {
+            // The platform converts the blur radius to a Gaussian sigma internally
+            // (HWUI: sigma = 0.57735 * radius + 0.5).
+            val sigma = 0.57735f * radius + 0.5f
+            "Sigma: ${(sigma * 10).toInt() / 10f}"
+          },
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+        )
       }
 
       // Toned-down chevron inside a soft circular chip (no more neon arrow).
