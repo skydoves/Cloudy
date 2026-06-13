@@ -105,7 +105,7 @@ internal fun InteractiveSliderContent(
     modifier = Modifier
       .fillMaxSize()
       .verticalScroll(rememberScrollState())
-      .padding(Dimens.contentPadding),
+      .padding(horizontal = Dimens.screenPadding, vertical = Dimens.contentPadding),
     horizontalAlignment = Alignment.CenterHorizontally,
   ) {
     BlurPreviewCard(radius = radius, imageContent = imageContent)
