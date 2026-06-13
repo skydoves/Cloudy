@@ -52,6 +52,7 @@ import demo.component.MaxWidthContainer
 import demo.model.MockUtil
 import demo.model.Poster
 import demo.theme.Dimens
+import kotlin.math.roundToInt
 
 /**
  * Interactive slider screen that allows users to adjust blur radius in real-time.
@@ -187,7 +188,7 @@ internal fun BlurPreviewCard(radius: Int, imageContent: @Composable (Modifier) -
           // The platform converts the blur radius to a Gaussian sigma internally
           // (HWUI: sigma = 0.57735 * radius + 0.5).
           val sigma = 0.57735f * radius + 0.5f
-          "Sigma: ${(sigma * 10).toInt() / 10f}"
+          "Sigma: ${(sigma * 10).roundToInt() / 10f}"
         },
         fontSize = 14.sp,
         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),

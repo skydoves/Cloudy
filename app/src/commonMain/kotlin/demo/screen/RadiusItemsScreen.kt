@@ -54,6 +54,7 @@ import demo.component.CollapsingAppBarScaffold
 import demo.component.MaxWidthContainer
 import demo.model.MockUtil
 import demo.theme.Dimens
+import kotlin.math.roundToInt
 
 private val radiusList = listOf(0, 5, 10, 15, 20, 25, 30, 40, 50, 75, 100)
 
@@ -168,7 +169,7 @@ internal fun RadiusItemLayout(
             // The platform converts the blur radius to a Gaussian sigma internally
             // (HWUI: sigma = 0.57735 * radius + 0.5).
             val sigma = 0.57735f * radius + 0.5f
-            "Sigma: ${(sigma * 10).toInt() / 10f}"
+            "Sigma: ${(sigma * 10).roundToInt() / 10f}"
           },
           style = MaterialTheme.typography.bodySmall,
           color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
