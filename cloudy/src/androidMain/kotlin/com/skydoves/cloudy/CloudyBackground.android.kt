@@ -160,17 +160,30 @@ private class SkyModifierNode(var sky: Sky) :
       graphicsLayer = it
     }
 
-    // Record content to layer
-    layer.record {
-      this@draw.drawContent()
+    // Record the background into `layer`, the source a descendant `cloudy` overlay samples
+    // and blurs. `isCapturing` is set so the overlay draws nothing during this pass: it must be
+    // ABSENT from the blur source. Otherwise the overlay would draw its blur layer into `layer`,
+    // and that blur layer in turn samples `layer` — a cyclic RenderNode graph that overflows the
+    // render thread stack (https://github.com/skydoves/Cloudy/issues/112).
+    sky.isCapturing = true
+    try {
+      layer.record {
+        this@draw.drawContent()
+      }
+    } finally {
+      sky.isCapturing = false
     }
 
-    // Share layer with children
+    // Publish the captured background for children before the on-screen pass below, so a
+    // descendant overlay reads the up-to-date layer when it draws this frame.
     sky.backgroundLayer = layer
     sky.incrementContentVersion()
 
-    // Draw original content to screen
-    drawLayer(layer)
+    // Draw the subtree to the window. `isCapturing` is now false, so the overlay paints its
+    // blurred backdrop (sampling `layer`, which contains no reference back to the overlay) and
+    // its own foreground here. The blur layer is composited straight to the window canvas, never
+    // into `layer`, so no cycle is formed while the backdrop still renders.
+    drawContent()
   }
 
   override fun onDetach() {
@@ -292,6 +305,16 @@ private class CloudyBackgroundModifierNode(
   }
 
   override fun ContentDrawScope.draw() {
+    // When `sky` is an ancestor of this overlay, the sky's capture pass re-enters this draw
+    // while recording the blur source into `backgroundLayer`. This overlay must be ABSENT from
+    // that source: if it drew here, its blur layer (which samples `backgroundLayer`) would be
+    // recorded into `backgroundLayer`, forming a cyclic RenderNode graph that crashes the render
+    // thread (https://github.com/skydoves/Cloudy/issues/112). Draw nothing during capture; the
+    // overlay paints itself in the sky's on-screen pass, when `isCapturing` is false.
+    if (sky.isCapturing) {
+      return
+    }
+
     val backgroundLayer = sky.backgroundLayer
     if (backgroundLayer == null) {
       onStateChanged(CloudyState.Error(RuntimeException("Background layer not available")))

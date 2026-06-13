@@ -81,6 +81,27 @@ public class Sky internal constructor() {
   internal var sourceBounds: Rect by mutableStateOf(Rect.Zero)
 
   /**
+   * `true` while [Modifier.sky] is recording the blur source into [backgroundLayer].
+   *
+   * A backdrop [Modifier.cloudy] overlay is, by design, a descendant of the [Modifier.sky]
+   * container, so the sky's capture pass re-enters the overlay's own draw. If the overlay drew
+   * its backdrop (which samples [backgroundLayer]) during that capture, the recorded display
+   * list of [backgroundLayer] would contain a reference back to itself — a cyclic `RenderNode`
+   * graph that makes the platform render thread recurse until the stack overflows
+   * (see https://github.com/skydoves/Cloudy/issues/112).
+   *
+   * The overlay reads this flag and draws nothing while it is being captured, so it is absent
+   * from the blur source. [Modifier.sky] then draws its subtree to the window in a second pass
+   * with this flag `false`, during which the overlay paints its blurred backdrop (sampling the
+   * now-overlay-free [backgroundLayer]) and its foreground straight to the window canvas. The
+   * blur layer is therefore never recorded into [backgroundLayer], so no cycle can form.
+   *
+   * This is a plain (non-snapshot) field intentionally: capture and the nested overlay draw run
+   * synchronously on the same draw pass, so no recomposition or cross-thread visibility is needed.
+   */
+  internal var isCapturing: Boolean = false
+
+  /**
    * Content version counter that increments every time the background
    * content is re-captured. Used by child modifiers to detect when
    * cached blur results should be invalidated.
