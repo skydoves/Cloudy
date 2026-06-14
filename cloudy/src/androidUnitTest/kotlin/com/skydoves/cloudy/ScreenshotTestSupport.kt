@@ -24,8 +24,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.dropbox.differ.SimpleImageComparator
+import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
+import com.github.takahirom.roborazzi.RoborazziComposeOptions
 import com.github.takahirom.roborazzi.RoborazziOptions
 import com.github.takahirom.roborazzi.captureRoboImage
+import com.github.takahirom.roborazzi.size
 import java.awt.image.BufferedImage
 import java.io.File
 import javax.imageio.ImageIO
@@ -102,6 +105,30 @@ internal fun captureCloudyGolden(goldenName: String, content: @Composable () -> 
     roborazziOptions = cloudyRoborazziOptions,
   ) {
     ScreenshotSurface { content() }
+  }
+}
+
+/**
+ * Records a golden of [content] at an explicit [sizeDp] x [sizeDp] capture surface.
+ *
+ * Unlike [captureCloudyGolden], this does NOT wrap [content] in [ScreenshotSurface]; the caller
+ * owns the full surface (e.g. a `Modifier.sky` container). The capture size is pinned via
+ * `RoborazziComposeOptions { size(...) }`, which both sets Robolectric's display qualifiers and
+ * constrains the composable — required when the fixture is larger than the host's default content
+ * area (the backdrop fixtures are 240dp, larger than the ~200dp default).
+ */
+@OptIn(ExperimentalRoborazziApi::class)
+internal fun captureCloudyGoldenSized(
+  goldenName: String,
+  sizeDp: Int,
+  content: @Composable () -> Unit,
+) {
+  captureRoboImage(
+    filePath = "$SCREENSHOT_DIR/$goldenName",
+    roborazziOptions = cloudyRoborazziOptions,
+    roborazziComposeOptions = RoborazziComposeOptions { size(widthDp = sizeDp, heightDp = sizeDp) },
+  ) {
+    content()
   }
 }
 
