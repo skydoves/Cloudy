@@ -99,4 +99,11 @@ sealed interface Route {
    */
   @Serializable
   data object BlurLight : Route
+
+  /**
+   * The open shader-effect test screen — applies a [com.skydoves.cloudy.ShaderRecipe] to a poster
+   * with a single `Modifier.shaderEffect` line and toggles between the specular / chromatic recipes.
+   */
+  @Serializable
+  data object ShaderEffect : Route
 }
