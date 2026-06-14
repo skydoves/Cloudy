@@ -83,6 +83,18 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+      # results-summary.json is written by verifyRoborazziDebug on EVERY run (pass or fail) and
+      # carries the per-run counts (total/unchanged/changed/added). The comment workflow reads it to
+      # post an always-on summary comment, not just a gallery on regression.
+      - name: Upload screenshot summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshot-summary
+          path: cloudy/build/test-results/roborazzi/debug/results-summary.json
+          if-no-files-found: warn
+          retention-days: 7
+
       # Stash the PR number so the privileged workflow_run job can resolve which PR to comment on
       # (workflow_run payload does not carry it directly).
       # always() so the PR number is still stashed when the verify step above FAILS (a regression) --
