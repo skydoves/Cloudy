@@ -118,9 +118,10 @@ fun BlurLightScreen(onBackClick: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(16.dp),
       ) {
         Text(
-          text = "Drag the glass card — or use the sliders. A liquid-glass specular pool rides the " +
-            "blurred backdrop and sweeps with the light direction (no gyroscope). Lower the radius " +
-            "to 0 and the highlight fades with the blur, since there is no blurred backdrop to light.",
+          text = "Drag the glass card — or use the sliders. A liquid-glass specular pool " +
+            "rides the blurred backdrop and sweeps with the light direction (no gyroscope). " +
+            "Lower the radius to 0 and the highlight fades with the blur, since there is no " +
+            "blurred backdrop to light.",
           fontSize = 14.sp,
           color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
           textAlign = TextAlign.Center,

@@ -25,9 +25,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.geometry.Offset
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.useContents
+import platform.CoreMotion.CMAttitudeReferenceFrameXArbitraryCorrectedZVertical
 import platform.CoreMotion.CMDeviceMotion
 import platform.CoreMotion.CMMotionManager
-import platform.CoreMotion.CMAttitudeReferenceFrameXArbitraryCorrectedZVertical
 import platform.Foundation.NSNotificationCenter
 import platform.Foundation.NSOperationQueue
 import platform.Foundation.NSProcessInfo
