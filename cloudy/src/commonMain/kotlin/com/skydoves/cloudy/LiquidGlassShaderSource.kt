@@ -59,6 +59,12 @@ uniform float specBodyGain;    // NEW
 uniform float specFocalK;      // NEW: focal-pool offset toward light (fraction of minHalf)
 uniform float specPoolFrac;    // NEW: focal-pool radius (fraction of minHalf)
 uniform float specPoolGain;    // NEW: focal-pool peak scale
+uniform float chromaticIntensity;  // NEW: 0 = off (bit-exact, ALU 0). 0..1 iridescent overlay strength
+uniform float chromaticMode;       // NEW: 0 = Iridescent (thin-film), 1 = Foil (flowing bands); float enum
+uniform float chromaticBands;      // NEW: Foil rainbow band count along the light direction (e.g. 3)
+uniform float chromaticCycles;     // NEW: Iridescent hue cycles across the light/normal angle (e.g. 1.5)
+uniform float chromaticPhase;      // NEW: static hue phase offset (radians-free, fract domain; e.g. 0)
+uniform float chromaticModulate;   // NEW: 0..1, modulate rainbow strength by the focal pool (e.g. 1)
 uniform shader content;
 
 const float SMOOTH_EDGE_PX = 1.5;
@@ -232,6 +238,59 @@ half4 main(float2 xy) {
 
         // Screen blend: 밝은 배경에서도 생존, [0,1]로 clamp → 1.0 초과 불가(스크린 블렌드 불변식 보장).
         pixel.rgb += half3((1.0 - pixel.rgb) * clamp(highlight, 0.0, 1.0));
+    }
+
+    // Chromatic overlay — light-reactive iridescent sheen, independent of the white specular pool.
+    // 흰색 specular(screen-blend) 위에 별도로 얹는 무지갯빛 항. specular와 분리된 자체 게이트라
+    // chromaticIntensity==0이면 pixel.rgb 수정 0 → 기존 룩과 bit-exact, ALU 0 (uniform 분기).
+    // specular 게이트(edge/specStrength)와 독립 → specular off에서도 무지개만 켤 수 있다.
+    // 두 모드: 0 = Iridescent(박막 간섭, 빛/노멀 각도로 hue), 1 = Foil(빛 방향 투영, lightVec 움직이면 띠가 흐른다).
+    // hue·HSV→RGB 산술 체인은 전부 float/float3 — AGSL half(fp16)는 채도 만점 무지개에 밴딩이 심함.
+    // 블렌드는 tint-multiply(흰 카드도 chromaRGB로 채색); screen은 흰 배경(pixel≈1)에서 무지개가 사라짐.
+    if (chromaticIntensity > 0.0) {
+        // 공유 스칼라 재계산(specular 게이트 밖 → 독립). lightDir/halfDim/sdf/p는 main 스코프에서 그대로.
+        float2 cLightVec = normalize(lightDir);                       // 빛 방향(2D), specular의 lightVec와 동일식
+        float  cMinHalf  = min(halfDim.x, halfDim.y);                 // p 정규화 기준(specular minHalf와 동일)
+        float2 pNorm     = p / cMinHalf;                              // lens-local 정규화 좌표(~[-1,1]); px면 fract 앨리어싱
+
+        // bevel 노멀/광원 3D 재구성(Iridescent용 dot(N,L)). specular :183-192와 동일 수식, chroma-local 이름.
+        float2 cD2 = abs(p) - halfDim + float2(r);                    // boxRoundedSDF와 동일 기저
+        float2 cS2 = float2(p.x >= 0.0 ? 1.0 : -1.0, p.y >= 0.0 ? 1.0 : -1.0);
+        float2 cSpecDir;
+        if (max(cD2.x, cD2.y) > 0.0) {
+            cSpecDir = cS2 * normalize(max(cD2, 0.0));                // 외부/코너: 해석적
+        } else {
+            float cw  = clamp(0.5 + 0.5 * (cD2.x - cD2.y) / SEAM_BLEND_PX, 0.0, 1.0);
+            float2 cv = float2(cS2.x * cw, cS2.y * (1.0 - cw)) + float2(0.0, 1.0e-4);
+            cSpecDir  = normalize(cv);                                // 내부: seam-free softmax
+        }
+        float  cBevelPx = max(cMinHalf * specDomeFrac, 1.0);
+        float  cT       = clamp(max(-sdf, 0.0) / cBevelPx, 0.0, 1.0);
+        float  cNcos    = 1.0 - cT;
+        float  cNsin    = sqrt(max(1.0 - cNcos * cNcos, 0.0));        // n_cos~1 상쇄 가드(float)
+        float3 cN       = normalize(float3(cSpecDir * cNcos, cNsin + 1.0e-3));
+        float3 cL       = normalize(float3(cLightVec, specLightZ));
+
+        // hue 합성 — 두 모드(전 체인 float). Foil: 표면을 빛에 투영 → 빛 움직이면 띠가 흐름.
+        //                                Iridescent: 빛/노멀 각도 → 박막 간섭처럼 hue가 돈다.
+        float hueF = fract(dot(pNorm, cLightVec) * chromaticBands + chromaticPhase);
+        float hueI = fract(dot(cN, cL) * chromaticCycles + chromaticPhase);
+        float hue  = mix(hueI, hueF, chromaticMode);                 // mode 0→Iridescent, 1→Foil
+        // 6-세그먼트 HSV(채도/명도=1)→RGB 램프(float3). half3로 받으면 fp16 양자화로 밴딩.
+        float3 chromaRGB = clamp(
+            abs(fract(float3(hue) + float3(0.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0) - 1.0,
+            0.0, 1.0);
+
+        // focal-pool 모듈레이션 — specular의 raw pool²(정규화본; specStrength/Gain 곱 전)으로 무지개 세기 변조.
+        // specular 게이트 밖이라 pool을 저렴하게 재계산(length+smoothstep 몇 줄): focal/poolR 식은 specular와 동일.
+        float2 cFocal  = cLightVec * (cMinHalf * specFocalK);        // 빛 방향 오프셋(lensCenter=원점 기준)
+        float  cPoolR  = max(cMinHalf * specPoolFrac, 1.0);          // zero-width smoothstep 가드
+        float  cPool   = smoothstep(cPoolR, 0.0, length(p - cFocal));// 1 at focal, 0 at rim
+        float  poolNorm = clamp(cPool * cPool, 0.0, 1.0);           // raw pool²(정규화) = modulator
+        float  chroma  = chromaticIntensity * mix(1.0, poolNorm, chromaticModulate);
+
+        // tint-multiply 블렌드: chroma=0→불변, chroma=1→pixel*chromaRGB. 흰 배경이 chromaRGB로 물든다.
+        pixel.rgb = mix(pixel.rgb, pixel.rgb * half3(chromaRGB), clamp(chroma, 0.0, 1.0));
     }
 
     // Anti-aliased edge transition
@@ -268,6 +327,12 @@ uniform float specBodyGain;    // NEW
 uniform float specFocalK;      // NEW: focal-pool offset toward light (fraction of minHalf)
 uniform float specPoolFrac;    // NEW: focal-pool radius (fraction of minHalf)
 uniform float specPoolGain;    // NEW: focal-pool peak scale
+uniform float chromaticIntensity;  // NEW: 0 = off (bit-exact, ALU 0). 0..1 iridescent overlay strength
+uniform float chromaticMode;       // NEW: 0 = Iridescent (thin-film), 1 = Foil (flowing bands); float enum
+uniform float chromaticBands;      // NEW: Foil rainbow band count along the light direction (e.g. 3)
+uniform float chromaticCycles;     // NEW: Iridescent hue cycles across the light/normal angle (e.g. 1.5)
+uniform float chromaticPhase;      // NEW: static hue phase offset (radians-free, fract domain; e.g. 0)
+uniform float chromaticModulate;   // NEW: 0..1, modulate rainbow strength by the focal pool (e.g. 1)
 uniform shader content;
 
 const float SMOOTH_EDGE_PX = 1.5;
@@ -441,6 +506,59 @@ half4 main(float2 xy) {
 
         // Screen blend: 밝은 배경에서도 생존, [0,1]로 clamp → 1.0 초과 불가(스크린 블렌드 불변식 보장).
         pixel.rgb += half3((1.0 - pixel.rgb) * clamp(highlight, 0.0, 1.0));
+    }
+
+    // Chromatic overlay — light-reactive iridescent sheen, independent of the white specular pool.
+    // 흰색 specular(screen-blend) 위에 별도로 얹는 무지갯빛 항. specular와 분리된 자체 게이트라
+    // chromaticIntensity==0이면 pixel.rgb 수정 0 → 기존 룩과 bit-exact, ALU 0 (uniform 분기).
+    // specular 게이트(edge/specStrength)와 독립 → specular off에서도 무지개만 켤 수 있다.
+    // 두 모드: 0 = Iridescent(박막 간섭, 빛/노멀 각도로 hue), 1 = Foil(빛 방향 투영, lightVec 움직이면 띠가 흐른다).
+    // hue·HSV→RGB 산술 체인은 전부 float/float3 — AGSL half(fp16)는 채도 만점 무지개에 밴딩이 심함.
+    // 블렌드는 tint-multiply(흰 카드도 chromaRGB로 채색); screen은 흰 배경(pixel≈1)에서 무지개가 사라짐.
+    if (chromaticIntensity > 0.0) {
+        // 공유 스칼라 재계산(specular 게이트 밖 → 독립). lightDir/halfDim/sdf/p는 main 스코프에서 그대로.
+        float2 cLightVec = normalize(lightDir);                       // 빛 방향(2D), specular의 lightVec와 동일식
+        float  cMinHalf  = min(halfDim.x, halfDim.y);                 // p 정규화 기준(specular minHalf와 동일)
+        float2 pNorm     = p / cMinHalf;                              // lens-local 정규화 좌표(~[-1,1]); px면 fract 앨리어싱
+
+        // bevel 노멀/광원 3D 재구성(Iridescent용 dot(N,L)). specular :183-192와 동일 수식, chroma-local 이름.
+        float2 cD2 = abs(p) - halfDim + float2(r);                    // boxRoundedSDF와 동일 기저
+        float2 cS2 = float2(p.x >= 0.0 ? 1.0 : -1.0, p.y >= 0.0 ? 1.0 : -1.0);
+        float2 cSpecDir;
+        if (max(cD2.x, cD2.y) > 0.0) {
+            cSpecDir = cS2 * normalize(max(cD2, 0.0));                // 외부/코너: 해석적
+        } else {
+            float cw  = clamp(0.5 + 0.5 * (cD2.x - cD2.y) / SEAM_BLEND_PX, 0.0, 1.0);
+            float2 cv = float2(cS2.x * cw, cS2.y * (1.0 - cw)) + float2(0.0, 1.0e-4);
+            cSpecDir  = normalize(cv);                                // 내부: seam-free softmax
+        }
+        float  cBevelPx = max(cMinHalf * specDomeFrac, 1.0);
+        float  cT       = clamp(max(-sdf, 0.0) / cBevelPx, 0.0, 1.0);
+        float  cNcos    = 1.0 - cT;
+        float  cNsin    = sqrt(max(1.0 - cNcos * cNcos, 0.0));        // n_cos~1 상쇄 가드(float)
+        float3 cN       = normalize(float3(cSpecDir * cNcos, cNsin + 1.0e-3));
+        float3 cL       = normalize(float3(cLightVec, specLightZ));
+
+        // hue 합성 — 두 모드(전 체인 float). Foil: 표면을 빛에 투영 → 빛 움직이면 띠가 흐름.
+        //                                Iridescent: 빛/노멀 각도 → 박막 간섭처럼 hue가 돈다.
+        float hueF = fract(dot(pNorm, cLightVec) * chromaticBands + chromaticPhase);
+        float hueI = fract(dot(cN, cL) * chromaticCycles + chromaticPhase);
+        float hue  = mix(hueI, hueF, chromaticMode);                 // mode 0→Iridescent, 1→Foil
+        // 6-세그먼트 HSV(채도/명도=1)→RGB 램프(float3). half3로 받으면 fp16 양자화로 밴딩.
+        float3 chromaRGB = clamp(
+            abs(fract(float3(hue) + float3(0.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0) - 1.0,
+            0.0, 1.0);
+
+        // focal-pool 모듈레이션 — specular의 raw pool²(정규화본; specStrength/Gain 곱 전)으로 무지개 세기 변조.
+        // specular 게이트 밖이라 pool을 저렴하게 재계산(length+smoothstep 몇 줄): focal/poolR 식은 specular와 동일.
+        float2 cFocal  = cLightVec * (cMinHalf * specFocalK);        // 빛 방향 오프셋(lensCenter=원점 기준)
+        float  cPoolR  = max(cMinHalf * specPoolFrac, 1.0);          // zero-width smoothstep 가드
+        float  cPool   = smoothstep(cPoolR, 0.0, length(p - cFocal));// 1 at focal, 0 at rim
+        float  poolNorm = clamp(cPool * cPool, 0.0, 1.0);           // raw pool²(정규화) = modulator
+        float  chroma  = chromaticIntensity * mix(1.0, poolNorm, chromaticModulate);
+
+        // tint-multiply 블렌드: chroma=0→불변, chroma=1→pixel*chromaRGB. 흰 배경이 chromaRGB로 물든다.
+        pixel.rgb = mix(pixel.rgb, pixel.rgb * half3(chromaRGB), clamp(chroma, 0.0, 1.0));
     }
 
     // Anti-aliased edge transition
