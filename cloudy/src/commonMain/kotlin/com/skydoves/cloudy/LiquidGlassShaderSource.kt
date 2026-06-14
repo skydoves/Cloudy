@@ -199,8 +199,8 @@ half4 main(float2 xy) {
         float2 focal     = lightVec * (minHalf * specFocalK);     // lensCenter(=원점) 기준 오프셋
         float  poolR     = max(minHalf * specPoolFrac, 1.0);      // 0 가드(zero-width smoothstep 회피)
         float  poolD     = length(p - focal);
-        float  pool      = smoothstep(poolR, 0.0, poolD);         // 1 at focal, 0 at rim
-        float  inside    = smoothstep(0.0, -6.0, sdf);            // 렌즈 안쪽만(밖/경계 페이드)
+        float  pool      = 1.0 - smoothstep(0.0, poolR, poolD);   // 1 at focal, 0 at rim (edge0<edge1)
+        float  inside    = 1.0 - smoothstep(-6.0, 0.0, sdf);      // 렌즈 안쪽만(밖/경계 페이드; edge0<edge1)
         float  focalPool = pool * pool * specStrength * specPoolGain * inside; // pool^2 = 더 단단한 코어
 
         // --- broad body sheen (완만한 modeling fill, 핫스팟 위에 더함) ---
@@ -408,8 +408,8 @@ half4 main(float2 xy) {
         float2 focal     = lightVec * (minHalf * specFocalK);     // lensCenter(=원점) 기준 오프셋
         float  poolR     = max(minHalf * specPoolFrac, 1.0);      // 0 가드(zero-width smoothstep 회피)
         float  poolD     = length(p - focal);
-        float  pool      = smoothstep(poolR, 0.0, poolD);         // 1 at focal, 0 at rim
-        float  inside    = smoothstep(0.0, -6.0, sdf);            // 렌즈 안쪽만(밖/경계 페이드)
+        float  pool      = 1.0 - smoothstep(0.0, poolR, poolD);   // 1 at focal, 0 at rim (edge0<edge1)
+        float  inside    = 1.0 - smoothstep(-6.0, 0.0, sdf);      // 렌즈 안쪽만(밖/경계 페이드; edge0<edge1)
         float  focalPool = pool * pool * specStrength * specPoolGain * inside; // pool^2 = 더 단단한 코어
 
         // --- broad body sheen (완만한 modeling fill, 핫스팟 위에 더함) ---
