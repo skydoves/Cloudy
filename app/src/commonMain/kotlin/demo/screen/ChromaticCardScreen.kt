@@ -25,6 +25,8 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -73,9 +75,23 @@ import demo.theme.Dimens
 
 /**
  * Which preset feeds the chromatic overlay. `Custom` is driven by the intensity slider and the
- * Iridescent/Foil switch below; the other two are fixed library presets.
+ * Iridescent/Foil switch below; the four named looks ([OilSlick]..[Pearl]) are fixed library
+ * presets on `LiquidGlassDefaults`, and [PureWhite] disables the sheen entirely.
  */
-private enum class MaterialPreset { PureWhite, Holographic, Custom }
+private enum class MaterialPreset { PureWhite, OilSlick, SoapBubble, MetallicFoil, Pearl, Custom }
+
+/**
+ * Chip label + preset, declared once as a top-level constant so the [FlowRow] iterates a stable list
+ * (no per-recomposition allocation of the chip set).
+ */
+private val MATERIAL_PRESETS: List<Pair<String, MaterialPreset>> = listOf(
+  "Pure White" to MaterialPreset.PureWhite,
+  "Oil Slick" to MaterialPreset.OilSlick,
+  "Soap Bubble" to MaterialPreset.SoapBubble,
+  "Metallic Foil" to MaterialPreset.MetallicFoil,
+  "Pearl" to MaterialPreset.Pearl,
+  "Custom" to MaterialPreset.Custom,
+)
 
 /**
  * Which surface sits under the chromatic material. The base changes how the holographic sheen
@@ -90,10 +106,10 @@ private enum class BaseSurface { White, Dark, Metal }
  * Material chips switch the overlay preset; surface chips switch the base under it, so you can see
  * the same material read faint on white and dramatic on a dark/metal surface.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ChromaticCardScreen(onBackClick: () -> Unit) {
-  var preset by remember { mutableStateOf(MaterialPreset.Holographic) }
+  var preset by remember { mutableStateOf(MaterialPreset.OilSlick) }
   var customIntensity by remember { mutableFloatStateOf(LiquidGlassDefaults.CHROMATIC_INTENSITY) }
   var customFoil by remember { mutableStateOf(true) }
   var gyroEnabled by remember { mutableStateOf(true) }
@@ -132,7 +148,10 @@ fun ChromaticCardScreen(onBackClick: () -> Unit) {
   val chromatic = remember(preset, customIntensity, customFoil) {
     when (preset) {
       MaterialPreset.PureWhite -> LiquidGlassDefaults.NoChromatic
-      MaterialPreset.Holographic -> LiquidGlassDefaults.Holographic
+      MaterialPreset.OilSlick -> LiquidGlassDefaults.OilSlick
+      MaterialPreset.SoapBubble -> LiquidGlassDefaults.SoapBubble
+      MaterialPreset.MetallicFoil -> LiquidGlassDefaults.MetallicFoil
+      MaterialPreset.Pearl -> LiquidGlassDefaults.Pearl
       MaterialPreset.Custom -> ChromaticOverlay(
         intensity = customIntensity,
         mode = if (customFoil) ChromaticMode.Foil else ChromaticMode.Iridescent,
@@ -206,7 +225,14 @@ fun ChromaticCardScreen(onBackClick: () -> Unit) {
               color = onBase.copy(alpha = 0.85f),
             )
             Text(
-              text = "Holographic.",
+              text = when (preset) {
+                MaterialPreset.PureWhite -> "Pure white."
+                MaterialPreset.OilSlick -> "Oil slick."
+                MaterialPreset.SoapBubble -> "Soap bubble."
+                MaterialPreset.MetallicFoil -> "Metallic foil."
+                MaterialPreset.Pearl -> "Pearl."
+                MaterialPreset.Custom -> "Custom."
+              },
               fontSize = 16.sp,
               color = onBase.copy(alpha = 0.55f),
             )
@@ -221,25 +247,21 @@ fun ChromaticCardScreen(onBackClick: () -> Unit) {
         ) {
           Column(modifier = Modifier.padding(Dimens.contentPadding)) {
             SectionLabel("Material")
-            Row(
+            // Six presets overflow a single Row on phone widths, so wrap to the next line. The
+            // (label, preset) list is a stable constant, so this allocates no new lambdas per
+            // recomposition beyond the per-chip onClick (cheap, captures only the enum value).
+            FlowRow(
               modifier = Modifier.fillMaxWidth(),
               horizontalArrangement = Arrangement.spacedBy(8.dp),
+              verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-              FilterChip(
-                selected = preset == MaterialPreset.PureWhite,
-                onClick = { preset = MaterialPreset.PureWhite },
-                label = { Text("Pure White") },
-              )
-              FilterChip(
-                selected = preset == MaterialPreset.Holographic,
-                onClick = { preset = MaterialPreset.Holographic },
-                label = { Text("Holographic") },
-              )
-              FilterChip(
-                selected = preset == MaterialPreset.Custom,
-                onClick = { preset = MaterialPreset.Custom },
-                label = { Text("Custom") },
-              )
+              MATERIAL_PRESETS.forEach { (label, value) ->
+                FilterChip(
+                  selected = preset == value,
+                  onClick = { preset = value },
+                  label = { Text(label) },
+                )
+              }
             }
 
             SectionLabel("Surface")
