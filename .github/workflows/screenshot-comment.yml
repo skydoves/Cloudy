@@ -72,6 +72,18 @@ jobs:
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ github.token }}
 
+      # The summary JSON is uploaded on every run. continue-on-error: an older producer run (before
+      # this artifact existed) or a download hiccup must NOT fail the job -- the summary step below
+      # falls back to a "summary unavailable" body when the file is missing.
+      - name: Download screenshot summary artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: screenshot-summary
+          path: screenshot-summary
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
       # --- Are there any valid *_compare.png diff images? ---
       - id: check
         name: Check for diff images
@@ -113,9 +125,72 @@ jobs:
           git commit -m "Add screenshot diff for PR #${{ steps.pr.outputs.number }}"
           git push origin "HEAD:$BRANCH_NAME" -f
 
-      # --- Build the markdown gallery linking the raw blob URLs on the companion branch ---
-      - id: report
-        name: Generate diff report
+      # --- Summary report (ALWAYS): parse results-summary.json into a counts table + verdict line ---
+      # jq is preinstalled on ubuntu-latest. The JSON is CI-produced (not fork-controlled); still
+      # read with `jq -r` (no eval), quote everything, and basename+regex-sanitize displayed names.
+      - id: summary
+        name: Generate summary report
+        shell: bash
+        env:
+          # Producer conclusion -- a run that did not succeed must not be labelled "all good".
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          # Link to the producing run so reviewers can grab the screenshot-report artifact (the
+          # unzipped HTML cannot be deep-linked; the run page exposes the artifact downloads).
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}
+        run: |
+          summary_json="$(find screenshot-summary -type f -name 'results-summary.json' 2>/dev/null | head -n1)"
+          delimiter="$(openssl rand -hex 8)"
+          {
+            echo "body<<${delimiter}"
+            echo "### Snapshot diff report"
+            echo ""
+            if [[ -z "$summary_json" || ! -f "$summary_json" ]]; then
+              echo "Screenshot summary unavailable (results-summary.json not found)."
+              if [[ "$CONCLUSION" != "success" ]]; then
+                echo ""
+                echo ":x: The screenshot check run did not succeed."
+              fi
+            else
+              total=$(jq -r '.summary.total // 0' "$summary_json")
+              unchanged=$(jq -r '.summary.unchanged // 0' "$summary_json")
+              changed=$(jq -r '.summary.changed // 0' "$summary_json")
+              added=$(jq -r '.summary.added // 0' "$summary_json")
+
+              if [[ "$CONCLUSION" != "success" ]]; then
+                echo ":x: The screenshot check run did not succeed -- counts below may be incomplete."
+                echo ""
+              fi
+              if [[ "$changed" -eq 0 && "$added" -eq 0 ]]; then
+                echo ":white_check_mark: ${total} screenshots verified, no changes."
+              else
+                echo ":warning: $((changed + added)) of ${total} screenshots changed."
+              fi
+              echo ""
+              echo "| Total | Unchanged | Changed | Added |"
+              echo "|------:|----------:|--------:|------:|"
+              echo "| ${total} | ${unchanged} | ${changed} | ${added} |"
+
+              if [[ "$changed" -gt 0 ]]; then
+                echo ""
+                echo "Changed:"
+                while IFS= read -r p; do
+                  bn=$(basename "$p")
+                  if [[ "$bn" =~ ^[a-zA-Z0-9_.-]+$ ]]; then
+                    echo "- \`${bn}\`"
+                  fi
+                done < <(jq -r '.results[] | select(.type=="changed") | .golden_file_path' "$summary_json")
+              fi
+            fi
+            echo ""
+            echo "[Full screenshot report (artifact)](${RUN_URL})"
+          } >> "$GITHUB_OUTPUT"
+          echo "${delimiter}" >> "$GITHUB_OUTPUT"
+
+      # --- Gallery (ONLY when there are diffs): inline before/after/diff images from companion branch.
+      # Emits a markdown fragment that the comment step appends below the summary, so a regression
+      # comment shows BOTH the counts AND the images in one sticky comment.
+      - id: gallery
+        name: Generate diff gallery
         if: steps.check.outputs.exist == 'true'
         shell: bash
         env:
@@ -130,7 +205,6 @@ jobs:
           delimiter="$(openssl rand -hex 8)"
           {
             echo "body<<${delimiter}"
-            echo "### Snapshot diff report"
             echo ""
             echo "Screenshot differences detected vs goldens on \`${HEAD_BRANCH}\`."
             echo "Each image is *expected | actual | diff* side by side."
@@ -154,9 +228,10 @@ jobs:
           comment-author: 'github-actions[bot]'
           body-includes: '<!-- roborazzi-screenshot-diff -->'
 
-      # --- Post / update the gallery when there are diffs ---
-      - name: Comment diff gallery
-        if: steps.check.outputs.exist == 'true'
+      # --- Single sticky comment, ALWAYS posted on pull_request runs: summary + optional gallery.
+      # steps.gallery.outputs.body is empty on clean runs (the step was skipped), so the comment is
+      # just the summary; on a regression it appends the inline image gallery.
+      - name: Comment screenshot report
         uses: peter-evans/create-or-update-comment@v4
         with:
           comment-id: ${{ steps.fc.outputs.comment-id }}
@@ -164,23 +239,8 @@ jobs:
           edit-mode: replace
           body: |
             <!-- roborazzi-screenshot-diff -->
-            ${{ steps.report.outputs.body }}
-
-      # --- No diffs: if a stale gallery comment exists, flip it to "resolved" (don't spam new ones) ---
-      # Gated on the producer run SUCCEEDING: a run that died before producing compare images also has
-      # no *_compare.png, and we must NOT mislabel that as "no differences" -- only a clean success is.
-      - name: Comment resolved
-        if: github.event.workflow_run.conclusion == 'success' && steps.check.outputs.exist != 'true' && steps.fc.outputs.comment-id != ''
-        uses: peter-evans/create-or-update-comment@v4
-        with:
-          comment-id: ${{ steps.fc.outputs.comment-id }}
-          issue-number: ${{ steps.pr.outputs.number }}
-          edit-mode: replace
-          body: |
-            <!-- roborazzi-screenshot-diff -->
-            ### Snapshot diff report
-
-            No screenshot differences. :white_check_mark:
+            ${{ steps.summary.outputs.body }}
+            ${{ steps.gallery.outputs.body }}
 
       # --- Housekeeping: prune companion_* branches older than 30 days so they don't pile up ---
       - name: Cleanup outdated companion branches
