@@ -44,6 +44,7 @@ import demo.theme.Dimens
  * @param onIssue112Click Callback when the Issue #112 BottomNav repro is selected.
  * @param onGyroLightClick Callback when the Gyro Lighting test is selected.
  * @param onTransformLightClick Callback when the Transform Lighting test is selected.
+ * @param onBlurLightClick Callback when the Blur Lighting test is selected.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,6 +58,7 @@ fun MenuHomeScreen(
   onIssue112Click: () -> Unit,
   onGyroLightClick: () -> Unit,
   onTransformLightClick: () -> Unit,
+  onBlurLightClick: () -> Unit,
 ) {
   val posters = remember { MockUtil.getMockPosters() }
 
@@ -137,6 +139,14 @@ fun MenuHomeScreen(
             description = "Rotate the glass card in 3D — its own tilt drives the glint (no sensor)",
             poster = posters[5],
             onClick = onTransformLightClick,
+          )
+        }
+        item {
+          MenuCard(
+            title = "Blur Lighting",
+            description = "A liquid-glass light pool rides the blurred backdrop — drag to sweep it",
+            poster = posters[6],
+            onClick = onBlurLightClick,
           )
         }
       }

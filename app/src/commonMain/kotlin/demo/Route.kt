@@ -92,4 +92,11 @@ sealed interface Route {
    */
   @Serializable
   data object TransformLight : Route
+
+  /**
+   * The blur lighting test screen — a moving liquid-glass specular pool rides the blurred
+   * backdrop of a cloudy(sky=…) surface (deterministic, sensor-free).
+   */
+  @Serializable
+  data object BlurLight : Route
 }
