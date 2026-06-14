@@ -72,14 +72,19 @@ jobs:
 
       # Stash the PR number so the privileged workflow_run job can resolve which PR to comment on
       # (workflow_run payload does not carry it directly).
+      # always() so the PR number is still stashed when the verify step above FAILS (a regression) --
+      # otherwise the comment workflow can't resolve the PR and the diff gallery never posts on the
+      # exact runs that need it most.
       - name: Save PR number
-        if: ${{ github.event_name == 'pull_request' }}
+        if: ${{ always() && github.event_name == 'pull_request' }}
+        env:
+          PR_NUMBER: ${{ github.event.number }}
         run: |
           mkdir -p ./pr
-          echo "${{ github.event.number }}" > ./pr/NR
+          echo "$PR_NUMBER" > ./pr/NR
 
       - name: Upload PR number
-        if: ${{ github.event_name == 'pull_request' }}
+        if: ${{ always() && github.event_name == 'pull_request' }}
         uses: actions/upload-artifact@v4
         with:
           name: pr

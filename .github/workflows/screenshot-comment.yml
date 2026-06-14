@@ -89,7 +89,9 @@ jobs:
         if: steps.check.outputs.exist == 'true'
         shell: bash
         env:
-          BRANCH_NAME: companion_${{ github.event.workflow_run.head_branch }}
+          # Keyed by PR number (integer-guarded above), not head_branch -- two fork PRs can share a
+          # branch name and would otherwise overwrite each other's companion branch / gallery.
+          BRANCH_NAME: companion_pr-${{ steps.pr.outputs.number }}
         run: |
           # Orphan branch: no history, just the diff images for this PR head.
           git branch -D "$BRANCH_NAME" || true
@@ -112,9 +114,11 @@ jobs:
         if: steps.check.outputs.exist == 'true'
         shell: bash
         env:
-          BRANCH_NAME: companion_${{ github.event.workflow_run.head_branch }}
-          # head_branch is fork-controlled; pass via env and reference as a quoted shell var
-          # so it reaches the script as data, never expanded into the script body (injection-safe).
+          # Must match the push step's branch key (PR number, not head_branch).
+          BRANCH_NAME: companion_pr-${{ steps.pr.outputs.number }}
+          # head_branch is fork-controlled and is only echoed as display text below; pass via env and
+          # reference as a quoted shell var so it reaches the script as data, never expanded into the
+          # script body (injection-safe).
           HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
         run: |
           files=$(find . -type f -name "*_compare.png" | grep "roborazzi/" | grep -E "^[a-zA-Z0-9_./-]+$" || true)
@@ -158,8 +162,10 @@ jobs:
             ${{ steps.report.outputs.body }}
 
       # --- No diffs: if a stale gallery comment exists, flip it to "resolved" (don't spam new ones) ---
+      # Gated on the producer run SUCCEEDING: a run that died before producing compare images also has
+      # no *_compare.png, and we must NOT mislabel that as "no differences" -- only a clean success is.
       - name: Comment resolved
-        if: steps.check.outputs.exist != 'true' && steps.fc.outputs.comment-id != ''
+        if: github.event.workflow_run.conclusion == 'success' && steps.check.outputs.exist != 'true' && steps.fc.outputs.comment-id != ''
         uses: peter-evans/create-or-update-comment@v4
         with:
           comment-id: ${{ steps.fc.outputs.comment-id }}
