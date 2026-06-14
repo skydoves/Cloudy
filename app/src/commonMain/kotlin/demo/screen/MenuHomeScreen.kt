@@ -43,6 +43,7 @@ import demo.theme.Dimens
  * @param onLiquidGlassClick Callback when the Liquid Glass demo is selected.
  * @param onIssue112Click Callback when the Issue #112 BottomNav repro is selected.
  * @param onGyroLightClick Callback when the Gyro Lighting test is selected.
+ * @param onTransformLightClick Callback when the Transform Lighting test is selected.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,6 +56,7 @@ fun MenuHomeScreen(
   onLiquidGlassClick: () -> Unit,
   onIssue112Click: () -> Unit,
   onGyroLightClick: () -> Unit,
+  onTransformLightClick: () -> Unit,
 ) {
   val posters = remember { MockUtil.getMockPosters() }
 
@@ -127,6 +129,14 @@ fun MenuHomeScreen(
             description = "Tilt the device to sweep the specular highlight around the glass",
             poster = posters[5],
             onClick = onGyroLightClick,
+          )
+        }
+        item {
+          MenuCard(
+            title = "Transform Lighting",
+            description = "Rotate the glass card in 3D — its own tilt drives the glint (no sensor)",
+            poster = posters[5],
+            onClick = onTransformLightClick,
           )
         }
       }
