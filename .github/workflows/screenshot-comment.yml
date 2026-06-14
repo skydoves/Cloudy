@@ -1,0 +1,193 @@
+# Screenshot diff comment (PRIVILEGED half of the two-workflow split).
+#
+# Adapted from takahirom/roborazzi-compare-on-github-comment-sample (CompareScreenshotComment.yml).
+# Runs via `workflow_run` AFTER "Screenshot Tests" completes, so it executes in the BASE-REPO
+# context with a write token even when the triggering run came from a fork PR. This is what makes
+# the gallery comment work on fork PRs (l2hyunwoo -> skydoves); a comment step inside the
+# pull_request job would silently fail (read-only token, no secrets).
+#
+# Mechanism (GitHub cannot inline arbitrary CI files in a comment): the *_compare.png images are
+# committed to an orphan branch `companion_<head-branch>` and the comment links to their raw blob
+# URLs (.../blob/<branch>/<file>?raw=true) so they render inline. No S3/GCS bucket required.
+#
+# NOTE: workflow_run only fires for workflow files that exist on the repository's DEFAULT branch.
+# Until this file is merged to skydoves:main it will not trigger -- expected, not a bug.
+
+name: Screenshot diff comment
+
+on:
+  workflow_run:
+    # MUST match the `name:` of the compare workflow exactly, or this never triggers.
+    workflows: [ "Screenshot Tests" ]
+    types: [ completed ]
+
+permissions: {}
+
+jobs:
+  comment:
+    name: Post screenshot diff comment
+    # Only react to pull_request-triggered runs (not pushes to main).
+    if: github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read           # download artifacts from the triggering run
+      contents: write         # push diff images to the companion_* orphan branch
+      pull-requests: write    # create / update the PR comment
+    steps:
+      # --- Resolve the PR number from the artifact the compare job uploaded ---
+      - name: Download PR number artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: pr
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - id: pr
+        name: Read PR number
+        shell: bash
+        # NR is written by OUR compare workflow from github.event.number (an integer), so its
+        # content is trusted-origin, not fork-controlled. Guard with a regex anyway (cheap) so a
+        # non-integer can never flow into downstream ${{ steps.pr.outputs.number }} uses.
+        run: |
+          number="$(cat NR)"
+          [[ "$number" =~ ^[0-9]+$ ]] || { echo "PR number not an integer: $number" >&2; exit 1; }
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+
+      # --- Checkout so we can create the orphan companion branch and push to it ---
+      - name: Checkout default branch
+        uses: actions/checkout@v6.0.1
+        # persist-credentials left default (true): this job pushes the companion branch.
+
+      - name: Download screenshot diff artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: screenshot-diff
+          path: screenshot-diff
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      # --- Are there any valid *_compare.png diff images? ---
+      - id: check
+        name: Check for diff images
+        shell: bash
+        run: |
+          mapfile -t files < <(find . -type f -name "*_compare.png")
+          exist="false"
+          for f in "${files[@]}"; do
+            # Reject any path with characters outside the safe set before we touch git / build URLs.
+            if [[ "$f" =~ ^[a-zA-Z0-9_./-]+$ ]]; then
+              exist="true"
+              break
+            fi
+          done
+          echo "exist=$exist" >> "$GITHUB_OUTPUT"
+
+      # --- Push diff images to an orphan companion branch (only when there are diffs) ---
+      - id: push
+        name: Push diffs to companion branch
+        if: steps.check.outputs.exist == 'true'
+        shell: bash
+        env:
+          # Keyed by PR number (integer-guarded above), not head_branch -- two fork PRs can share a
+          # branch name and would otherwise overwrite each other's companion branch / gallery.
+          BRANCH_NAME: companion_pr-${{ steps.pr.outputs.number }}
+        run: |
+          # Orphan branch: no history, just the diff images for this PR head.
+          git branch -D "$BRANCH_NAME" || true
+          git checkout --orphan "$BRANCH_NAME"
+          git rm -rf . > /dev/null
+
+          for f in $(find . -type f -name "*_compare.png"); do
+            if [[ "$f" =~ ^[a-zA-Z0-9_./-]+$ ]]; then
+              git add "$f"
+            fi
+          done
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Add screenshot diff for PR #${{ steps.pr.outputs.number }}"
+          git push origin "HEAD:$BRANCH_NAME" -f
+
+      # --- Build the markdown gallery linking the raw blob URLs on the companion branch ---
+      - id: report
+        name: Generate diff report
+        if: steps.check.outputs.exist == 'true'
+        shell: bash
+        env:
+          # Must match the push step's branch key (PR number, not head_branch).
+          BRANCH_NAME: companion_pr-${{ steps.pr.outputs.number }}
+          # head_branch is fork-controlled and is only echoed as display text below; pass via env and
+          # reference as a quoted shell var so it reaches the script as data, never expanded into the
+          # script body (injection-safe).
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          files=$(find . -type f -name "*_compare.png" | grep "roborazzi/" | grep -E "^[a-zA-Z0-9_./-]+$" || true)
+          delimiter="$(openssl rand -hex 8)"
+          {
+            echo "body<<${delimiter}"
+            echo "### Snapshot diff report"
+            echo ""
+            echo "Screenshot differences detected vs goldens on \`${HEAD_BRANCH}\`."
+            echo "Each image is *expected | actual | diff* side by side."
+            echo ""
+            echo "| File name | Image |"
+            echo "|-----------|-------|"
+          } >> "$GITHUB_OUTPUT"
+          for f in $files; do
+            name=$(basename "$f" | sed -r 's/(.{20})/\1<br>/g')
+            url="https://github.com/${{ github.repository }}/blob/$BRANCH_NAME/$f"
+            echo "| [$name]($url) | ![]($url?raw=true) |" >> "$GITHUB_OUTPUT"
+          done
+          echo "${delimiter}" >> "$GITHUB_OUTPUT"
+
+      # --- Sticky comment: find the bot's previous comment (if any) by marker text ---
+      - name: Find existing comment
+        uses: peter-evans/find-comment@v3
+        id: fc
+        with:
+          issue-number: ${{ steps.pr.outputs.number }}
+          comment-author: 'github-actions[bot]'
+          body-includes: '<!-- roborazzi-screenshot-diff -->'
+
+      # --- Post / update the gallery when there are diffs ---
+      - name: Comment diff gallery
+        if: steps.check.outputs.exist == 'true'
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          comment-id: ${{ steps.fc.outputs.comment-id }}
+          issue-number: ${{ steps.pr.outputs.number }}
+          edit-mode: replace
+          body: |
+            <!-- roborazzi-screenshot-diff -->
+            ${{ steps.report.outputs.body }}
+
+      # --- No diffs: if a stale gallery comment exists, flip it to "resolved" (don't spam new ones) ---
+      # Gated on the producer run SUCCEEDING: a run that died before producing compare images also has
+      # no *_compare.png, and we must NOT mislabel that as "no differences" -- only a clean success is.
+      - name: Comment resolved
+        if: github.event.workflow_run.conclusion == 'success' && steps.check.outputs.exist != 'true' && steps.fc.outputs.comment-id != ''
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          comment-id: ${{ steps.fc.outputs.comment-id }}
+          issue-number: ${{ steps.pr.outputs.number }}
+          edit-mode: replace
+          body: |
+            <!-- roborazzi-screenshot-diff -->
+            ### Snapshot diff report
+
+            No screenshot differences. :white_check_mark:
+
+      # --- Housekeeping: prune companion_* branches older than 30 days so they don't pile up ---
+      - name: Cleanup outdated companion branches
+        if: always()
+        shell: bash
+        run: |
+          git fetch origin --quiet || true
+          now=$(date +%s)
+          git branch -r --format='%(refname:lstrip=3)' | grep '^companion_' | while read -r branch; do
+            last=$(git log -1 --format=%ct "origin/$branch" 2>/dev/null || echo "$now")
+            if [ $((now - last)) -gt 2592000 ]; then   # 30 days
+              echo "Deleting stale companion branch: $branch"
+              git push origin --delete "$branch" || true
+            fi
+          done

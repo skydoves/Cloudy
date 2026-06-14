@@ -23,6 +23,7 @@ plugins {
   id(libs.plugins.compose.multiplatform.get().pluginId)
   id(libs.plugins.compose.compiler.get().pluginId)
   id(libs.plugins.nexus.plugin.get().pluginId)
+  id(libs.plugins.roborazzi.get().pluginId)
 }
 
 apply(from = "${rootDir}/scripts/publish-module.gradle.kts")
@@ -115,6 +116,11 @@ kotlin {
     namespace = "com.skydoves.cloudy"
     defaultConfig {
       minSdk = Configuration.minSdk
+      // Runner for instrumented (androidInstrumentedTest) screenshot specs. The instrumented source
+      // set itself is mapped by the KMP convention to src/androidInstrumentedTest/kotlin; these
+      // specs are @Ignore'd Phase-2 placeholders that need a real GPU/emulator, so this runner is
+      // only exercised on the Phase-2 emulator job, not the host CI.
+      testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
       externalNativeBuild {
         cmake {
           cppFlags += "-std=c++17"
@@ -130,6 +136,13 @@ kotlin {
 
     buildFeatures {
       compose = true
+    }
+
+    testOptions {
+      unitTests {
+        isIncludeAndroidResources = true
+        all { it.systemProperty("robolectric.pixelCopyRenderMode", "hardware") }
+      }
     }
 
     packaging {
@@ -197,6 +210,24 @@ kotlin {
       implementation(libs.mockito)
       implementation(libs.mockito.inline)
       implementation(libs.robolectric)
+      implementation(libs.roborazzi)
+      implementation(libs.roborazzi.compose)
+      implementation(libs.roborazzi.junit.rule)
+    }
+
+    // Instrumented (on-device/emulator) screenshot specs. Currently @Ignore'd Phase-2 placeholders
+    // (backdrop + liquid glass) that need a real GPU/RenderThread; this set exists so they compile
+    // and are ready to run on the Phase-2 emulator job. Pixel assertions there use
+    // android.graphics.Bitmap (NOT java.awt/javax.imageio, which are absent on Dalvik).
+    androidInstrumentedTest.dependencies {
+      implementation(libs.androidx.compose.ui)
+      implementation(libs.androidx.compose.foundation)
+      implementation(libs.androidx.compose.runtime)
+      implementation(libs.androidx.compose.ui.test)
+      implementation(libs.androidx.compose.ui.test.junit4)
+      implementation(libs.androidx.test.runner)
+      implementation(libs.androidx.test.junit)
+      implementation(libs.junit4)
     }
 
     iosTest.dependencies {
