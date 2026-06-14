@@ -262,12 +262,13 @@ public object LiquidGlassDefaults {
   public val NoChromatic: ChromaticOverlay = ChromaticOverlay(0f, ChromaticMode.Iridescent)
 
   /**
-   * A ready-made holographic-foil chromatic overlay — flowing rainbow bands at the default
+   * A ready-made holographic chromatic overlay — a thin-film interference sheen (Newton's-ring
+   * bands that shift hue with the light/normal angle, like oil on water) at the default
    * [CHROMATIC_INTENSITY]. Singleton; do not reassign.
    */
   @ExperimentalLiquidGlassMaterial
   public val Holographic: ChromaticOverlay =
-    ChromaticOverlay(CHROMATIC_INTENSITY, ChromaticMode.Foil, HOLOGRAPHIC_SPECTRUM)
+    ChromaticOverlay(CHROMATIC_INTENSITY, ChromaticMode.Iridescent, HOLOGRAPHIC_SPECTRUM)
 
   /** Minimum Android API level required for the full liquid glass effect. */
   public const val MIN_ANDROID_API_FULL: Int = 33

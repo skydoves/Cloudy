@@ -125,9 +125,9 @@ internal class ChromaticOverlayTest :
         LiquidGlassDefaults.NoChromatic.intensity.shouldBe(0f)
       }
 
-      test("Holographic is a foil overlay at the default intensity") {
+      test("Holographic is an iridescent thin-film overlay at the default intensity") {
         LiquidGlassDefaults.Holographic.intensity.shouldBe(LiquidGlassDefaults.CHROMATIC_INTENSITY)
-        LiquidGlassDefaults.Holographic.mode.shouldBe(ChromaticMode.Foil)
+        LiquidGlassDefaults.Holographic.mode.shouldBe(ChromaticMode.Iridescent)
       }
     }
   })
