@@ -33,10 +33,10 @@ import demo.screen.InteractiveSliderScreen
 import demo.screen.Issue112BottomNavScreen
 import demo.screen.LiquidGlassDemoScreen
 import demo.screen.MenuHomeScreen
+import demo.screen.MirageScreen
 import demo.screen.ProgressiveBlurDemoScreen
 import demo.screen.RadiusDetailScreen
 import demo.screen.RadiusItemsScreen
-import demo.screen.ShaderEffectScreen
 import demo.screen.TransformLightScreen
 import demo.theme.PosterTheme
 
@@ -68,7 +68,7 @@ fun CloudyDemoApp() {
               onGyroLightClick = { backStack.add(Route.GyroLight) },
               onTransformLightClick = { backStack.add(Route.TransformLight) },
               onBlurLightClick = { backStack.add(Route.BlurLight) },
-              onShaderEffectClick = { backStack.add(Route.ShaderEffect) },
+              onMirageClick = { backStack.add(Route.Mirage) },
             )
           }
 
@@ -140,8 +140,8 @@ fun CloudyDemoApp() {
             )
           }
 
-          is Route.ShaderEffect -> NavEntry(route) {
-            ShaderEffectScreen(
+          is Route.Mirage -> NavEntry(route) {
+            MirageScreen(
               onBackClick = { backStack.removeLastOrNull() },
             )
           }
