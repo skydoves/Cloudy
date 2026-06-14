@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@file:OptIn(ExperimentalShaderEffect::class)
+@file:OptIn(ExperimentalMirage::class)
 
 package com.skydoves.cloudy
 
@@ -25,7 +25,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 /**
- * Tests for [Modifier.shaderEffect] and [ShaderEffectDefaults].
+ * Tests for [Modifier.mirage] and [MirageDefaults].
  *
  * Mirrors [LiquidGlassModifierTest]: it verifies the defaults and the branching constants that are
  * checkable without a live Compose tree. The `enabled = false -> returns the original Modifier`
@@ -33,24 +33,24 @@ import org.robolectric.RobolectricTestRunner
  * graphics layer) and are staged below as TODOs, to be activated after that file is integrated.
  */
 @RunWith(RobolectricTestRunner::class)
-internal class ShaderEffectModifierTest {
+internal class MirageModifierTest {
 
   @Test
-  fun `ShaderEffectDefaults mirror the liquid glass lens defaults`() {
-    assertEquals(LiquidGlassDefaults.LENS_SIZE, ShaderEffectDefaults.LensSize)
-    assertEquals(Size(350f, 350f), ShaderEffectDefaults.LensSize)
-    assertEquals(LiquidGlassDefaults.CORNER_RADIUS, ShaderEffectDefaults.CornerRadius)
-    assertEquals(50f, ShaderEffectDefaults.CornerRadius)
+  fun `MirageDefaults mirror the liquid glass lens defaults`() {
+    assertEquals(LiquidGlassDefaults.LENS_SIZE, MirageDefaults.LensSize)
+    assertEquals(Size(350f, 350f), MirageDefaults.LensSize)
+    assertEquals(LiquidGlassDefaults.CORNER_RADIUS, MirageDefaults.CornerRadius)
+    assertEquals(50f, MirageDefaults.CornerRadius)
   }
 
   @Test
   fun `default lens center is the content origin`() {
-    assertEquals(Offset.Zero, ShaderEffectDefaults.LensCenter)
+    assertEquals(Offset.Zero, MirageDefaults.LensCenter)
   }
 
-  // TODO(graphics integration): once ShaderEffect.android.kt provides the actual, assert that
-  //   Modifier.shaderEffect(recipe, enabled = false) returns the same Modifier instance (no-op),
+  // TODO(graphics integration): once Mirage.android.kt provides the actual, assert that
+  //   Modifier.mirage(recipe, enabled = false) returns the same Modifier instance (no-op),
   //   and that API 33+ takes the RuntimeShader path while API < 33 is a no-op (no shader fallback),
   //   following the @Config(sdk = ...) pattern in LiquidGlassModifierTest. Requires the graphics
-  //   actual + ShaderRecipes.kt; until then the composable cannot be referenced from a unit test.
+  //   actual + MirageRecipes.kt; until then the composable cannot be referenced from a unit test.
 }

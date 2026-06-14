@@ -18,21 +18,21 @@ package com.skydoves.cloudy
 import androidx.compose.runtime.Immutable
 
 /**
- * The uniform-writing surface handed to a [ShaderRecipe]'s `bindUniforms` block each draw.
+ * The uniform-writing surface handed to a [MirageRecipe]'s `bindUniforms` block each draw.
  *
  * A recipe receives this scope and pushes the per-draw values for every uniform its shader
  * declares. The three overloads cover the scalar / 2-component / 4-component uniform shapes used by
  * AGSL and SKSL (`float`, `float2`, `float4`); a 3-component uniform is written via the 4-arg
  * overload with `w` ignored by the shader.
  *
- * This is a `public` interface — not an internal one — because [ShaderRecipe.bindUniforms] is a
+ * This is a `public` interface — not an internal one — because [MirageRecipe.bindUniforms] is a
  * publicly stored lambda whose receiver type is part of the stable API; under
  * `-Xexplicit-api=strict` the receiver of a public lambda parameter may not be `internal`. The
  * concrete platform binding (which wraps a `RuntimeShader` / Skia `RuntimeEffect`) implements this
  * interface internally, so the GPU-side types never leak into the recipe contract.
  */
-@ExperimentalShaderEffect
-public interface ShaderEffectScope {
+@ExperimentalMirage
+public interface MirageScope {
   /** Writes a scalar `float` uniform named [name]. */
   public fun uniform(name: String, value: Float)
 
@@ -44,13 +44,20 @@ public interface ShaderEffectScope {
 }
 
 /**
- * How a [ShaderRecipe]'s shader consumes the composable content it is attached to.
+ * How a [MirageRecipe]'s shader consumes the composable content it is attached to.
  *
  * Sealed so the binding can exhaustively branch on the mode (and so new modes can be added without
  * breaking callers that only construct the provided objects).
+ *
+ * ## Chaining order
+ * Compose modifiers wrap left-to-right (the leftmost is the outermost draw). When chaining an
+ * [Overlay] recipe with a [ContentFilter] recipe, put the [Overlay] to the **left** (outside) so the
+ * filter transforms the content first and the overlay is painted on top of the result. Reversing it
+ * runs the overlay through the filter — a visual error with no compile-time guard. See
+ * [Modifier.mirage].
  */
-@ExperimentalShaderEffect
-public sealed interface ShaderInputMode {
+@ExperimentalMirage
+public sealed interface MirageInputMode {
   /**
    * The shader filters the content itself: the content is supplied as the shader's input image
    * (the `content` shader input) and the shader's output replaces it. Use for lens/refraction style
@@ -58,10 +65,10 @@ public sealed interface ShaderInputMode {
    */
   // RequiresOptIn does not propagate to nested members, so each nested object carries the marker
   // explicitly to stay out of the stable ABI (otherwise BCV dumps it as a public object).
-  @ExperimentalShaderEffect
-  public object ContentFilter : ShaderInputMode {
+  @ExperimentalMirage
+  public object ContentFilter : MirageInputMode {
     // Clean name (not the default Object identity string) so it appears legibly in
-    // ShaderRecipe.toString() and any debug/log output.
+    // MirageRecipe.toString() and any debug/log output.
     override fun toString(): String = "ContentFilter"
   }
 
@@ -70,8 +77,8 @@ public sealed interface ShaderInputMode {
    * output is composited over it. Use for additive glints/overlays that do not need to read the
    * underlying pixels.
    */
-  @ExperimentalShaderEffect
-  public object Overlay : ShaderInputMode {
+  @ExperimentalMirage
+  public object Overlay : MirageInputMode {
     override fun toString(): String = "Overlay"
   }
 }
@@ -80,7 +87,7 @@ public sealed interface ShaderInputMode {
  * An open, caller-supplied shader effect: a pair of platform shader bodies ([agsl] / [sksl]), an
  * [inputMode], and a [bindUniforms] block that writes the shader's uniforms each draw.
  *
- * Apply a recipe to any composable with [Modifier.shaderEffect]. Build the provided effects with
+ * Apply a recipe to any composable with [Modifier.mirage]. Build the provided effects with
  * the recipe factories (e.g. the specular / chromatic recipes), or author your own by following the
  * invariants below.
  *
@@ -114,13 +121,13 @@ public sealed interface ShaderInputMode {
  * @property sksl The Skia (SKSL) shader body for iOS / macOS / Desktop / Wasm.
  * @property inputMode How the shader consumes the content it is attached to.
  */
-@ExperimentalShaderEffect
+@ExperimentalMirage
 @Immutable
-public class ShaderRecipe internal constructor(
+public class MirageRecipe internal constructor(
   public val agsl: String,
   public val sksl: String,
-  public val inputMode: ShaderInputMode,
-  internal val bindUniforms: ShaderEffectScope.() -> Unit,
+  public val inputMode: MirageInputMode,
+  internal val bindUniforms: MirageScope.() -> Unit,
 ) {
   // The cache key is the source text + input mode only. bindUniforms is deliberately excluded:
   // it is a lambda (never structurally comparable) and it merely *feeds* values into the shader
@@ -128,7 +135,7 @@ public class ShaderRecipe internal constructor(
   // GPU program and so must be treated as equal for shader-caching/dedup purposes.
   override fun equals(other: Any?): Boolean = this === other ||
     (
-      other is ShaderRecipe &&
+      other is MirageRecipe &&
         agsl == other.agsl &&
         sksl == other.sksl &&
         inputMode == other.inputMode
@@ -142,33 +149,33 @@ public class ShaderRecipe internal constructor(
   }
 
   override fun toString(): String =
-    "ShaderRecipe(agsl=${agsl.length} chars, sksl=${sksl.length} chars, inputMode=$inputMode)"
+    "MirageRecipe(agsl=${agsl.length} chars, sksl=${sksl.length} chars, inputMode=$inputMode)"
 
-  // The companion is a separate ABI class (ShaderRecipe$Companion); the marker on the outer class
+  // The companion is a separate ABI class (MirageRecipe$Companion); the marker on the outer class
   // does not reach it, so it carries its own to stay out of the stable dumps.
-  @ExperimentalShaderEffect
+  @ExperimentalMirage
   public companion object {
     /**
-     * Creates a [ShaderRecipe] from its two platform shader bodies and a uniform-binding block.
+     * Creates a [MirageRecipe] from its two platform shader bodies and a uniform-binding block.
      *
      * Exposed as a companion `invoke` rather than a same-named top-level factory: the primary
-     * constructor is `internal` with the identical `(String, String, ShaderInputMode, lambda)`
-     * signature, so a top-level `fun ShaderRecipe(...)` would be a conflicting overload (same
-     * precedent as `LiquidGlassGlow`). `invoke` keeps the intended `ShaderRecipe(...)` call syntax
+     * constructor is `internal` with the identical `(String, String, MirageInputMode, lambda)`
+     * signature, so a top-level `fun MirageRecipe(...)` would be a conflicting overload (same
+     * precedent as `LiquidGlassGlow`). `invoke` keeps the intended `MirageRecipe(...)` call syntax
      * while leaving the internal constructor free for future field additions (ABI stability).
      *
-     * @param agsl The Android (AGSL) shader body. See [ShaderRecipe] for the author invariants.
+     * @param agsl The Android (AGSL) shader body. See [MirageRecipe] for the author invariants.
      * @param sksl The Skia (SKSL) shader body for the skiko platforms.
-     * @param inputMode How the shader consumes its content. Default: [ShaderInputMode.ContentFilter].
+     * @param inputMode How the shader consumes its content. Default: [MirageInputMode.ContentFilter].
      * @param bindUniforms Block invoked each draw to write the shader's uniforms via
-     *   [ShaderEffectScope]. Default: no uniforms (only valid if the shader declares none beyond the
+     *   [MirageScope]. Default: no uniforms (only valid if the shader declares none beyond the
      *   built-ins).
      */
     public operator fun invoke(
       agsl: String,
       sksl: String,
-      inputMode: ShaderInputMode = ShaderInputMode.ContentFilter,
-      bindUniforms: ShaderEffectScope.() -> Unit = {},
-    ): ShaderRecipe = ShaderRecipe(agsl, sksl, inputMode, bindUniforms)
+      inputMode: MirageInputMode = MirageInputMode.ContentFilter,
+      bindUniforms: MirageScope.() -> Unit = {},
+    ): MirageRecipe = MirageRecipe(agsl, sksl, inputMode, bindUniforms)
   }
 }
