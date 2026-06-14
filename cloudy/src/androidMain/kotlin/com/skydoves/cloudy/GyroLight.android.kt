@@ -92,14 +92,24 @@ internal actual fun rememberTiltSource(
     val observer = LifecycleEventObserver { _, event ->
       when (event) {
         Lifecycle.Event.ON_START ->
-          if (!reduceMotion) provider.start() else { provider.stop(); out.value = base }
+          if (!reduceMotion) {
+            provider.start()
+          } else {
+            provider.stop()
+            out.value = base
+          }
         Lifecycle.Event.ON_STOP -> provider.stop()
         else -> Unit
       }
     }
     // If we are already STARTED when this effect (re)runs, reflect the current state immediately.
     if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
-      if (!reduceMotion) provider.start() else { provider.stop(); out.value = base }
+      if (!reduceMotion) {
+        provider.start()
+      } else {
+        provider.stop()
+        out.value = base
+      }
     }
     lifecycleOwner.lifecycle.addObserver(observer)
     onDispose {
@@ -139,12 +149,11 @@ private fun rememberReduceMotionState(context: Context): MutableState<Boolean> {
  * animations. There is no public reduce-motion boolean below API 33, so this is the correct
  * cross-version signal (the setting exists since API 17, safe at minSdk 23).
  */
-private fun isReduceMotionEnabled(context: Context): Boolean =
-  Settings.Global.getFloat(
-    context.contentResolver,
-    Settings.Global.ANIMATOR_DURATION_SCALE,
-    1f,
-  ) == 0f
+private fun isReduceMotionEnabled(context: Context): Boolean = Settings.Global.getFloat(
+  context.contentResolver,
+  Settings.Global.ANIMATOR_DURATION_SCALE,
+  1f,
+) == 0f
 
 /**
  * Reads one motion sensor and emits a smoothed, throttled, gated screen-space light direction.
@@ -193,6 +202,14 @@ private class TiltLightProvider(
   @Volatile
   private var alive = true
 
+  // Bumped on every stop(). onSensorChanged captures the current value when it posts to the main
+  // thread; the posted block drops itself if the token changed in the meantime. This kills the
+  // race where unregisterListener() stops NEW callbacks but a post already queued on mainHandler
+  // still runs after stop() and overwrites the freeze-to-base with a stale tilt value. @Volatile:
+  // written on the main thread (stop), read on the sensor HandlerThread (capture) and main (post).
+  @Volatile
+  private var generation = 0
+
   fun start() {
     val s = sensor ?: return // no sensor → stay frozen at base
     if (started) return
@@ -203,6 +220,7 @@ private class TiltLightProvider(
   fun stop() {
     if (!started) return
     started = false
+    generation++ // invalidate any in-flight mainHandler posts (stale emissions)
     sensorManager.unregisterListener(this)
   }
 
@@ -245,7 +263,8 @@ private class TiltLightProvider(
     smooth = outVal // snap EMA onto the emitted unit vector so a still phone truly stops emitting
     lastEmitNs = now
     lastSent = outVal
-    mainHandler.post { if (alive) onLight(outVal) } // Compose snapshot write on the main thread
+    val g = generation // capture now; the post drops itself if stop() bumped it before it ran
+    mainHandler.post { if (alive && g == generation) onLight(outVal) } // Compose write on main
   }
 
   override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit

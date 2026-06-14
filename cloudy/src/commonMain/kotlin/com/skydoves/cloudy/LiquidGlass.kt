@@ -41,9 +41,7 @@ import androidx.compose.ui.graphics.Color
  * @see LiquidGlassDefaults.Light
  */
 @Immutable
-public class LiquidGlassLight internal constructor(
-  internal val direction: State<Offset>,
-)
+public class LiquidGlassLight internal constructor(internal val direction: State<Offset>)
 
 /**
  * Creates a static (fixed) [LiquidGlassLight] pointing in [direction].
@@ -87,14 +85,19 @@ public class LiquidGlassGlow internal constructor(
   public val intensity: Float,
   public val sharpness: Float,
 ) {
-  override fun equals(other: Any?): Boolean =
-    this === other ||
-      (other is LiquidGlassGlow && intensity == other.intensity && sharpness == other.sharpness)
+  override fun equals(other: Any?): Boolean = this === other ||
+    (other is LiquidGlassGlow && intensity == other.intensity && sharpness == other.sharpness)
 
-  override fun hashCode(): Int = intensity.hashCode() * 31 + sharpness.hashCode()
+  override fun hashCode(): Int {
+    // equals() uses `==` so -0.0f and 0.0f compare equal, but Float.hashCode() hashes their bits
+    // and would differ. Normalize -0.0f -> 0.0f (the `== 0f` check catches both) to keep the
+    // equals/hashCode contract: equal instances must yield equal hash codes.
+    val i = if (intensity == 0f) 0f else intensity
+    val s = if (sharpness == 0f) 0f else sharpness
+    return i.hashCode() * 31 + s.hashCode()
+  }
 
-  override fun toString(): String =
-    "LiquidGlassGlow(intensity=$intensity, sharpness=$sharpness)"
+  override fun toString(): String = "LiquidGlassGlow(intensity=$intensity, sharpness=$sharpness)"
 
   public companion object {
     /**
