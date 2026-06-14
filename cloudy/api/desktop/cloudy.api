@@ -1,5 +1,5 @@
 public final class com/skydoves/cloudy/CloudyBackground_skikoKt {
-	public static final fun cloudy-NpZTi58 (Landroidx/compose/ui/Modifier;Lcom/skydoves/cloudy/Sky;ILcom/skydoves/cloudy/CloudyProgressive;JZZLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
+	public static final fun cloudy-mxsUjTo (Landroidx/compose/ui/Modifier;Lcom/skydoves/cloudy/Sky;ILcom/skydoves/cloudy/CloudyProgressive;JLcom/skydoves/cloudy/LiquidGlassLight;ZZLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
 	public static final fun sky (Landroidx/compose/ui/Modifier;Lcom/skydoves/cloudy/Sky;Landroidx/compose/runtime/Composer;I)Landroidx/compose/ui/Modifier;
 }
 
@@ -142,6 +142,13 @@ public final class com/skydoves/cloudy/Cloudy_skikoKt {
 	public static final fun cloudy (Landroidx/compose/ui/Modifier;IZLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
 }
 
+public abstract interface annotation class com/skydoves/cloudy/ExperimentalLiquidGlassMotion : java/lang/annotation/Annotation {
+}
+
+public final class com/skydoves/cloudy/GyroLightKt {
+	public static final fun rememberGyroLightSource-JHbHoSQ (ZIJFLandroidx/compose/runtime/Composer;II)Lcom/skydoves/cloudy/LiquidGlassLight;
+}
+
 public final class com/skydoves/cloudy/LiquidGlassDefaults {
 	public static final field $stable I
 	public static final field CONTRAST F
@@ -149,13 +156,42 @@ public final class com/skydoves/cloudy/LiquidGlassDefaults {
 	public static final field CURVE F
 	public static final field DISPERSION F
 	public static final field EDGE F
+	public static final field GLOW_INTENSITY F
+	public static final field GLOW_SHARPNESS F
 	public static final field INSTANCE Lcom/skydoves/cloudy/LiquidGlassDefaults;
 	public static final field MIN_ANDROID_API_FALLBACK I
 	public static final field MIN_ANDROID_API_FULL I
 	public static final field REFRACTION F
 	public static final field SATURATION F
+	public final fun getGlow ()Lcom/skydoves/cloudy/LiquidGlassGlow;
 	public final fun getLENS_SIZE-NH-jbRc ()J
+	public final fun getLIGHT_DIR-F1C5BW0 ()J
+	public final fun getLight ()Lcom/skydoves/cloudy/LiquidGlassLight;
+	public final fun getNoGlow ()Lcom/skydoves/cloudy/LiquidGlassGlow;
 	public final fun getTINT-0d7_KjU ()J
+}
+
+public final class com/skydoves/cloudy/LiquidGlassGlow {
+	public static final field $stable I
+	public static final field Companion Lcom/skydoves/cloudy/LiquidGlassGlow$Companion;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getIntensity ()F
+	public final fun getSharpness ()F
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/skydoves/cloudy/LiquidGlassGlow$Companion {
+	public final fun invoke (FF)Lcom/skydoves/cloudy/LiquidGlassGlow;
+	public static synthetic fun invoke$default (Lcom/skydoves/cloudy/LiquidGlassGlow$Companion;FFILjava/lang/Object;)Lcom/skydoves/cloudy/LiquidGlassGlow;
+}
+
+public final class com/skydoves/cloudy/LiquidGlassKt {
+	public static final fun LiquidGlassLight-k-4lQ0M (J)Lcom/skydoves/cloudy/LiquidGlassLight;
+}
+
+public final class com/skydoves/cloudy/LiquidGlassLight {
+	public static final field $stable I
 }
 
 public final class com/skydoves/cloudy/LiquidGlassShaderSource {
@@ -166,7 +202,8 @@ public final class com/skydoves/cloudy/LiquidGlassShaderSource {
 }
 
 public final class com/skydoves/cloudy/LiquidGlass_skikoKt {
-	public static final fun liquidGlass-K15iNKo (Landroidx/compose/ui/Modifier;JJFFFFFFJFZLandroidx/compose/runtime/Composer;III)Landroidx/compose/ui/Modifier;
+	public static final fun liquidGlass--orAQqo (Landroidx/compose/ui/Modifier;JJFFFFFFJFLcom/skydoves/cloudy/LiquidGlassLight;Lcom/skydoves/cloudy/LiquidGlassGlow;ZLandroidx/compose/runtime/Composer;III)Landroidx/compose/ui/Modifier;
+	public static final fun liquidGlassTuned-iWwQIZ8 (Landroidx/compose/ui/Modifier;JJFFFFFFJFLcom/skydoves/cloudy/LiquidGlassLight;FFFFZLandroidx/compose/runtime/Composer;III)Landroidx/compose/ui/Modifier;
 }
 
 public final class com/skydoves/cloudy/PlatformBitmap {
@@ -198,5 +235,9 @@ public final class com/skydoves/cloudy/Sky {
 
 public final class com/skydoves/cloudy/SkyKt {
 	public static final fun rememberSky (Landroidx/compose/runtime/Composer;I)Lcom/skydoves/cloudy/Sky;
+}
+
+public final class com/skydoves/cloudy/TransformLightKt {
+	public static final fun rememberTransformLightSource-JHbHoSQ (Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;JFLandroidx/compose/runtime/Composer;II)Lcom/skydoves/cloudy/LiquidGlassLight;
 }
 
