@@ -16,13 +16,6 @@
 package com.skydoves.cloudy
 
 import android.os.Build
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.size
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertTrue
 import org.junit.FixMethodOrder
 import org.junit.Test
@@ -48,24 +41,14 @@ import org.robolectric.annotation.GraphicsMode
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 internal class CloudyStateScreenshotTest {
 
-  @Composable
-  private fun StateFixture(enabled: Boolean) {
-    Box(
-      modifier = Modifier
-        .size(80.dp)
-        .cloudy(radius = 20, enabled = enabled)
-        .background(Color.White),
-    )
-  }
-
   @Test
   fun a_record_state_disabled() {
-    captureCloudyGolden("state_disabled.png") { StateFixture(enabled = false) }
+    captureCloudyGolden("state_disabled.png") { BlurSquareFixture(radius = 20, enabled = false) }
   }
 
   @Test
   fun b_record_state_enabled() {
-    captureCloudyGolden("state_enabled.png") { StateFixture(enabled = true) }
+    captureCloudyGolden("state_enabled.png") { BlurSquareFixture(radius = 20, enabled = true) }
   }
 
   /**

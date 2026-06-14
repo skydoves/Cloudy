@@ -16,13 +16,6 @@
 package com.skydoves.cloudy
 
 import android.os.Build
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.size
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertTrue
 import org.junit.FixMethodOrder
 import org.junit.Test
@@ -50,34 +43,24 @@ import org.robolectric.annotation.GraphicsMode
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 internal class CloudyPassthroughScreenshotTest {
 
-  @Composable
-  private fun BlurFixture(radius: Int) {
-    Box(
-      modifier = Modifier
-        .size(80.dp)
-        .cloudy(radius = radius)
-        .background(Color.White),
-    )
-  }
-
   @Test
   fun a_record_passthrough_radius0() {
-    captureCloudyGolden("passthrough_radius0.png") { BlurFixture(radius = 0) }
+    captureCloudyGolden("passthrough_radius0.png") { BlurSquareFixture(radius = 0) }
   }
 
   @Test
   fun b_record_passthrough_radius8() {
-    captureCloudyGolden("passthrough_radius8.png") { BlurFixture(radius = 8) }
+    captureCloudyGolden("passthrough_radius8.png") { BlurSquareFixture(radius = 8) }
   }
 
   @Test
   fun c_record_passthrough_radius16() {
-    captureCloudyGolden("passthrough_radius16.png") { BlurFixture(radius = 16) }
+    captureCloudyGolden("passthrough_radius16.png") { BlurSquareFixture(radius = 16) }
   }
 
   @Test
   fun d_record_passthrough_radius24() {
-    captureCloudyGolden("passthrough_radius24.png") { BlurFixture(radius = 24) }
+    captureCloudyGolden("passthrough_radius24.png") { BlurSquareFixture(radius = 24) }
   }
 
   /**

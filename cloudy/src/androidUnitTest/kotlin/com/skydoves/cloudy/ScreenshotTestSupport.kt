@@ -24,11 +24,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.dropbox.differ.SimpleImageComparator
-import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
-import com.github.takahirom.roborazzi.RoborazziComposeOptions
 import com.github.takahirom.roborazzi.RoborazziOptions
 import com.github.takahirom.roborazzi.captureRoboImage
-import com.github.takahirom.roborazzi.size
 import java.awt.image.BufferedImage
 import java.io.File
 import javax.imageio.ImageIO
@@ -84,6 +81,27 @@ internal fun ScreenshotSurface(
 }
 
 /**
+ * The shared synthetic fixture for the passthrough golden suites: an 80dp hard-edged white square
+ * blurred by `Modifier.cloudy`. The hard edge against the surrounding [ScreenshotSurface] backdrop
+ * is what makes the blur visibly diffuse, so radius/enabled changes produce a measurable pixel diff.
+ *
+ * Used by the smoke, passthrough, and state suites (state passes `enabled`); keeping it here avoids
+ * three byte-for-byte copies and guarantees the goldens across suites describe the same shape.
+ *
+ * @param radius blur radius passed to `Modifier.cloudy`.
+ * @param enabled whether the blur is enabled (`false` returns the receiver unchanged -> sharp).
+ */
+@Composable
+internal fun BlurSquareFixture(radius: Int, enabled: Boolean = true) {
+  Box(
+    modifier = Modifier
+      .size(80.dp)
+      .cloudy(radius = radius, enabled = enabled)
+      .background(Color.White),
+  )
+}
+
+/**
  * Renders [content] inside a [ScreenshotSurface] and records a Roborazzi golden.
  *
  * Uses the `roborazzi-compose` `captureRoboImage(filePath, roborazziOptions) { content }` overload,
@@ -105,30 +123,6 @@ internal fun captureCloudyGolden(goldenName: String, content: @Composable () -> 
     roborazziOptions = cloudyRoborazziOptions,
   ) {
     ScreenshotSurface { content() }
-  }
-}
-
-/**
- * Records a golden of [content] at an explicit [sizeDp] x [sizeDp] capture surface.
- *
- * Unlike [captureCloudyGolden], this does NOT wrap [content] in [ScreenshotSurface]; the caller
- * owns the full surface (e.g. a `Modifier.sky` container). The capture size is pinned via
- * `RoborazziComposeOptions { size(...) }`, which both sets Robolectric's display qualifiers and
- * constrains the composable — required when the fixture is larger than the host's default content
- * area (the backdrop fixtures are 240dp, larger than the ~200dp default).
- */
-@OptIn(ExperimentalRoborazziApi::class)
-internal fun captureCloudyGoldenSized(
-  goldenName: String,
-  sizeDp: Int,
-  content: @Composable () -> Unit,
-) {
-  captureRoboImage(
-    filePath = "$SCREENSHOT_DIR/$goldenName",
-    roborazziOptions = cloudyRoborazziOptions,
-    roborazziComposeOptions = RoborazziComposeOptions { size(widthDp = sizeDp, heightDp = sizeDp) },
-  ) {
-    content()
   }
 }
 

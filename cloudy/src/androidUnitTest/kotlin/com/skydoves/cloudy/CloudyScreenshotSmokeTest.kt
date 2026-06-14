@@ -16,13 +16,6 @@
 package com.skydoves.cloudy
 
 import android.os.Build
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.size
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertTrue
 import org.junit.FixMethodOrder
 import org.junit.Test
@@ -58,26 +51,11 @@ import org.robolectric.annotation.GraphicsMode
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 internal class CloudyScreenshotSmokeTest {
 
-  /**
-   * Deterministic synthetic content: a hard-edged white square that the blur diffuses against the
-   * surrounding solid-blue [ScreenshotSurface]. The hard edge is what makes the radius0 vs radius24
-   * goldens diverge.
-   */
-  @Composable
-  private fun BlurFixture(radius: Int) {
-    Box(
-      modifier = Modifier
-        .size(80.dp)
-        .cloudy(radius = radius)
-        .background(Color.White),
-    )
-  }
-
   /** Records the un-blurred reference golden (`radius = 0` short-circuits the blur). */
   @Test
   fun a_record_smoke_radius0() {
     captureCloudyGolden("smoke_radius0.png") {
-      BlurFixture(radius = 0)
+      BlurSquareFixture(radius = 0)
     }
   }
 
@@ -85,7 +63,7 @@ internal class CloudyScreenshotSmokeTest {
   @Test
   fun b_record_smoke_radius24() {
     captureCloudyGolden("smoke_radius24.png") {
-      BlurFixture(radius = 24)
+      BlurSquareFixture(radius = 24)
     }
   }
 
