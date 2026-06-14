@@ -231,6 +231,44 @@ public object LiquidGlassDefaults {
    */
   public val NoGlow: LiquidGlassGlow = LiquidGlassGlow(0f, 1f)
 
+  /**
+   * Default chromatic overlay intensity (sheen strength). A mid value so the preset
+   * [Holographic] reads clearly without washing out the underlying content.
+   */
+  public const val CHROMATIC_INTENSITY: Float = 0.6f
+
+  /**
+   * Default rainbow stops for the chromatic overlay's consumer / `customBrush` path. The shader
+   * path synthesizes hue on the GPU and does not sample this list; it is provided so the consumer
+   * path (and future expansion) has a sensible full-spectrum default. Seven evenly-spaced hues
+   * (red → violet).
+   */
+  public val HOLOGRAPHIC_SPECTRUM: List<Color> = listOf(
+    Color(0xFFFF0000), // red
+    Color(0xFFFF7F00), // orange
+    Color(0xFFFFFF00), // yellow
+    Color(0xFF00FF00), // green
+    Color(0xFF0000FF), // blue
+    Color(0xFF4B0082), // indigo
+    Color(0xFF9400D3), // violet
+  )
+
+  /**
+   * A chromatic overlay that disables the iridescent sheen (zero intensity). Singleton; do not
+   * reassign. This is the default for the `chromatic` parameter of [Modifier.liquidGlass], so the
+   * glass is bit-exact unchanged unless a caller opts into an overlay.
+   */
+  @ExperimentalLiquidGlassMaterial
+  public val NoChromatic: ChromaticOverlay = ChromaticOverlay(0f, ChromaticMode.Iridescent)
+
+  /**
+   * A ready-made holographic-foil chromatic overlay — flowing rainbow bands at the default
+   * [CHROMATIC_INTENSITY]. Singleton; do not reassign.
+   */
+  @ExperimentalLiquidGlassMaterial
+  public val Holographic: ChromaticOverlay =
+    ChromaticOverlay(CHROMATIC_INTENSITY, ChromaticMode.Foil, HOLOGRAPHIC_SPECTRUM)
+
   /** Minimum Android API level required for the full liquid glass effect. */
   public const val MIN_ANDROID_API_FULL: Int = 33
 
@@ -334,6 +372,17 @@ public object LiquidGlassDefaults {
  *   the glint. For the full set of shader tunables, see the experimental [Modifier.liquidGlassTuned].
  *   No-op on Android API < 33 (the fallback path has no shader).
  *
+ * @param chromatic The chromatic / iridescent overlay — a light-reactive rainbow sheen layered over
+ *   the glass, independent of the white specular glint. Defaults to
+ *   [LiquidGlassDefaults.NoChromatic] (no sheen, bit-exact unchanged); use
+ *   [LiquidGlassDefaults.Holographic] or a custom [ChromaticOverlay] to enable it. Only
+ *   [ChromaticOverlay.intensity] and [ChromaticOverlay.mode] reach the shader (hue is synthesized on
+ *   the GPU). No-op on Android API < 33 (the fallback path has no shader). **Experimental:** because
+ *   this parameter's type is experimental, the whole function requires
+ *   `@OptIn(ExperimentalLiquidGlassMaterial::class)` — but the default leaves the historical look
+ *   untouched, so opting in is only a one-line annotation (no behavior change) until you pass a real
+ *   overlay.
+ *
  * @param enabled If false, disables the effect and returns the original modifier.
  *
  * @return A [Modifier] with the Liquid Glass effect applied.
@@ -342,6 +391,7 @@ public object LiquidGlassDefaults {
  * @see LiquidGlassShaderSource
  * @see cloudy
  */
+@ExperimentalLiquidGlassMaterial
 @Composable
 public expect fun Modifier.liquidGlass(
   lensCenter: Offset,
@@ -356,5 +406,6 @@ public expect fun Modifier.liquidGlass(
   edge: Float = LiquidGlassDefaults.EDGE,
   light: LiquidGlassLight = LiquidGlassDefaults.Light,
   glow: LiquidGlassGlow = LiquidGlassDefaults.Glow,
+  chromatic: ChromaticOverlay = LiquidGlassDefaults.NoChromatic,
   enabled: Boolean = true,
 ): Modifier

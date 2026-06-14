@@ -36,6 +36,23 @@ import androidx.compose.ui.graphics.Color
 public annotation class ExperimentalLiquidGlassMotion
 
 /**
+ * Marks the chromatic / iridescent material APIs (e.g. [ChromaticOverlay], [ChromaticMode], and the
+ * `chromatic` parameter of [Modifier.liquidGlass]) as experimental.
+ *
+ * These APIs add a light-reactive rainbow sheen on top of the glass and may change. Opt in with
+ * `@OptIn(ExperimentalLiquidGlassMaterial::class)` or by propagating the annotation. The annotation
+ * is applied at the type / parameter level only — the stable [Modifier.liquidGlass] surface is
+ * unaffected unless a caller actually opts into a chromatic overlay.
+ */
+@RequiresOptIn(
+  level = RequiresOptIn.Level.WARNING,
+  message = "Chromatic / material Liquid Glass APIs are experimental and may change.",
+)
+@Retention(AnnotationRetention.BINARY)
+@Target(AnnotationTarget.FUNCTION, AnnotationTarget.PROPERTY, AnnotationTarget.CLASS)
+public annotation class ExperimentalLiquidGlassMaterial
+
+/**
  * Experimental variant of [Modifier.liquidGlass] that exposes the **full** specular-glint tuning,
  * not just the two perceptual knobs of [LiquidGlassGlow].
  *
