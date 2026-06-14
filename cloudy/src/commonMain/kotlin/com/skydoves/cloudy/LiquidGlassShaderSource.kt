@@ -84,6 +84,42 @@ const float CHROMA_METAL_FLOOR = 0.12;
 // 고차 coherence wash-out 율. 클수록 빨리 은백(파스텔↑·busy↓). 외곽 고차 링을 silver로 진정.
 const float CHROMA_WASHOUT     = 0.16;
 
+// --- Named holographic looks (chromaticMode 2..5) ---
+// mode 0 (Iridescent) = 위 CHROMA_* 베이스 그대로(bit-exact 무회귀), mode 1 (Foil) = 선형 띠(불변).
+// 신규 4종은 같은 thin-film 경로를 타되 아래 per-look 세트(밴드밀도·채널분리·콘트라스트·파스텔율·
+// 빛추종)를 branchless step-mask로 고른다. 셰이더 안 mode 분기 → 새 uniform 0개(설계 B).
+// 각 세트는 실기기(S25) 실측으로 4종이 확연히 구분되게 벌렸다.
+// 필드: OPD_GAIN(밴드 수), KRGB(금↔청록 분리), METAL_FLOOR(콘트라스트; 낮을수록↑), WASHOUT(파스텔율;
+//       높을수록 은백), MOD(focal-pool 추종 = "빛 반사처럼 깔리는" 세기; 셰이더 내부 효과 modulate).
+// OilSlick: 촘촘 다밴드 + 넓은 분리 + 저washout(고채도) + 강한 빛추종 → 기름막.
+const float CHROMA_OIL_GAIN       = 5.5;
+const float3 CHROMA_OIL_KRGB      = float3(1.0, 1.30, 1.72);
+const float CHROMA_OIL_FLOOR      = 0.05;
+const float CHROMA_OIL_WASHOUT    = 0.07;
+const float CHROMA_OIL_MOD        = 0.75;
+// SoapBubble: 넓은 띠(저밀도) + 높은 washout(파스텔·은백) + 약한 빛추종(면 균일) → 비눗방울.
+const float CHROMA_SOAP_GAIN      = 1.7;
+const float3 CHROMA_SOAP_KRGB     = float3(1.0, 1.11, 1.26);
+const float CHROMA_SOAP_FLOOR     = 0.22;
+const float CHROMA_SOAP_WASHOUT   = 0.50;
+const float CHROMA_SOAP_MOD       = 0.22;
+// MetallicFoil: 저washout(채도유지) + 저floor(콘트라스트↑) + 강한 빛추종 → 강한 고채도 금속박.
+const float CHROMA_FOILM_GAIN     = 3.6;
+const float3 CHROMA_FOILM_KRGB    = float3(1.0, 1.26, 1.62);
+const float CHROMA_FOILM_FLOOR    = 0.03;
+const float CHROMA_FOILM_WASHOUT  = 0.05;
+const float CHROMA_FOILM_MOD      = 0.82;
+// Pearl: 높은 washout(파스텔) + 높은 floor(저콘트라스트 은백) + 좁은 분리 → 은은한 진주.
+const float CHROMA_PEARL_GAIN     = 2.4;
+const float3 CHROMA_PEARL_KRGB    = float3(1.0, 1.07, 1.18);
+const float CHROMA_PEARL_FLOOR    = 0.46;
+const float CHROMA_PEARL_WASHOUT  = 0.58;
+const float CHROMA_PEARL_MOD      = 0.20;
+// Fresnel rim 부스트 — 가장자리(cT→1)서 무지개를 더 밝게(유리 림에 빛 걸림).
+// MetallicFoil/Pearl에만 가산(아래 mFoilM/mPearl 마스크). 저비용 1항.
+const float CHROMA_RIM_POW        = 3.0;
+const float CHROMA_RIM_GAIN       = 0.45;
+
 // Signed distance to a box with rounded corners
 // Negative = inside, Positive = outside, Zero = on boundary
 float boxRoundedSDF(float2 p, float2 halfDim, float r) {
@@ -296,6 +332,26 @@ half4 main(float2 xy) {
         float3 foilRGB = clamp(
             abs(fract(float3(hueF) + float3(0.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0) - 1.0,
             0.0, 1.0);
+        // --- per-look 파라미터 선택 (chromaticMode → thin-film 세트), branchless step-mask ---
+        // 마스크는 정확히 0.0/1.0 (step 결과의 곱) → mode 0은 m0=1·나머지=0 → 모든 param이 베이스
+        // const와 IEEE bit 동일(x*1+0*…=x). ∴ Iridescent(mode 0) 무회귀 보장. mode 1(Foil)은 아래
+        // isFoil 경로로 분리돼 thinFilm 자체가 버려지므로 param 무관(불변).
+        float cMode  = chromaticMode;
+        float m0     = 1.0 - step(0.5, cMode);                       // mode 0 (Iridescent, 베이스)
+        float mOil   = step(1.5, cMode) * (1.0 - step(2.5, cMode));  // mode 2
+        float mSoap  = step(2.5, cMode) * (1.0 - step(3.5, cMode));  // mode 3
+        float mFoilM = step(3.5, cMode) * (1.0 - step(4.5, cMode));  // mode 4
+        float mPearl = step(4.5, cMode);                             // mode 5 (이상)
+        // 각 룩 세트를 마스크 가중합으로 고른다(분기 발산 0). mode 0/1에서 베이스 const 비트 보존.
+        float  lookGain    = CHROMA_OPD_GAIN * m0 + CHROMA_OIL_GAIN * mOil + CHROMA_SOAP_GAIN * mSoap
+                           + CHROMA_FOILM_GAIN * mFoilM + CHROMA_PEARL_GAIN * mPearl;
+        float3 lookKRGB    = CHROMA_KRGB * m0 + CHROMA_OIL_KRGB * mOil + CHROMA_SOAP_KRGB * mSoap
+                           + CHROMA_FOILM_KRGB * mFoilM + CHROMA_PEARL_KRGB * mPearl;
+        float  lookFloor   = CHROMA_METAL_FLOOR * m0 + CHROMA_OIL_FLOOR * mOil + CHROMA_SOAP_FLOOR * mSoap
+                           + CHROMA_FOILM_FLOOR * mFoilM + CHROMA_PEARL_FLOOR * mPearl;
+        float  lookWashout = CHROMA_WASHOUT * m0 + CHROMA_OIL_WASHOUT * mOil + CHROMA_SOAP_WASHOUT * mSoap
+                           + CHROMA_FOILM_WASHOUT * mFoilM + CHROMA_PEARL_WASHOUT * mPearl;
+
         // Iridescent: 박막 간섭(Newton's rings). 광학 경로차 opd = thickness/cos(refr).
         //   thickness = bevel 깊이 cT(중심0→림1; cNcos=1-cT) → 림으로 갈수록 막이 두꺼워 밴드 촘촘.
         //   cosT = cos(입사각) = dot(cN,cL) → 빛이 돌면 위상 쓸림(gyro 반응). 1e-2 가드(grazing 발산).
@@ -304,16 +360,25 @@ half4 main(float2 xy) {
         float thick    = 1.0 - cNcos;                                // = cT, bevel 깊이(중심0→림1)
         float ringTerm = thick / max(1.0 - 0.6 * cosT, 1.0e-2);      // 두께/cos: Newton 링(빛 의존)
         float opdDrive = mix(cosT, ringTerm, CHROMA_THICK_MIX);      // 빛각도↔두께링 블렌드
-        float opd      = opdDrive * (chromaticCycles * CHROMA_OPD_GAIN) + CHROMA_OPD_BASE + chromaticPhase;
+        float opd      = opdDrive * (chromaticCycles * lookGain) + CHROMA_OPD_BASE + chromaticPhase;
         // per-channel 보강간섭(파장 역수비 kRGB). 0.5+0.5cos = [0,1] 중심 0.5(은백 기준 진동).
-        float3 interf = 0.5 + 0.5 * cos(6.28318530718 * opd * CHROMA_KRGB);
+        float3 interf = 0.5 + 0.5 * cos(6.28318530718 * opd * lookKRGB);
         // 금속 floor: 채널이 0까지 안 떨어지게(형광 무지개=채널 하나 늘 0 → sticker). 진동폭만 살린다.
-        float3 metalRGB = CHROMA_METAL_FLOOR + (1.0 - CHROMA_METAL_FLOOR) * interf;
+        float3 metalRGB = lookFloor + (1.0 - lookFloor) * interf;
         // 고차 coherence wash-out: OPD 클수록 파스텔→clean silver(흰 1.0 기준; metalRGB luma로 하면
         // 저채도부가 베이지로 탁해진다). 약하게 둬 금속 채도 유지. sat=간섭색 보존율.
-        float  sat       = exp(-opd * CHROMA_WASHOUT);
+        float  sat       = exp(-opd * lookWashout);
         float3 thinFilm  = mix(float3(1.0), metalRGB, clamp(sat, 0.0, 1.0)); // 은백(흰) ↔ 간섭색
-        float3 chromaRGB = mix(thinFilm, foilRGB, chromaticMode);    // mode 0→thin-film, 1→Foil(불변)
+        // Fresnel rim 부스트: 가장자리(cT→1)서 thinFilm을 흰쪽으로 더 밝게(유리 림 광택).
+        //   MetallicFoil/Pearl만(mFoilM+mPearl 마스크) → Iridescent/Foil/Oil/Soap 불변.
+        //   cT=thick(중심0→림1). pow로 림 집중. 0..1 안에서 mix → 클램프 불필요.
+        float  rimSel    = mFoilM + mPearl;                          // 0/1 (해당 모드만)
+        float  rimBoost  = rimSel * CHROMA_RIM_GAIN * pow(clamp(thick, 0.0, 1.0), CHROMA_RIM_POW);
+        thinFilm         = mix(thinFilm, float3(1.0), clamp(rimBoost, 0.0, 1.0)); // 림으로 갈수록 백광
+        // mode 1만 Foil(선형 띠)로 분기, 나머지(0,2,3,4,5)는 thin-film. step-window = 정확히 0/1 →
+        //   mode 1: mix(thinFilm, foilRGB, 1.0)=foilRGB(불변). mode 0: mix(...,0.0)=thinFilm(불변).
+        float  isFoil    = step(0.5, cMode) * (1.0 - step(1.5, cMode));
+        float3 chromaRGB = mix(thinFilm, foilRGB, isFoil);           // 1=Foil, 그외=thin-film 변형
 
         // focal-pool 모듈레이션 — specular의 raw pool²(정규화본; specStrength/Gain 곱 전)으로 무지개 세기 변조.
         // specular 게이트 밖이라 pool을 저렴하게 재계산(length+smoothstep 몇 줄): focal/poolR 식은 specular와 동일.
@@ -321,7 +386,15 @@ half4 main(float2 xy) {
         float  cPoolR  = max(cMinHalf * specPoolFrac, 1.0);          // zero-width smoothstep 가드
         float  cPool   = 1.0 - smoothstep(0.0, cPoolR, length(p - cFocal)); // 1 at focal, 0 at rim (edge0<edge1)
         float  poolNorm = clamp(cPool * cPool, 0.0, 1.0);           // raw pool²(정규화) = modulator
-        float  chroma  = chromaticIntensity * mix(1.0, poolNorm, chromaticModulate);
+        // "빛 반사처럼 깔리는" 강화 — 무지개 세기를 focal-pool(빛 핫스팟)로 변조해 빛 따라 진해진다.
+        //   effMod = focal-pool 추종 세기. mode 0(Iridescent)/1(Foil)은 binding 값(chromaticModulate,
+        //   현재 0.3) 그대로 → bit-exact 무회귀(마스크 0/1, x*1+0*…=x). 신규 4종만 per-look(0.2~0.82)로
+        //   끌어올려 카드 위 빛 반사 지각을 강화. 새 식/uniform 0개(기존 cPool 재사용).
+        float  baseMod = m0 + isFoil;                               // mode 0 또는 1 → 1.0, 그외 0.0
+        float  effMod  = chromaticModulate * baseMod
+                       + CHROMA_OIL_MOD * mOil + CHROMA_SOAP_MOD * mSoap
+                       + CHROMA_FOILM_MOD * mFoilM + CHROMA_PEARL_MOD * mPearl;
+        float  chroma  = chromaticIntensity * mix(1.0, poolNorm, clamp(effMod, 0.0, 1.0));
 
         // 두 경로가 정반대 블렌드를 원한다 → content alpha로 보간:
         //   투명 베이스(a→0, 흰 카드): cOnWhite = chromaRGB. 흰(1,1,1)*무지개 = 순수 무지개. screen이면
@@ -399,6 +472,42 @@ const float CHROMA_METAL_FLOOR = 0.12;
 // 고차 coherence wash-out 율. 클수록 빨리 은백(파스텔↑·busy↓). 외곽 고차 링을 silver로 진정.
 const float CHROMA_WASHOUT     = 0.16;
 
+// --- Named holographic looks (chromaticMode 2..5) ---
+// mode 0 (Iridescent) = 위 CHROMA_* 베이스 그대로(bit-exact 무회귀), mode 1 (Foil) = 선형 띠(불변).
+// 신규 4종은 같은 thin-film 경로를 타되 아래 per-look 세트(밴드밀도·채널분리·콘트라스트·파스텔율·
+// 빛추종)를 branchless step-mask로 고른다. 셰이더 안 mode 분기 → 새 uniform 0개(설계 B).
+// 각 세트는 실기기(S25) 실측으로 4종이 확연히 구분되게 벌렸다.
+// 필드: OPD_GAIN(밴드 수), KRGB(금↔청록 분리), METAL_FLOOR(콘트라스트; 낮을수록↑), WASHOUT(파스텔율;
+//       높을수록 은백), MOD(focal-pool 추종 = "빛 반사처럼 깔리는" 세기; 셰이더 내부 효과 modulate).
+// OilSlick: 촘촘 다밴드 + 넓은 분리 + 저washout(고채도) + 강한 빛추종 → 기름막.
+const float CHROMA_OIL_GAIN       = 5.5;
+const float3 CHROMA_OIL_KRGB      = float3(1.0, 1.30, 1.72);
+const float CHROMA_OIL_FLOOR      = 0.05;
+const float CHROMA_OIL_WASHOUT    = 0.07;
+const float CHROMA_OIL_MOD        = 0.75;
+// SoapBubble: 넓은 띠(저밀도) + 높은 washout(파스텔·은백) + 약한 빛추종(면 균일) → 비눗방울.
+const float CHROMA_SOAP_GAIN      = 1.7;
+const float3 CHROMA_SOAP_KRGB     = float3(1.0, 1.11, 1.26);
+const float CHROMA_SOAP_FLOOR     = 0.22;
+const float CHROMA_SOAP_WASHOUT   = 0.50;
+const float CHROMA_SOAP_MOD       = 0.22;
+// MetallicFoil: 저washout(채도유지) + 저floor(콘트라스트↑) + 강한 빛추종 → 강한 고채도 금속박.
+const float CHROMA_FOILM_GAIN     = 3.6;
+const float3 CHROMA_FOILM_KRGB    = float3(1.0, 1.26, 1.62);
+const float CHROMA_FOILM_FLOOR    = 0.03;
+const float CHROMA_FOILM_WASHOUT  = 0.05;
+const float CHROMA_FOILM_MOD      = 0.82;
+// Pearl: 높은 washout(파스텔) + 높은 floor(저콘트라스트 은백) + 좁은 분리 → 은은한 진주.
+const float CHROMA_PEARL_GAIN     = 2.4;
+const float3 CHROMA_PEARL_KRGB    = float3(1.0, 1.07, 1.18);
+const float CHROMA_PEARL_FLOOR    = 0.46;
+const float CHROMA_PEARL_WASHOUT  = 0.58;
+const float CHROMA_PEARL_MOD      = 0.20;
+// Fresnel rim 부스트 — 가장자리(cT→1)서 무지개를 더 밝게(유리 림에 빛 걸림).
+// MetallicFoil/Pearl에만 가산(아래 mFoilM/mPearl 마스크). 저비용 1항.
+const float CHROMA_RIM_POW        = 3.0;
+const float CHROMA_RIM_GAIN       = 0.45;
+
 // Signed distance to a box with rounded corners
 // Negative = inside, Positive = outside, Zero = on boundary
 float boxRoundedSDF(float2 p, float2 halfDim, float r) {
@@ -611,6 +720,26 @@ half4 main(float2 xy) {
         float3 foilRGB = clamp(
             abs(fract(float3(hueF) + float3(0.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0) - 1.0,
             0.0, 1.0);
+        // --- per-look 파라미터 선택 (chromaticMode → thin-film 세트), branchless step-mask ---
+        // 마스크는 정확히 0.0/1.0 (step 결과의 곱) → mode 0은 m0=1·나머지=0 → 모든 param이 베이스
+        // const와 IEEE bit 동일(x*1+0*…=x). ∴ Iridescent(mode 0) 무회귀 보장. mode 1(Foil)은 아래
+        // isFoil 경로로 분리돼 thinFilm 자체가 버려지므로 param 무관(불변).
+        float cMode  = chromaticMode;
+        float m0     = 1.0 - step(0.5, cMode);                       // mode 0 (Iridescent, 베이스)
+        float mOil   = step(1.5, cMode) * (1.0 - step(2.5, cMode));  // mode 2
+        float mSoap  = step(2.5, cMode) * (1.0 - step(3.5, cMode));  // mode 3
+        float mFoilM = step(3.5, cMode) * (1.0 - step(4.5, cMode));  // mode 4
+        float mPearl = step(4.5, cMode);                             // mode 5 (이상)
+        // 각 룩 세트를 마스크 가중합으로 고른다(분기 발산 0). mode 0/1에서 베이스 const 비트 보존.
+        float  lookGain    = CHROMA_OPD_GAIN * m0 + CHROMA_OIL_GAIN * mOil + CHROMA_SOAP_GAIN * mSoap
+                           + CHROMA_FOILM_GAIN * mFoilM + CHROMA_PEARL_GAIN * mPearl;
+        float3 lookKRGB    = CHROMA_KRGB * m0 + CHROMA_OIL_KRGB * mOil + CHROMA_SOAP_KRGB * mSoap
+                           + CHROMA_FOILM_KRGB * mFoilM + CHROMA_PEARL_KRGB * mPearl;
+        float  lookFloor   = CHROMA_METAL_FLOOR * m0 + CHROMA_OIL_FLOOR * mOil + CHROMA_SOAP_FLOOR * mSoap
+                           + CHROMA_FOILM_FLOOR * mFoilM + CHROMA_PEARL_FLOOR * mPearl;
+        float  lookWashout = CHROMA_WASHOUT * m0 + CHROMA_OIL_WASHOUT * mOil + CHROMA_SOAP_WASHOUT * mSoap
+                           + CHROMA_FOILM_WASHOUT * mFoilM + CHROMA_PEARL_WASHOUT * mPearl;
+
         // Iridescent: 박막 간섭(Newton's rings). 광학 경로차 opd = thickness/cos(refr).
         //   thickness = bevel 깊이 cT(중심0→림1; cNcos=1-cT) → 림으로 갈수록 막이 두꺼워 밴드 촘촘.
         //   cosT = cos(입사각) = dot(cN,cL) → 빛이 돌면 위상 쓸림(gyro 반응). 1e-2 가드(grazing 발산).
@@ -619,16 +748,25 @@ half4 main(float2 xy) {
         float thick    = 1.0 - cNcos;                                // = cT, bevel 깊이(중심0→림1)
         float ringTerm = thick / max(1.0 - 0.6 * cosT, 1.0e-2);      // 두께/cos: Newton 링(빛 의존)
         float opdDrive = mix(cosT, ringTerm, CHROMA_THICK_MIX);      // 빛각도↔두께링 블렌드
-        float opd      = opdDrive * (chromaticCycles * CHROMA_OPD_GAIN) + CHROMA_OPD_BASE + chromaticPhase;
+        float opd      = opdDrive * (chromaticCycles * lookGain) + CHROMA_OPD_BASE + chromaticPhase;
         // per-channel 보강간섭(파장 역수비 kRGB). 0.5+0.5cos = [0,1] 중심 0.5(은백 기준 진동).
-        float3 interf = 0.5 + 0.5 * cos(6.28318530718 * opd * CHROMA_KRGB);
+        float3 interf = 0.5 + 0.5 * cos(6.28318530718 * opd * lookKRGB);
         // 금속 floor: 채널이 0까지 안 떨어지게(형광 무지개=채널 하나 늘 0 → sticker). 진동폭만 살린다.
-        float3 metalRGB = CHROMA_METAL_FLOOR + (1.0 - CHROMA_METAL_FLOOR) * interf;
+        float3 metalRGB = lookFloor + (1.0 - lookFloor) * interf;
         // 고차 coherence wash-out: OPD 클수록 파스텔→clean silver(흰 1.0 기준; metalRGB luma로 하면
         // 저채도부가 베이지로 탁해진다). 약하게 둬 금속 채도 유지. sat=간섭색 보존율.
-        float  sat       = exp(-opd * CHROMA_WASHOUT);
+        float  sat       = exp(-opd * lookWashout);
         float3 thinFilm  = mix(float3(1.0), metalRGB, clamp(sat, 0.0, 1.0)); // 은백(흰) ↔ 간섭색
-        float3 chromaRGB = mix(thinFilm, foilRGB, chromaticMode);    // mode 0→thin-film, 1→Foil(불변)
+        // Fresnel rim 부스트: 가장자리(cT→1)서 thinFilm을 흰쪽으로 더 밝게(유리 림 광택).
+        //   MetallicFoil/Pearl만(mFoilM+mPearl 마스크) → Iridescent/Foil/Oil/Soap 불변.
+        //   cT=thick(중심0→림1). pow로 림 집중. 0..1 안에서 mix → 클램프 불필요.
+        float  rimSel    = mFoilM + mPearl;                          // 0/1 (해당 모드만)
+        float  rimBoost  = rimSel * CHROMA_RIM_GAIN * pow(clamp(thick, 0.0, 1.0), CHROMA_RIM_POW);
+        thinFilm         = mix(thinFilm, float3(1.0), clamp(rimBoost, 0.0, 1.0)); // 림으로 갈수록 백광
+        // mode 1만 Foil(선형 띠)로 분기, 나머지(0,2,3,4,5)는 thin-film. step-window = 정확히 0/1 →
+        //   mode 1: mix(thinFilm, foilRGB, 1.0)=foilRGB(불변). mode 0: mix(...,0.0)=thinFilm(불변).
+        float  isFoil    = step(0.5, cMode) * (1.0 - step(1.5, cMode));
+        float3 chromaRGB = mix(thinFilm, foilRGB, isFoil);           // 1=Foil, 그외=thin-film 변형
 
         // focal-pool 모듈레이션 — specular의 raw pool²(정규화본; specStrength/Gain 곱 전)으로 무지개 세기 변조.
         // specular 게이트 밖이라 pool을 저렴하게 재계산(length+smoothstep 몇 줄): focal/poolR 식은 specular와 동일.
@@ -636,7 +774,15 @@ half4 main(float2 xy) {
         float  cPoolR  = max(cMinHalf * specPoolFrac, 1.0);          // zero-width smoothstep 가드
         float  cPool   = 1.0 - smoothstep(0.0, cPoolR, length(p - cFocal)); // 1 at focal, 0 at rim (edge0<edge1)
         float  poolNorm = clamp(cPool * cPool, 0.0, 1.0);           // raw pool²(정규화) = modulator
-        float  chroma  = chromaticIntensity * mix(1.0, poolNorm, chromaticModulate);
+        // "빛 반사처럼 깔리는" 강화 — 무지개 세기를 focal-pool(빛 핫스팟)로 변조해 빛 따라 진해진다.
+        //   effMod = focal-pool 추종 세기. mode 0(Iridescent)/1(Foil)은 binding 값(chromaticModulate,
+        //   현재 0.3) 그대로 → bit-exact 무회귀(마스크 0/1, x*1+0*…=x). 신규 4종만 per-look(0.2~0.82)로
+        //   끌어올려 카드 위 빛 반사 지각을 강화. 새 식/uniform 0개(기존 cPool 재사용).
+        float  baseMod = m0 + isFoil;                               // mode 0 또는 1 → 1.0, 그외 0.0
+        float  effMod  = chromaticModulate * baseMod
+                       + CHROMA_OIL_MOD * mOil + CHROMA_SOAP_MOD * mSoap
+                       + CHROMA_FOILM_MOD * mFoilM + CHROMA_PEARL_MOD * mPearl;
+        float  chroma  = chromaticIntensity * mix(1.0, poolNorm, clamp(effMod, 0.0, 1.0));
 
         // 두 경로가 정반대 블렌드를 원한다 → content alpha로 보간:
         //   투명 베이스(a→0, 흰 카드): cOnWhite = chromaRGB. 흰(1,1,1)*무지개 = 순수 무지개. screen이면
