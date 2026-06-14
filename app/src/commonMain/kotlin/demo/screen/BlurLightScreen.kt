@@ -82,7 +82,10 @@ import kotlin.math.roundToInt
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BlurLightScreen(onBackClick: () -> Unit) {
-  val poster = remember { MockUtil.getMockPoster() }
+  // A deterministically dark, high-contrast backdrop (Coco — Land of the Dead) so the warm specular
+  // pool reads clearly. getMockPoster() is randomized, which can land on a bright poster where the
+  // SrcOver pool blends in; pick the dark one explicitly for this lighting demo.
+  val poster = remember { MockUtil.getMockPosters()[5] }
   val sky = rememberSky()
 
   // Drives BOTH the specular light direction and the card drag. Read only through deferred lambdas
