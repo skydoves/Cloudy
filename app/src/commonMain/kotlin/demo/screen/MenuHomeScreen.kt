@@ -45,7 +45,7 @@ import demo.theme.Dimens
  * @param onGyroLightClick Callback when the Gyro Lighting test is selected.
  * @param onTransformLightClick Callback when the Transform Lighting test is selected.
  * @param onBlurLightClick Callback when the Blur Lighting test is selected.
- * @param onShaderEffectClick Callback when the Shader Effect (open recipe) demo is selected.
+ * @param onMirageClick Callback when the Shader Effect (open recipe) demo is selected.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,7 +60,7 @@ fun MenuHomeScreen(
   onGyroLightClick: () -> Unit,
   onTransformLightClick: () -> Unit,
   onBlurLightClick: () -> Unit,
-  onShaderEffectClick: () -> Unit,
+  onMirageClick: () -> Unit,
 ) {
   val posters = remember { MockUtil.getMockPosters() }
 
@@ -154,9 +154,9 @@ fun MenuHomeScreen(
         item {
           MenuCard(
             title = "Shader Effect (recipe)",
-            description = "Apply an open ShaderRecipe in one modifier line — specular vs chromatic",
+            description = "Apply an open MirageRecipe in one modifier line — specular vs chromatic",
             poster = posters[5],
-            onClick = onShaderEffectClick,
+            onClick = onMirageClick,
           )
         }
       }
