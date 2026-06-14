@@ -145,10 +145,6 @@ public final class com/skydoves/cloudy/Cloudy_androidKt {
 public abstract interface annotation class com/skydoves/cloudy/ExperimentalLiquidGlassMotion : java/lang/annotation/Annotation {
 }
 
-public final class com/skydoves/cloudy/GyroLightKt {
-	public static final fun rememberGyroLightSource-JHbHoSQ (ZIJFLandroidx/compose/runtime/Composer;II)Lcom/skydoves/cloudy/LiquidGlassLight;
-}
-
 public final class com/skydoves/cloudy/LiquidGlassDefaults {
 	public static final field $stable I
 	public static final field CONTRAST F
@@ -203,7 +199,6 @@ public final class com/skydoves/cloudy/LiquidGlassShaderSource {
 
 public final class com/skydoves/cloudy/LiquidGlass_androidKt {
 	public static final fun liquidGlass--orAQqo (Landroidx/compose/ui/Modifier;JJFFFFFFJFLcom/skydoves/cloudy/LiquidGlassLight;Lcom/skydoves/cloudy/LiquidGlassGlow;ZLandroidx/compose/runtime/Composer;III)Landroidx/compose/ui/Modifier;
-	public static final fun liquidGlassTuned-iWwQIZ8 (Landroidx/compose/ui/Modifier;JJFFFFFFJFLcom/skydoves/cloudy/LiquidGlassLight;FFFFZLandroidx/compose/runtime/Composer;III)Landroidx/compose/ui/Modifier;
 }
 
 public final class com/skydoves/cloudy/PlatformBitmap {
@@ -234,9 +229,5 @@ public final class com/skydoves/cloudy/Sky {
 
 public final class com/skydoves/cloudy/SkyKt {
 	public static final fun rememberSky (Landroidx/compose/runtime/Composer;I)Lcom/skydoves/cloudy/Sky;
-}
-
-public final class com/skydoves/cloudy/TransformLightKt {
-	public static final fun rememberTransformLightSource-JHbHoSQ (Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;JFLandroidx/compose/runtime/Composer;II)Lcom/skydoves/cloudy/LiquidGlassLight;
 }
 
