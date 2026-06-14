@@ -35,6 +35,7 @@ import demo.screen.MenuHomeScreen
 import demo.screen.ProgressiveBlurDemoScreen
 import demo.screen.RadiusDetailScreen
 import demo.screen.RadiusItemsScreen
+import demo.screen.TransformLightScreen
 import demo.theme.PosterTheme
 
 /**
@@ -63,6 +64,7 @@ fun CloudyDemoApp() {
               onLiquidGlassClick = { backStack.add(Route.LiquidGlass) },
               onIssue112Click = { backStack.add(Route.Issue112BottomNav) },
               onGyroLightClick = { backStack.add(Route.GyroLight) },
+              onTransformLightClick = { backStack.add(Route.TransformLight) },
             )
           }
 
@@ -118,6 +120,12 @@ fun CloudyDemoApp() {
 
           is Route.GyroLight -> NavEntry(route) {
             GyroLightScreen(
+              onBackClick = { backStack.removeLastOrNull() },
+            )
+          }
+
+          is Route.TransformLight -> NavEntry(route) {
+            TransformLightScreen(
               onBackClick = { backStack.removeLastOrNull() },
             )
           }

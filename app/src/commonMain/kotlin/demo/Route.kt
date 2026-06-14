@@ -85,4 +85,11 @@ sealed interface Route {
    */
   @Serializable
   data object GyroLight : Route
+
+  /**
+   * The transform lighting test screen — the target's own 3D rotation drives the specular
+   * highlight (deterministic, sensor-free; runs on Desktop and Web).
+   */
+  @Serializable
+  data object TransformLight : Route
 }
