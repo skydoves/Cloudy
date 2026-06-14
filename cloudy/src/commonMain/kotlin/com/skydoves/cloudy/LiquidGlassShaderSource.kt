@@ -285,12 +285,21 @@ half4 main(float2 xy) {
         // specular 게이트 밖이라 pool을 저렴하게 재계산(length+smoothstep 몇 줄): focal/poolR 식은 specular와 동일.
         float2 cFocal  = cLightVec * (cMinHalf * specFocalK);        // 빛 방향 오프셋(lensCenter=원점 기준)
         float  cPoolR  = max(cMinHalf * specPoolFrac, 1.0);          // zero-width smoothstep 가드
-        float  cPool   = smoothstep(cPoolR, 0.0, length(p - cFocal));// 1 at focal, 0 at rim
+        float  cPool   = 1.0 - smoothstep(0.0, cPoolR, length(p - cFocal)); // 1 at focal, 0 at rim (edge0<edge1)
         float  poolNorm = clamp(cPool * cPool, 0.0, 1.0);           // raw pool²(정규화) = modulator
         float  chroma  = chromaticIntensity * mix(1.0, poolNorm, chromaticModulate);
 
-        // tint-multiply 블렌드: chroma=0→불변, chroma=1→pixel*chromaRGB. 흰 배경이 chromaRGB로 물든다.
-        pixel.rgb = mix(pixel.rgb, pixel.rgb * half3(chromaRGB), clamp(chroma, 0.0, 1.0));
+        // tint-multiply 블렌드: chroma=0→불변, chroma=1→pixel*chromaRGB.
+        // 흰 카드는 background()가 liquidGlass 레이어 '뒤'에 그려져 content.eval()이 그 영역을 투명(a≈0)으로
+        // 돌려준다 → multiply는 보여줄 픽셀이 없다. 오버레이를 '얹는 재질'로 보이게: 빛나는 베이스(흰색이 깔린
+        // 것으로 가정)에 chromaRGB를 곱한 값과, 실제 content(불투명 사진 등) 위 tint-multiply를 content alpha로
+        // 보간하고, alpha를 chroma 만큼 끌어올린다. 불투명 content(a=1)면 정확히 기존 tint-multiply와 동일(무회귀).
+        // chromaticIntensity==0이면 이 블록 자체가 실행되지 않아 bit-exact off 보존.
+        half  cChroma  = half(clamp(chroma, 0.0, 1.0));
+        half3 cOnWhite = half3(chromaRGB);                         // 흰 베이스(1,1,1) * chromaRGB = chromaRGB
+        half3 cOnSrc   = mix(pixel.rgb, pixel.rgb * half3(chromaRGB), cChroma); // 불투명 content 위 동작(불변)
+        pixel.rgb = mix(cOnWhite, cOnSrc, pixel.a);               // a=0→흰 위 무지개, a=1→기존 multiply
+        pixel.a   = max(pixel.a, cChroma);                        // 투명 배경에서도 오버레이가 보이도록
     }
 
     // Anti-aliased edge transition
@@ -553,12 +562,21 @@ half4 main(float2 xy) {
         // specular 게이트 밖이라 pool을 저렴하게 재계산(length+smoothstep 몇 줄): focal/poolR 식은 specular와 동일.
         float2 cFocal  = cLightVec * (cMinHalf * specFocalK);        // 빛 방향 오프셋(lensCenter=원점 기준)
         float  cPoolR  = max(cMinHalf * specPoolFrac, 1.0);          // zero-width smoothstep 가드
-        float  cPool   = smoothstep(cPoolR, 0.0, length(p - cFocal));// 1 at focal, 0 at rim
+        float  cPool   = 1.0 - smoothstep(0.0, cPoolR, length(p - cFocal)); // 1 at focal, 0 at rim (edge0<edge1)
         float  poolNorm = clamp(cPool * cPool, 0.0, 1.0);           // raw pool²(정규화) = modulator
         float  chroma  = chromaticIntensity * mix(1.0, poolNorm, chromaticModulate);
 
-        // tint-multiply 블렌드: chroma=0→불변, chroma=1→pixel*chromaRGB. 흰 배경이 chromaRGB로 물든다.
-        pixel.rgb = mix(pixel.rgb, pixel.rgb * half3(chromaRGB), clamp(chroma, 0.0, 1.0));
+        // tint-multiply 블렌드: chroma=0→불변, chroma=1→pixel*chromaRGB.
+        // 흰 카드는 background()가 liquidGlass 레이어 '뒤'에 그려져 content.eval()이 그 영역을 투명(a≈0)으로
+        // 돌려준다 → multiply는 보여줄 픽셀이 없다. 오버레이를 '얹는 재질'로 보이게: 빛나는 베이스(흰색이 깔린
+        // 것으로 가정)에 chromaRGB를 곱한 값과, 실제 content(불투명 사진 등) 위 tint-multiply를 content alpha로
+        // 보간하고, alpha를 chroma 만큼 끌어올린다. 불투명 content(a=1)면 정확히 기존 tint-multiply와 동일(무회귀).
+        // chromaticIntensity==0이면 이 블록 자체가 실행되지 않아 bit-exact off 보존.
+        half  cChroma  = half(clamp(chroma, 0.0, 1.0));
+        half3 cOnWhite = half3(chromaRGB);                         // 흰 베이스(1,1,1) * chromaRGB = chromaRGB
+        half3 cOnSrc   = mix(pixel.rgb, pixel.rgb * half3(chromaRGB), cChroma); // 불투명 content 위 동작(불변)
+        pixel.rgb = mix(cOnWhite, cOnSrc, pixel.a);               // a=0→흰 위 무지개, a=1→기존 multiply
+        pixel.a   = max(pixel.a, cChroma);                        // 투명 배경에서도 오버레이가 보이도록
     }
 
     // Anti-aliased edge transition
