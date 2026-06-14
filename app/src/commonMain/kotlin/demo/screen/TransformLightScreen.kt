@@ -106,7 +106,8 @@ fun TransformLightScreen(onBackClick: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(16.dp),
       ) {
         Text(
-          text = "Tilt the glass card in 3D with the sliders — or drag it directly. The card's own " +
+          text =
+          "Tilt the glass card in 3D with the sliders — or drag it directly. The card's own " +
             "rotation drives the specular glint (no gyroscope), so it works the same on phone, " +
             "Desktop and Web.",
           fontSize = 14.sp,

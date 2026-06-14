@@ -28,8 +28,8 @@ import androidx.navigation3.ui.NavDisplay
 import demo.screen.BlurAppBarGridScreen
 import demo.screen.BlurLightScreen
 import demo.screen.GridListScreen
-import demo.screen.InteractiveSliderScreen
 import demo.screen.GyroLightScreen
+import demo.screen.InteractiveSliderScreen
 import demo.screen.Issue112BottomNavScreen
 import demo.screen.LiquidGlassDemoScreen
 import demo.screen.MenuHomeScreen
