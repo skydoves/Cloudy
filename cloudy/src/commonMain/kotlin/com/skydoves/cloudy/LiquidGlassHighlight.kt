@@ -42,17 +42,19 @@ internal const val HIGHLIGHT_POOL_FRAC: Float = 0.70f
 internal val HIGHLIGHT_WARM: Color = Color(0xFFFFF7E6)
 
 /**
- * Radial alpha falloff approximating the shader's `smoothstep(poolR, 0, d)^2 * 0.35` focal pool
- * (peak ~0.35 at the center, fading to 0 at the rim). Six stops keep the ramp smooth enough to avoid
+ * Radial alpha falloff approximating the shader's `smoothstep(poolR, 0, d)^2 * 0.5` focal pool
+ * (peak ~0.5 at the center, fading to 0 at the rim). Six stops keep the ramp smooth enough to avoid
  * banding while staying a constant (zero per-frame allocation — only the [androidx.compose.ui.graphics.Brush]
- * built from it is rebuilt when the center/radius move).
+ * built from it is rebuilt when the center/radius move). The peak matches the shader's perceived
+ * specular punch (`specStrength * specPoolGain`) over a mid-tone backdrop; over bright/warm content the
+ * SrcOver pool self-attenuates, so it never blows out.
  */
 internal val HIGHLIGHT_STOPS: Array<Pair<Float, Color>> = arrayOf(
-  0.00f to HIGHLIGHT_WARM.copy(alpha = 0.35f),
-  0.15f to HIGHLIGHT_WARM.copy(alpha = 0.31f),
-  0.35f to HIGHLIGHT_WARM.copy(alpha = 0.17f),
-  0.55f to HIGHLIGHT_WARM.copy(alpha = 0.066f),
-  0.75f to HIGHLIGHT_WARM.copy(alpha = 0.0085f),
+  0.00f to HIGHLIGHT_WARM.copy(alpha = 0.50f),
+  0.15f to HIGHLIGHT_WARM.copy(alpha = 0.44f),
+  0.35f to HIGHLIGHT_WARM.copy(alpha = 0.258f),
+  0.55f to HIGHLIGHT_WARM.copy(alpha = 0.09f),
+  0.75f to HIGHLIGHT_WARM.copy(alpha = 0.012f),
   1.00f to HIGHLIGHT_WARM.copy(alpha = 0.00f),
 )
 
