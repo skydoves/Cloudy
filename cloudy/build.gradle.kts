@@ -23,6 +23,7 @@ plugins {
   id(libs.plugins.compose.multiplatform.get().pluginId)
   id(libs.plugins.compose.compiler.get().pluginId)
   id(libs.plugins.nexus.plugin.get().pluginId)
+  id(libs.plugins.roborazzi.get().pluginId)
 }
 
 apply(from = "${rootDir}/scripts/publish-module.gradle.kts")
@@ -132,6 +133,13 @@ kotlin {
       compose = true
     }
 
+    testOptions {
+      unitTests {
+        isIncludeAndroidResources = true
+        all { it.systemProperty("robolectric.pixelCopyRenderMode", "hardware") }
+      }
+    }
+
     packaging {
       resources {
         excludes.add("/META-INF/{AL2.0,LGPL2.1}")
@@ -197,6 +205,9 @@ kotlin {
       implementation(libs.mockito)
       implementation(libs.mockito.inline)
       implementation(libs.robolectric)
+      implementation(libs.roborazzi)
+      implementation(libs.roborazzi.compose)
+      implementation(libs.roborazzi.junit.rule)
     }
 
     iosTest.dependencies {
