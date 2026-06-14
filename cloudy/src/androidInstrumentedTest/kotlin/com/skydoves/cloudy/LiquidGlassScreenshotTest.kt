@@ -17,13 +17,14 @@ package com.skydoves.cloudy
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import org.junit.Ignore
 import org.junit.Test
 
@@ -65,12 +66,17 @@ import org.junit.Test
 )
 internal class LiquidGlassScreenshotTest {
 
-  /** 200dp gradient backdrop with a liquid-glass lens centered over it. */
+  // Fixed surface so the absolute lens coordinates below resolve to a known, fully-visible region
+  // during Phase-2 emulator capture (an unconstrained fillMaxSize() makes the lens placement depend
+  // on the ambient capture size). 280dp comfortably contains the 280px-centered, 280px lens.
+  private val surfaceDp = 280
+
+  /** Fixed-size gradient backdrop with a liquid-glass lens centered over it. */
   @Composable
   private fun LiquidGlassFixture() {
     Box(
       modifier = Modifier
-        .fillMaxSize()
+        .size(surfaceDp.dp)
         .background(Brush.verticalGradient(listOf(Color(0xFF222244), Color(0xFFEEAA33))))
         .liquidGlass(
           lensCenter = Offset(280f, 280f),
