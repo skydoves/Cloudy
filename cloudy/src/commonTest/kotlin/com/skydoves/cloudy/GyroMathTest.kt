@@ -99,23 +99,48 @@ internal class GyroMathTest :
 
     context("shouldRunSensor truth table") {
       test("runs only when enabled, motion allowed, sensor present, shader path active") {
-        shouldRunSensor(enabled = true, reduceMotion = false, hasSensor = true, shaderPathActive = true)
+        shouldRunSensor(
+          enabled = true,
+          reduceMotion = false,
+          hasSensor = true,
+          shaderPathActive = true,
+        )
           .shouldBe(true)
       }
       test("reduce motion disables it") {
-        shouldRunSensor(enabled = true, reduceMotion = true, hasSensor = true, shaderPathActive = true)
+        shouldRunSensor(
+          enabled = true,
+          reduceMotion = true,
+          hasSensor = true,
+          shaderPathActive = true,
+        )
           .shouldBe(false)
       }
       test("disabled disables it") {
-        shouldRunSensor(enabled = false, reduceMotion = false, hasSensor = true, shaderPathActive = true)
+        shouldRunSensor(
+          enabled = false,
+          reduceMotion = false,
+          hasSensor = true,
+          shaderPathActive = true,
+        )
           .shouldBe(false)
       }
       test("no sensor disables it") {
-        shouldRunSensor(enabled = true, reduceMotion = false, hasSensor = false, shaderPathActive = true)
+        shouldRunSensor(
+          enabled = true,
+          reduceMotion = false,
+          hasSensor = false,
+          shaderPathActive = true,
+        )
           .shouldBe(false)
       }
       test("inactive shader path disables it") {
-        shouldRunSensor(enabled = true, reduceMotion = false, hasSensor = true, shaderPathActive = false)
+        shouldRunSensor(
+          enabled = true,
+          reduceMotion = false,
+          hasSensor = true,
+          shaderPathActive = false,
+        )
           .shouldBe(false)
       }
     }

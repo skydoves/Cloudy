@@ -88,8 +88,7 @@ internal expect fun rememberTiltSource(
 // ---------------------------------------------------------------------------------------------
 
 /** One step of a 1-pole exponential moving average toward [raw]. [alpha] in (0,1]. */
-internal fun emaStep(prev: Offset, raw: Offset, alpha: Float): Offset =
-  prev + (raw - prev) * alpha
+internal fun emaStep(prev: Offset, raw: Offset, alpha: Float): Offset = prev + (raw - prev) * alpha
 
 /**
  * Projects a device gravity vector onto a screen-space light direction.

@@ -75,7 +75,8 @@ internal val HIGHLIGHT_STOPS: Array<Pair<Float, Color>> = arrayOf(
  */
 internal fun highlightPoolCenter(size: IntSize, dir: Offset, focalK: Float): Offset =
   Offset(size.width / 2f, size.height / 2f) +
-    normalizeOr(dir, LiquidGlassDefaults.LIGHT_DIR) * (minOf(size.width, size.height).toFloat() * focalK)
+    normalizeOr(dir, LiquidGlassDefaults.LIGHT_DIR) *
+    (minOf(size.width, size.height).toFloat() * focalK)
 
 /**
  * Radius of the focal-pool highlight: `minDim * poolFrac`, clamped to at least `1f` to mirror the
