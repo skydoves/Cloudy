@@ -99,4 +99,11 @@ sealed interface Route {
    */
   @Serializable
   data object BlurLight : Route
+
+  /**
+   * The chromatic card screen — a clean white card carries the iridescent chromatic overlay; tilt
+   * or drag to sweep the rainbow sheen.
+   */
+  @Serializable
+  data object ChromaticCard : Route
 }

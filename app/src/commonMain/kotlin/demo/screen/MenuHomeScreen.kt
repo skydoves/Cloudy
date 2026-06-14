@@ -45,6 +45,7 @@ import demo.theme.Dimens
  * @param onGyroLightClick Callback when the Gyro Lighting test is selected.
  * @param onTransformLightClick Callback when the Transform Lighting test is selected.
  * @param onBlurLightClick Callback when the Blur Lighting test is selected.
+ * @param onChromaticCardClick Callback when the Chromatic Card demo is selected.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,6 +60,7 @@ fun MenuHomeScreen(
   onGyroLightClick: () -> Unit,
   onTransformLightClick: () -> Unit,
   onBlurLightClick: () -> Unit,
+  onChromaticCardClick: () -> Unit,
 ) {
   val posters = remember { MockUtil.getMockPosters() }
 
@@ -147,6 +149,14 @@ fun MenuHomeScreen(
             description = "A liquid-glass light pool rides the blurred backdrop — drag to sweep it",
             poster = posters[6],
             onClick = onBlurLightClick,
+          )
+        }
+        item {
+          MenuCard(
+            title = "Chromatic Card",
+            description = "A clean white card carries an iridescent sheen — tilt to react",
+            poster = posters[7],
+            onClick = onChromaticCardClick,
           )
         }
       }

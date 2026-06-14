@@ -27,6 +27,7 @@ import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
 import demo.screen.BlurAppBarGridScreen
 import demo.screen.BlurLightScreen
+import demo.screen.ChromaticCardScreen
 import demo.screen.GridListScreen
 import demo.screen.GyroLightScreen
 import demo.screen.InteractiveSliderScreen
@@ -67,6 +68,7 @@ fun CloudyDemoApp() {
               onGyroLightClick = { backStack.add(Route.GyroLight) },
               onTransformLightClick = { backStack.add(Route.TransformLight) },
               onBlurLightClick = { backStack.add(Route.BlurLight) },
+              onChromaticCardClick = { backStack.add(Route.ChromaticCard) },
             )
           }
 
@@ -134,6 +136,12 @@ fun CloudyDemoApp() {
 
           is Route.BlurLight -> NavEntry(route) {
             BlurLightScreen(
+              onBackClick = { backStack.removeLastOrNull() },
+            )
+          }
+
+          is Route.ChromaticCard -> NavEntry(route) {
+            ChromaticCardScreen(
               onBackClick = { backStack.removeLastOrNull() },
             )
           }
