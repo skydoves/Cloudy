@@ -21,13 +21,13 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 
 /**
- * Default geometry for [Modifier.shaderEffect].
+ * Default geometry for [Modifier.mirage].
  *
  * Mirrors the lens defaults of [LiquidGlassDefaults] so the open shader-effect modifier starts from
  * the same lens framing as the built-in liquid glass effect.
  */
-@ExperimentalShaderEffect
-public object ShaderEffectDefaults {
+@ExperimentalMirage
+public object MirageDefaults {
   /**
    * Default lens center, in pixels. There is no built-in equivalent on [LiquidGlassDefaults]
    * (`liquidGlass` requires an explicit center), so this defaults to the content origin; callers
@@ -48,7 +48,7 @@ public object ShaderEffectDefaults {
 }
 
 /**
- * Applies an open, caller-supplied [ShaderRecipe] to the content.
+ * Applies an open, caller-supplied [MirageRecipe] to the content.
  *
  * This is the extensible counterpart to [Modifier.liquidGlass]: instead of a fixed set of liquid-
  * glass parameters, it takes a [recipe] that carries the AGSL / SKSL shader bodies and a uniform-
@@ -62,12 +62,25 @@ public object ShaderEffectDefaults {
  * both the built-in effect and custom recipes.
  *
  * Hoist [recipe] into a `remember(recipe)` (or a top-level constant) so the modifier is not
- * reallocated every recomposition; see [ShaderRecipe] for the recipe-author contract.
+ * reallocated every recomposition; see [MirageRecipe] for the recipe-author contract.
+ *
+ * ## Input mode and chaining order
+ * A recipe's [MirageRecipe.inputMode] decides how it consumes the content: a
+ * [MirageInputMode.ContentFilter] recipe reads and transforms the content (e.g. refraction); a
+ * [MirageInputMode.Overlay] recipe is a generator drawn *over* the content without reading it.
+ *
+ * When chaining two `mirage`s, remember Compose modifiers wrap left-to-right (the leftmost is
+ * the outermost draw). Put an [MirageInputMode.Overlay] recipe to the **left** (outside) of a
+ * [MirageInputMode.ContentFilter] recipe:
+ * `Modifier.mirage(MirageRecipes.Foil).mirage(MirageRecipes.OilSlick)` — `OilSlick`
+ * refracts the content first, then `Foil` is painted on top. Reversing the order (the overlay inside)
+ * feeds the overlay through the refraction too, which is a visual error. There is no compile-time
+ * guard for this — follow the ordering rule.
  *
  * @param recipe The shader recipe to apply (shader bodies + uniform binding + input mode).
- * @param lensCenter The lens center in pixels. Default: [ShaderEffectDefaults.LensCenter].
- * @param lensSize The lens size in pixels. Default: [ShaderEffectDefaults.LensSize].
- * @param cornerRadius The lens corner radius. Default: [ShaderEffectDefaults.CornerRadius].
+ * @param lensCenter The lens center in pixels. Default: [MirageDefaults.LensCenter].
+ * @param lensSize The lens size in pixels. Default: [MirageDefaults.LensSize].
+ * @param cornerRadius The lens corner radius. Default: [MirageDefaults.CornerRadius].
  * @param light The specular light source holder, reused from the liquid-glass API.
  *   Default: [LiquidGlassDefaults.Light].
  * @param time A monotonic time value (seconds) forwarded to the shader for animated recipes.
@@ -76,16 +89,16 @@ public object ShaderEffectDefaults {
  *
  * @return A [Modifier] with the shader effect applied.
  *
- * @see ShaderRecipe
+ * @see MirageRecipe
  * @see Modifier.liquidGlass
  */
-@ExperimentalShaderEffect
+@ExperimentalMirage
 @Composable
-public expect fun Modifier.shaderEffect(
-  recipe: ShaderRecipe,
-  lensCenter: Offset = ShaderEffectDefaults.LensCenter,
-  lensSize: Size = ShaderEffectDefaults.LensSize,
-  cornerRadius: Float = ShaderEffectDefaults.CornerRadius,
+public expect fun Modifier.mirage(
+  recipe: MirageRecipe,
+  lensCenter: Offset = MirageDefaults.LensCenter,
+  lensSize: Size = MirageDefaults.LensSize,
+  cornerRadius: Float = MirageDefaults.CornerRadius,
   light: LiquidGlassLight = LiquidGlassDefaults.Light,
   time: Float = 0f,
   enabled: Boolean = true,

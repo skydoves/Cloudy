@@ -20,7 +20,7 @@ apiValidation {
   // shader-recipe API is experimental, and the motion marker's members (liquidGlassTuned,
   // rememberGyroLightSource, rememberTransformLightSource) were leaking into the android/desktop
   // dumps despite being opt-in.
-  nonPublicMarkers.add("com.skydoves.cloudy.ExperimentalShaderEffect")
+  nonPublicMarkers.add("com.skydoves.cloudy.ExperimentalMirage")
   nonPublicMarkers.add("com.skydoves.cloudy.ExperimentalLiquidGlassMotion")
 }
 

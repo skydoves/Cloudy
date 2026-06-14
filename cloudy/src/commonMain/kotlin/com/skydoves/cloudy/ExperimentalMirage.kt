@@ -16,12 +16,12 @@
 package com.skydoves.cloudy
 
 /**
- * Marks the open shader-recipe API ([Modifier.shaderEffect], [ShaderRecipe], [ShaderEffectScope],
- * [ShaderInputMode]) as experimental.
+ * Marks the open shader-recipe API ([Modifier.mirage], [MirageRecipe], [MirageScope],
+ * [MirageInputMode]) as experimental.
  *
  * This API lets callers inject arbitrary AGSL / SKSL shader bodies and bind their uniforms, so its
  * surface (the recipe author contract, the scope shape, the modifier parameters) may still change.
- * Opt in with `@OptIn(ExperimentalShaderEffect::class)` or by propagating the annotation.
+ * Opt in with `@OptIn(ExperimentalMirage::class)` or by propagating the annotation.
  */
 @RequiresOptIn(
   level = RequiresOptIn.Level.WARNING,
@@ -32,5 +32,5 @@ package com.skydoves.cloudy
 // Self-annotated so binary-compatibility validation treats the marker itself as a non-public
 // (opt-in) declaration and keeps it out of the committed .api dumps, matching the experimental
 // members it guards. Declaring an opt-in marker requires no opt-in, so this is not circular.
-@ExperimentalShaderEffect
-public annotation class ExperimentalShaderEffect
+@ExperimentalMirage
+public annotation class ExperimentalMirage
