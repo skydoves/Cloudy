@@ -19,12 +19,11 @@
 language: "en-US"
 early_access: false
 
+# NOTE: CodeRabbit caps tone_instructions at 250 characters — keep this terse.
 tone_instructions: >-
-  Review as a senior Kotlin Multiplatform + Jetpack Compose + Android-graphics engineer.
-  Prioritize correctness, expect/actual parity across platforms, published-API backward
-  compatibility, Android API-level gating, shader (AGSL/SKSL) parity, and native (C++/JNI)
-  memory safety. Never comment on formatting or import ordering — Spotless owns it. Be
-  direct; skip praise.
+  Senior KMP, Compose, and Android-graphics reviewer. Prioritize correctness, expect/actual
+  parity, public-API compatibility, API-level gating, AGSL/SKSL parity, and native C++/JNI
+  memory safety. Never flag formatting; Spotless owns it. Be direct.
 
 reviews:
   profile: "chill"
