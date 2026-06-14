@@ -189,11 +189,10 @@ internal class LiquidGlassTest :
       }
 
       test("should synthesize a fake-3D bevel normal for the specular term") {
-        // radial-mix 경로 제거 → SDF-bevel 노멀 + body/rim crossfade.
+        // SDF-bevel normal + body/rim crossfade (no radial-mix path).
         LiquidGlassShaderSource.AGSL.contains("specBodyPower").shouldBe(true)
         LiquidGlassShaderSource.AGSL.contains("float3(specDir2 * n_cos").shouldBe(true)
         LiquidGlassShaderSource.AGSL.contains("mix(normal, radial").shouldBe(false)
-        // 유지(여전히 통과)
         LiquidGlassShaderSource.AGSL.contains("abs(dot(normal, lightVec))").shouldBe(false)
       }
 
@@ -308,11 +307,10 @@ internal class LiquidGlassTest :
       }
 
       test("should synthesize a fake-3D bevel normal for the specular term") {
-        // radial-mix 경로 제거 → SDF-bevel 노멀 + body/rim crossfade.
+        // SDF-bevel normal + body/rim crossfade (no radial-mix path).
         LiquidGlassShaderSource.SKSL.contains("specBodyPower").shouldBe(true)
         LiquidGlassShaderSource.SKSL.contains("float3(specDir2 * n_cos").shouldBe(true)
         LiquidGlassShaderSource.SKSL.contains("mix(normal, radial").shouldBe(false)
-        // 유지(여전히 통과)
         LiquidGlassShaderSource.SKSL.contains("abs(dot(normal, lightVec))").shouldBe(false)
       }
 

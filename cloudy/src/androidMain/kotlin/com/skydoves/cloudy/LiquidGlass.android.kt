@@ -258,9 +258,9 @@ private fun Modifier.liquidGlassApi33(
       // right alongside lightDir.
       shader.setFloatUniform("specStrength", tuning.intensity)
       shader.setFloatUniform("specPower", tuning.sharpness)
-      shader.setFloatUniform("specRimMix", tuning.rimMix) // 변경: was specSweep / tuning.travel
+      shader.setFloatUniform("specRimMix", tuning.rimMix)
       shader.setFloatUniform("specWidthPx", tuning.widthPx)
-      // Fake-3D 스페큘러 리스펙 — AGSL에 선언됨; 매 draw 무게이트 set 안 하면 garbage(0) 읽음.
+      // Every declared uniform must be set each draw, or AGSL reads garbage (0).
       shader.setFloatUniform("specLightZ", tuning.lightZ)
       shader.setFloatUniform("specDomeFrac", tuning.domeFrac)
       shader.setFloatUniform("specBodyPower", tuning.bodyPower)

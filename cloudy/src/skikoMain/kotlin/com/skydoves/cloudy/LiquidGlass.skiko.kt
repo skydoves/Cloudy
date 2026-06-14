@@ -193,9 +193,9 @@ private fun Modifier.liquidGlassImpl(
       // every draw (gate-free), right alongside lightDir.
       shaderBuilder.uniform("specStrength", tuning.intensity)
       shaderBuilder.uniform("specPower", tuning.sharpness)
-      shaderBuilder.uniform("specRimMix", tuning.rimMix) // 변경: was specSweep / tuning.travel
+      shaderBuilder.uniform("specRimMix", tuning.rimMix)
       shaderBuilder.uniform("specWidthPx", tuning.widthPx)
-      // Skia는 선언됐는데 unset인 uniform에 throw → bevel 4 + focal 3 모두 write.
+      // Skia throws on any declared-but-unset uniform, so write every one.
       shaderBuilder.uniform("specLightZ", tuning.lightZ)
       shaderBuilder.uniform("specDomeFrac", tuning.domeFrac)
       shaderBuilder.uniform("specBodyPower", tuning.bodyPower)
