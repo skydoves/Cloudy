@@ -16,10 +16,151 @@
 package com.skydoves.cloudy
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+
+/**
+ * Holder for the Liquid Glass specular light direction.
+ *
+ * The [direction] is a screen-space 2D vector (y-down) that drives the rim specular
+ * highlight in the glass shader. Wrapping it in a stable holder (rather than passing a
+ * raw [Offset]) keeps the [Modifier.liquidGlass] call from recomposing on every update:
+ * the holder identity stays constant while only [direction]'s value changes, so a
+ * high-frequency source (e.g. a gyroscope at 30 Hz) invalidates only the draw, not the
+ * composition.
+ *
+ * Create a static light with the [LiquidGlassLight] factory (remember it if the offset is
+ * computed inline), or a motion-driven one with `rememberGyroLightSource`.
+ *
+ * @see rememberGyroLightSource
+ * @see LiquidGlassDefaults.Light
+ */
+@Immutable
+public class LiquidGlassLight internal constructor(
+  internal val direction: State<Offset>,
+)
+
+/**
+ * Creates a static (fixed) [LiquidGlassLight] pointing in [direction].
+ *
+ * Wrap inline calls in `remember` (or use [LiquidGlassDefaults.Light]) so the holder
+ * identity is stable across recompositions; constructing a new holder every recomposition
+ * reallocates the modifier and defeats the stability guarantee.
+ *
+ * @param direction Screen-space light direction (y-down). Magnitude is irrelevant — the
+ *   shader normalizes it.
+ */
+public fun LiquidGlassLight(direction: Offset): LiquidGlassLight =
+  LiquidGlassLight(mutableStateOf(direction))
+
+/**
+ * Perceptual tuning for the Liquid Glass specular glint — the bright single-lobe rim highlight
+ * that the [light] source sweeps around the lens.
+ *
+ * Exposes the two knobs a caller usually wants: how bright the glint is ([intensity]) and how
+ * tight/focused it is ([sharpness]). The remaining shader tunables (radial sweep blend, band
+ * width) are held at their tuned defaults and are only reachable through the experimental
+ * [Modifier.liquidGlassTuned] modifier.
+ *
+ * This is intentionally **not** a `data class`: the constructor is internal and `equals`/
+ * `hashCode` are hand-written, so future knobs can be added via a secondary constructor (or by
+ * widening the factory) without breaking the generated-component / copy ABI of a data class.
+ *
+ * Construct with the [LiquidGlassGlow] factory; defaults reproduce the historical hardcoded glint
+ * ([LiquidGlassDefaults.Glow]).
+ *
+ * @property intensity Peak highlight brightness, roughly `0..1` (screen-blended, so it stays
+ *   `<= 1.0`). `0` disables the glint. Maps to the shader's `specStrength`.
+ * @property sharpness Glint lobe sharpness — higher = one tighter, more focused highlight; lower =
+ *   a broader, softer wash. Maps to the shader's `specPower`.
+ *
+ * @see LiquidGlassDefaults.Glow
+ * @see LiquidGlassDefaults.NoGlow
+ */
+@Immutable
+public class LiquidGlassGlow internal constructor(
+  public val intensity: Float,
+  public val sharpness: Float,
+) {
+  override fun equals(other: Any?): Boolean =
+    this === other ||
+      (other is LiquidGlassGlow && intensity == other.intensity && sharpness == other.sharpness)
+
+  override fun hashCode(): Int = intensity.hashCode() * 31 + sharpness.hashCode()
+
+  override fun toString(): String =
+    "LiquidGlassGlow(intensity=$intensity, sharpness=$sharpness)"
+
+  public companion object {
+    /**
+     * Creates a [LiquidGlassGlow] from the two perceptual knobs.
+     *
+     * Exposed as a companion `invoke` rather than a same-named top-level factory function: the
+     * primary constructor is `internal` and takes the same `(Float, Float)` signature, so a
+     * top-level `fun LiquidGlassGlow(Float, Float)` would be a conflicting overload. `invoke`
+     * keeps the intended `LiquidGlassGlow(...)` call syntax while leaving the internal
+     * constructor free for future secondary-constructor additions (ABI stability).
+     *
+     * @param intensity Peak highlight brightness (`0..1`). `0` disables the glint.
+     *   Default: [LiquidGlassDefaults.GLOW_INTENSITY].
+     * @param sharpness Glint lobe sharpness; higher = tighter glint.
+     *   Default: [LiquidGlassDefaults.GLOW_SHARPNESS].
+     */
+    public operator fun invoke(
+      intensity: Float = LiquidGlassDefaults.GLOW_INTENSITY,
+      sharpness: Float = LiquidGlassDefaults.GLOW_SHARPNESS,
+    ): LiquidGlassGlow = LiquidGlassGlow(intensity, sharpness)
+  }
+}
+
+/**
+ * Full specular tuning. Internal: the stable public surface only exposes the two perceptual knobs
+ * via [LiquidGlassGlow]; the extra knobs ([rimMix], [widthPx], [lightZ], [domeFrac], [bodyPower],
+ * [bodyGain]) are reachable only through the experimental [Modifier.liquidGlassTuned]. Every platform
+ * binding writes all eight as uniforms each draw, so the shader never sees a missing uniform.
+ *
+ * @property intensity ex-`SPEC_STRENGTH` — peak highlight (screen-blended; stays `<= 1.0`).
+ * @property sharpness ex-`SPEC_POWER` — rim/back lobe sharpness (Blinn).
+ * @property rimMix body↔rim crossfade: `0` = pure body sheen, `1` = pure rim glint.
+ * @property widthPx ex-`SPEC_WIDTH_PX` — rim band thickness, decoupled from `edge`.
+ * @property lightZ fake-3D light z-height; tilts the synthesized bevel normal toward the viewer.
+ * @property domeFrac bevel depth as a fraction of the lens half-extent; `> 1` removes the static
+ *   dead-core (no interior pixel reaches `n_cos == 0`).
+ * @property bodyPower body-sheen lobe sharpness (broad, gentle ramp).
+ * @property bodyGain body-sheen intensity scale.
+ * @property focalK moving-hotspot offset toward the light, as a fraction of the lens half-extent.
+ *   This is what makes the highlight pour across the face on BOTH axes (pitch=vertical, roll=
+ *   horizontal): the focal pool center is `lensCenter + lightVec * (minHalf * focalK)`.
+ * @property poolFrac focal-pool radius as a fraction of the lens half-extent; smaller = a tighter,
+ *   more localized pool of light.
+ * @property poolGain focal-pool peak scale (multiplies `intensity`); the dominant visible term at
+ *   the default [rimMix].
+ */
+@Immutable
+internal class GlowTuning(
+  val intensity: Float = LiquidGlassDefaults.GLOW_INTENSITY,
+  val sharpness: Float = LiquidGlassDefaults.GLOW_SHARPNESS,
+  // rimMix biased toward the body (focal pool) so the moving hotspot — not the thin rim band —
+  // carries the visible, dual-axis motion. rimMix=1 still reverts to the legacy pure-rim glint.
+  val rimMix: Float = 0.4f,
+  val widthPx: Float = 12.0f,
+  val lightZ: Float = 0.55f,
+  val domeFrac: Float = 1.15f,
+  val bodyPower: Float = 2.5f,
+  val bodyGain: Float = 0.6f,
+  val focalK: Float = 0.55f,
+  val poolFrac: Float = 0.7f,
+  val poolGain: Float = 1.3f,
+)
+
+/** Widens a public [LiquidGlassGlow] into the internal 4-knob [GlowTuning] (extra knobs default). */
+internal fun LiquidGlassGlow.toTuning(): GlowTuning =
+  GlowTuning(intensity = intensity, sharpness = sharpness)
 
 /**
  * Default values for the Liquid Glass effect.
@@ -51,6 +192,41 @@ public object LiquidGlassDefaults {
 
   /** Default edge lighting width. 0.0 = no edge, higher = wider edge lighting. */
   public const val EDGE: Float = 0.2f
+
+  /**
+   * Default specular light direction (screen-space, y-down). Unnormalized raw value; the
+   * shader applies `normalize(lightDir)`, so this evaluates to exactly the historical
+   * hardcoded `normalize(float2(-1, -1))` — output is unchanged unless a caller opts in.
+   */
+  public val LIGHT_DIR: Offset = Offset(-1f, -1f)
+
+  /**
+   * Default fixed light — matches the pre-motion behavior. Singleton; do not reassign.
+   */
+  public val Light: LiquidGlassLight = LiquidGlassLight(LIGHT_DIR)
+
+  /**
+   * Default specular glint intensity (peak brightness). Reproduces the historical hardcoded
+   * `SPEC_STRENGTH`, so output is unchanged unless a caller opts into a custom [LiquidGlassGlow].
+   */
+  public const val GLOW_INTENSITY: Float = 0.7f
+
+  /**
+   * Default specular glint sharpness (lobe power). Reproduces the historical hardcoded
+   * `SPEC_POWER` — one tight glint.
+   */
+  public const val GLOW_SHARPNESS: Float = 10.0f
+
+  /**
+   * Default glow — matches the historical hardcoded glint. Singleton; do not reassign.
+   */
+  public val Glow: LiquidGlassGlow = LiquidGlassGlow(GLOW_INTENSITY, GLOW_SHARPNESS)
+
+  /**
+   * A glow that disables the specular glint (zero intensity). Singleton; do not reassign.
+   * Sharpness is a harmless `1.0` since the highlight is scaled to zero regardless.
+   */
+  public val NoGlow: LiquidGlassGlow = LiquidGlassGlow(0f, 1f)
 
   /** Minimum Android API level required for the full liquid glass effect. */
   public const val MIN_ANDROID_API_FULL: Int = 33
@@ -144,6 +320,17 @@ public object LiquidGlassDefaults {
  *   a boolean where value > 0 draws a fixed width edge effect.
  *   Default: [LiquidGlassDefaults.EDGE] (0.2).
  *
+ * @param light The specular light source driving the rim highlight. Defaults to a fixed
+ *   light ([LiquidGlassDefaults.Light]) that reproduces the previous behavior. Pass a
+ *   motion-driven source from `rememberGyroLightSource` to make the highlight sweep as the
+ *   device tilts. No-op on Android API < 33 (the fallback path has no shader).
+ *
+ * @param glow Perceptual tuning for the specular glint — how bright ([LiquidGlassGlow.intensity])
+ *   and how tight ([LiquidGlassGlow.sharpness]) the rim highlight is. Defaults to
+ *   [LiquidGlassDefaults.Glow] (the historical look); use [LiquidGlassDefaults.NoGlow] to remove
+ *   the glint. For the full set of shader tunables, see the experimental [Modifier.liquidGlassTuned].
+ *   No-op on Android API < 33 (the fallback path has no shader).
+ *
  * @param enabled If false, disables the effect and returns the original modifier.
  *
  * @return A [Modifier] with the Liquid Glass effect applied.
@@ -164,5 +351,7 @@ public expect fun Modifier.liquidGlass(
   contrast: Float = LiquidGlassDefaults.CONTRAST,
   tint: Color = LiquidGlassDefaults.TINT,
   edge: Float = LiquidGlassDefaults.EDGE,
+  light: LiquidGlassLight = LiquidGlassDefaults.Light,
+  glow: LiquidGlassGlow = LiquidGlassDefaults.Glow,
   enabled: Boolean = true,
 ): Modifier
