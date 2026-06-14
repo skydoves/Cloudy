@@ -70,6 +70,20 @@ uniform shader content;
 const float SMOOTH_EDGE_PX = 1.5;
 const float SEAM_BLEND_PX = 8.0;   // 대각 블렌드 반폭(px); 클수록 내부 크리스 부드러움
 
+// --- Thin-film interference (Iridescent / Holographic) constants ---
+// OPD 모델: opd ≈ (thickness / cos(refr)) → Newton's rings. thickness=bevel 깊이 cT(중심0→림1),
+// cosT=cos(입사각, 빛 반응). 림으로 갈수록 막이 두꺼워 밴드가 촘촘(고전 박막), 빛이 돌면 위상 쓸림.
+const float CHROMA_OPD_GAIN  = 3.0;   // 면 위 Newton 밴드 수(높을수록 다밴드; 너무 크면 aliasing/busy)
+const float CHROMA_OPD_BASE  = 0.10;  // 기저 막 차수(중심 저OPD를 밝은 은백 0차에 두고 밖으로 색이 쌓임)
+// thickness↔light 가중: 1=순수 두께링, 0=순수 빛각도. 두 효과 블렌드(둘 다 holographic에 기여).
+const float CHROMA_THICK_MIX = 0.55;
+// per-channel 파수비(파장 역수 ~650/560/470nm). 벌릴수록 금→자홍→청록 Newton 분리가 또렷.
+const float3 CHROMA_KRGB     = float3(1.0, 1.18, 1.42);
+// 금속 floor: 채널이 0까지 안 떨어지게(형광 무지개 아님). 낮게 둬 채도 살리되 0은 아님.
+const float CHROMA_METAL_FLOOR = 0.12;
+// 고차 coherence wash-out 율. 클수록 빨리 은백(파스텔↑·busy↓). 외곽 고차 링을 silver로 진정.
+const float CHROMA_WASHOUT     = 0.16;
+
 // Signed distance to a box with rounded corners
 // Negative = inside, Positive = outside, Zero = on boundary
 float boxRoundedSDF(float2 p, float2 halfDim, float r) {
@@ -271,15 +285,35 @@ half4 main(float2 xy) {
         float3 cN       = normalize(float3(cSpecDir * cNcos, cNsin + 1.0e-3));
         float3 cL       = normalize(float3(cLightVec, specLightZ));
 
-        // hue 합성 — 두 모드(전 체인 float). Foil: 표면을 빛에 투영 → 빛 움직이면 띠가 흐름.
-        //                                Iridescent: 빛/노멀 각도 → 박막 간섭처럼 hue가 돈다.
+        // hue 합성 — 두 모드(전 체인 float).
+        //   Foil(mode 1, 불변): 표면을 빛에 투영한 선형 무지개 띠 → 빛 움직이면 띠가 흐른다.
+        //   Iridescent(mode 0, thin-film): 박막 간섭색. dot(cN,cL)=cos(입사각)이 광학 경로차(OPD)를
+        //     만들고, R/G/B 파장이 달라(파수 kRGB) 채널마다 다른 위상으로 보강/상쇄 → Newton 시퀀스
+        //     (은백→금→자홍→청록)가 산술이 아니라 물리에서 자연 발생. cN(bevel 노멀)이 면 위에서
+        //     변해 "두께 변조"를, cL이 빛 따라 돌아 위상 쓸림(gyro 반응)을 공짜로 준다.
+        // Foil: 기존 선형 hue → HSV 램프.
         float hueF = fract(dot(pNorm, cLightVec) * chromaticBands + chromaticPhase);
-        float hueI = fract(dot(cN, cL) * chromaticCycles + chromaticPhase);
-        float hue  = mix(hueI, hueF, chromaticMode);                 // mode 0→Iridescent, 1→Foil
-        // 6-세그먼트 HSV(채도/명도=1)→RGB 램프(float3). half3로 받으면 fp16 양자화로 밴딩.
-        float3 chromaRGB = clamp(
-            abs(fract(float3(hue) + float3(0.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0) - 1.0,
+        float3 foilRGB = clamp(
+            abs(fract(float3(hueF) + float3(0.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0) - 1.0,
             0.0, 1.0);
+        // Iridescent: 박막 간섭(Newton's rings). 광학 경로차 opd = thickness/cos(refr).
+        //   thickness = bevel 깊이 cT(중심0→림1; cNcos=1-cT) → 림으로 갈수록 막이 두꺼워 밴드 촘촘.
+        //   cosT = cos(입사각) = dot(cN,cL) → 빛이 돌면 위상 쓸림(gyro 반응). 1e-2 가드(grazing 발산).
+        // CHROMA_THICK_MIX로 두께링(공간)↔빛각도(반응)를 블렌드, GAIN이 면 위 Newton 밴드 수를 정한다.
+        float cosT     = clamp(dot(cN, cL), 0.0, 1.0);
+        float thick    = 1.0 - cNcos;                                // = cT, bevel 깊이(중심0→림1)
+        float ringTerm = thick / max(1.0 - 0.6 * cosT, 1.0e-2);      // 두께/cos: Newton 링(빛 의존)
+        float opdDrive = mix(cosT, ringTerm, CHROMA_THICK_MIX);      // 빛각도↔두께링 블렌드
+        float opd      = opdDrive * (chromaticCycles * CHROMA_OPD_GAIN) + CHROMA_OPD_BASE + chromaticPhase;
+        // per-channel 보강간섭(파장 역수비 kRGB). 0.5+0.5cos = [0,1] 중심 0.5(은백 기준 진동).
+        float3 interf = 0.5 + 0.5 * cos(6.28318530718 * opd * CHROMA_KRGB);
+        // 금속 floor: 채널이 0까지 안 떨어지게(형광 무지개=채널 하나 늘 0 → sticker). 진동폭만 살린다.
+        float3 metalRGB = CHROMA_METAL_FLOOR + (1.0 - CHROMA_METAL_FLOOR) * interf;
+        // 고차 coherence wash-out: OPD 클수록 파스텔→clean silver(흰 1.0 기준; metalRGB luma로 하면
+        // 저채도부가 베이지로 탁해진다). 약하게 둬 금속 채도 유지. sat=간섭색 보존율.
+        float  sat       = exp(-opd * CHROMA_WASHOUT);
+        float3 thinFilm  = mix(float3(1.0), metalRGB, clamp(sat, 0.0, 1.0)); // 은백(흰) ↔ 간섭색
+        float3 chromaRGB = mix(thinFilm, foilRGB, chromaticMode);    // mode 0→thin-film, 1→Foil(불변)
 
         // focal-pool 모듈레이션 — specular의 raw pool²(정규화본; specStrength/Gain 곱 전)으로 무지개 세기 변조.
         // specular 게이트 밖이라 pool을 저렴하게 재계산(length+smoothstep 몇 줄): focal/poolR 식은 specular와 동일.
@@ -351,6 +385,20 @@ uniform shader content;
 const float SMOOTH_EDGE_PX = 1.5;
 const float SEAM_BLEND_PX = 8.0;   // 대각 블렌드 반폭(px); 클수록 내부 크리스 부드러움
 
+// --- Thin-film interference (Iridescent / Holographic) constants ---
+// OPD 모델: opd ≈ (thickness / cos(refr)) → Newton's rings. thickness=bevel 깊이 cT(중심0→림1),
+// cosT=cos(입사각, 빛 반응). 림으로 갈수록 막이 두꺼워 밴드가 촘촘(고전 박막), 빛이 돌면 위상 쓸림.
+const float CHROMA_OPD_GAIN  = 3.0;   // 면 위 Newton 밴드 수(높을수록 다밴드; 너무 크면 aliasing/busy)
+const float CHROMA_OPD_BASE  = 0.10;  // 기저 막 차수(중심 저OPD를 밝은 은백 0차에 두고 밖으로 색이 쌓임)
+// thickness↔light 가중: 1=순수 두께링, 0=순수 빛각도. 두 효과 블렌드(둘 다 holographic에 기여).
+const float CHROMA_THICK_MIX = 0.55;
+// per-channel 파수비(파장 역수 ~650/560/470nm). 벌릴수록 금→자홍→청록 Newton 분리가 또렷.
+const float3 CHROMA_KRGB     = float3(1.0, 1.18, 1.42);
+// 금속 floor: 채널이 0까지 안 떨어지게(형광 무지개 아님). 낮게 둬 채도 살리되 0은 아님.
+const float CHROMA_METAL_FLOOR = 0.12;
+// 고차 coherence wash-out 율. 클수록 빨리 은백(파스텔↑·busy↓). 외곽 고차 링을 silver로 진정.
+const float CHROMA_WASHOUT     = 0.16;
+
 // Signed distance to a box with rounded corners
 // Negative = inside, Positive = outside, Zero = on boundary
 float boxRoundedSDF(float2 p, float2 halfDim, float r) {
@@ -552,15 +600,35 @@ half4 main(float2 xy) {
         float3 cN       = normalize(float3(cSpecDir * cNcos, cNsin + 1.0e-3));
         float3 cL       = normalize(float3(cLightVec, specLightZ));
 
-        // hue 합성 — 두 모드(전 체인 float). Foil: 표면을 빛에 투영 → 빛 움직이면 띠가 흐름.
-        //                                Iridescent: 빛/노멀 각도 → 박막 간섭처럼 hue가 돈다.
+        // hue 합성 — 두 모드(전 체인 float).
+        //   Foil(mode 1, 불변): 표면을 빛에 투영한 선형 무지개 띠 → 빛 움직이면 띠가 흐른다.
+        //   Iridescent(mode 0, thin-film): 박막 간섭색. dot(cN,cL)=cos(입사각)이 광학 경로차(OPD)를
+        //     만들고, R/G/B 파장이 달라(파수 kRGB) 채널마다 다른 위상으로 보강/상쇄 → Newton 시퀀스
+        //     (은백→금→자홍→청록)가 산술이 아니라 물리에서 자연 발생. cN(bevel 노멀)이 면 위에서
+        //     변해 "두께 변조"를, cL이 빛 따라 돌아 위상 쓸림(gyro 반응)을 공짜로 준다.
+        // Foil: 기존 선형 hue → HSV 램프.
         float hueF = fract(dot(pNorm, cLightVec) * chromaticBands + chromaticPhase);
-        float hueI = fract(dot(cN, cL) * chromaticCycles + chromaticPhase);
-        float hue  = mix(hueI, hueF, chromaticMode);                 // mode 0→Iridescent, 1→Foil
-        // 6-세그먼트 HSV(채도/명도=1)→RGB 램프(float3). half3로 받으면 fp16 양자화로 밴딩.
-        float3 chromaRGB = clamp(
-            abs(fract(float3(hue) + float3(0.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0) - 1.0,
+        float3 foilRGB = clamp(
+            abs(fract(float3(hueF) + float3(0.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0) - 1.0,
             0.0, 1.0);
+        // Iridescent: 박막 간섭(Newton's rings). 광학 경로차 opd = thickness/cos(refr).
+        //   thickness = bevel 깊이 cT(중심0→림1; cNcos=1-cT) → 림으로 갈수록 막이 두꺼워 밴드 촘촘.
+        //   cosT = cos(입사각) = dot(cN,cL) → 빛이 돌면 위상 쓸림(gyro 반응). 1e-2 가드(grazing 발산).
+        // CHROMA_THICK_MIX로 두께링(공간)↔빛각도(반응)를 블렌드, GAIN이 면 위 Newton 밴드 수를 정한다.
+        float cosT     = clamp(dot(cN, cL), 0.0, 1.0);
+        float thick    = 1.0 - cNcos;                                // = cT, bevel 깊이(중심0→림1)
+        float ringTerm = thick / max(1.0 - 0.6 * cosT, 1.0e-2);      // 두께/cos: Newton 링(빛 의존)
+        float opdDrive = mix(cosT, ringTerm, CHROMA_THICK_MIX);      // 빛각도↔두께링 블렌드
+        float opd      = opdDrive * (chromaticCycles * CHROMA_OPD_GAIN) + CHROMA_OPD_BASE + chromaticPhase;
+        // per-channel 보강간섭(파장 역수비 kRGB). 0.5+0.5cos = [0,1] 중심 0.5(은백 기준 진동).
+        float3 interf = 0.5 + 0.5 * cos(6.28318530718 * opd * CHROMA_KRGB);
+        // 금속 floor: 채널이 0까지 안 떨어지게(형광 무지개=채널 하나 늘 0 → sticker). 진동폭만 살린다.
+        float3 metalRGB = CHROMA_METAL_FLOOR + (1.0 - CHROMA_METAL_FLOOR) * interf;
+        // 고차 coherence wash-out: OPD 클수록 파스텔→clean silver(흰 1.0 기준; metalRGB luma로 하면
+        // 저채도부가 베이지로 탁해진다). 약하게 둬 금속 채도 유지. sat=간섭색 보존율.
+        float  sat       = exp(-opd * CHROMA_WASHOUT);
+        float3 thinFilm  = mix(float3(1.0), metalRGB, clamp(sat, 0.0, 1.0)); // 은백(흰) ↔ 간섭색
+        float3 chromaRGB = mix(thinFilm, foilRGB, chromaticMode);    // mode 0→thin-film, 1→Foil(불변)
 
         // focal-pool 모듈레이션 — specular의 raw pool²(정규화본; specStrength/Gain 곱 전)으로 무지개 세기 변조.
         // specular 게이트 밖이라 pool을 저렴하게 재계산(length+smoothstep 몇 줄): focal/poolR 식은 specular와 동일.
