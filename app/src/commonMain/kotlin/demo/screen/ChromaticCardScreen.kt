@@ -53,6 +53,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
@@ -77,10 +78,17 @@ import demo.theme.Dimens
 private enum class MaterialPreset { PureWhite, Holographic, Custom }
 
 /**
- * Focused demo for the chromatic (iridescent) overlay over a clean **white** card — the rainbow
- * sheen reacts to the light, so on a flat white surface you see only the material, not the photo.
- * Tilt the device (or drag the card) to sweep the light. Three material chips switch between the
- * no-op preset, the holographic-foil preset, and a custom overlay tuned by the sliders below.
+ * Which surface sits under the chromatic material. The base changes how the holographic sheen
+ * reads: a white card multiplies (the sheen stays faint), while opaque dark/metal cards take the
+ * screen-blend path where the thin-film foil turns dramatic and metallic.
+ */
+private enum class BaseSurface { White, Dark, Metal }
+
+/**
+ * Focused demo for the chromatic (iridescent) overlay — a holographic thin-film sheen: Newton's
+ * rings that shift hue with the light/angle. Tilt the device (or drag the card) to sweep the light.
+ * Material chips switch the overlay preset; surface chips switch the base under it, so you can see
+ * the same material read faint on white and dramatic on a dark/metal surface.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -90,6 +98,22 @@ fun ChromaticCardScreen(onBackClick: () -> Unit) {
   var customFoil by remember { mutableStateOf(true) }
   var gyroEnabled by remember { mutableStateOf(true) }
   var lensCenter by remember { mutableStateOf(Offset.Zero) }
+  // Default to a dark base so the new thin-film holographic preset reads strongly on first entry
+  // (the screen-blend path); the White chip restores the faint, minimal look.
+  var base by remember { mutableStateOf(BaseSurface.Dark) }
+
+  // The base only paints the card background — it is independent of the chromatic build above, so
+  // changing it never reallocates the lens modifier. Remember the gradient brush per base so the
+  // holder identity is stable and Brush.linearGradient is not rebuilt every recomposition.
+  val baseBrush = remember(base) {
+    when (base) {
+      BaseSurface.White -> Brush.linearGradient(listOf(Color.White, Color.White))
+      BaseSurface.Dark -> Brush.linearGradient(listOf(Color(0xFF1A1F2E), Color(0xFF2A3142)))
+      BaseSurface.Metal -> Brush.linearGradient(listOf(Color(0xFFB0B4BC), Color(0xFF40444C)))
+    }
+  }
+  // Keep the card title legible on every base: dark ink on white, light ink on the dark/metal.
+  val onBase = if (base == BaseSurface.White) Color.Black else Color.White
 
   // Drag fallback: accumulate a virtual tilt and feed it to the deterministic transform light, so
   // dragging sweeps the sheen the same way the gyro does. Deferred lambda reads keep the holder
@@ -130,20 +154,23 @@ fun ChromaticCardScreen(onBackClick: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(16.dp),
       ) {
         Text(
-          text = "A clean white card carries the iridescent material — tilt the device " +
-            "(or drag the card) and the rainbow sheen reacts to the light. Android 13+ / Skia.",
+          text = "A holographic thin-film sheen — Newton's-ring interference that shifts color " +
+            "with the light/angle. Tilt the device (or drag the card) to sweep it, and switch " +
+            "the base below to see it read faint on white or dramatic on dark/metal. " +
+            "Android 13+ / Skia.",
           fontSize = 14.sp,
           color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
           textAlign = TextAlign.Center,
         )
 
-        // A pure-white card so only the chromatic material shows (no photo underneath).
+        // A solid card so only the chromatic material shows (no photo underneath). The base brush
+        // switches white / dark / metal to demonstrate how the holographic sheen reads on each.
         Box(
           modifier = Modifier
             .fillMaxWidth()
             .height(360.dp)
             .clip(RoundedCornerShape(Dimens.itemSpacing))
-            .background(Color.White)
+            .background(baseBrush)
             .pointerInput(Unit) {
               detectDragGestures { _, dragAmount ->
                 // Drag accumulates a virtual tilt (clamped to a readable range) that drives the
@@ -169,15 +196,19 @@ fun ChromaticCardScreen(onBackClick: () -> Unit) {
         ) {
           Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-              text = "Pure White",
+              text = when (base) {
+                BaseSurface.White -> "Pure White"
+                BaseSurface.Dark -> "Dark"
+                BaseSurface.Metal -> "Metal"
+              },
               fontSize = 28.sp,
               fontWeight = FontWeight.Bold,
-              color = Color.Black.copy(alpha = 0.85f),
+              color = onBase.copy(alpha = 0.85f),
             )
             Text(
-              text = "Clean. Minimal.",
+              text = "Holographic.",
               fontSize = 16.sp,
-              color = Color.Black.copy(alpha = 0.55f),
+              color = onBase.copy(alpha = 0.55f),
             )
           }
         }
@@ -208,6 +239,28 @@ fun ChromaticCardScreen(onBackClick: () -> Unit) {
                 selected = preset == MaterialPreset.Custom,
                 onClick = { preset = MaterialPreset.Custom },
                 label = { Text("Custom") },
+              )
+            }
+
+            SectionLabel("Surface")
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+              FilterChip(
+                selected = base == BaseSurface.White,
+                onClick = { base = BaseSurface.White },
+                label = { Text("White") },
+              )
+              FilterChip(
+                selected = base == BaseSurface.Dark,
+                onClick = { base = BaseSurface.Dark },
+                label = { Text("Dark") },
+              )
+              FilterChip(
+                selected = base == BaseSurface.Metal,
+                onClick = { base = BaseSurface.Metal },
+                label = { Text("Metal") },
               )
             }
 

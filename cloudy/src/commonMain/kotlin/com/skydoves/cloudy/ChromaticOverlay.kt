@@ -22,8 +22,8 @@ import androidx.compose.ui.graphics.Color
 /**
  * Which way the chromatic overlay paints its rainbow over the glass.
  *
- * - [Iridescent] — thin-film interference: the hue rotates with the light/normal angle, like oil on
- *   water or a soap bubble. The sheen shifts as the surface (or the light) tilts.
+ * - [Iridescent] — thin-film interference (Newton's rings): the hue rotates with the light/normal
+ *   angle, like oil on water or a soap bubble. The sheen shifts as the surface/light tilts.
  * - [Foil] — flowing bands: a fixed number of rainbow bands projected along the light direction, so
  *   moving the light makes the bands stream across the face like a holographic foil.
  *
