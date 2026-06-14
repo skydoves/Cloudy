@@ -18,8 +18,11 @@ package com.skydoves.cloudy
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalInspectionMode
@@ -28,17 +31,17 @@ import org.jetbrains.skia.RuntimeEffect
 import org.jetbrains.skia.RuntimeShaderBuilder
 
 /**
- * Skiko implementation of [Modifier.shaderEffect] — shared across iOS, macOS, Desktop, and Wasm.
+ * Skiko implementation of [Modifier.mirage] — shared across iOS, macOS, Desktop, and Wasm.
  *
  * Compiles `PREAMBLE_SKSL + recipe.sksl` into a Skia [RuntimeEffect]/[RuntimeShaderBuilder], writes
  * the standard uniforms (+ the recipe's own uniforms via its `bindUniforms`) each draw, and applies
  * the result as a [RenderEffect] via [ImageFilter.makeRuntimeShader]. No API-level check is needed
  * (Skia is always present); preview and `enabled = false` are no-ops.
  */
-@ExperimentalShaderEffect
+@ExperimentalMirage
 @Composable
-public actual fun Modifier.shaderEffect(
-  recipe: ShaderRecipe,
+public actual fun Modifier.mirage(
+  recipe: MirageRecipe,
   lensCenter: Offset,
   lensSize: Size,
   cornerRadius: Float,
@@ -55,61 +58,85 @@ public actual fun Modifier.shaderEffect(
   }
 
   // Cache key is the full source text literal: the preamble + this recipe's body identifies the
-  // compiled program, so the effect is rebuilt only when the recipe's SKSL changes.
-  val source = remember(recipe.sksl) { PREAMBLE_SKSL + recipe.sksl }
+  // compiled program. The preamble varies by inputMode (Overlay drops the `content` sampler), so the
+  // key includes inputMode; the effect rebuilds only when the recipe's SKSL or its mode changes.
+  val source = remember(recipe.sksl, recipe.inputMode) {
+    val preamble = when (recipe.inputMode) {
+      MirageInputMode.ContentFilter -> PREAMBLE_SKSL
+      MirageInputMode.Overlay -> PREAMBLE_OVERLAY_SKSL
+    }
+    preamble + recipe.sksl
+  }
   val shaderBuilder = remember(source) {
     try {
       RuntimeShaderBuilder(RuntimeEffect.makeForShader(source))
     } catch (e: Exception) {
       // Surface the failure instead of silently rendering blank; the modifier then no-ops below.
-      println("ShaderEffect: RuntimeEffect compilation failed: ${e.message}")
+      println("Mirage: RuntimeEffect compilation failed: ${e.message}")
       null
     }
   } ?: return this
 
-  return this.graphicsLayer {
-    val width = size.width
-    val height = size.height
+  return when (recipe.inputMode) {
+    // ContentFilter — unchanged from M1: the shader reads `content` and its output replaces the
+    // layer, applied as a RenderEffect via makeRuntimeShader with the content child bound.
+    MirageInputMode.ContentFilter -> this.graphicsLayer {
+      val width = size.width
+      val height = size.height
 
-    if (width > 0 && height > 0) {
-      val scope = SkikoShaderEffectScope(shaderBuilder)
+      if (width > 0 && height > 0) {
+        val scope = SkikoMirageScope(shaderBuilder)
 
-      // Standard uniforms — Skia throws if any declared uniform is left unset before
-      // makeRuntimeShader, so write all of them every draw.
-      scope.uniform("iResolution", width, height)
-      scope.uniform("lensCenter", lensCenter.x, lensCenter.y)
-      scope.uniform("lensSize", lensSize.width, lensSize.height)
-      scope.uniform("cornerRadius", cornerRadius)
-      // Draw-phase read: holder identity is stable, so a high-frequency light source invalidates
-      // the draw without recomposing.
-      val lightDir = light.direction.value
-      scope.uniform("iLight", lightDir.x, lightDir.y)
-      scope.uniform("iTime", time)
+        // Standard uniforms — Skia throws if any declared uniform is left unset before
+        // makeRuntimeShader, so write all of them every draw.
+        scope.uniform("iResolution", width, height)
+        scope.uniform("lensCenter", lensCenter.x, lensCenter.y)
+        scope.uniform("lensSize", lensSize.width, lensSize.height)
+        scope.uniform("cornerRadius", cornerRadius)
+        // Draw-phase read: holder identity is stable, so a high-frequency light source invalidates
+        // the draw without recomposing.
+        val lightDir = light.direction.value
+        scope.uniform("iLight", lightDir.x, lightDir.y)
+        scope.uniform("iTime", time)
 
-      when (recipe.inputMode) {
-        ShaderInputMode.ContentFilter -> {
-          recipe.bindUniforms(scope)
-          renderEffect = ImageFilter
-            .makeRuntimeShader(
-              runtimeShaderBuilder = shaderBuilder,
-              shaderName = "content",
-              input = null, // null = use the source content from the layer
-            )
-            .asComposeRenderEffect()
-        }
+        recipe.bindUniforms(scope)
+        renderEffect = ImageFilter
+          .makeRuntimeShader(
+            runtimeShaderBuilder = shaderBuilder,
+            shaderName = "content",
+            input = null, // null = use the source content from the layer
+          )
+          .asComposeRenderEffect()
+      }
+    }
 
-        // M1 ships ContentFilter only; Overlay is reserved. No else branch keeps the when
-        // exhaustive over the sealed ShaderInputMode.
-        ShaderInputMode.Overlay -> error("Overlay input mode is not supported in this release")
+    // Overlay — the shader is a pure generator drawn ON TOP of the unmodified content. Draw the
+    // content first, then build a fresh Skia Shader (uniforms are baked at makeShader time, so it is
+    // rebuilt each draw to pick up the latest uniform values) and fill via ShaderBrush + SrcOver.
+    MirageInputMode.Overlay -> this.drawWithContent {
+      drawContent()
+      val width = size.width
+      val height = size.height
+      if (width > 0 && height > 0) {
+        val scope = SkikoMirageScope(shaderBuilder)
+        scope.uniform("iResolution", width, height)
+        scope.uniform("lensCenter", lensCenter.x, lensCenter.y)
+        scope.uniform("lensSize", lensSize.width, lensSize.height)
+        scope.uniform("cornerRadius", cornerRadius)
+        val lightDir = light.direction.value
+        scope.uniform("iLight", lightDir.x, lightDir.y)
+        scope.uniform("iTime", time)
+        recipe.bindUniforms(scope)
+        // makeShader() returns org.jetbrains.skia.Shader = Compose's Shader typealias on skiko.
+        drawRect(brush = ShaderBrush(shaderBuilder.makeShader()), blendMode = BlendMode.SrcOver)
       }
     }
   }
 }
 
-/** Skiko [ShaderEffectScope] — forwards uniform writes to a Skia [RuntimeShaderBuilder]. */
-@OptIn(ExperimentalShaderEffect::class)
-internal class SkikoShaderEffectScope(private val builder: RuntimeShaderBuilder) :
-  ShaderEffectScope {
+/** Skiko [MirageScope] — forwards uniform writes to a Skia [RuntimeShaderBuilder]. */
+@OptIn(ExperimentalMirage::class)
+internal class SkikoMirageScope(private val builder: RuntimeShaderBuilder) : MirageScope {
   override fun uniform(name: String, value: Float): Unit = builder.uniform(name, value)
 
   override fun uniform(name: String, x: Float, y: Float): Unit = builder.uniform(name, x, y)
