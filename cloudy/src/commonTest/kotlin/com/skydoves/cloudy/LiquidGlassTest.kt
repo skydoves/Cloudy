@@ -167,6 +167,9 @@ internal class LiquidGlassTest :
         LiquidGlassShaderSource.AGSL.contains("uniform float specDomeFrac").shouldBe(true)
         LiquidGlassShaderSource.AGSL.contains("uniform float specBodyPower").shouldBe(true)
         LiquidGlassShaderSource.AGSL.contains("uniform float specBodyGain").shouldBe(true)
+        LiquidGlassShaderSource.AGSL.contains("uniform float specFocalK").shouldBe(true)
+        LiquidGlassShaderSource.AGSL.contains("uniform float specPoolFrac").shouldBe(true)
+        LiquidGlassShaderSource.AGSL.contains("uniform float specPoolGain").shouldBe(true)
       }
 
       test("should drive specular from the lightDir uniform, not a hardcoded vector") {
@@ -179,7 +182,8 @@ internal class LiquidGlassTest :
         LiquidGlassShaderSource.AGSL.contains("specBodyPower").shouldBe(true)
         LiquidGlassShaderSource.AGSL.contains("float3(specDir2 * n_cos").shouldBe(true)
         LiquidGlassShaderSource.AGSL.contains("mix(normal, radial").shouldBe(false)
-        LiquidGlassShaderSource.AGSL.contains("abs(dot(normal, lightVec))").shouldBe(false) // 유지(여전히 통과)
+        // 유지(여전히 통과)
+        LiquidGlassShaderSource.AGSL.contains("abs(dot(normal, lightVec))").shouldBe(false)
       }
 
       test("should contain content shader input") {
@@ -271,6 +275,9 @@ internal class LiquidGlassTest :
         LiquidGlassShaderSource.SKSL.contains("uniform float specDomeFrac").shouldBe(true)
         LiquidGlassShaderSource.SKSL.contains("uniform float specBodyPower").shouldBe(true)
         LiquidGlassShaderSource.SKSL.contains("uniform float specBodyGain").shouldBe(true)
+        LiquidGlassShaderSource.SKSL.contains("uniform float specFocalK").shouldBe(true)
+        LiquidGlassShaderSource.SKSL.contains("uniform float specPoolFrac").shouldBe(true)
+        LiquidGlassShaderSource.SKSL.contains("uniform float specPoolGain").shouldBe(true)
       }
 
       test("should drive specular from the lightDir uniform, not a hardcoded vector") {
@@ -283,7 +290,8 @@ internal class LiquidGlassTest :
         LiquidGlassShaderSource.SKSL.contains("specBodyPower").shouldBe(true)
         LiquidGlassShaderSource.SKSL.contains("float3(specDir2 * n_cos").shouldBe(true)
         LiquidGlassShaderSource.SKSL.contains("mix(normal, radial").shouldBe(false)
-        LiquidGlassShaderSource.SKSL.contains("abs(dot(normal, lightVec))").shouldBe(false) // 유지(여전히 통과)
+        // 유지(여전히 통과)
+        LiquidGlassShaderSource.SKSL.contains("abs(dot(normal, lightVec))").shouldBe(false)
       }
 
       test("should contain content shader input") {
