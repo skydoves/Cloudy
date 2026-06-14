@@ -59,7 +59,12 @@ jobs:
         uses: actions/checkout@v6.0.1
         # persist-credentials left default (true): this job pushes the companion branch.
 
+      # continue-on-error: the compare run only uploads this artifact when there were diffs (a
+      # regression). On a clean pass it does not exist, and download-artifact errors on a missing
+      # named artifact -- which must NOT fail the job. The next step then sees no *_compare.png and
+      # treats it as "no differences".
       - name: Download screenshot diff artifact
+        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           name: screenshot-diff
@@ -184,7 +189,10 @@ jobs:
         run: |
           git fetch origin --quiet || true
           now=$(date +%s)
-          git branch -r --format='%(refname:lstrip=3)' | grep '^companion_' | while read -r branch; do
+          # `|| true` on grep: with no companion_* branches yet, grep exits 1, which under the
+          # default `bash -e -o pipefail` would fail this step. Absorb it so cleanup is a no-op.
+          branches=$(git branch -r --format='%(refname:lstrip=3)' | grep '^companion_' || true)
+          for branch in $branches; do
             last=$(git log -1 --format=%ct "origin/$branch" 2>/dev/null || echo "$now")
             if [ $((now - last)) -gt 2592000 ]; then   # 30 days
               echo "Deleting stale companion branch: $branch"
