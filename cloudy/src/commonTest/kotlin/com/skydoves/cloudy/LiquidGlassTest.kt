@@ -172,6 +172,17 @@ internal class LiquidGlassTest :
         LiquidGlassShaderSource.AGSL.contains("uniform float specPoolGain").shouldBe(true)
       }
 
+      test("should contain chromatic overlay uniforms") {
+        // All 6 chromatic uniforms must be declared; the bindings write every one each draw, so a
+        // missing declaration would read garbage (AGSL).
+        LiquidGlassShaderSource.AGSL.contains("uniform float chromaticIntensity").shouldBe(true)
+        LiquidGlassShaderSource.AGSL.contains("uniform float chromaticMode").shouldBe(true)
+        LiquidGlassShaderSource.AGSL.contains("uniform float chromaticBands").shouldBe(true)
+        LiquidGlassShaderSource.AGSL.contains("uniform float chromaticCycles").shouldBe(true)
+        LiquidGlassShaderSource.AGSL.contains("uniform float chromaticPhase").shouldBe(true)
+        LiquidGlassShaderSource.AGSL.contains("uniform float chromaticModulate").shouldBe(true)
+      }
+
       test("should drive specular from the lightDir uniform, not a hardcoded vector") {
         LiquidGlassShaderSource.AGSL.contains("normalize(lightDir)").shouldBe(true)
         LiquidGlassShaderSource.AGSL.contains("normalize(float2(-1.0, -1.0))").shouldBe(false)
@@ -278,6 +289,17 @@ internal class LiquidGlassTest :
         LiquidGlassShaderSource.SKSL.contains("uniform float specFocalK").shouldBe(true)
         LiquidGlassShaderSource.SKSL.contains("uniform float specPoolFrac").shouldBe(true)
         LiquidGlassShaderSource.SKSL.contains("uniform float specPoolGain").shouldBe(true)
+      }
+
+      test("should contain chromatic overlay uniforms") {
+        // All 6 chromatic uniforms must be declared; Skia throws on any unset declared uniform, so
+        // the bindings write every one each draw.
+        LiquidGlassShaderSource.SKSL.contains("uniform float chromaticIntensity").shouldBe(true)
+        LiquidGlassShaderSource.SKSL.contains("uniform float chromaticMode").shouldBe(true)
+        LiquidGlassShaderSource.SKSL.contains("uniform float chromaticBands").shouldBe(true)
+        LiquidGlassShaderSource.SKSL.contains("uniform float chromaticCycles").shouldBe(true)
+        LiquidGlassShaderSource.SKSL.contains("uniform float chromaticPhase").shouldBe(true)
+        LiquidGlassShaderSource.SKSL.contains("uniform float chromaticModulate").shouldBe(true)
       }
 
       test("should drive specular from the lightDir uniform, not a hardcoded vector") {
