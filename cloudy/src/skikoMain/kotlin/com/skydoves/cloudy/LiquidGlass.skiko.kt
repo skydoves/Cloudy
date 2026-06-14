@@ -47,6 +47,85 @@ public actual fun Modifier.liquidGlass(
   contrast: Float,
   tint: Color,
   edge: Float,
+  light: LiquidGlassLight,
+  glow: LiquidGlassGlow,
+  enabled: Boolean,
+): Modifier = liquidGlassImpl(
+  lensCenter = lensCenter,
+  lensSize = lensSize,
+  cornerRadius = cornerRadius,
+  refraction = refraction,
+  curve = curve,
+  dispersion = dispersion,
+  saturation = saturation,
+  contrast = contrast,
+  tint = tint,
+  edge = edge,
+  light = light,
+  // The stable public surface only exposes the two perceptual knobs; widen to the full 4-knob
+  // tuning (extra knobs at their tuned defaults) for the single uniform-writing path below.
+  tuning = glow.toTuning(),
+  enabled = enabled,
+)
+
+@ExperimentalLiquidGlassMotion
+@Composable
+public actual fun Modifier.liquidGlassTuned(
+  lensCenter: Offset,
+  lensSize: Size,
+  cornerRadius: Float,
+  refraction: Float,
+  curve: Float,
+  dispersion: Float,
+  saturation: Float,
+  contrast: Float,
+  tint: Color,
+  edge: Float,
+  light: LiquidGlassLight,
+  glowIntensity: Float,
+  glowSharpness: Float,
+  glowRimMix: Float,
+  glowWidthPx: Float,
+  enabled: Boolean,
+): Modifier = liquidGlassImpl(
+  lensCenter = lensCenter,
+  lensSize = lensSize,
+  cornerRadius = cornerRadius,
+  refraction = refraction,
+  curve = curve,
+  dispersion = dispersion,
+  saturation = saturation,
+  contrast = contrast,
+  tint = tint,
+  edge = edge,
+  light = light,
+  tuning = GlowTuning(
+    intensity = glowIntensity,
+    sharpness = glowSharpness,
+    rimMix = glowRimMix,
+    widthPx = glowWidthPx,
+  ),
+  enabled = enabled,
+)
+
+/**
+ * Single entry point shared by [liquidGlass] and [liquidGlassTuned]. Takes the full internal
+ * [GlowTuning] so there is exactly one uniform-writing code path.
+ */
+@Composable
+private fun Modifier.liquidGlassImpl(
+  lensCenter: Offset,
+  lensSize: Size,
+  cornerRadius: Float,
+  refraction: Float,
+  curve: Float,
+  dispersion: Float,
+  saturation: Float,
+  contrast: Float,
+  tint: Color,
+  edge: Float,
+  light: LiquidGlassLight,
+  tuning: GlowTuning,
   enabled: Boolean,
 ): Modifier {
   // Validation
@@ -96,6 +175,26 @@ public actual fun Modifier.liquidGlass(
       shaderBuilder.uniform("contrast", contrast)
       shaderBuilder.uniform("tint", tint.red, tint.green, tint.blue, tint.alpha)
       shaderBuilder.uniform("edge", edge)
+      // Draw-phase read: holder identity is stable, so a high-frequency light source
+      // invalidates the draw without recomposing. Always set — Skia throws if any declared
+      // uniform is missing before makeRuntimeShader.
+      val lightDir = light.direction.value
+      shaderBuilder.uniform("lightDir", lightDir.x, lightDir.y)
+      // Specular glint tuning — Skia throws on any unset declared uniform, so write all eight
+      // every draw (gate-free), right alongside lightDir.
+      shaderBuilder.uniform("specStrength", tuning.intensity)
+      shaderBuilder.uniform("specPower", tuning.sharpness)
+      shaderBuilder.uniform("specRimMix", tuning.rimMix)         // 변경: was specSweep / tuning.travel
+      shaderBuilder.uniform("specWidthPx", tuning.widthPx)
+      // Skia는 선언됐는데 unset인 uniform에 throw → bevel 4 + focal 3 모두 write.
+      shaderBuilder.uniform("specLightZ", tuning.lightZ)
+      shaderBuilder.uniform("specDomeFrac", tuning.domeFrac)
+      shaderBuilder.uniform("specBodyPower", tuning.bodyPower)
+      shaderBuilder.uniform("specBodyGain", tuning.bodyGain)
+      // Moving focal hotspot (dual-axis) — same gate-free contract.
+      shaderBuilder.uniform("specFocalK", tuning.focalK)
+      shaderBuilder.uniform("specPoolFrac", tuning.poolFrac)
+      shaderBuilder.uniform("specPoolGain", tuning.poolGain)
 
       // Create ImageFilter with RuntimeShader
       // "content" binds to the underlying content (null input = source content)

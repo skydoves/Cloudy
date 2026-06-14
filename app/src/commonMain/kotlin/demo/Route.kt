@@ -79,4 +79,10 @@ sealed interface Route {
    */
   @Serializable
   data object Issue112BottomNav : Route
+
+  /**
+   * The gyro lighting test screen — isolates the tilt-driven specular highlight.
+   */
+  @Serializable
+  data object GyroLight : Route
 }
