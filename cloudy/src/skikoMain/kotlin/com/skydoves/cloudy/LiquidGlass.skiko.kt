@@ -216,7 +216,7 @@ private fun Modifier.liquidGlassImpl(
       shaderBuilder.uniform("chromaticBands", 3f)
       shaderBuilder.uniform("chromaticCycles", 1.5f)
       shaderBuilder.uniform("chromaticPhase", 0f)
-      shaderBuilder.uniform("chromaticModulate", 1f)
+      shaderBuilder.uniform("chromaticModulate", 0.3f)
 
       // Create ImageFilter with RuntimeShader
       // "content" binds to the underlying content (null input = source content)

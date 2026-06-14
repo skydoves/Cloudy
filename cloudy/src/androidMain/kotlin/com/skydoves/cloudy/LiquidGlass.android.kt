@@ -278,7 +278,7 @@ private fun Modifier.liquidGlassApi33(
       shader.setFloatUniform("chromaticBands", 3f)
       shader.setFloatUniform("chromaticCycles", 1.5f)
       shader.setFloatUniform("chromaticPhase", 0f)
-      shader.setFloatUniform("chromaticModulate", 1f)
+      shader.setFloatUniform("chromaticModulate", 0.3f)
 
       // Apply shader as RenderEffect - "content" binds to underlying layer
       renderEffect = RenderEffect
