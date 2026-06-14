@@ -16,6 +16,12 @@ plugins {
 
 apiValidation {
   ignoredProjects.addAll(listOf("app"))
+  // Members behind these opt-in markers are excluded from the committed .api dumps: the open
+  // shader-recipe API is experimental, and the motion marker's members (liquidGlassTuned,
+  // rememberGyroLightSource, rememberTransformLightSource) were leaking into the android/desktop
+  // dumps despite being opt-in.
+  nonPublicMarkers.add("com.skydoves.cloudy.ExperimentalShaderEffect")
+  nonPublicMarkers.add("com.skydoves.cloudy.ExperimentalLiquidGlassMotion")
 }
 
 subprojects {
