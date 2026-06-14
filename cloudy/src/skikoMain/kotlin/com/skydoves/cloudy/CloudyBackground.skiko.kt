@@ -23,6 +23,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.BlurEffect
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
@@ -79,6 +80,7 @@ public actual fun Modifier.cloudy(
   @IntRange(from = 0) radius: Int,
   progressive: CloudyProgressive,
   tint: Color,
+  light: LiquidGlassLight?,
   enabled: Boolean,
   @Suppress("UNUSED_PARAMETER") cpuBlurEnabled: Boolean,
   shape: Shape,
@@ -103,6 +105,7 @@ public actual fun Modifier.cloudy(
       radius = radius,
       progressive = progressive,
       tint = tint,
+      light = light,
       shape = shape,
       onStateChanged = onStateChanged,
     ),
@@ -221,6 +224,7 @@ private data class CloudyBackgroundModifierElement(
   val radius: Int,
   val progressive: CloudyProgressive,
   val tint: Color,
+  val light: LiquidGlassLight?,
   val shape: Shape,
   val onStateChanged: (CloudyState) -> Unit,
 ) : ModifierNodeElement<CloudyBackgroundModifierNode>() {
@@ -231,6 +235,7 @@ private data class CloudyBackgroundModifierElement(
     properties["radius"] = radius
     properties["progressive"] = progressive
     properties["tint"] = tint
+    properties["light"] = light
     properties["shape"] = shape
   }
 
@@ -239,12 +244,13 @@ private data class CloudyBackgroundModifierElement(
     radius = radius,
     progressive = progressive,
     tint = tint,
+    light = light,
     shape = shape,
     onStateChanged = onStateChanged,
   )
 
   override fun update(node: CloudyBackgroundModifierNode) {
-    node.update(sky, radius, progressive, tint, shape, onStateChanged)
+    node.update(sky, radius, progressive, tint, light, shape, onStateChanged)
   }
 }
 
@@ -253,6 +259,7 @@ private class CloudyBackgroundModifierNode(
   private var radius: Int,
   private var progressive: CloudyProgressive,
   private var tint: Color,
+  private var light: LiquidGlassLight?,
   private var shape: Shape,
   private var onStateChanged: (CloudyState) -> Unit,
 ) : Modifier.Node(),
@@ -262,6 +269,14 @@ private class CloudyBackgroundModifierNode(
 
   private var positionInRoot: Offset = Offset.Zero
   private var size: IntSize = IntSize.Zero
+
+  // Specular highlight brush cache. The light direction is read at gyro rate (~30Hz), so the pool
+  // center moves most frames; rebuild the Brush only when center/radius actually change to avoid
+  // per-frame Brush allocation on the draw hot path. Moving the light re-runs only this overlay
+  // draw; it does NOT re-record or re-blur the cached blur layer.
+  private var cachedBrush: Brush? = null
+  private var cachedCenter: Offset = Offset.Unspecified
+  private var cachedRadius: Float = -1f
 
   // Stable re-blur invalidator the frame driver runs after each capture. A field (not a fresh lambda
   // per call) so the driver can identity-match it on add/remove.
@@ -281,6 +296,7 @@ private class CloudyBackgroundModifierNode(
     radius: Int,
     progressive: CloudyProgressive,
     tint: Color,
+    light: LiquidGlassLight?,
     shape: Shape,
     onStateChanged: (CloudyState) -> Unit,
   ) {
@@ -288,6 +304,7 @@ private class CloudyBackgroundModifierNode(
       this.radius != radius ||
       this.progressive != progressive ||
       this.tint != tint ||
+      this.light != light ||
       this.shape != shape
 
     if (this.sky != sky && isAttached) {
@@ -299,6 +316,7 @@ private class CloudyBackgroundModifierNode(
     this.radius = radius
     this.progressive = progressive
     this.tint = tint
+    this.light = light
     this.shape = shape
     this.onStateChanged = onStateChanged
 
@@ -427,6 +445,9 @@ private class CloudyBackgroundModifierNode(
       if (snapshot.tintColor != Color.Transparent) {
         drawRect(color = snapshot.tintColor, blendMode = BlendMode.SrcOver)
       }
+
+      // Experimental specular highlight over the blurred backdrop (no-op when light == null).
+      if (light != null) drawHighlight()
     }
 
     onStateChanged(CloudyState.Success.Applied)
@@ -451,6 +472,43 @@ private class CloudyBackgroundModifierNode(
     }
   }
 
+  /**
+   * Draws the moving specular highlight over the already-blurred backdrop. Called only from the
+   * blurred path, inside its existing [clipToShape] so the glint follows the surface shape.
+   * Composited with the default `SrcOver` blend: the highlight brush already encodes a screen-like
+   * additive falloff (soft warm-white radial that fades to transparent), so a plain `SrcOver`
+   * composite reads as an additive glint. The shader (Screen) vs this overlay (SrcOver) delta is an
+   * accepted trade-off, reusing the same `SrcOver` path already used for tint.
+   *
+   * Reads the Node's [light] (must be non-null here) and [size] fields and reuses [cachedBrush]
+   * unless the pool center/radius moved this frame — a pure overlay composite on the cached blur
+   * layer, never a blur re-record.
+   */
+  private fun DrawScope.drawHighlight() {
+    val light = light ?: return
+    // Node's measured IntSize field — qualified so it isn't shadowed by DrawScope.size (canvas Size).
+    val lensSize = this@CloudyBackgroundModifierNode.size
+    if (minOf(lensSize.width, lensSize.height) <= 0) return
+    // Pure geometry lives in commonMain so the shipped path is the unit-tested path.
+    val center = highlightPoolCenter(lensSize, light.direction.value, HIGHLIGHT_FOCAL_K)
+    val radius = highlightPoolRadius(lensSize, HIGHLIGHT_POOL_FRAC)
+    val brush = if (center != cachedCenter || radius != cachedRadius) {
+      Brush.radialGradient(
+        colorStops = HIGHLIGHT_STOPS,
+        center = center,
+        radius = radius,
+        tileMode = TileMode.Clamp,
+      ).also {
+        cachedBrush = it
+        cachedCenter = center
+        cachedRadius = radius
+      }
+    } else {
+      cachedBrush!!
+    }
+    drawRect(brush = brush)
+  }
+
   override fun onDetach() {
     sky.frameDriver.removeOverlay(reblur)
     blurLayer?.let { requireGraphicsContext().releaseGraphicsLayer(it) }
@@ -458,5 +516,8 @@ private class CloudyBackgroundModifierNode(
     cachedBlurEffect = null
     cachedBlurRadius = -1f
     clipPathCache = null
+    cachedBrush = null
+    cachedCenter = Offset.Unspecified
+    cachedRadius = -1f
   }
 }

@@ -116,6 +116,7 @@ public expect fun Modifier.sky(sky: Sky): Modifier
  * @param tint Optional tint color to blend over the blurred background.
  *             Use semi-transparent colors for best results.
  *             Defaults to [Color.Transparent] (no tint).
+ * @param light Optional experimental [LiquidGlassLight]; when non-null, a moving specular highlight is drawn over the blurred backdrop. Defaults to null (no highlight).
  * @param enabled If false, disables the blur effect and renders nothing (transparent).
  * @param cpuBlurEnabled Whether to enable CPU-based blur on Android 30 and below.
  *                       When `false` (default), a scrim overlay is shown instead of blur.
@@ -140,6 +141,7 @@ public expect fun Modifier.cloudy(
   radius: Int = CloudyDefaults.BACKGROUND_RADIUS,
   progressive: CloudyProgressive = CloudyProgressive.None,
   tint: Color = Color.Transparent,
+  light: LiquidGlassLight? = null,
   enabled: Boolean = true,
   cpuBlurEnabled: Boolean = CloudyDefaults.CPP_BLUR_ENABLED,
   shape: Shape = RectangleShape,
