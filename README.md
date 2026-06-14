@@ -429,9 +429,36 @@ You can customize the liquid glass effect with various parameters:
 | `contrast` | 1.0f | Light/dark contrast (1.0 = normal) | Approximation |
 | `tint` | Transparent | Optional color tint overlay | Yes |
 | `edge` | 0.2f | Edge lighting width (0 = none) | Yes (as stroke) |
+| `light` | Fixed | Specular light direction (see Motion-driven specular) | No (requires API 33+) |
 | `enabled` | true | Enable/disable the effect | Yes |
 
 > **Note:** On Android 32 and below, the lens refraction effect is not available since it requires `RuntimeShader` (API 33+). The fallback draws a visible lens shape with tint, edge lighting, and color adjustments. For blur effects, use `Modifier.cloudy()` separately.
+
+### Motion-driven specular (experimental)
+
+By default the rim highlight uses a fixed light direction, so output is unchanged from earlier versions. Opt in to **gyro-driven specular** to make the highlight sweep across the glass as the device tilts (à la iOS 26 "lights move in space"):
+
+```kotlin
+@OptIn(ExperimentalLiquidGlassMotion::class)
+@Composable
+fun GlassCard() {
+  // Hoist once and share across items in a list — one call registers one sensor.
+  val light = rememberGyroLightSource(enabled = true)
+
+  Box(
+    modifier = Modifier.liquidGlass(
+      lensCenter = lensCenter,
+      light = light,
+    ),
+  ) { /* ... */ }
+}
+```
+
+- **Opt-in & accessible:** the default is a fixed light (bit-identical to previous releases). When **Reduce Motion** is enabled (Android animator scale `0`, iOS `isReduceMotionEnabled`), the light is frozen and no sensors are registered — observed live.
+- **Platform support:** Android **API 33+** (the fallback path has no shader → no-op), iOS, and any device with a motion sensor. Desktop/Web and sensorless devices keep a static light.
+- **Lists:** call `rememberGyroLightSource()` **once** above the list and pass the result to each item, so a single sensor listener is shared.
+
+> **iOS:** the consuming app's `Info.plist` **must** declare `NSMotionUsageDescription`, or recent iOS terminates the app on the first device-motion read. iOS v1 uses a portrait-oriented projection; landscape is not yet remapped.
 
 ## Find this repository useful? :heart:
 Support it by joining __[stargazers](https://github.com/skydoves/cloudy/stargazers)__ for this repository. :star: <br>
