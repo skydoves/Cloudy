@@ -29,6 +29,7 @@ import demo.screen.BlurAppBarGridScreen
 import demo.screen.GridListScreen
 import demo.screen.InteractiveSliderScreen
 import demo.screen.Issue112BottomNavScreen
+import demo.screen.Issue113LiquidGlassScreen
 import demo.screen.LiquidGlassDemoScreen
 import demo.screen.MenuHomeScreen
 import demo.screen.ProgressiveBlurDemoScreen
@@ -61,6 +62,7 @@ fun CloudyDemoApp() {
               onProgressiveBlurClick = { backStack.add(Route.ProgressiveBlur) },
               onLiquidGlassClick = { backStack.add(Route.LiquidGlass) },
               onIssue112Click = { backStack.add(Route.Issue112BottomNav) },
+              onIssue113Click = { backStack.add(Route.Issue113LiquidGlass) },
             )
           }
 
@@ -110,6 +112,12 @@ fun CloudyDemoApp() {
 
           is Route.Issue112BottomNav -> NavEntry(route) {
             Issue112BottomNavScreen(
+              onBackClick = { backStack.removeLastOrNull() },
+            )
+          }
+
+          is Route.Issue113LiquidGlass -> NavEntry(route) {
+            Issue113LiquidGlassScreen(
               onBackClick = { backStack.removeLastOrNull() },
             )
           }

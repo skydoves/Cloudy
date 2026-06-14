@@ -42,6 +42,7 @@ import demo.theme.Dimens
  * @param onProgressiveBlurClick Callback when the Progressive Blur demo is selected.
  * @param onLiquidGlassClick Callback when the Liquid Glass demo is selected.
  * @param onIssue112Click Callback when the Issue #112 BottomNav repro is selected.
+ * @param onIssue113Click Callback when the Issue #113 Liquid Glass repro is selected.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,6 +54,7 @@ fun MenuHomeScreen(
   onProgressiveBlurClick: () -> Unit,
   onLiquidGlassClick: () -> Unit,
   onIssue112Click: () -> Unit,
+  onIssue113Click: () -> Unit,
 ) {
   val posters = remember { MockUtil.getMockPosters() }
 
@@ -117,6 +119,14 @@ fun MenuHomeScreen(
             description = "Backdrop blur on a bottom bar over a scrolling list",
             poster = posters[6],
             onClick = onIssue112Click,
+          )
+        }
+        item {
+          MenuCard(
+            title = "Issue #113 — Liquid Glass",
+            description = "Lens pinned to the card corner when lensCenter stays at Offset.Zero",
+            poster = posters[posters.lastIndex],
+            onClick = onIssue113Click,
           )
         }
       }

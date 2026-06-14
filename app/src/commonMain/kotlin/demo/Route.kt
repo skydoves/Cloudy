@@ -79,4 +79,11 @@ sealed interface Route {
    */
   @Serializable
   data object Issue112BottomNav : Route
+
+  /**
+   * Reproduction of issue #113: a centered `Card` with `Modifier.liquidGlass` whose `lensCenter`
+   * is left at `Offset.Zero`, pinning the glass lens to the card's top-left corner.
+   */
+  @Serializable
+  data object Issue113LiquidGlass : Route
 }
