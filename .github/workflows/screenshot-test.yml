@@ -1,3 +1,19 @@
+# Screenshot regression check (UNTRUSTED half of the two-workflow split).
+#
+# Why two workflows: this PR stream includes fork PRs (e.g. l2hyunwoo -> skydoves).
+# Workflows triggered by `pull_request` from a fork get a READ-ONLY GITHUB_TOKEN with no
+# secrets, so they cannot push a branch or comment on the PR. This workflow therefore does
+# the untrusted work only -- run the screenshot check and UPLOAD ARTIFACTS. The privileged
+# half (push diff images + comment) lives in screenshot-comment.yml, triggered via
+# `workflow_run` so it runs in the base-repo context with a write token.
+# See: https://docs.github.com/actions -> workflow_run "label or comment on pull requests from forks".
+#
+# Why no StoreScreenshot baseline workflow (the upstream sample has one): Cloudy commits its
+# goldens in-repo under cloudy/src/androidUnitTest/assets/screenshots/, so verifyRoborazziDebug
+# compares the fresh capture against the committed PNG directly. There is no per-branch baseline
+# to stash as an artifact, so the third workflow from
+# takahirom/roborazzi-compare-on-github-comment-sample is intentionally omitted.
+
 name: Screenshot Tests
 
 on:
@@ -6,15 +22,22 @@ on:
   pull_request:
     branches: [ '*' ]
 
+# Default to no permissions; grant the minimum per job.
+permissions: {}
+
 jobs:
   roborazzi:
     name: Roborazzi verify
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read   # clone only
+      actions: write   # upload-artifact
     steps:
       - name: Check out code
         uses: actions/checkout@v6.0.1
         with:
-          persist-credentials: false
+          persist-credentials: false   # this job never pushes
 
       - name: Set up JDK 21
         uses: actions/setup-java@v5.1.0
@@ -31,14 +54,34 @@ jobs:
       # Verifies recorded goldens under cloudy/src/androidUnitTest/assets/screenshots/.
       # Pure JVM (Robolectric native graphics) -- no emulator. Regenerate goldens locally with
       # ./gradlew :cloudy:recordRoborazziDebug when an intentional UI change lands.
+      # On a mismatch this FAILS the build (red check) and Roborazzi writes
+      # <name>_compare.png (side-by-side before/after/diff) + <name>_actual.png to
+      # cloudy/build/outputs/roborazzi/ -- verified by a corrupt-golden probe.
       - name: Verify screenshots
         run: ./gradlew :cloudy:verifyRoborazziDebug
 
-      - name: Upload screenshot diffs on failure
-        if: failure()
+      # Always upload so the diff images are captured even when the verify step fails above.
+      - name: Upload screenshot diffs
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: roborazzi-diffs
+          name: screenshot-diff
           path: cloudy/build/outputs/roborazzi
           if-no-files-found: ignore
+          retention-days: 7
+
+      # Stash the PR number so the privileged workflow_run job can resolve which PR to comment on
+      # (workflow_run payload does not carry it directly).
+      - name: Save PR number
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          mkdir -p ./pr
+          echo "${{ github.event.number }}" > ./pr/NR
+
+      - name: Upload PR number
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr
+          path: pr/
           retention-days: 7
