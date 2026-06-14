@@ -64,7 +64,10 @@ import androidx.compose.ui.Modifier
  * ```
  *
  * @param radius The blur radius in pixels for both the x and y axes. Must be non-negative.
- *               Converted to sigma internally using `sigma = radius / 2.0`.
+ *               The radius is passed through to the platform blur (RenderEffect on API 31+,
+ *               Skia BlurEffect on Skiko targets), which converts it to a Gaussian sigma
+ *               internally (HWUI uses `sigma = 0.57735 * radius + 0.5`). This matches
+ *               `Modifier.blur(radius.dp)` and the legacy CPU path.
  *               On Android API 30 and below, values above 25 use iterative passes.
  * @param enabled If false, disables the blur effect and returns the original modifier.
  * @param onStateChanged Callback invoked when the blur state changes.

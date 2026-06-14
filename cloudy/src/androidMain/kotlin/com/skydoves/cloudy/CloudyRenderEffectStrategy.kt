@@ -56,11 +56,15 @@ internal object CloudyRenderEffectStrategy : CloudyBlurStrategy {
       return modifier
     }
 
-    val sigma = radius / 2.0f
+    // RenderEffect.createBlurEffect expects a blur *radius* in pixels, not a Gaussian
+    // sigma. HWUI converts it internally (sigma = 0.57735 * radius + 0.5), so the
+    // user-supplied radius is passed through directly to match Modifier.blur and the
+    // legacy CPU path.
+    val blurRadius = radius.toFloat()
 
     return modifier.graphicsLayer {
       renderEffect = RenderEffect
-        .createBlurEffect(sigma, sigma, Shader.TileMode.CLAMP)
+        .createBlurEffect(blurRadius, blurRadius, Shader.TileMode.CLAMP)
         .asComposeRenderEffect()
     }
   }
