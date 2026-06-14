@@ -43,6 +43,7 @@ import androidx.compose.ui.platform.LocalInspectionMode
  *
  * **Note:** For blur effects, use [Modifier.cloudy] separately.
  */
+@ExperimentalLiquidGlassMaterial
 @Composable
 public actual fun Modifier.liquidGlass(
   lensCenter: Offset,
@@ -57,6 +58,7 @@ public actual fun Modifier.liquidGlass(
   edge: Float,
   light: LiquidGlassLight,
   glow: LiquidGlassGlow,
+  chromatic: ChromaticOverlay,
   enabled: Boolean,
 ): Modifier = liquidGlassImpl(
   lensCenter = lensCenter,
@@ -73,9 +75,11 @@ public actual fun Modifier.liquidGlass(
   // The stable public surface only exposes the two perceptual knobs; widen to the full 4-knob
   // tuning (extra knobs at their tuned defaults) for the single uniform-writing path below.
   tuning = glow.toTuning(),
+  chromatic = chromatic,
   enabled = enabled,
 )
 
+@OptIn(ExperimentalLiquidGlassMaterial::class)
 @ExperimentalLiquidGlassMotion
 @Composable
 public actual fun Modifier.liquidGlassTuned(
@@ -113,6 +117,9 @@ public actual fun Modifier.liquidGlassTuned(
     rimMix = glowRimMix,
     widthPx = glowWidthPx,
   ),
+  // liquidGlassTuned tunes the specular glint only; it does not expose the chromatic overlay, so
+  // forward the no-op preset (the binding still writes all 6 chromatic uniforms gate-free below).
+  chromatic = LiquidGlassDefaults.NoChromatic,
   enabled = enabled,
 )
 
@@ -120,6 +127,7 @@ public actual fun Modifier.liquidGlassTuned(
  * Single entry point shared by [liquidGlass] and [liquidGlassTuned]. Takes the full internal
  * [GlowTuning] so there is exactly one uniform-writing code path (in [liquidGlassApi33]).
  */
+@OptIn(ExperimentalLiquidGlassMaterial::class)
 @Composable
 private fun Modifier.liquidGlassImpl(
   lensCenter: Offset,
@@ -134,6 +142,7 @@ private fun Modifier.liquidGlassImpl(
   edge: Float,
   light: LiquidGlassLight,
   tuning: GlowTuning,
+  chromatic: ChromaticOverlay,
   enabled: Boolean,
 ): Modifier {
   // Validation
@@ -171,11 +180,12 @@ private fun Modifier.liquidGlassImpl(
       edge = edge,
       light = light,
       tuning = tuning,
+      chromatic = chromatic,
     )
   } else {
     // Fallback for older Android versions
-    // The fallback path has no shader, so the light/glow tuning is intentionally not
-    // forwarded (no specular uniforms to drive).
+    // The fallback path has no shader, so the light/glow/chromatic tuning is intentionally not
+    // forwarded (no specular/chromatic uniforms to drive).
     // Provides saturation, contrast, tint, and edge effects without lens refraction
     liquidGlassFallback(
       lensCenter = lensCenter,
@@ -189,6 +199,7 @@ private fun Modifier.liquidGlassImpl(
   }
 }
 
+@OptIn(ExperimentalLiquidGlassMaterial::class)
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @Composable
 private fun Modifier.liquidGlassApi33(
@@ -204,6 +215,7 @@ private fun Modifier.liquidGlassApi33(
   edge: Float,
   light: LiquidGlassLight,
   tuning: GlowTuning,
+  chromatic: ChromaticOverlay,
 ): Modifier {
   // Create and cache the RuntimeShader
   val shader = remember {
@@ -257,6 +269,16 @@ private fun Modifier.liquidGlassApi33(
       shader.setFloatUniform("specFocalK", tuning.focalK)
       shader.setFloatUniform("specPoolFrac", tuning.poolFrac)
       shader.setFloatUniform("specPoolGain", tuning.poolGain)
+      // Chromatic overlay — all 6 declared chromatic uniforms must be set every draw (gate-free);
+      // an unset AGSL uniform reads garbage. intensity == 0 keeps the term bit-exact off in-shader.
+      // Only intensity + mode come from the public ChromaticOverlay; the remaining 4 are held at the
+      // shader's tuned defaults (bands/cycles/phase/modulate) as constants here.
+      shader.setFloatUniform("chromaticIntensity", chromatic.intensity)
+      shader.setFloatUniform("chromaticMode", if (chromatic.mode == ChromaticMode.Foil) 1f else 0f)
+      shader.setFloatUniform("chromaticBands", 3f)
+      shader.setFloatUniform("chromaticCycles", 1.5f)
+      shader.setFloatUniform("chromaticPhase", 0f)
+      shader.setFloatUniform("chromaticModulate", 1f)
 
       // Apply shader as RenderEffect - "content" binds to underlying layer
       renderEffect = RenderEffect

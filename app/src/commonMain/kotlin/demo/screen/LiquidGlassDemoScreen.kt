@@ -13,7 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@file:OptIn(com.skydoves.cloudy.ExperimentalLiquidGlassMotion::class)
+@file:OptIn(
+  com.skydoves.cloudy.ExperimentalLiquidGlassMotion::class,
+  com.skydoves.cloudy.ExperimentalLiquidGlassMaterial::class,
+)
 
 package demo.screen
 

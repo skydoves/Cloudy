@@ -1,3 +1,28 @@
+public final class com/skydoves/cloudy/ChromaticMode : java/lang/Enum {
+	public static final field Foil Lcom/skydoves/cloudy/ChromaticMode;
+	public static final field Iridescent Lcom/skydoves/cloudy/ChromaticMode;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lcom/skydoves/cloudy/ChromaticMode;
+	public static fun values ()[Lcom/skydoves/cloudy/ChromaticMode;
+}
+
+public final class com/skydoves/cloudy/ChromaticOverlay {
+	public static final field $stable I
+	public static final field Companion Lcom/skydoves/cloudy/ChromaticOverlay$Companion;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCustomBrush ()Landroidx/compose/ui/graphics/Brush;
+	public final fun getIntensity ()F
+	public final fun getMode ()Lcom/skydoves/cloudy/ChromaticMode;
+	public final fun getSpectrum ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class com/skydoves/cloudy/ChromaticOverlay$Companion {
+	public final fun invoke (FLcom/skydoves/cloudy/ChromaticMode;Ljava/util/List;Landroidx/compose/ui/graphics/Brush;)Lcom/skydoves/cloudy/ChromaticOverlay;
+	public static synthetic fun invoke$default (Lcom/skydoves/cloudy/ChromaticOverlay$Companion;FLcom/skydoves/cloudy/ChromaticMode;Ljava/util/List;Landroidx/compose/ui/graphics/Brush;ILjava/lang/Object;)Lcom/skydoves/cloudy/ChromaticOverlay;
+}
+
 public final class com/skydoves/cloudy/CloudyBackground_skikoKt {
 	public static final fun cloudy-mxsUjTo (Landroidx/compose/ui/Modifier;Lcom/skydoves/cloudy/Sky;ILcom/skydoves/cloudy/CloudyProgressive;JLcom/skydoves/cloudy/LiquidGlassLight;ZZLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
 	public static final fun sky (Landroidx/compose/ui/Modifier;Lcom/skydoves/cloudy/Sky;Landroidx/compose/runtime/Composer;I)Landroidx/compose/ui/Modifier;
@@ -142,6 +167,9 @@ public final class com/skydoves/cloudy/Cloudy_skikoKt {
 	public static final fun cloudy (Landroidx/compose/ui/Modifier;IZLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
 }
 
+public abstract interface annotation class com/skydoves/cloudy/ExperimentalLiquidGlassMaterial : java/lang/annotation/Annotation {
+}
+
 public abstract interface annotation class com/skydoves/cloudy/ExperimentalLiquidGlassMotion : java/lang/annotation/Annotation {
 }
 
@@ -151,6 +179,7 @@ public final class com/skydoves/cloudy/GyroLightKt {
 
 public final class com/skydoves/cloudy/LiquidGlassDefaults {
 	public static final field $stable I
+	public static final field CHROMATIC_INTENSITY F
 	public static final field CONTRAST F
 	public static final field CORNER_RADIUS F
 	public static final field CURVE F
@@ -164,9 +193,12 @@ public final class com/skydoves/cloudy/LiquidGlassDefaults {
 	public static final field REFRACTION F
 	public static final field SATURATION F
 	public final fun getGlow ()Lcom/skydoves/cloudy/LiquidGlassGlow;
+	public final fun getHOLOGRAPHIC_SPECTRUM ()Ljava/util/List;
+	public final fun getHolographic ()Lcom/skydoves/cloudy/ChromaticOverlay;
 	public final fun getLENS_SIZE-NH-jbRc ()J
 	public final fun getLIGHT_DIR-F1C5BW0 ()J
 	public final fun getLight ()Lcom/skydoves/cloudy/LiquidGlassLight;
+	public final fun getNoChromatic ()Lcom/skydoves/cloudy/ChromaticOverlay;
 	public final fun getNoGlow ()Lcom/skydoves/cloudy/LiquidGlassGlow;
 	public final fun getTINT-0d7_KjU ()J
 }
@@ -202,7 +234,7 @@ public final class com/skydoves/cloudy/LiquidGlassShaderSource {
 }
 
 public final class com/skydoves/cloudy/LiquidGlass_skikoKt {
-	public static final fun liquidGlass--orAQqo (Landroidx/compose/ui/Modifier;JJFFFFFFJFLcom/skydoves/cloudy/LiquidGlassLight;Lcom/skydoves/cloudy/LiquidGlassGlow;ZLandroidx/compose/runtime/Composer;III)Landroidx/compose/ui/Modifier;
+	public static final fun liquidGlass-gA7x3C4 (Landroidx/compose/ui/Modifier;JJFFFFFFJFLcom/skydoves/cloudy/LiquidGlassLight;Lcom/skydoves/cloudy/LiquidGlassGlow;Lcom/skydoves/cloudy/ChromaticOverlay;ZLandroidx/compose/runtime/Composer;III)Landroidx/compose/ui/Modifier;
 	public static final fun liquidGlassTuned-iWwQIZ8 (Landroidx/compose/ui/Modifier;JJFFFFFFJFLcom/skydoves/cloudy/LiquidGlassLight;FFFFZLandroidx/compose/runtime/Composer;III)Landroidx/compose/ui/Modifier;
 }
 

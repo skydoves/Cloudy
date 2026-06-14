@@ -35,6 +35,7 @@ import org.jetbrains.skia.RuntimeShaderBuilder
  *
  * **Note:** For blur effects, use [Modifier.cloudy] separately.
  */
+@ExperimentalLiquidGlassMaterial
 @Composable
 public actual fun Modifier.liquidGlass(
   lensCenter: Offset,
@@ -49,6 +50,7 @@ public actual fun Modifier.liquidGlass(
   edge: Float,
   light: LiquidGlassLight,
   glow: LiquidGlassGlow,
+  chromatic: ChromaticOverlay,
   enabled: Boolean,
 ): Modifier = liquidGlassImpl(
   lensCenter = lensCenter,
@@ -65,9 +67,11 @@ public actual fun Modifier.liquidGlass(
   // The stable public surface only exposes the two perceptual knobs; widen to the full 4-knob
   // tuning (extra knobs at their tuned defaults) for the single uniform-writing path below.
   tuning = glow.toTuning(),
+  chromatic = chromatic,
   enabled = enabled,
 )
 
+@OptIn(ExperimentalLiquidGlassMaterial::class)
 @ExperimentalLiquidGlassMotion
 @Composable
 public actual fun Modifier.liquidGlassTuned(
@@ -105,6 +109,9 @@ public actual fun Modifier.liquidGlassTuned(
     rimMix = glowRimMix,
     widthPx = glowWidthPx,
   ),
+  // liquidGlassTuned tunes the specular glint only; it does not expose the chromatic overlay, so
+  // forward the no-op preset (the binding still writes all 6 chromatic uniforms gate-free below).
+  chromatic = LiquidGlassDefaults.NoChromatic,
   enabled = enabled,
 )
 
@@ -112,6 +119,7 @@ public actual fun Modifier.liquidGlassTuned(
  * Single entry point shared by [liquidGlass] and [liquidGlassTuned]. Takes the full internal
  * [GlowTuning] so there is exactly one uniform-writing code path.
  */
+@OptIn(ExperimentalLiquidGlassMaterial::class)
 @Composable
 private fun Modifier.liquidGlassImpl(
   lensCenter: Offset,
@@ -126,6 +134,7 @@ private fun Modifier.liquidGlassImpl(
   edge: Float,
   light: LiquidGlassLight,
   tuning: GlowTuning,
+  chromatic: ChromaticOverlay,
   enabled: Boolean,
 ): Modifier {
   // Validation
@@ -195,6 +204,19 @@ private fun Modifier.liquidGlassImpl(
       shaderBuilder.uniform("specFocalK", tuning.focalK)
       shaderBuilder.uniform("specPoolFrac", tuning.poolFrac)
       shaderBuilder.uniform("specPoolGain", tuning.poolGain)
+      // Chromatic overlay — Skia throws on any unset declared uniform, so write all 6 every draw
+      // (gate-free). intensity == 0 keeps the term bit-exact off in-shader. Only intensity + mode
+      // come from the public ChromaticOverlay; the remaining 4 are held at the shader's tuned
+      // defaults (bands/cycles/phase/modulate) as constants here.
+      shaderBuilder.uniform("chromaticIntensity", chromatic.intensity)
+      shaderBuilder.uniform(
+        "chromaticMode",
+        if (chromatic.mode == ChromaticMode.Foil) 1f else 0f,
+      )
+      shaderBuilder.uniform("chromaticBands", 3f)
+      shaderBuilder.uniform("chromaticCycles", 1.5f)
+      shaderBuilder.uniform("chromaticPhase", 0f)
+      shaderBuilder.uniform("chromaticModulate", 1f)
 
       // Create ImageFilter with RuntimeShader
       // "content" binds to the underlying content (null input = source content)
