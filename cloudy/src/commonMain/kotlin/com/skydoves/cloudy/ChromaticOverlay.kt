@@ -22,15 +22,36 @@ import androidx.compose.ui.graphics.Color
 /**
  * Which way the chromatic overlay paints its rainbow over the glass.
  *
- * - [Iridescent] — thin-film interference (Newton's rings): the hue rotates with the light/normal
- *   angle, like oil on water or a soap bubble. The sheen shifts as the surface/light tilts.
- * - [Foil] — flowing bands: a fixed number of rainbow bands projected along the light direction, so
- *   moving the light makes the bands stream across the face like a holographic foil.
- *
- * Maps to the shader's `chromaticMode` uniform (`0f` = [Iridescent], `1f` = [Foil]).
+ * Maps to the shader's `chromaticMode` uniform, one float per entry in declared order
+ * (`0f` = [Iridescent] … `5f` = [Pearl]); the binding's `when` is exhaustive over this enum, so the
+ * float mapping stays in lockstep with the order below — **do not reorder**.
  */
 @ExperimentalLiquidGlassMaterial
-public enum class ChromaticMode { Iridescent, Foil }
+public enum class ChromaticMode {
+  /**
+   * Thin-film interference (Newton's rings): the hue rotates with the light/normal angle, like oil
+   * on water or a soap bubble. The sheen shifts as the surface/light tilts.
+   */
+  Iridescent,
+
+  /**
+   * Flowing bands: a fixed number of rainbow bands projected along the light direction, so moving
+   * the light makes the bands stream across the face like a holographic foil.
+   */
+  Foil,
+
+  /** Oil slick — tight, busy thin-film film: dense, fast-cycling hue swirls like petrol on a road. */
+  OilSlick,
+
+  /** Soap bubble — wide, airy interference bands: broad, slow color sweeps like a large bubble. */
+  SoapBubble,
+
+  /** Metallic foil — strong, hard-edged metallic sheen: punchy, high-contrast holographic metal. */
+  MetallicFoil,
+
+  /** Pearl — soft, subtle nacre: gentle pastel iridescence like the inside of a shell. */
+  Pearl,
+}
 
 /**
  * Perceptual description of the Liquid Glass **chromatic overlay** — the light-reactive iridescent

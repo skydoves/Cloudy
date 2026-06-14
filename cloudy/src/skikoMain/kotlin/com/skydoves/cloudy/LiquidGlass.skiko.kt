@@ -209,10 +209,16 @@ private fun Modifier.liquidGlassImpl(
       // come from the public ChromaticOverlay; the remaining 4 are held at the shader's tuned
       // defaults (bands/cycles/phase/modulate) as constants here.
       shaderBuilder.uniform("chromaticIntensity", chromatic.intensity)
-      shaderBuilder.uniform(
-        "chromaticMode",
-        if (chromatic.mode == ChromaticMode.Foil) 1f else 0f,
-      )
+      // Exhaustive when (no else) so adding a ChromaticMode without a float breaks the build here.
+      val chromaticModeF = when (chromatic.mode) {
+        ChromaticMode.Iridescent -> 0f
+        ChromaticMode.Foil -> 1f
+        ChromaticMode.OilSlick -> 2f
+        ChromaticMode.SoapBubble -> 3f
+        ChromaticMode.MetallicFoil -> 4f
+        ChromaticMode.Pearl -> 5f
+      }
+      shaderBuilder.uniform("chromaticMode", chromaticModeF)
       shaderBuilder.uniform("chromaticBands", 3f)
       shaderBuilder.uniform("chromaticCycles", 1.5f)
       shaderBuilder.uniform("chromaticPhase", 0f)

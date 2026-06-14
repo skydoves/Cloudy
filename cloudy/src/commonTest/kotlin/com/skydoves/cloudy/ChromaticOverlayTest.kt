@@ -105,10 +105,19 @@ internal class ChromaticOverlayTest :
     }
 
     context("ChromaticMode") {
-      test("has exactly two modes in declared order") {
-        ChromaticMode.entries.size.shouldBe(2)
-        ChromaticMode.entries[0].shouldBe(ChromaticMode.Iridescent)
-        ChromaticMode.entries[1].shouldBe(ChromaticMode.Foil)
+      test("has exactly six modes in declared order") {
+        // The binding maps each entry to its ordinal as a float (0f..5f), so this order is the
+        // shader contract — reordering would silently remap the looks.
+        ChromaticMode.entries.shouldBe(
+          listOf(
+            ChromaticMode.Iridescent,
+            ChromaticMode.Foil,
+            ChromaticMode.OilSlick,
+            ChromaticMode.SoapBubble,
+            ChromaticMode.MetallicFoil,
+            ChromaticMode.Pearl,
+          ),
+        )
       }
     }
 
@@ -128,6 +137,26 @@ internal class ChromaticOverlayTest :
       test("Holographic is an iridescent thin-film overlay at the default intensity") {
         LiquidGlassDefaults.Holographic.intensity.shouldBe(LiquidGlassDefaults.CHROMATIC_INTENSITY)
         LiquidGlassDefaults.Holographic.mode.shouldBe(ChromaticMode.Iridescent)
+      }
+
+      test("OilSlick is the OilSlick mode at the default intensity") {
+        LiquidGlassDefaults.OilSlick.intensity.shouldBe(LiquidGlassDefaults.CHROMATIC_INTENSITY)
+        LiquidGlassDefaults.OilSlick.mode.shouldBe(ChromaticMode.OilSlick)
+      }
+
+      test("SoapBubble is the SoapBubble mode at the default intensity") {
+        LiquidGlassDefaults.SoapBubble.intensity.shouldBe(LiquidGlassDefaults.CHROMATIC_INTENSITY)
+        LiquidGlassDefaults.SoapBubble.mode.shouldBe(ChromaticMode.SoapBubble)
+      }
+
+      test("MetallicFoil is the MetallicFoil mode raised to a stronger intensity") {
+        LiquidGlassDefaults.MetallicFoil.intensity.shouldBe(0.75f)
+        LiquidGlassDefaults.MetallicFoil.mode.shouldBe(ChromaticMode.MetallicFoil)
+      }
+
+      test("Pearl is the Pearl mode lowered to a subtle intensity") {
+        LiquidGlassDefaults.Pearl.intensity.shouldBe(0.45f)
+        LiquidGlassDefaults.Pearl.mode.shouldBe(ChromaticMode.Pearl)
       }
     }
   })

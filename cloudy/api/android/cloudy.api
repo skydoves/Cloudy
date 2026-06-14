@@ -1,6 +1,10 @@
 public final class com/skydoves/cloudy/ChromaticMode : java/lang/Enum {
 	public static final field Foil Lcom/skydoves/cloudy/ChromaticMode;
 	public static final field Iridescent Lcom/skydoves/cloudy/ChromaticMode;
+	public static final field MetallicFoil Lcom/skydoves/cloudy/ChromaticMode;
+	public static final field OilSlick Lcom/skydoves/cloudy/ChromaticMode;
+	public static final field Pearl Lcom/skydoves/cloudy/ChromaticMode;
+	public static final field SoapBubble Lcom/skydoves/cloudy/ChromaticMode;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lcom/skydoves/cloudy/ChromaticMode;
 	public static fun values ()[Lcom/skydoves/cloudy/ChromaticMode;
@@ -198,8 +202,12 @@ public final class com/skydoves/cloudy/LiquidGlassDefaults {
 	public final fun getLENS_SIZE-NH-jbRc ()J
 	public final fun getLIGHT_DIR-F1C5BW0 ()J
 	public final fun getLight ()Lcom/skydoves/cloudy/LiquidGlassLight;
+	public final fun getMetallicFoil ()Lcom/skydoves/cloudy/ChromaticOverlay;
 	public final fun getNoChromatic ()Lcom/skydoves/cloudy/ChromaticOverlay;
 	public final fun getNoGlow ()Lcom/skydoves/cloudy/LiquidGlassGlow;
+	public final fun getOilSlick ()Lcom/skydoves/cloudy/ChromaticOverlay;
+	public final fun getPearl ()Lcom/skydoves/cloudy/ChromaticOverlay;
+	public final fun getSoapBubble ()Lcom/skydoves/cloudy/ChromaticOverlay;
 	public final fun getTINT-0d7_KjU ()J
 }
 

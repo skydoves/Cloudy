@@ -270,6 +270,41 @@ public object LiquidGlassDefaults {
   public val Holographic: ChromaticOverlay =
     ChromaticOverlay(CHROMATIC_INTENSITY, ChromaticMode.Iridescent, HOLOGRAPHIC_SPECTRUM)
 
+  /**
+   * Oil-slick preset — a tight, busy thin-film film ([ChromaticMode.OilSlick]) at the default
+   * [CHROMATIC_INTENSITY]: dense, fast-cycling hue swirls like petrol on a wet road. Singleton; do
+   * not reassign.
+   */
+  @ExperimentalLiquidGlassMaterial
+  public val OilSlick: ChromaticOverlay =
+    ChromaticOverlay(CHROMATIC_INTENSITY, ChromaticMode.OilSlick)
+
+  /**
+   * Soap-bubble preset — wide, airy interference bands ([ChromaticMode.SoapBubble]) at the default
+   * [CHROMATIC_INTENSITY]: broad, slow color sweeps like a large bubble. Singleton; do not reassign.
+   */
+  @ExperimentalLiquidGlassMaterial
+  public val SoapBubble: ChromaticOverlay =
+    ChromaticOverlay(CHROMATIC_INTENSITY, ChromaticMode.SoapBubble)
+
+  /**
+   * Metallic-foil preset — a strong, hard-edged metallic sheen ([ChromaticMode.MetallicFoil]) at a
+   * raised `0.75f` intensity so the punchy, high-contrast holographic metal reads boldly. Singleton;
+   * do not reassign.
+   */
+  @ExperimentalLiquidGlassMaterial
+  public val MetallicFoil: ChromaticOverlay =
+    ChromaticOverlay(0.75f, ChromaticMode.MetallicFoil)
+
+  /**
+   * Pearl preset — a soft, subtle nacre ([ChromaticMode.Pearl]) at a lowered `0.45f` intensity so the
+   * gentle pastel iridescence stays understated, like the inside of a shell. Singleton; do not
+   * reassign.
+   */
+  @ExperimentalLiquidGlassMaterial
+  public val Pearl: ChromaticOverlay =
+    ChromaticOverlay(0.45f, ChromaticMode.Pearl)
+
   /** Minimum Android API level required for the full liquid glass effect. */
   public const val MIN_ANDROID_API_FULL: Int = 33
 
