@@ -105,7 +105,7 @@ internal fun InteractiveSliderContent(
     modifier = Modifier
       .fillMaxSize()
       .verticalScroll(rememberScrollState())
-      .padding(Dimens.contentPadding),
+      .padding(horizontal = Dimens.screenPadding, vertical = Dimens.contentPadding),
     horizontalAlignment = Alignment.CenterHorizontally,
   ) {
     BlurPreviewCard(radius = radius, imageContent = imageContent)
@@ -144,7 +144,9 @@ internal fun BlurPreviewCard(radius: Int, imageContent: @Composable (Modifier) -
     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
   ) {
     Column(
-      modifier = Modifier.padding(Dimens.contentPadding),
+      modifier = Modifier
+        .fillMaxWidth()
+        .padding(Dimens.contentPadding),
       horizontalAlignment = Alignment.CenterHorizontally,
     ) {
       Text(
@@ -202,7 +204,9 @@ internal fun BlurSliderCard(sliderValue: Float, onSliderValueChange: (Float) -> 
     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
   ) {
     Column(
-      modifier = Modifier.padding(Dimens.contentPadding),
+      modifier = Modifier
+        .fillMaxWidth()
+        .padding(Dimens.contentPadding),
       horizontalAlignment = Alignment.CenterHorizontally,
     ) {
       Text(

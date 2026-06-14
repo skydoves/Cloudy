@@ -15,6 +15,9 @@
  */
 package demo.screen
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -29,6 +32,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -43,9 +47,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.skydoves.cloudy.cloudy
 import com.skydoves.landscapist.coil3.CoilImage
 import demo.component.CollapsingAppBarScaffold
@@ -73,8 +75,8 @@ fun RadiusItemsScreen(onRadiusSelected: (Int) -> Unit, onBackClick: () -> Unit) 
     MaxWidthContainer(modifier = Modifier.padding(paddingValues)) {
       LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(Dimens.itemSpacing),
-        contentPadding = PaddingValues(Dimens.contentPadding),
+        verticalArrangement = Arrangement.spacedBy(Dimens.listItemSpacing),
+        contentPadding = PaddingValues(Dimens.screenPadding),
       ) {
         items(radiusList) { radius ->
           RadiusItem(
@@ -122,19 +124,27 @@ internal fun RadiusItemLayout(
   Card(
     modifier = Modifier
       .fillMaxWidth()
+      .clip(RoundedCornerShape(Dimens.cardCornerRadius))
       .clickable(onClick = onClick),
     elevation = CardDefaults.cardElevation(defaultElevation = Dimens.cardElevation),
     shape = RoundedCornerShape(Dimens.cardCornerRadius),
     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    border = BorderStroke(Dimens.hairline, MaterialTheme.colorScheme.outline),
   ) {
     Row(
-      modifier = Modifier.padding(Dimens.itemSpacing),
+      modifier = Modifier.padding(Dimens.contentPadding),
       verticalAlignment = Alignment.CenterVertically,
     ) {
+      // Thumbnail with a subtle rounded ring around it.
       Box(
         modifier = Modifier
-          .size(80.dp)
-          .clip(RoundedCornerShape(Dimens.itemSpacing)),
+          .size(Dimens.thumbnailSize)
+          .clip(RoundedCornerShape(Dimens.thumbCornerRadius))
+          .border(
+            width = Dimens.hairline,
+            color = MaterialTheme.colorScheme.outline,
+            shape = RoundedCornerShape(Dimens.thumbCornerRadius),
+          ),
       ) {
         imageContent(
           Modifier
@@ -147,23 +157,27 @@ internal fun RadiusItemLayout(
 
       Column(modifier = Modifier.weight(1f)) {
         Text(
-          text = "Radius: $radius",
-          fontSize = 20.sp,
-          fontWeight = FontWeight.Bold,
+          text = "Radius $radius",
+          style = MaterialTheme.typography.titleMedium,
           color = MaterialTheme.colorScheme.onSurface,
-        )
-        Text(
-          text = if (radius == 0) "No blur" else "Sigma: ${radius / 2.0f}",
-          fontSize = 14.sp,
-          color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
         )
       }
 
-      Icon(
-        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-        contentDescription = "Navigate",
-        tint = MaterialTheme.colorScheme.secondary,
-      )
+      // Toned-down chevron inside a soft circular chip (no more neon arrow).
+      Box(
+        modifier = Modifier
+          .size(32.dp)
+          .clip(CircleShape)
+          .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f)),
+        contentAlignment = Alignment.Center,
+      ) {
+        Icon(
+          imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+          contentDescription = "Navigate",
+          tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+          modifier = Modifier.size(20.dp),
+        )
+      }
     }
   }
 }

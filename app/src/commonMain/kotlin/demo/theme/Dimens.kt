@@ -18,21 +18,36 @@ package demo.theme
 import androidx.compose.ui.unit.dp
 
 /**
- * Shared dimension constants for the demo app.
+ * Shared dimension tokens for the demo app.
  */
 internal object Dimens {
   /** Maximum content width for responsive layout on large screens */
   val maxContentWidth = 600.dp
 
-  /** Standard card corner radius */
-  val cardCornerRadius = 16.dp
+  /** Card corner radius — softer, more rounded for a polished feel */
+  val cardCornerRadius = 22.dp
 
-  /** Standard card elevation */
-  val cardElevation = 8.dp
+  /** Corner radius for inner thumbnails / media */
+  val thumbCornerRadius = 16.dp
+
+  /** Card elevation — light, since depth comes from the glass border, not a hard shadow */
+  val cardElevation = 2.dp
+
+  /** Outer screen padding */
+  val screenPadding = 20.dp
 
   /** Standard content padding */
   val contentPadding = 16.dp
 
   /** Standard item spacing */
   val itemSpacing = 12.dp
+
+  /** Vertical spacing between list items */
+  val listItemSpacing = 14.dp
+
+  /** Leading thumbnail size in list rows */
+  val thumbnailSize = 72.dp
+
+  /** Hairline border width for glass cards */
+  val hairline = 1.dp
 }
