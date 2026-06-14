@@ -289,17 +289,21 @@ half4 main(float2 xy) {
         float  poolNorm = clamp(cPool * cPool, 0.0, 1.0);           // raw pool²(정규화) = modulator
         float  chroma  = chromaticIntensity * mix(1.0, poolNorm, chromaticModulate);
 
-        // tint-multiply 블렌드: chroma=0→불변, chroma=1→pixel*chromaRGB.
-        // 흰 카드는 background()가 liquidGlass 레이어 '뒤'에 그려져 content.eval()이 그 영역을 투명(a≈0)으로
-        // 돌려준다 → multiply는 보여줄 픽셀이 없다. 오버레이를 '얹는 재질'로 보이게: 빛나는 베이스(흰색이 깔린
-        // 것으로 가정)에 chromaRGB를 곱한 값과, 실제 content(불투명 사진 등) 위 tint-multiply를 content alpha로
-        // 보간하고, alpha를 chroma 만큼 끌어올린다. 불투명 content(a=1)면 정확히 기존 tint-multiply와 동일(무회귀).
-        // chromaticIntensity==0이면 이 블록 자체가 실행되지 않아 bit-exact off 보존.
+        // 두 경로가 정반대 블렌드를 원한다 → content alpha로 보간:
+        //   투명 베이스(a→0, 흰 카드): cOnWhite = chromaRGB. 흰(1,1,1)*무지개 = 순수 무지개. screen이면
+        //     흰 배경에서 1-(1-1)*(…)=1 로 무지개가 사라지므로 multiply(=흰*chromaRGB)가 맞다. 절대 불변.
+        //   불투명 베이스(a→1, 사진): cOnSrc = SCREEN(=어두워지지 않는 glow). multiply는 항상 값을 낮춰
+        //     (chromaRGB는 채널 하나가 항상 0) 어두운/컬러 픽셀을 탁하게 만든다(인물부 색조오염, 측정 -26%).
+        //     screen = pixel + (1-pixel)*chromaRGB*chroma 와 등가 → 항상 pixel 이상(밝아지는 방향),
+        //     1 self-limit(과포화/클립 없음), 흰 픽셀(=1)은 거의 불변. 어두운 인물부에도 무지개가 더해 보인다.
+        // 불투명 white(=1)는 screen이 1을 유지(흰 위에 glow를 더 못 얹음) — 물리적으로 옳고, 흰 '카드'는
+        // 투명 경로(a≈0)를 타므로 회귀 없음. chromaticIntensity==0이면 블록 미실행 → bit-exact off 보존.
         half  cChroma  = half(clamp(chroma, 0.0, 1.0));
-        half3 cOnWhite = half3(chromaRGB);                         // 흰 베이스(1,1,1) * chromaRGB = chromaRGB
-        half3 cOnSrc   = mix(pixel.rgb, pixel.rgb * half3(chromaRGB), cChroma); // 불투명 content 위 동작(불변)
-        pixel.rgb = mix(cOnWhite, cOnSrc, pixel.a);               // a=0→흰 위 무지개, a=1→기존 multiply
-        pixel.a   = max(pixel.a, cChroma);                        // 투명 배경에서도 오버레이가 보이도록
+        half3 cChromaRGB = half3(chromaRGB) * cChroma;            // chroma 가중 무지개(공유 항)
+        half3 cOnWhite = half3(chromaRGB);                        // 흰 베이스(1,1,1) * chromaRGB = chromaRGB(불변)
+        half3 cOnSrc   = half3(1.0) - (half3(1.0) - pixel.rgb) * (half3(1.0) - cChromaRGB); // SCREEN glow
+        pixel.rgb = mix(cOnWhite, cOnSrc, pixel.a);              // a=0→흰 위 무지개, a=1→screen glow
+        pixel.a   = max(pixel.a, cChroma);                       // 투명 배경에서도 오버레이가 보이도록
     }
 
     // Anti-aliased edge transition
@@ -566,17 +570,21 @@ half4 main(float2 xy) {
         float  poolNorm = clamp(cPool * cPool, 0.0, 1.0);           // raw pool²(정규화) = modulator
         float  chroma  = chromaticIntensity * mix(1.0, poolNorm, chromaticModulate);
 
-        // tint-multiply 블렌드: chroma=0→불변, chroma=1→pixel*chromaRGB.
-        // 흰 카드는 background()가 liquidGlass 레이어 '뒤'에 그려져 content.eval()이 그 영역을 투명(a≈0)으로
-        // 돌려준다 → multiply는 보여줄 픽셀이 없다. 오버레이를 '얹는 재질'로 보이게: 빛나는 베이스(흰색이 깔린
-        // 것으로 가정)에 chromaRGB를 곱한 값과, 실제 content(불투명 사진 등) 위 tint-multiply를 content alpha로
-        // 보간하고, alpha를 chroma 만큼 끌어올린다. 불투명 content(a=1)면 정확히 기존 tint-multiply와 동일(무회귀).
-        // chromaticIntensity==0이면 이 블록 자체가 실행되지 않아 bit-exact off 보존.
+        // 두 경로가 정반대 블렌드를 원한다 → content alpha로 보간:
+        //   투명 베이스(a→0, 흰 카드): cOnWhite = chromaRGB. 흰(1,1,1)*무지개 = 순수 무지개. screen이면
+        //     흰 배경에서 1-(1-1)*(…)=1 로 무지개가 사라지므로 multiply(=흰*chromaRGB)가 맞다. 절대 불변.
+        //   불투명 베이스(a→1, 사진): cOnSrc = SCREEN(=어두워지지 않는 glow). multiply는 항상 값을 낮춰
+        //     (chromaRGB는 채널 하나가 항상 0) 어두운/컬러 픽셀을 탁하게 만든다(인물부 색조오염, 측정 -26%).
+        //     screen = pixel + (1-pixel)*chromaRGB*chroma 와 등가 → 항상 pixel 이상(밝아지는 방향),
+        //     1 self-limit(과포화/클립 없음), 흰 픽셀(=1)은 거의 불변. 어두운 인물부에도 무지개가 더해 보인다.
+        // 불투명 white(=1)는 screen이 1을 유지(흰 위에 glow를 더 못 얹음) — 물리적으로 옳고, 흰 '카드'는
+        // 투명 경로(a≈0)를 타므로 회귀 없음. chromaticIntensity==0이면 블록 미실행 → bit-exact off 보존.
         half  cChroma  = half(clamp(chroma, 0.0, 1.0));
-        half3 cOnWhite = half3(chromaRGB);                         // 흰 베이스(1,1,1) * chromaRGB = chromaRGB
-        half3 cOnSrc   = mix(pixel.rgb, pixel.rgb * half3(chromaRGB), cChroma); // 불투명 content 위 동작(불변)
-        pixel.rgb = mix(cOnWhite, cOnSrc, pixel.a);               // a=0→흰 위 무지개, a=1→기존 multiply
-        pixel.a   = max(pixel.a, cChroma);                        // 투명 배경에서도 오버레이가 보이도록
+        half3 cChromaRGB = half3(chromaRGB) * cChroma;            // chroma 가중 무지개(공유 항)
+        half3 cOnWhite = half3(chromaRGB);                        // 흰 베이스(1,1,1) * chromaRGB = chromaRGB(불변)
+        half3 cOnSrc   = half3(1.0) - (half3(1.0) - pixel.rgb) * (half3(1.0) - cChromaRGB); // SCREEN glow
+        pixel.rgb = mix(cOnWhite, cOnSrc, pixel.a);              // a=0→흰 위 무지개, a=1→screen glow
+        pixel.a   = max(pixel.a, cChroma);                       // 투명 배경에서도 오버레이가 보이도록
     }
 
     // Anti-aliased edge transition
