@@ -13,6 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@file:OptIn(com.skydoves.cloudy.ExperimentalLiquidGlassMotion::class)
+
 package demo.screen
 
 import androidx.compose.foundation.background
@@ -35,6 +37,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -55,8 +58,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.skydoves.cloudy.LiquidGlassDefaults
 import com.skydoves.cloudy.cloudy
 import com.skydoves.cloudy.liquidGlass
+import com.skydoves.cloudy.rememberGyroLightSource
 import com.skydoves.landscapist.ImageOptions
 import com.skydoves.landscapist.coil3.CoilImage
 import demo.component.CollapsingAppBarScaffold
@@ -91,6 +96,10 @@ fun LiquidGlassDemoScreen(onBackClick: () -> Unit) {
 
   // Lens position
   var lensCenter by remember { mutableStateOf(Offset.Zero) }
+
+  // Gyro-driven specular: tilt the device to sweep the rim highlight (Android 13+ / Skia).
+  var gyroEnabled by remember { mutableStateOf(false) }
+  val gyroLight = rememberGyroLightSource(enabled = gyroEnabled)
 
   CollapsingAppBarScaffold(
     title = "Liquid Glass",
@@ -156,6 +165,7 @@ fun LiquidGlassDemoScreen(onBackClick: () -> Unit) {
                   edge = edge,
                   saturation = saturation,
                   dispersion = dispersion,
+                  light = if (gyroEnabled) gyroLight else LiquidGlassDefaults.Light,
                 ),
             ) {
               CoilImage(
@@ -235,6 +245,32 @@ fun LiquidGlassDemoScreen(onBackClick: () -> Unit) {
             )
 
             Spacer(modifier = Modifier.height(16.dp))
+
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              verticalAlignment = Alignment.CenterVertically,
+            ) {
+              Column(modifier = Modifier.weight(1f)) {
+                Text(
+                  text = "Gyro lighting",
+                  fontSize = 14.sp,
+                  fontWeight = FontWeight.Medium,
+                  color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                  text = "Tilt the device to sweep the highlight. Fixed when off, " +
+                    "unsupported, or Reduce Motion is on.",
+                  fontSize = 11.sp,
+                  color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                )
+              }
+              Switch(
+                checked = gyroEnabled,
+                onCheckedChange = { gyroEnabled = it },
+              )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
 
             ParameterSlider(
               label = "Shape",

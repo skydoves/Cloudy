@@ -26,7 +26,9 @@ import androidx.compose.runtime.remember
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
 import demo.screen.BlurAppBarGridScreen
+import demo.screen.BlurLightScreen
 import demo.screen.GridListScreen
+import demo.screen.GyroLightScreen
 import demo.screen.InteractiveSliderScreen
 import demo.screen.Issue112BottomNavScreen
 import demo.screen.LiquidGlassDemoScreen
@@ -34,6 +36,7 @@ import demo.screen.MenuHomeScreen
 import demo.screen.ProgressiveBlurDemoScreen
 import demo.screen.RadiusDetailScreen
 import demo.screen.RadiusItemsScreen
+import demo.screen.TransformLightScreen
 import demo.theme.PosterTheme
 
 /**
@@ -61,6 +64,9 @@ fun CloudyDemoApp() {
               onProgressiveBlurClick = { backStack.add(Route.ProgressiveBlur) },
               onLiquidGlassClick = { backStack.add(Route.LiquidGlass) },
               onIssue112Click = { backStack.add(Route.Issue112BottomNav) },
+              onGyroLightClick = { backStack.add(Route.GyroLight) },
+              onTransformLightClick = { backStack.add(Route.TransformLight) },
+              onBlurLightClick = { backStack.add(Route.BlurLight) },
             )
           }
 
@@ -110,6 +116,24 @@ fun CloudyDemoApp() {
 
           is Route.Issue112BottomNav -> NavEntry(route) {
             Issue112BottomNavScreen(
+              onBackClick = { backStack.removeLastOrNull() },
+            )
+          }
+
+          is Route.GyroLight -> NavEntry(route) {
+            GyroLightScreen(
+              onBackClick = { backStack.removeLastOrNull() },
+            )
+          }
+
+          is Route.TransformLight -> NavEntry(route) {
+            TransformLightScreen(
+              onBackClick = { backStack.removeLastOrNull() },
+            )
+          }
+
+          is Route.BlurLight -> NavEntry(route) {
+            BlurLightScreen(
               onBackClick = { backStack.removeLastOrNull() },
             )
           }

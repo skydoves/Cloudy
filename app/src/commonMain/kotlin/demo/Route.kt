@@ -79,4 +79,24 @@ sealed interface Route {
    */
   @Serializable
   data object Issue112BottomNav : Route
+
+  /**
+   * The gyro lighting test screen — isolates the tilt-driven specular highlight.
+   */
+  @Serializable
+  data object GyroLight : Route
+
+  /**
+   * The transform lighting test screen — the target's own 3D rotation drives the specular
+   * highlight (deterministic, sensor-free; runs on Desktop and Web).
+   */
+  @Serializable
+  data object TransformLight : Route
+
+  /**
+   * The blur lighting test screen — a moving liquid-glass specular pool rides the blurred
+   * backdrop of a cloudy(sky=…) surface (deterministic, sensor-free).
+   */
+  @Serializable
+  data object BlurLight : Route
 }

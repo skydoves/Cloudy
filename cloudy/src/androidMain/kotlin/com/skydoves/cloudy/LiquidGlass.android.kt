@@ -55,6 +55,85 @@ public actual fun Modifier.liquidGlass(
   contrast: Float,
   tint: Color,
   edge: Float,
+  light: LiquidGlassLight,
+  glow: LiquidGlassGlow,
+  enabled: Boolean,
+): Modifier = liquidGlassImpl(
+  lensCenter = lensCenter,
+  lensSize = lensSize,
+  cornerRadius = cornerRadius,
+  refraction = refraction,
+  curve = curve,
+  dispersion = dispersion,
+  saturation = saturation,
+  contrast = contrast,
+  tint = tint,
+  edge = edge,
+  light = light,
+  // The stable public surface only exposes the two perceptual knobs; widen to the full 4-knob
+  // tuning (extra knobs at their tuned defaults) for the single uniform-writing path below.
+  tuning = glow.toTuning(),
+  enabled = enabled,
+)
+
+@ExperimentalLiquidGlassMotion
+@Composable
+public actual fun Modifier.liquidGlassTuned(
+  lensCenter: Offset,
+  lensSize: Size,
+  cornerRadius: Float,
+  refraction: Float,
+  curve: Float,
+  dispersion: Float,
+  saturation: Float,
+  contrast: Float,
+  tint: Color,
+  edge: Float,
+  light: LiquidGlassLight,
+  glowIntensity: Float,
+  glowSharpness: Float,
+  glowRimMix: Float,
+  glowWidthPx: Float,
+  enabled: Boolean,
+): Modifier = liquidGlassImpl(
+  lensCenter = lensCenter,
+  lensSize = lensSize,
+  cornerRadius = cornerRadius,
+  refraction = refraction,
+  curve = curve,
+  dispersion = dispersion,
+  saturation = saturation,
+  contrast = contrast,
+  tint = tint,
+  edge = edge,
+  light = light,
+  tuning = GlowTuning(
+    intensity = glowIntensity,
+    sharpness = glowSharpness,
+    rimMix = glowRimMix,
+    widthPx = glowWidthPx,
+  ),
+  enabled = enabled,
+)
+
+/**
+ * Single entry point shared by [liquidGlass] and [liquidGlassTuned]. Takes the full internal
+ * [GlowTuning] so there is exactly one uniform-writing code path (in [liquidGlassApi33]).
+ */
+@Composable
+private fun Modifier.liquidGlassImpl(
+  lensCenter: Offset,
+  lensSize: Size,
+  cornerRadius: Float,
+  refraction: Float,
+  curve: Float,
+  dispersion: Float,
+  saturation: Float,
+  contrast: Float,
+  tint: Color,
+  edge: Float,
+  light: LiquidGlassLight,
+  tuning: GlowTuning,
   enabled: Boolean,
 ): Modifier {
   // Validation
@@ -90,9 +169,13 @@ public actual fun Modifier.liquidGlass(
       contrast = contrast,
       tint = tint,
       edge = edge,
+      light = light,
+      tuning = tuning,
     )
   } else {
     // Fallback for older Android versions
+    // The fallback path has no shader, so the light/glow tuning is intentionally not
+    // forwarded (no specular uniforms to drive).
     // Provides saturation, contrast, tint, and edge effects without lens refraction
     liquidGlassFallback(
       lensCenter = lensCenter,
@@ -119,6 +202,8 @@ private fun Modifier.liquidGlassApi33(
   contrast: Float,
   tint: Color,
   edge: Float,
+  light: LiquidGlassLight,
+  tuning: GlowTuning,
 ): Modifier {
   // Create and cache the RuntimeShader
   val shader = remember {
@@ -152,6 +237,26 @@ private fun Modifier.liquidGlassApi33(
       shader.setFloatUniform("contrast", contrast)
       shader.setFloatUniform("tint", tint.red, tint.green, tint.blue, tint.alpha)
       shader.setFloatUniform("edge", edge)
+      // Draw-phase read: only the value changes per tick (holder identity is stable), so a
+      // high-frequency light source invalidates the draw without recomposing. Always set
+      // (never gate) — the shader requires every declared uniform.
+      val lightDir = light.direction.value
+      shader.setFloatUniform("lightDir", lightDir.x, lightDir.y)
+      // Specular glint tuning — every declared uniform must be set on every draw (gate-free),
+      // right alongside lightDir.
+      shader.setFloatUniform("specStrength", tuning.intensity)
+      shader.setFloatUniform("specPower", tuning.sharpness)
+      shader.setFloatUniform("specRimMix", tuning.rimMix) // 변경: was specSweep / tuning.travel
+      shader.setFloatUniform("specWidthPx", tuning.widthPx)
+      // Fake-3D 스페큘러 리스펙 — AGSL에 선언됨; 매 draw 무게이트 set 안 하면 garbage(0) 읽음.
+      shader.setFloatUniform("specLightZ", tuning.lightZ)
+      shader.setFloatUniform("specDomeFrac", tuning.domeFrac)
+      shader.setFloatUniform("specBodyPower", tuning.bodyPower)
+      shader.setFloatUniform("specBodyGain", tuning.bodyGain)
+      // Moving focal hotspot (dual-axis) — same gate-free contract.
+      shader.setFloatUniform("specFocalK", tuning.focalK)
+      shader.setFloatUniform("specPoolFrac", tuning.poolFrac)
+      shader.setFloatUniform("specPoolGain", tuning.poolGain)
 
       // Apply shader as RenderEffect - "content" binds to underlying layer
       renderEffect = RenderEffect

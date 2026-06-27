@@ -15,6 +15,7 @@
  */
 package com.skydoves.cloudy
 
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import io.kotest.core.spec.style.FunSpec
@@ -71,6 +72,31 @@ internal class LiquidGlassTest :
         LiquidGlassDefaults.EDGE.shouldBe(0.2f)
       }
 
+      test("should have valid default glow intensity") {
+        // Reproduces the historical hardcoded SPEC_STRENGTH.
+        LiquidGlassDefaults.GLOW_INTENSITY.shouldBe(0.7f)
+      }
+
+      test("should have valid default glow sharpness") {
+        // Reproduces the historical hardcoded SPEC_POWER.
+        LiquidGlassDefaults.GLOW_SHARPNESS.shouldBe(10.0f)
+      }
+
+      test("default Glow should carry the default intensity and sharpness") {
+        LiquidGlassDefaults.Glow.intensity.shouldBe(0.7f)
+        LiquidGlassDefaults.Glow.sharpness.shouldBe(10.0f)
+      }
+
+      test("NoGlow should have zero intensity") {
+        LiquidGlassDefaults.NoGlow.intensity.shouldBe(0f)
+      }
+
+      test("should have valid default light direction") {
+        // Unnormalized raw value; the shader applies normalize(). At the default the single
+        // glint rests toward screen bottom-left (the -135° direction in pixel space, y-down).
+        LiquidGlassDefaults.LIGHT_DIR.shouldBe(Offset(-1f, -1f))
+      }
+
       test("should have correct minimum Android API levels") {
         LiquidGlassDefaults.MIN_ANDROID_API_FULL.shouldBe(33)
         LiquidGlassDefaults.MIN_ANDROID_API_FALLBACK.shouldBe(23)
@@ -125,6 +151,39 @@ internal class LiquidGlassTest :
 
       test("should contain edge uniform") {
         LiquidGlassShaderSource.AGSL.contains("uniform float edge").shouldBe(true)
+      }
+
+      test("should contain lightDir uniform") {
+        LiquidGlassShaderSource.AGSL.contains("uniform float2 lightDir").shouldBe(true)
+      }
+
+      test("should contain specular tuning uniforms") {
+        // The SPEC_* compile-time consts were promoted to uniforms so they can be tuned per draw.
+        LiquidGlassShaderSource.AGSL.contains("uniform float specStrength").shouldBe(true)
+        LiquidGlassShaderSource.AGSL.contains("uniform float specPower").shouldBe(true)
+        LiquidGlassShaderSource.AGSL.contains("uniform float specRimMix").shouldBe(true)
+        LiquidGlassShaderSource.AGSL.contains("uniform float specWidthPx").shouldBe(true)
+        LiquidGlassShaderSource.AGSL.contains("uniform float specLightZ").shouldBe(true)
+        LiquidGlassShaderSource.AGSL.contains("uniform float specDomeFrac").shouldBe(true)
+        LiquidGlassShaderSource.AGSL.contains("uniform float specBodyPower").shouldBe(true)
+        LiquidGlassShaderSource.AGSL.contains("uniform float specBodyGain").shouldBe(true)
+        LiquidGlassShaderSource.AGSL.contains("uniform float specFocalK").shouldBe(true)
+        LiquidGlassShaderSource.AGSL.contains("uniform float specPoolFrac").shouldBe(true)
+        LiquidGlassShaderSource.AGSL.contains("uniform float specPoolGain").shouldBe(true)
+      }
+
+      test("should drive specular from the lightDir uniform, not a hardcoded vector") {
+        LiquidGlassShaderSource.AGSL.contains("normalize(lightDir)").shouldBe(true)
+        LiquidGlassShaderSource.AGSL.contains("normalize(float2(-1.0, -1.0))").shouldBe(false)
+      }
+
+      test("should synthesize a fake-3D bevel normal for the specular term") {
+        // radial-mix 경로 제거 → SDF-bevel 노멀 + body/rim crossfade.
+        LiquidGlassShaderSource.AGSL.contains("specBodyPower").shouldBe(true)
+        LiquidGlassShaderSource.AGSL.contains("float3(specDir2 * n_cos").shouldBe(true)
+        LiquidGlassShaderSource.AGSL.contains("mix(normal, radial").shouldBe(false)
+        // 유지(여전히 통과)
+        LiquidGlassShaderSource.AGSL.contains("abs(dot(normal, lightVec))").shouldBe(false)
       }
 
       test("should contain content shader input") {
@@ -202,6 +261,39 @@ internal class LiquidGlassTest :
         LiquidGlassShaderSource.SKSL.contains("uniform float edge").shouldBe(true)
       }
 
+      test("should contain lightDir uniform") {
+        LiquidGlassShaderSource.SKSL.contains("uniform float2 lightDir").shouldBe(true)
+      }
+
+      test("should contain specular tuning uniforms") {
+        // The SPEC_* compile-time consts were promoted to uniforms so they can be tuned per draw.
+        LiquidGlassShaderSource.SKSL.contains("uniform float specStrength").shouldBe(true)
+        LiquidGlassShaderSource.SKSL.contains("uniform float specPower").shouldBe(true)
+        LiquidGlassShaderSource.SKSL.contains("uniform float specRimMix").shouldBe(true)
+        LiquidGlassShaderSource.SKSL.contains("uniform float specWidthPx").shouldBe(true)
+        LiquidGlassShaderSource.SKSL.contains("uniform float specLightZ").shouldBe(true)
+        LiquidGlassShaderSource.SKSL.contains("uniform float specDomeFrac").shouldBe(true)
+        LiquidGlassShaderSource.SKSL.contains("uniform float specBodyPower").shouldBe(true)
+        LiquidGlassShaderSource.SKSL.contains("uniform float specBodyGain").shouldBe(true)
+        LiquidGlassShaderSource.SKSL.contains("uniform float specFocalK").shouldBe(true)
+        LiquidGlassShaderSource.SKSL.contains("uniform float specPoolFrac").shouldBe(true)
+        LiquidGlassShaderSource.SKSL.contains("uniform float specPoolGain").shouldBe(true)
+      }
+
+      test("should drive specular from the lightDir uniform, not a hardcoded vector") {
+        LiquidGlassShaderSource.SKSL.contains("normalize(lightDir)").shouldBe(true)
+        LiquidGlassShaderSource.SKSL.contains("normalize(float2(-1.0, -1.0))").shouldBe(false)
+      }
+
+      test("should synthesize a fake-3D bevel normal for the specular term") {
+        // radial-mix 경로 제거 → SDF-bevel 노멀 + body/rim crossfade.
+        LiquidGlassShaderSource.SKSL.contains("specBodyPower").shouldBe(true)
+        LiquidGlassShaderSource.SKSL.contains("float3(specDir2 * n_cos").shouldBe(true)
+        LiquidGlassShaderSource.SKSL.contains("mix(normal, radial").shouldBe(false)
+        // 유지(여전히 통과)
+        LiquidGlassShaderSource.SKSL.contains("abs(dot(normal, lightVec))").shouldBe(false)
+      }
+
       test("should contain content shader input") {
         LiquidGlassShaderSource.SKSL.contains("uniform shader content").shouldBe(true)
       }
@@ -248,6 +340,14 @@ internal class LiquidGlassTest :
           LiquidGlassShaderSource.AGSL.contains(uniform).shouldBe(true)
           LiquidGlassShaderSource.SKSL.contains(uniform).shouldBe(true)
         }
+      }
+
+      test("AGSL and SKSL should both declare the lightDir uniform") {
+        // Assert the full declaration (not the bare token) on both shaders: the bare
+        // "lightDir" is already satisfied by the normalize(lightDir) usage, so it would
+        // pass even if one shader were missing the declaration — defeating the parity guard.
+        LiquidGlassShaderSource.AGSL.contains("uniform float2 lightDir").shouldBe(true)
+        LiquidGlassShaderSource.SKSL.contains("uniform float2 lightDir").shouldBe(true)
       }
 
       test("AGSL and SKSL should have same helper functions") {
