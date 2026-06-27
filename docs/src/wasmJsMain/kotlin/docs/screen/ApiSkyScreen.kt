@@ -141,6 +141,7 @@ fun ApiSkyScreen() {
           tint: Color = Color.Transparent,
           enabled: Boolean = true,
           cpuBlurEnabled: Boolean = CloudyDefaults.CPP_BLUR_ENABLED,
+          shape: Shape = RectangleShape,
           onStateChanged: (CloudyState) -> Unit = {},
         ): Modifier
       """,
@@ -244,6 +245,39 @@ fun ApiSkyScreen() {
       """,
     )
 
+    Spacer(modifier = Modifier.height(32.dp))
+
+    // Sky.invalidate(durationMillis)
+    Text(
+      text = "Sky.invalidate(durationMillis)",
+      style = DocsTheme.typography.h2,
+      color = DocsTheme.colors.onBackground,
+    )
+
+    Spacer(modifier = Modifier.height(12.dp))
+
+    Text(
+      text = "Use this overload when the backdrop changes over an animation, e.g. a cross-fade " +
+        "between two backgrounds or a tab transition. A plain invalidate() arms only a short " +
+        "settle tail, so a longer animation would freeze the blur partway. Pass the animation " +
+        "duration so the blur tracks it to completion.",
+      style = DocsTheme.typography.body,
+      color = DocsTheme.colors.onSurfaceVariant,
+    )
+
+    Spacer(modifier = Modifier.height(12.dp))
+
+    CodeBlock(
+      code = """
+        val sky = rememberSky()
+
+        // Re-capture the backdrop across a 240ms cross-fade between tabs.
+        LaunchedEffect(selectedTab) {
+          sky.invalidate(durationMillis = 240L)
+        }
+      """,
+    )
+
     Spacer(modifier = Modifier.height(48.dp))
   }
 }
@@ -295,6 +329,7 @@ private fun BackgroundBlurParameterTable() {
     ParamRow("tint", "Transparent", "Tint color over blurred background")
     ParamRow("enabled", "true", "Enable/disable the blur effect")
     ParamRow("cpuBlurEnabled", "false", "Enable CPU blur on Android 30-")
+    ParamRow("shape", "RectangleShape", "Shape the blurred backdrop is clipped to")
     ParamRow("onStateChanged", "{}", "State change callback")
   }
 }
