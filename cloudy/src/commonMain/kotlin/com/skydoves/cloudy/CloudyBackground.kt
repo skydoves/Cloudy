@@ -18,6 +18,8 @@ package com.skydoves.cloudy
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Shape
 
 /**
  * Captures the content of this composable to a [GraphicsLayer] for background blur.
@@ -120,6 +122,10 @@ public expect fun Modifier.sky(sky: Sky): Modifier
  *                       When `true`, CPU blur is applied (may impact performance).
  *                       This setting only affects Android API 30 and below.
  *                       Defaults to [CloudyDefaults.CPP_BLUR_ENABLED].
+ * @param shape The shape the blurred backdrop is clipped to. Use a rounded shape to match a
+ *              rounded glass surface so the blur follows its corners instead of leaving a hard
+ *              rectangular inner box. Defaults to [RectangleShape] (a plain rectangular clip),
+ *              which preserves the previous behavior for existing callers.
  * @param onStateChanged Callback invoked when the blur state changes.
  * @return A [Modifier] with the background blur effect applied.
  *
@@ -136,5 +142,6 @@ public expect fun Modifier.cloudy(
   tint: Color = Color.Transparent,
   enabled: Boolean = true,
   cpuBlurEnabled: Boolean = CloudyDefaults.CPP_BLUR_ENABLED,
+  shape: Shape = RectangleShape,
   onStateChanged: (CloudyState) -> Unit = {},
 ): Modifier

@@ -1,5 +1,5 @@
 public final class com/skydoves/cloudy/CloudyBackground_skikoKt {
-	public static final fun cloudy-NpZTi58 (Landroidx/compose/ui/Modifier;Lcom/skydoves/cloudy/Sky;ILcom/skydoves/cloudy/CloudyProgressive;JZZLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
+	public static final fun cloudy-mxsUjTo (Landroidx/compose/ui/Modifier;Lcom/skydoves/cloudy/Sky;ILcom/skydoves/cloudy/CloudyProgressive;JZZLandroidx/compose/ui/graphics/Shape;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)Landroidx/compose/ui/Modifier;
 	public static final fun sky (Landroidx/compose/ui/Modifier;Lcom/skydoves/cloudy/Sky;Landroidx/compose/runtime/Composer;I)Landroidx/compose/ui/Modifier;
 }
 
@@ -194,6 +194,7 @@ public final class com/skydoves/cloudy/RememberCloudyStateKt {
 public final class com/skydoves/cloudy/Sky {
 	public static final field $stable I
 	public final fun invalidate ()V
+	public final fun invalidate (J)V
 }
 
 public final class com/skydoves/cloudy/SkyKt {
