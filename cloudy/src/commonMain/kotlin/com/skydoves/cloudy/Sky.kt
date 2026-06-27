@@ -70,52 +70,69 @@ public class Sky internal constructor() {
    * Set by [Modifier.sky] and read by [Modifier.cloudy].
    *
    * This is `null` initially and when the sky modifier is detached.
+   *
+   * Published as a plain (non-snapshot) reference: an overlay re-reads the current layer every
+   * time it draws (the recorder always records into the SAME instance per recorder), and the
+   * per-frame refresh is driven by [SkyFrameDriver], not by a snapshot read. Writing this as
+   * snapshot state during the recorder's draw is what created the original idle redraw loop —
+   * the descendant overlay read the state, got invalidated, and forced another frame forever.
    */
-  internal var backgroundLayer: GraphicsLayer? by mutableStateOf(null)
+  internal var backgroundLayer: GraphicsLayer? = null
 
   /**
-   * Bounds of the sky container in local coordinates.
-   * Used to calculate relative positioning for child composables
-   * that apply background blur.
+   * Bounds of the sky container in local coordinates. Updated from [Modifier.sky]'s
+   * `onGloballyPositioned`. Plain field: read during the overlay's draw, which the frame driver
+   * already re-runs each frame, so no snapshot observation is needed.
    */
-  internal var sourceBounds: Rect by mutableStateOf(Rect.Zero)
+  internal var sourceBounds: Rect = Rect.Zero
 
   /**
-   * `true` while [Modifier.sky] is recording the blur source into [backgroundLayer].
+   * `true` while this sky's [Modifier.sky] recorder is recording the blur source.
    *
-   * A backdrop [Modifier.cloudy] overlay is, by design, a descendant of the [Modifier.sky]
-   * container, so the sky's capture pass re-enters the overlay's own draw. If the overlay drew
-   * its backdrop (which samples [backgroundLayer]) during that capture, the recorded display
-   * list of [backgroundLayer] would contain a reference back to itself — a cyclic `RenderNode`
-   * graph that makes the platform render thread recurse until the stack overflows
-   * (see https://github.com/skydoves/Cloudy/issues/112).
+   * A backdrop [Modifier.cloudy] overlay is a descendant of the recorder, so the capture pass
+   * re-enters the overlay's draw. The overlay reads this and draws NOTHING during capture: if it
+   * drew its blur (which samples [backgroundLayer]) into the layer being recorded, that layer would
+   * sample a layer that samples it — a cyclic `RenderNode` graph that overflows the render thread
+   * stack (https://github.com/skydoves/Cloudy/issues/112).
    *
-   * The overlay reads this flag and draws nothing while it is being captured, so it is absent
-   * from the blur source. [Modifier.sky] then draws its subtree to the window in a second pass
-   * with this flag `false`, during which the overlay paints its blurred backdrop (sampling the
-   * now-overlay-free [backgroundLayer]) and its foreground straight to the window canvas. The
-   * blur layer is therefore never recorded into [backgroundLayer], so no cycle can form.
-   *
-   * This is a plain (non-snapshot) field intentionally: capture and the nested overlay draw run
-   * synchronously on the same draw pass, so no recomposition or cross-thread visibility is needed.
+   * Scoped to this instance, so an overlay of a different sky is never suppressed. Supports exactly
+   * ONE recorder per sky (the single backdrop container per screen). Plain (non-snapshot): capture
+   * and the nested draws run synchronously on one draw pass, so no snapshot observation is needed.
    */
   internal var isCapturing: Boolean = false
 
+  /** Runs [block] with this sky marked as capturing. */
+  internal inline fun <T> capturing(block: () -> T): T {
+    isCapturing = true
+    try {
+      return block()
+    } finally {
+      isCapturing = false
+    }
+  }
+
   /**
-   * Content version counter that increments every time the background
-   * content is re-captured. Used by child modifiers to detect when
-   * cached blur results should be invalidated.
+   * Per-frame refresh driver that keeps the blur tracking the backdrop while content moves.
    *
-   * This counter enables proper cache invalidation during scrolling
-   * on devices that use bitmap-based blur (API < 31).
+   * A `Modifier.sky` recorder on a non-scrolling container is not draw-invalidated by a list
+   * scrolling underneath it, so its [backgroundLayer] would freeze while the list moves. The driver
+   * re-invalidates the recorder + overlays while scrolling, then parks so the app idles at zero
+   * frames when untouched. @see SkyFrameDriver.
+   */
+  internal val frameDriver: SkyFrameDriver = SkyFrameDriver()
+
+  /**
+   * Content version counter that increments every time [invalidate] (or the legacy capture path)
+   * signals a background change. Used by the API < 31 bitmap blur to key its cache.
+   *
+   * NOT bumped per-draw anymore: an unconditional per-draw bump wrote snapshot state read during
+   * the overlay's draw, re-invalidating it and self-perpetuating the idle redraw loop. The frame
+   * driver now drives per-frame refresh, and this counter only marks discrete, explicit changes.
    */
   internal var contentVersion: Long by mutableStateOf(0L)
     private set
 
-  /**
-   * Increments the content version, signaling that the background
-   * content has changed. Called by [Modifier.sky] after capturing.
-   */
+  /** Increments the content version, signaling a discrete background-content change. */
   internal fun incrementContentVersion() {
     contentVersion++
   }
@@ -126,7 +143,7 @@ public class Sky internal constructor() {
    * Call this method when the background content changes and needs
    * to be re-captured for blur rendering. This increments [contentVersion],
    * which triggers dependent [Modifier.cloudy] modifiers to invalidate
-   * their cached blur results.
+   * their cached blur results, and requests a refresh frame from the driver.
    *
    * ## Example
    *
@@ -148,6 +165,18 @@ public class Sky internal constructor() {
    */
   public fun invalidate() {
     incrementContentVersion()
+    frameDriver.requestRefresh()
+  }
+
+  /**
+   * Invalidates the background content for an ANIMATED change lasting [durationMillis], keeping the
+   * blur refreshing for that whole duration. A plain [invalidate] only arms a short settle tail, so
+   * a longer animation (e.g. a cross-fade between two backdrops) would freeze the blur partway once
+   * the tail elapses. Pass the animation's duration so the blur tracks it to completion.
+   */
+  public fun invalidate(durationMillis: Long) {
+    incrementContentVersion()
+    frameDriver.requestRefresh(durationMillis)
   }
 }
 
