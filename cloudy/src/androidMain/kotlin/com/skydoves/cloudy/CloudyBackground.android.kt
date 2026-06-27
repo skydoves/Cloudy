@@ -30,13 +30,20 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.RenderEffect as ComposeRenderEffect
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.node.CompositionLocalConsumerModifierNode
@@ -82,6 +89,7 @@ public actual fun Modifier.cloudy(
   tint: Color,
   enabled: Boolean,
   cpuBlurEnabled: Boolean,
+  shape: Shape,
   onStateChanged: (CloudyState) -> Unit,
 ): Modifier {
   require(radius >= 0) { "Blur radius must be non-negative, but was $radius" }
@@ -108,6 +116,7 @@ public actual fun Modifier.cloudy(
       progressive = progressive,
       tint = tint,
       cpuBlurEnabled = cpuBlurEnabled,
+      shape = shape,
       onStateChanged = onStateChanged,
     ),
   )
@@ -218,6 +227,7 @@ private data class CloudyBackgroundModifierElement(
   val progressive: CloudyProgressive,
   val tint: Color,
   val cpuBlurEnabled: Boolean,
+  val shape: Shape,
   val onStateChanged: (CloudyState) -> Unit,
 ) : ModifierNodeElement<CloudyBackgroundModifierNode>() {
 
@@ -228,6 +238,7 @@ private data class CloudyBackgroundModifierElement(
     properties["progressive"] = progressive
     properties["tint"] = tint
     properties["cpuBlurEnabled"] = cpuBlurEnabled
+    properties["shape"] = shape
   }
 
   override fun create(): CloudyBackgroundModifierNode = CloudyBackgroundModifierNode(
@@ -236,11 +247,12 @@ private data class CloudyBackgroundModifierElement(
     progressive = progressive,
     tint = tint,
     cpuBlurEnabled = cpuBlurEnabled,
+    shape = shape,
     onStateChanged = onStateChanged,
   )
 
   override fun update(node: CloudyBackgroundModifierNode) {
-    node.update(sky, radius, progressive, tint, cpuBlurEnabled, onStateChanged)
+    node.update(sky, radius, progressive, tint, cpuBlurEnabled, shape, onStateChanged)
   }
 }
 
@@ -250,6 +262,7 @@ private class CloudyBackgroundModifierNode(
   private var progressive: CloudyProgressive,
   private var tint: Color,
   private var cpuBlurEnabled: Boolean,
+  private var shape: Shape,
   private var onStateChanged: (CloudyState) -> Unit,
 ) : Modifier.Node(),
   DrawModifierNode,
@@ -259,6 +272,15 @@ private class CloudyBackgroundModifierNode(
 
   private var positionInRoot: Offset = Offset.Zero
   private var size: IntSize = IntSize.Zero
+
+  // Cached GPU blur layer + RenderEffect (API 31+). Reused across draws; the effect is rebuilt only
+  // when the blur radius changes (it is size-independent), so a steady-state frame allocates nothing.
+  private var blurLayer: GraphicsLayer? = null
+  private var cachedBlurEffect: ComposeRenderEffect? = null
+  private var cachedBlurRadius: Float = -1f
+
+  // Reusable Path for the shape clip, rebuilt only when the outline changes.
+  private var clipPathCache: Path? = null
 
   // Legacy blur state (API < 31)
   private var blurredBitmap: PlatformBitmap? = null
@@ -282,19 +304,22 @@ private class CloudyBackgroundModifierNode(
     progressive: CloudyProgressive,
     tint: Color,
     cpuBlurEnabled: Boolean,
+    shape: Shape,
     onStateChanged: (CloudyState) -> Unit,
   ) {
     val needsRedraw = this.sky != sky ||
       this.radius != radius ||
       this.progressive != progressive ||
       this.tint != tint ||
-      this.cpuBlurEnabled != cpuBlurEnabled
+      this.cpuBlurEnabled != cpuBlurEnabled ||
+      this.shape != shape
 
     this.sky = sky
     this.radius = radius
     this.progressive = progressive
     this.tint = tint
     this.cpuBlurEnabled = cpuBlurEnabled
+    this.shape = shape
     this.onStateChanged = onStateChanged
 
     if (needsRedraw) {
@@ -399,6 +424,27 @@ private class CloudyBackgroundModifierNode(
   }
 
   /**
+   * Clips [block] to [shape]'s outline so the blurred fill follows rounded corners instead of a
+   * hard rectangle. For [RectangleShape] this is a plain rectangular clip (the existing behavior),
+   * so default callers are unaffected. Rounded/path outlines clip via [clipPath] so the blur has
+   * no inner seam against the surface's rounded edge.
+   */
+  private fun ContentDrawScope.clipToShape(block: DrawScope.() -> Unit) {
+    // `size` here is the draw scope's size (the composite area), already a Size in pixels.
+    when (val outline = shape.createOutline(size, layoutDirection, this)) {
+      is Outline.Rectangle -> clipRect { block() }
+      is Outline.Rounded -> {
+        // Reuse the cached Path; rebuild it only when the outline changes.
+        val path = (clipPathCache ?: Path().also { clipPathCache = it })
+        path.rewind()
+        path.addRoundRect(outline.roundRect)
+        clipPath(path) { block() }
+      }
+      is Outline.Generic -> clipPath(outline.path) { block() }
+    }
+  }
+
+  /**
    * Draws a scrim (semi-transparent overlay) instead of blur.
    *
    * This is used when CPU blur is disabled on API 30 and below for better performance.
@@ -418,7 +464,7 @@ private class CloudyBackgroundModifierNode(
       snapshot.tintColor
     }
 
-    clipRect {
+    clipToShape {
       drawRect(color = scrimColor, blendMode = BlendMode.SrcOver)
     }
 
@@ -439,40 +485,50 @@ private class CloudyBackgroundModifierNode(
     // internally); pass the requested radius through directly.
     val blurRadius = snapshot.radius.toFloat()
 
-    // Create blur effect
-    val blurEffect = RenderEffect
-      .createBlurEffect(blurRadius, blurRadius, Shader.TileMode.CLAMP)
-      .asComposeRenderEffect()
-
+    // Reuse the blur layer and RenderEffect across draws; rebuild the effect only when the radius
+    // or layer size changes. Allocating a GraphicsLayer + RenderEffect every frame churns native
+    // memory and re-uploads GPU state needlessly.
     val context = requireGraphicsContext()
-    val blurLayer = context.createGraphicsLayer()
+    val blurLayer = this@CloudyBackgroundModifierNode.blurLayer
+      ?: context.createGraphicsLayer().also { this@CloudyBackgroundModifierNode.blurLayer = it }
 
-    try {
-      // Record the clipped background region with blur
-      blurLayer.record {
-        // Translate to sample correct region from background
-        drawContext.canvas.save()
-        drawContext.canvas.translate(-snapshot.offsetX, -snapshot.offsetY)
-        drawLayer(layer)
-        drawContext.canvas.restore()
-      }
-
-      blurLayer.renderEffect = blurEffect
-
-      // Clip to current bounds and draw the blurred layer
-      clipRect {
-        drawLayer(blurLayer)
-
-        // Apply tint
-        if (snapshot.tintColor != Color.Transparent) {
-          drawRect(color = snapshot.tintColor, blendMode = BlendMode.SrcOver)
+    val blurEffect = if (cachedBlurEffect == null || cachedBlurRadius != blurRadius) {
+      RenderEffect
+        .createBlurEffect(blurRadius, blurRadius, Shader.TileMode.CLAMP)
+        .asComposeRenderEffect()
+        .also {
+          cachedBlurEffect = it
+          cachedBlurRadius = blurRadius
         }
-      }
-
-      onStateChanged(CloudyState.Success.Applied)
-    } finally {
-      context.releaseGraphicsLayer(blurLayer)
+    } else {
+      cachedBlurEffect
     }
+
+    // Record the clipped background region with blur
+    blurLayer.record {
+      // Translate to sample correct region from background
+      drawContext.canvas.save()
+      drawContext.canvas.translate(-snapshot.offsetX, -snapshot.offsetY)
+      drawLayer(layer)
+      drawContext.canvas.restore()
+    }
+
+    if (blurLayer.renderEffect != blurEffect) {
+      blurLayer.renderEffect = blurEffect
+    }
+
+    // Clip to the surface shape (rounded corners included) and draw the blurred layer, so the
+    // blurred fill follows the rounded edge instead of leaving a hard rectangular inner box.
+    clipToShape {
+      drawLayer(blurLayer)
+
+      // Apply tint
+      if (snapshot.tintColor != Color.Transparent) {
+        drawRect(color = snapshot.tintColor, blendMode = BlendMode.SrcOver)
+      }
+    }
+
+    onStateChanged(CloudyState.Success.Applied)
   }
 
   private var hasLoggedProgressiveWarning = false
@@ -497,7 +553,7 @@ private class CloudyBackgroundModifierNode(
 
     // Draw cached blur if valid
     if (cacheValid) {
-      clipRect {
+      clipToShape {
         drawImage(
           image = cached.bitmap.asImageBitmap(),
           dstSize = androidx.compose.ui.unit.IntSize(size.width.toInt(), size.height.toInt()),
@@ -512,7 +568,7 @@ private class CloudyBackgroundModifierNode(
 
     // Show cached blur while processing new one
     if (cached != null && !cached.bitmap.isRecycled) {
-      clipRect {
+      clipToShape {
         drawImage(
           image = cached.bitmap.asImageBitmap(),
           dstSize = androidx.compose.ui.unit.IntSize(size.width.toInt(), size.height.toInt()),
@@ -664,6 +720,11 @@ private class CloudyBackgroundModifierNode(
   }
 
   override fun onDetach() {
+    blurLayer?.let { requireGraphicsContext().releaseGraphicsLayer(it) }
+    blurLayer = null
+    cachedBlurEffect = null
+    cachedBlurRadius = -1f
+    clipPathCache = null
     blurJob?.cancel()
     blurJob = null
     blurredBitmap = null
