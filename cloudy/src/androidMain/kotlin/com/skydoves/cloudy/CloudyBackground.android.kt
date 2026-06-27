@@ -156,6 +156,7 @@ private class SkyModifierNode(var sky: Sky) :
 
   override fun ContentDrawScope.draw() {
     val context = requireGraphicsContext()
+    val newlyCreated = graphicsLayer == null
     val layer = graphicsLayer ?: context.createGraphicsLayer().also {
       graphicsLayer = it
     }
@@ -174,10 +175,24 @@ private class SkyModifierNode(var sky: Sky) :
       sky.isCapturing = false
     }
 
-    // Publish the captured background for children before the on-screen pass below, so a
-    // descendant overlay reads the up-to-date layer when it draws this frame.
-    sky.backgroundLayer = layer
-    sky.incrementContentVersion()
+    // `layer` is reused across draws, so publish it to the snapshot state ONCE (when first
+    // created). Re-assigning the same instance every draw would write snapshot state that the
+    // descendant overlay reads in its own draw, invalidating it and triggering an endless redraw
+    // loop that keeps the window producing frames even while idle.
+    if (newlyCreated) {
+      sky.backgroundLayer = layer
+    }
+
+    // Re-recording `layer` above re-captures the current backdrop, so bump the content version
+    // that the legacy (API < 31) bitmap path keys its cache on. Throttle it: an unconditional
+    // per-draw bump writes snapshot state read during the overlay's draw, which re-invalidates
+    // the overlay and self-perpetuates the redraw loop, so the app never goes idle. Rate-limiting
+    // lets the tree settle to zero frames once the backdrop stops changing.
+    val now = System.currentTimeMillis()
+    if (now - lastVersionIncrementTime >= VERSION_INCREMENT_INTERVAL_MS) {
+      lastVersionIncrementTime = now
+      sky.incrementContentVersion()
+    }
 
     // Draw the subtree to the window. `isCapturing` is now false, so the overlay paints its
     // blurred backdrop (sampling `layer`, which contains no reference back to the overlay) and
