@@ -81,6 +81,8 @@ sourceSets {
 
 ## Usage
 
+Cloudy offers two blur modes: `Modifier.cloudy(radius = …)` blurs a composable's **own** content (covered below), while [Background Blur](#background-blur-backdrop-blur) blurs the content *behind* a composable for glassmorphism surfaces.
+
 You can implement blur effect with `Modifier.cloudy()` composable function as seen below:
 
 ```kotlin
@@ -164,6 +166,7 @@ GlideImage(
 |-------|-------------|------------------|
 | `Success.Applied` | GPU blur applied in rendering pipeline | No |
 | `Success.Captured` | CPU blur completed with bitmap | Yes (`state.bitmap`) |
+| `Success.Scrim` | Scrim overlay shown instead of blur (background blur on Android 30-) | No |
 | `Loading` | Blur processing in progress | No |
 | `Error` | Blur operation failed | No |
 | `Nothing` | Initial state | No |
@@ -196,6 +199,137 @@ private fun HomePoster(poster: Poster) {
           }
           ..
 ```
+
+## Background Blur (Backdrop Blur)
+
+Background blur — also called **backdrop blur** — blurs the content that sits *behind* a composable, producing a glassmorphism / frosted-glass surface such as a translucent app bar, bottom navigation, or card. Unlike `Modifier.cloudy(radius = …)`, which blurs a composable's **own** content, the backdrop API samples a shared snapshot of the background and renders it blurred *underneath* your overlay.
+
+It is built from three pieces:
+
+| API | Role |
+|-----|------|
+| `rememberSky()` | Creates a `Sky` — the shared state holder for the captured background. |
+| `Modifier.sky(sky)` | Marks the **source** container whose content is captured for blur. |
+| `Modifier.cloudy(sky = sky, …)` | The **overlay** that draws the captured background, blurred and clipped to its bounds. |
+
+https://github.com/user-attachments/assets/c22cb656-4415-471e-a30a-521d39344447
+
+https://github.com/user-attachments/assets/faf67c77-cb1e-4b20-994b-bb8afe340087
+
+### Basic Usage
+
+Put `Modifier.sky(sky)` on the background you want to blur, then overlay a composable with `Modifier.cloudy(sky = sky, …)`:
+
+```kotlin
+val sky = rememberSky()
+
+Box(modifier = Modifier.fillMaxSize()) {
+  // 1) Source — the content captured for blur
+  LazyVerticalGrid(
+    columns = GridCells.Fixed(2),
+    modifier = Modifier.sky(sky),
+  ) {
+    items(posters) { poster -> GridPosterItem(poster) }
+  }
+
+  // 2) Overlay — a frosted glass app bar that blurs the grid behind it
+  Box(
+    modifier = Modifier
+      .fillMaxWidth()
+      .height(56.dp)
+      .cloudy(
+        sky = sky,
+        radius = 20,
+        tint = MaterialTheme.colorScheme.surface.copy(alpha = 0.3f),
+      )
+  ) {
+    Text("Frosted Glass App Bar")
+  }
+}
+```
+
+### Clipping to a Shape
+
+By default the blurred backdrop is clipped to a rectangle. Pass a `shape` so the blur follows rounded corners instead of leaving a hard rectangular box inside a rounded glass surface:
+
+```kotlin
+val barShape = RoundedCornerShape(36.dp)
+
+Row(
+  modifier = Modifier
+    .clip(barShape)
+    .cloudy(sky = sky, radius = 24, shape = barShape)
+    .background(Color.White.copy(alpha = 0.15f)),
+) {
+  // tabs
+}
+```
+
+### Progressive (Gradient) Blur
+
+Use the `progressive` parameter to fade the blur across the surface — ideal for scroll-edge fades or vignettes:
+
+```kotlin
+// Blur is strongest at the top and fades to clear toward the bottom
+Modifier.cloudy(
+  sky = sky,
+  radius = 25,
+  progressive = CloudyProgressive.TopToBottom(),
+)
+```
+
+| Mode | Effect |
+|------|--------|
+| `CloudyProgressive.None` | Uniform blur (default) |
+| `CloudyProgressive.TopToBottom(start, end, easing)` | Blur fades from top → bottom |
+| `CloudyProgressive.BottomToTop(start, end, easing)` | Blur fades from bottom → top |
+| `CloudyProgressive.Edges(fadeDistance, easing)` | Blur at the edges, clear in the center (vignette) |
+
+> Progressive blur uses an AGSL shader on Android 33+ and Skia shaders on iOS/macOS/Desktop/WASM. On Android 32 and below it falls back to uniform blur.
+
+### Refreshing the Blur
+
+The backdrop refreshes automatically while the background **scrolls or animates**, and parks at zero frames once it settles. When the background changes outside of a scroll/animation (for example, an image finishes loading or you swap content), call `Sky.invalidate()` to re-capture:
+
+```kotlin
+AsyncImage(
+  model = imageUrl,
+  modifier = Modifier.sky(sky),
+  onSuccess = { sky.invalidate() },
+)
+```
+
+For an animated change that lasts a known duration (e.g. a tab cross-fade), pass the duration so the blur tracks the whole transition instead of freezing once the short settle tail elapses:
+
+```kotlin
+LaunchedEffect(selectedTab) {
+  sky.invalidate(durationMillis = 240) // matches the cross-fade duration
+}
+```
+
+### Parameters (`Modifier.cloudy(sky = …)`)
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `sky` | – | The `Sky` holding the captured background (required). |
+| `radius` | `20` (`CloudyDefaults.BACKGROUND_RADIUS`) | Blur radius in pixels. Must be non-negative. |
+| `progressive` | `CloudyProgressive.None` | Gradient blur configuration. |
+| `tint` | `Color.Transparent` | Optional color blended over the blurred backdrop. |
+| `enabled` | `true` | When `false`, the effect is disabled (renders nothing). |
+| `cpuBlurEnabled` | `false` (`CloudyDefaults.CPP_BLUR_ENABLED`) | Enable CPU blur on Android 30-; otherwise a scrim is shown. |
+| `shape` | `RectangleShape` | Shape the blurred backdrop is clipped to. |
+| `onStateChanged` | `{}` | Callback for `CloudyState` changes. |
+
+### Platform Behavior (Background Blur)
+
+| Platform | API Level | Implementation | Progressive Blur |
+|----------|-----------|----------------|------------------|
+| Android | 33+ | AGSL RuntimeShader | Supported |
+| Android | 31–32 | RenderEffect | Uniform only |
+| Android | 30- | Bitmap + CPU (if `cpuBlurEnabled`) or scrim | Uniform only |
+| iOS / macOS / Desktop / WASM | – | Skia BlurEffect | Supported |
+
+> On Android 30 and below, CPU blur is disabled by default and a semi-transparent scrim (`CloudyState.Success.Scrim`) is shown instead, following a performance-first approach. Set `cpuBlurEnabled = true` to force CPU blur on those devices.
 
 ## Blur Effect with Network Images
 
