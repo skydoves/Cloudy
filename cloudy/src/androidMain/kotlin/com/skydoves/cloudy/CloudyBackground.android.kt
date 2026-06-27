@@ -484,20 +484,23 @@ private class CloudyBackgroundModifierNode(
    * Following the Haze library approach.
    */
   private fun ContentDrawScope.drawScrimFallback(layer: GraphicsLayer, snapshot: SkySnapshot) {
-    // 1. Draw the background region without blur
-    drawContext.canvas.save()
-    drawContext.canvas.translate(-snapshot.offsetX, -snapshot.offsetY)
-    drawLayer(layer)
-    drawContext.canvas.restore()
-
-    // 2. Apply scrim overlay (use tint if specified, otherwise use default scrim color)
     val scrimColor = if (snapshot.tintColor == Color.Transparent) {
       CloudyDefaults.DefaultScrimColor
     } else {
       snapshot.tintColor
     }
 
+    // Clip BOTH the sampled backdrop and the scrim to the shape: otherwise a rounded shape leaks the
+    // unblurred rectangular backdrop outside the corners (the scrim alone would be clipped, the
+    // backdrop under it would not).
     clipToShape {
+      // 1. Draw the background region without blur.
+      drawContext.canvas.save()
+      drawContext.canvas.translate(-snapshot.offsetX, -snapshot.offsetY)
+      drawLayer(layer)
+      drawContext.canvas.restore()
+
+      // 2. Apply scrim overlay (use tint if specified, otherwise use default scrim color).
       drawRect(color = scrimColor, blendMode = BlendMode.SrcOver)
     }
 

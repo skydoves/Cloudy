@@ -175,6 +175,7 @@ public class Sky internal constructor() {
    * the tail elapses. Pass the animation's duration so the blur tracks it to completion.
    */
   public fun invalidate(durationMillis: Long) {
+    require(durationMillis >= 0) { "durationMillis must be non-negative, but was $durationMillis" }
     incrementContentVersion()
     frameDriver.requestRefresh(durationMillis)
   }

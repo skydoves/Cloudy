@@ -120,7 +120,8 @@ internal class SkyFrameDriver {
     if (pumpJob?.isActive == true) return
     if (overlays.isEmpty()) return
     val scope = recorderScope ?: return
-    pumpJob = scope.launch {
+    lateinit var job: Job
+    job = scope.launch {
       try {
         var keepGoing = true
         while (isActive && keepGoing) {
@@ -142,8 +143,11 @@ internal class SkyFrameDriver {
           }
         }
       } finally {
-        pumpJob = null
+        // Clear only if we are still the current pump: a cancelled job's finally runs asynchronously,
+        // after a newer pump may already have been launched and stored, so a blind null would drop it.
+        if (pumpJob === job) pumpJob = null
       }
     }
+    pumpJob = job
   }
 }
