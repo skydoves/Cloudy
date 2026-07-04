@@ -154,10 +154,8 @@ public sealed interface UniformHandle {
 
 /** A scalar `float` uniform slot. */
 @ExperimentalMirage
-public class UFloat internal constructor(
-  override val slot: Int,
-  public var value: Float,
-) : UniformHandle {
+public class UFloat internal constructor(override val slot: Int, public var value: Float) :
+  UniformHandle {
   public operator fun invoke(v: Float) {
     value = v
   }
@@ -165,10 +163,8 @@ public class UFloat internal constructor(
 
 /** A `float2` uniform slot carrying a coordinate or direction. */
 @ExperimentalMirage
-public class UOffset internal constructor(
-  override val slot: Int,
-  public var value: Offset,
-) : UniformHandle {
+public class UOffset internal constructor(override val slot: Int, public var value: Offset) :
+  UniformHandle {
   public operator fun invoke(v: Offset) {
     value = v
   }
@@ -180,10 +176,8 @@ public class UOffset internal constructor(
 
 /** A `float2` uniform slot carrying a size. */
 @ExperimentalMirage
-public class USize internal constructor(
-  override val slot: Int,
-  public var value: Size,
-) : UniformHandle {
+public class USize internal constructor(override val slot: Int, public var value: Size) :
+  UniformHandle {
   public operator fun invoke(v: Size) {
     value = v
   }
@@ -191,10 +185,8 @@ public class USize internal constructor(
 
 /** An `int` uniform slot. */
 @ExperimentalMirage
-public class UInt1 internal constructor(
-  override val slot: Int,
-  public var value: Int,
-) : UniformHandle {
+public class UInt1 internal constructor(override val slot: Int, public var value: Int) :
+  UniformHandle {
   public operator fun invoke(v: Int) {
     value = v
   }
@@ -202,10 +194,8 @@ public class UInt1 internal constructor(
 
 /** A `float3` uniform slot. The backing array is always length 3. */
 @ExperimentalMirage
-public class UVec3 internal constructor(
-  override val slot: Int,
-  public var value: FloatArray,
-) : UniformHandle {
+public class UVec3 internal constructor(override val slot: Int, public var value: FloatArray) :
+  UniformHandle {
   public operator fun invoke(v: FloatArray) {
     require(v.size == 3) { "UVec3 value must have size 3, was ${v.size}" }
     value = v.copyOf()
@@ -218,10 +208,8 @@ public class UVec3 internal constructor(
 
 /** A `float4` uniform slot. The backing array is always length 4. */
 @ExperimentalMirage
-public class UVec4 internal constructor(
-  override val slot: Int,
-  public var value: FloatArray,
-) : UniformHandle {
+public class UVec4 internal constructor(override val slot: Int, public var value: FloatArray) :
+  UniformHandle {
   public operator fun invoke(v: FloatArray) {
     require(v.size == 4) { "UVec4 value must have size 4, was ${v.size}" }
     value = v.copyOf()
@@ -245,10 +233,8 @@ public class UFloatArray internal constructor(
 
 /** A `layout(color) vec4` uniform slot. */
 @ExperimentalMirage
-public class UColor internal constructor(
-  override val slot: Int,
-  public var value: Color,
-) : UniformHandle {
+public class UColor internal constructor(override val slot: Int, public var value: Color) :
+  UniformHandle {
   public operator fun invoke(v: Color) {
     value = v
   }

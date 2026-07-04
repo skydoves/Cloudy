@@ -180,7 +180,9 @@ internal class MirageCompilerTest :
         untimed.source.shouldNotContain("uniform float mirageTime;")
       }
 
-      test("mirageResolution / mirageDensity are declared only when referenced, and drive their flags") {
+      test(
+        "mirageResolution / mirageDensity are declared only when referenced, and drive their flags",
+      ) {
         val kernel = """
           half4 main(float2 xy) { return half4(half(mirageResolution.x), 0.0, 0.0, 1.0); }
         """.trimIndent()

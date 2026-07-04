@@ -96,8 +96,14 @@ internal object MirageCompiler {
 
     val usesContent = category != OpticCategory.Generate
     val source = assemble(
-      kernel, schema, category, dialect,
-      usesResolution, usesTime, usesDensity, usesContent,
+      kernel,
+      schema,
+      category,
+      dialect,
+      usesResolution,
+      usesTime,
+      usesDensity,
+      usesContent,
     )
 
     return CompiledProgram(

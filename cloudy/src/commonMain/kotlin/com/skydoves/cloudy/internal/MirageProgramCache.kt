@@ -27,10 +27,7 @@ import kotlin.concurrent.atomics.ExperimentalAtomicApi
  * draws through: [compiled] carries the schema the binder walks each draw, [backend] carries the live
  * GPU program the [UniformSink] writes into.
  */
-internal class CachedProgram(
-  val compiled: CompiledProgram,
-  val backend: MirageBackendProgram,
-)
+internal class CachedProgram(val compiled: CompiledProgram, val backend: MirageBackendProgram)
 
 /**
  * Process-wide compiled-program cache, keyed by the **generated source text** (not by [Optic]
