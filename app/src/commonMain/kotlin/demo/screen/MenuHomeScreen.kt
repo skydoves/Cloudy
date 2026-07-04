@@ -59,6 +59,7 @@ fun MenuHomeScreen(
   onGyroLightClick: () -> Unit,
   onTransformLightClick: () -> Unit,
   onBlurLightClick: () -> Unit,
+  onMirageClick: () -> Unit,
 ) {
   val posters = remember { MockUtil.getMockPosters() }
 

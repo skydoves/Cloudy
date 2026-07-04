@@ -33,6 +33,7 @@ import demo.screen.InteractiveSliderScreen
 import demo.screen.Issue112BottomNavScreen
 import demo.screen.LiquidGlassDemoScreen
 import demo.screen.MenuHomeScreen
+import demo.screen.MirageScreen
 import demo.screen.ProgressiveBlurDemoScreen
 import demo.screen.RadiusDetailScreen
 import demo.screen.RadiusItemsScreen
@@ -67,6 +68,7 @@ fun CloudyDemoApp() {
               onGyroLightClick = { backStack.add(Route.GyroLight) },
               onTransformLightClick = { backStack.add(Route.TransformLight) },
               onBlurLightClick = { backStack.add(Route.BlurLight) },
+              onMirageClick = { backStack.add(Route.Mirage) },
             )
           }
 
@@ -134,6 +136,12 @@ fun CloudyDemoApp() {
 
           is Route.BlurLight -> NavEntry(route) {
             BlurLightScreen(
+              onBackClick = { backStack.removeLastOrNull() },
+            )
+          }
+
+          is Route.Mirage -> NavEntry(route) {
+            MirageScreen(
               onBackClick = { backStack.removeLastOrNull() },
             )
           }
