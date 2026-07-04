@@ -18,6 +18,7 @@
 package com.skydoves.cloudy
 
 import androidx.compose.ui.graphics.Color
+import com.skydoves.cloudy.internal.CachedProgram
 import com.skydoves.cloudy.internal.DUOTONE_KERNEL_AGSL
 import com.skydoves.cloudy.internal.DUOTONE_KERNEL_SKSL
 import com.skydoves.cloudy.internal.Dialect
@@ -25,8 +26,14 @@ import com.skydoves.cloudy.internal.MirageProgramCache
 import io.kotest.assertions.throwables.shouldNotThrowAny
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
+import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.types.shouldBeSameInstanceAs
+import io.kotest.matchers.types.shouldNotBeSameInstanceAs
+
+/** Reads the `chromaticGain` schema-entry default (a Float) from a chromatic optic's program. */
+private fun gainDefaultOf(program: CachedProgram): Float =
+  program.compiled.schema.entries.first { it.name == "chromaticGain" }.default as Float
 
 /** Params for the Duotone Colorize optic: two colors plus a blend amount. */
 private class CacheDuotoneParams : MirageParams() {
@@ -41,7 +48,10 @@ private class CacheDuotoneParams : MirageParams() {
  * skiko backend (a plain-JVM RuntimeEffect compile needs no GPU surface).
  *
  * The dedup contract is the point: the cache is keyed on the generated source text, so two optics
- * that lower to the same program must share one [com.skydoves.cloudy.internal.CachedProgram] instance.
+ * that lower to the same program share one [com.skydoves.cloudy.internal.MirageBackendProgram] (the
+ * expensive GPU artifact) — while each [com.skydoves.cloudy.internal.CachedProgram] carries that
+ * call's own [com.skydoves.cloudy.internal.CompiledProgram], so per-optic schema defaults are not
+ * aliased to whichever optic compiled first.
  */
 internal class MirageProgramCacheTest :
   FunSpec({
@@ -62,9 +72,9 @@ internal class MirageProgramCacheTest :
       cached.compiled.source.shouldContain("half4 main(float2 xy)")
     }
 
-    test("two optics that lower to the same source share one CachedProgram instance") {
+    test("two optics that lower to the same source share one backend program instance") {
       // Distinct Optic objects, structurally equal (same name + sources + category), so they compile
-      // to byte-identical source and must hit the same cache slot.
+      // to byte-identical source and must hit the same backend cache slot.
       val first = Optic.colorize(
         name = "duotone",
         paramsFactory = ::CacheDuotoneParams,
@@ -81,9 +91,28 @@ internal class MirageProgramCacheTest :
       val a = MirageProgramCache.obtain(first, Dialect.Sksl).shouldNotBeNull()
       val b = MirageProgramCache.obtain(second, Dialect.Sksl).shouldNotBeNull()
 
-      // Dedup: same generated source -> the very same cached instance (not just an equal one).
-      b.shouldBeSameInstanceAs(a)
+      // Dedup: same generated source -> the very same shared backend (the expensive GPU program).
       b.backend.shouldBeSameInstanceAs(a.backend)
+      // But each call returns its own CachedProgram wrapper carrying its own CompiledProgram, so a
+      // caller's schema defaults are never aliased to another optic's (the Bug A regression below).
+      b.shouldNotBeSameInstanceAs(a)
+    }
+
+    // Bug A regression: OilSlick and Pearl are the same chromatic kernel at different ChromaticParams
+    // defaults, so they share one backend but must NOT share a schema. Before the fix, obtain()
+    // returned the first-compiled CachedProgram on a cache hit, aliasing every same-source optic's
+    // schema defaults to whichever compiled first -> all thin-film chips rendered identically.
+    test("same-source optics keep their own schema defaults over a shared backend") {
+      val oil = MirageProgramCache.obtain(MirageOptics.OilSlick, Dialect.Sksl).shouldNotBeNull()
+      val pearl = MirageProgramCache.obtain(MirageOptics.Pearl, Dialect.Sksl).shouldNotBeNull()
+
+      // Shared expensive artifact: identical generated source -> one backend program.
+      pearl.backend.shouldBeSameInstanceAs(oil.backend)
+
+      // Per-optic schema: the chromaticGain default must differ (OilSlick 5.5 vs Pearl 2.4), proving
+      // this optic's defaults — not the first winner's — reach the binder each draw.
+      gainDefaultOf(oil).shouldBe(5.5f)
+      gainDefaultOf(pearl).shouldBe(2.4f)
     }
 
     // The real proof that the preset-porting codegen is correct: every bundled MirageOptics kernel
