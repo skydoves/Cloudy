@@ -83,9 +83,7 @@ internal expect fun rememberTiltSource(
   out: MutableState<Offset>,
 )
 
-// ---------------------------------------------------------------------------------------------
 // Pure math — platform-independent so it is unit-testable (commonTest) and reused by actuals.
-// ---------------------------------------------------------------------------------------------
 
 /** One step of a 1-pole exponential moving average toward [raw]. [alpha] in (0,1]. */
 internal fun emaStep(prev: Offset, raw: Offset, alpha: Float): Offset = prev + (raw - prev) * alpha
@@ -118,14 +116,11 @@ internal fun normalizeOr(o: Offset, fallback: Offset): Offset {
  * Projects a gravity vector in **G units** (~[-1, 1], as CoreMotion reports) onto a portrait
  * screen-space light direction (y-down).
  *
- * Unlike [gravityToLight] (which expects m/s² and divides by ~9.81), the input here is already in
- * G, so it is used directly — reusing [gravityToLight] for CoreMotion gravity would make the sweep
- * ~10x too weak. Used by the iOS provider; kept here so it is platform-independent and testable.
+ * Unlike [gravityToLight] (m/s², divides by ~9.81), the input here is already in G and used
+ * directly; reusing [gravityToLight] would make the sweep ~10x too weak. Used by the iOS provider.
  *
- * Device axes: +x = right edge, +y = top edge (y-up). Upright portrait gravity ≈ (0, -1, 0).
- * - `dx = gx`  → lowering the right edge slides the light toward screen-right.
- * - `dy = -gy` → flip device y-up to screen y-down.
- * A flat device (gx≈gy≈0) returns the normalized [base] exactly.
+ * Device axes: +x = right edge, +y = top edge (y-up); `dy = -gy` flips to screen y-down. A flat
+ * device (gx≈gy≈0) returns the normalized [base] exactly.
  */
 internal fun projectGravityPortrait(gx: Float, gy: Float, base: Offset, tiltGain: Float): Offset {
   val b = normalizeOr(base, Offset(-1f, -1f))
@@ -133,13 +128,8 @@ internal fun projectGravityPortrait(gx: Float, gy: Float, base: Offset, tiltGain
 }
 
 /**
- * Spec/oracle helper: the AND of every gate that must hold for the sensor to run, with zero platform
- * dependencies so the gating logic is unit-testable in isolation.
- *
- * This is **not** wired into the production path — each platform actual applies these gates inline
- * (see `rememberTiltSource`): the API/preview/enabled gate is a hard early return, and reduce-motion
- * and sensor-presence are checked at registration. This function only documents and pins that truth
- * table; it does not itself gate anything at runtime.
+ * Spec/oracle helper: the AND of every gate that must hold for the sensor to run. Not wired into
+ * production (each actual applies these gates inline); it exists to pin the truth table for tests.
  */
 internal fun shouldRunSensor(
   enabled: Boolean,

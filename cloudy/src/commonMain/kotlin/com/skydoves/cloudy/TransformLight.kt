@@ -79,14 +79,12 @@ public fun rememberTransformLightSource(
   base: Offset = LiquidGlassDefaults.LIGHT_DIR,
   gain: Float = 1.2f,
 ): LiquidGlassLight {
-  // Keep the latest lambdas without re-keying the LaunchedEffect: a caller passing a non-State-backed
-  // lambda (recreated each recomposition) would otherwise leave the effect holding a stale lambda and
-  // silently freeze. rememberUpdatedState swaps in the newest lambda while the collect keeps running.
+  // rememberUpdatedState swaps in the newest lambda without re-keying the effect, so a non-State-backed
+  // lambda (recreated each recomposition) can't leave the collect holding a stale lambda and freeze.
   val rx by rememberUpdatedState(rotationX)
   val ry by rememberUpdatedState(rotationY)
   val dir = remember { mutableStateOf(transformToLight(rotationX(), rotationY(), base, gain)) }
-  // Deferred reads inside snapshotFlow: per-frame rotation changes re-emit and update the holder
-  // value (draw invalidation) without recomposing this factory. Re-keyed only on base/gain.
+  // Deferred reads inside snapshotFlow re-emit per-frame without recomposing this factory.
   LaunchedEffect(base, gain) {
     snapshotFlow { transformToLight(rx(), ry(), base, gain) }
       .collect { dir.value = it }
@@ -95,9 +93,7 @@ public fun rememberTransformLightSource(
   return remember(dir) { LiquidGlassLight(dir) }
 }
 
-// ---------------------------------------------------------------------------------------------
 // Pure math — platform-independent so it is unit-testable (commonTest) and free of Compose state.
-// ---------------------------------------------------------------------------------------------
 
 /** Degrees → radians as a single-precision factor (mirrors the gyro math's float-only style). */
 private val DEG_TO_RAD: Float = (PI / 180.0).toFloat()

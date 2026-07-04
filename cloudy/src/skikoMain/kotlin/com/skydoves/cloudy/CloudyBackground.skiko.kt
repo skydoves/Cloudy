@@ -92,7 +92,6 @@ public actual fun Modifier.cloudy(
     return this
   }
 
-  // Notify state for zero radius
   LaunchedEffect(radius) {
     if (radius == 0) {
       onStateChanged(CloudyState.Success.Applied)
@@ -111,10 +110,6 @@ public actual fun Modifier.cloudy(
     ),
   )
 }
-
-// ============================================================================
-// Sky Modifier Implementation
-// ============================================================================
 
 private data class SkyModifierElement(val sky: Sky) : ModifierNodeElement<SkyModifierNode>() {
 
@@ -140,9 +135,8 @@ private class SkyModifierNode(var sky: Sky) :
   // Stable invalidator the frame driver pumps each scroll frame to re-capture the moved backdrop.
   private val recapture: () -> Unit = { if (isAttached) invalidateDraw() }
 
-  // Forward descendant scroll/fling deltas to the frame driver: this is the precise "the backdrop is
-  // moving now" signal the draw phase lacks (a scrollable's scroll does not re-invoke this recorder's
-  // draw). The driver re-captures + re-blurs while scrolling, then parks so the app idles.
+  // Forward descendant scroll/fling to the frame driver: a scrollable's scroll does not re-invoke this
+  // recorder's draw, so this is the "backdrop moving now" signal that triggers re-capture + re-blur.
   private val scrollConnection = object : NestedScrollConnection {
     override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
       sky.frameDriver.onScrollActivity()
@@ -182,28 +176,19 @@ private class SkyModifierNode(var sky: Sky) :
       graphicsLayer = it
     }
 
-    // Record the background into `layer`, the source a `cloudy` overlay of this sky samples and
-    // blurs. `sky.capturing` marks the sky as recording so its overlays draw nothing during this
-    // pass: an overlay must be ABSENT from the blur source. Otherwise the overlay would draw its
-    // blur layer into the layer being recorded, and that blur layer in turn samples a backdrop
-    // layer — a cyclic picture graph that overflows the render thread stack
-    // (https://github.com/skydoves/Cloudy/issues/112).
+    // `sky.capturing` marks overlays absent from the blur source while recording: otherwise an
+    // overlay's blur layer (which samples this backdrop) is recorded into the backdrop, forming a
+    // cyclic picture graph that overflows the render thread stack (issues/112).
     sky.capturing {
       layer.record {
         this@draw.drawContent()
       }
     }
 
-    // Publish the just-captured backdrop. A PLAIN (non-snapshot) field, so re-assigning the same
-    // instance each draw is free and never re-invalidates the overlay (that snapshot-write loop was
-    // the original idle redraw bug). The overlay re-reads it each draw; the frame driver re-runs the
-    // overlay after a fresh capture.
+    // Plain (non-snapshot) field: the overlay re-reads it each draw and the frame driver re-runs the
+    // overlay, so no snapshot observation is needed. A snapshot write here caused an idle redraw loop.
     sky.backgroundLayer = layer
 
-    // Draw the subtree to the window. `isCapturing` is now false, so the overlay paints its
-    // blurred backdrop (sampling `layer`, which contains no reference back to the overlay) and
-    // its own foreground here. The blur layer is composited straight to the window canvas, never
-    // into `layer`, so no cycle is formed while the backdrop still renders.
     drawContent()
   }
 
@@ -214,10 +199,6 @@ private class SkyModifierNode(var sky: Sky) :
     sky.backgroundLayer = null
   }
 }
-
-// ============================================================================
-// CloudyBackground Modifier Implementation
-// ============================================================================
 
 private data class CloudyBackgroundModifierElement(
   val sky: Sky,
@@ -270,20 +251,16 @@ private class CloudyBackgroundModifierNode(
   private var positionInRoot: Offset = Offset.Zero
   private var size: IntSize = IntSize.Zero
 
-  // Specular highlight brush cache. The light direction is read at gyro rate (~30Hz), so the pool
-  // center moves most frames; rebuild the Brush only when center/radius actually change to avoid
-  // per-frame Brush allocation on the draw hot path. Moving the light re-runs only this overlay
-  // draw; it does NOT re-record or re-blur the cached blur layer.
+  // Specular highlight brush cache: the light moves most frames, so rebuild the Brush only when the
+  // pool center/radius change. Moving the light re-runs only this overlay draw, never a blur re-record.
   private var cachedBrush: Brush? = null
   private var cachedCenter: Offset = Offset.Unspecified
   private var cachedRadius: Float = -1f
 
-  // Stable re-blur invalidator the frame driver runs after each capture. A field (not a fresh lambda
-  // per call) so the driver can identity-match it on add/remove.
+  // Stable re-blur invalidator (a field, not a fresh lambda) so the frame driver can identity-match it.
   private val reblur: () -> Unit = { if (isAttached) invalidateDraw() }
 
-  // Cached blur layer + BlurEffect. Reused across draws; the effect is rebuilt only when the blur
-  // radius changes (it is size-independent), so a steady-state frame allocates nothing.
+  // Cached blur layer + BlurEffect, rebuilt only when the blur radius changes.
   private var blurLayer: GraphicsLayer? = null
   private var cachedBlurEffect: BlurEffect? = null
   private var cachedBlurRadius: Float = -1f
@@ -338,11 +315,8 @@ private class CloudyBackgroundModifierNode(
   }
 
   override fun ContentDrawScope.draw() {
-    // Draw nothing while this sky is recording: the overlay must be absent from the blur source,
-    // else its blur layer (which samples the backdrop) is recorded into the backdrop — a cyclic
-    // picture graph that crashes the render thread (issues/112). A `cloudy` surface is
-    // background-only; its foreground lives outside the recorder, so nothing is lost here. See
-    // [Sky.isCapturing].
+    // Draw nothing while this sky is recording: keeping the overlay out of the blur source avoids the
+    // cyclic picture graph that crashes the render thread (issues/112). See [Sky.isCapturing].
     if (sky.isCapturing) {
       return
     }
@@ -355,13 +329,11 @@ private class CloudyBackgroundModifierNode(
     }
 
     if (radius <= 0) {
-      // No blur, draw the background region directly
       drawBackgroundRegion(backgroundLayer)
       drawContent()
       return
     }
 
-    // Calculate offset relative to sky
     val skyBounds = sky.sourceBounds
     val offsetX = positionInRoot.x - skyBounds.left
     val offsetY = positionInRoot.y - skyBounds.top
@@ -390,7 +362,6 @@ private class CloudyBackgroundModifierNode(
     drawLayer(layer)
     drawContext.canvas.restore()
 
-    // Apply tint if specified
     if (tint != Color.Transparent) {
       drawRect(color = tint, blendMode = BlendMode.SrcOver)
     }
@@ -399,13 +370,12 @@ private class CloudyBackgroundModifierNode(
   }
 
   private fun ContentDrawScope.drawWithBlurEffect(layer: GraphicsLayer, snapshot: SkySnapshot) {
-    // BlurEffect's radiusX/radiusY are blur radii in pixels; Compose's Skiko backend
-    // converts the radius to a sigma internally (same 0.57735 * radius + 0.5 as HWUI)
-    // before handing it to Skia, so pass the requested radius through directly.
+    // BlurEffect takes a radius in pixels; the Skiko backend converts it to sigma internally
+    // (same 0.57735 * radius + 0.5 as HWUI).
     val blurRadius = snapshot.radius.toFloat()
 
-    // Reuse the blur layer and BlurEffect across draws; rebuild the effect only when the radius
-    // changes. Allocating a GraphicsLayer + BlurEffect every frame churns memory and GPU state.
+    // Reuse the blur layer + BlurEffect across draws; rebuild the effect only when the radius
+    // changes, so a steady-state frame allocates nothing.
     val context = requireGraphicsContext()
     val blurLayer = this@CloudyBackgroundModifierNode.blurLayer
       ?: context.createGraphicsLayer().also { this@CloudyBackgroundModifierNode.blurLayer = it }
@@ -423,9 +393,7 @@ private class CloudyBackgroundModifierNode(
       cachedBlurEffect
     }
 
-    // Record the clipped background region
     blurLayer.record {
-      // Translate to sample correct region from background
       drawContext.canvas.save()
       drawContext.canvas.translate(-snapshot.offsetX, -snapshot.offsetY)
       drawLayer(layer)
@@ -436,17 +404,14 @@ private class CloudyBackgroundModifierNode(
       blurLayer.renderEffect = blurEffect
     }
 
-    // Clip to the surface shape (rounded corners included) and draw the blurred layer, so the
-    // blurred fill follows the rounded edge instead of leaving a hard rectangular inner box.
     clipToShape {
       drawLayer(blurLayer)
 
-      // Apply tint
       if (snapshot.tintColor != Color.Transparent) {
         drawRect(color = snapshot.tintColor, blendMode = BlendMode.SrcOver)
       }
 
-      // Experimental specular highlight over the blurred backdrop (no-op when light == null).
+      // Experimental specular highlight (no-op when light == null).
       if (light != null) drawHighlight()
     }
 
@@ -454,12 +419,10 @@ private class CloudyBackgroundModifierNode(
   }
 
   /**
-   * Clips [block] to [shape]'s outline so the blurred fill follows rounded corners instead of a
-   * hard rectangle. For [RectangleShape] this is a plain rectangular clip (the existing behavior),
-   * so default callers are unaffected.
+   * Clips [block] to [shape]'s outline so the blurred fill follows rounded corners instead of a hard
+   * rectangle. [RectangleShape] is a plain rectangular clip (the existing behavior).
    */
   private fun ContentDrawScope.clipToShape(block: DrawScope.() -> Unit) {
-    // `size` here is the draw scope's size (the composite area), already a Size in pixels.
     when (val outline = shape.createOutline(size, layoutDirection, this)) {
       is Outline.Rectangle -> clipRect { block() }
       is Outline.Rounded -> {
@@ -473,16 +436,9 @@ private class CloudyBackgroundModifierNode(
   }
 
   /**
-   * Draws the moving specular highlight over the already-blurred backdrop. Called only from the
-   * blurred path, inside its existing [clipToShape] so the glint follows the surface shape.
-   * Composited with the default `SrcOver` blend: the highlight brush already encodes a screen-like
-   * additive falloff (soft warm-white radial that fades to transparent), so a plain `SrcOver`
-   * composite reads as an additive glint. The shader (Screen) vs this overlay (SrcOver) delta is an
-   * accepted trade-off, reusing the same `SrcOver` path already used for tint.
-   *
-   * Reads the Node's [light] (must be non-null here) and [size] fields and reuses [cachedBrush]
-   * unless the pool center/radius moved this frame — a pure overlay composite on the cached blur
-   * layer, never a blur re-record.
+   * Draws the moving specular highlight over the already-blurred backdrop, inside [clipToShape] so
+   * the glint follows the surface shape. Uses `SrcOver` (not `Screen`): the brush already encodes an
+   * additive falloff, and `SrcOver` is the same path used for tint.
    */
   private fun DrawScope.drawHighlight() {
     val light = light ?: return

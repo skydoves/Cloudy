@@ -43,11 +43,8 @@ internal val HIGHLIGHT_WARM: Color = Color(0xFFFFF7E6)
 
 /**
  * Radial alpha falloff approximating the shader's `smoothstep(poolR, 0, d)^2 * 0.5` focal pool
- * (peak ~0.5 at the center, fading to 0 at the rim). Six stops keep the ramp smooth enough to avoid
- * banding while staying a constant (zero per-frame allocation — only the [androidx.compose.ui.graphics.Brush]
- * built from it is rebuilt when the center/radius move). The peak matches the shader's perceived
- * specular punch (`specStrength * specPoolGain`) over a mid-tone backdrop; over bright/warm content the
- * SrcOver pool self-attenuates, so it never blows out.
+ * (peak ~0.5 at center, fading to 0 at the rim). A constant (zero per-frame allocation); only the
+ * Brush built from it is rebuilt when the center/radius move.
  */
 internal val HIGHLIGHT_STOPS: Array<Pair<Float, Color>> = arrayOf(
   0.00f to HIGHLIGHT_WARM.copy(alpha = 0.50f),
@@ -58,10 +55,8 @@ internal val HIGHLIGHT_STOPS: Array<Pair<Float, Color>> = arrayOf(
   1.00f to HIGHLIGHT_WARM.copy(alpha = 0.00f),
 )
 
-// ---------------------------------------------------------------------------------------------
-// Pure geometry — platform-independent so it is unit-testable (commonTest) and is the exact code
-// the platform draw helpers call (no duplicated math). Mirrors the shader's focal-pool placement.
-// ---------------------------------------------------------------------------------------------
+// Pure geometry — platform-independent, unit-testable (commonTest), and the exact code the platform
+// draw helpers call. Mirrors the shader's focal-pool placement.
 
 /**
  * Screen-space center of the focal-pool highlight: the lens center pushed toward the (normalized)

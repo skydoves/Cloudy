@@ -56,11 +56,8 @@ internal actual fun rememberTiltSource(
   tiltGain: Float,
   out: MutableState<Offset>,
 ) {
-  // Live Reduce Motion state, observed for the whole composition (its own effect registers a
-  // notification observer). Reading it here — before any motion start — keeps the property that a
-  // reduce-motion user never starts updates (so never triggers the NSMotionUsageDescription prompt),
-  // and keying the motion effect on it makes BOTH directions work: ON->OFF re-acquires the sensor,
-  // OFF->ON releases and freezes.
+  // Read reduce-motion before any motion start so a reduce-motion user never starts updates (never
+  // triggers the NSMotionUsageDescription prompt); keying the effect on it makes toggling reversible.
   val reduceMotion by rememberReduceMotionState()
 
   DisposableEffect(enabled, hz, tiltGain, reduceMotion) {

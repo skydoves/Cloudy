@@ -44,12 +44,9 @@ public annotation class ExperimentalLiquidGlassMotion
  * for live experimentation (e.g. the demo's slider screen), behind the [ExperimentalLiquidGlassMotion]
  * opt-in so they are not part of the committed API contract.
  *
- * ## Why four loose floats instead of a tuning object
- * The full tuning is modelled internally by `GlowTuning`, but that type is deliberately `internal`
- * so it never leaks into the stable ABI. Rather than promote a second public type that is only
- * reachable here, this modifier takes the four knobs as plain floats. A separate demo module can
- * construct floats with no extra public type, and the internal binding folds them straight into
- * `GlowTuning` — keeping a single uniform-writing path per platform shared with [Modifier.liquidGlass].
+ * Takes the knobs as plain floats rather than a tuning object: the full `GlowTuning` is `internal`
+ * so it never leaks into the stable ABI, and the internal binding folds the floats into it, sharing
+ * one uniform-writing path per platform with [Modifier.liquidGlass].
  *
  * All other parameters mirror [Modifier.liquidGlass]; see that modifier for their semantics.
  *

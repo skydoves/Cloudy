@@ -186,15 +186,11 @@ private class CloudyModifierNode(
   var radius: Int = radius
     private set
 
-  // ---- cache ----
   private var blurredBitmap: PlatformBitmap? = null
   private var cachedBlurRadius: Int = -1
 
-  // ---- in-flight gate (intervention 1) ----
-  // The radius/content the in-flight capture is producing for. When a newer request
-  // arrives while a capture is running we only remember the latest one (<=1 queued);
-  // the running job re-runs ONCE on completion if the queued state differs from what
-  // it just produced, so the final radius/content is always eventually rendered.
+  // In-flight gate: a newer request while a capture runs keeps only the latest (<=1 queued); the
+  // running job re-runs once on completion if the queued state differs, so the final state renders.
   private var isProcessing: Boolean = false
   private var queuedRadius: Int = -1
   private var queuedContentDirty: Boolean = false
@@ -208,7 +204,7 @@ private class CloudyModifierNode(
   // so a node whose content is genuinely transparent does not invalidate forever.
   private var emptyCaptureRetries: Int = 0
 
-  // ---- debounce (intervention 4) ----
+  // Debounce.
   private var debounceJob: Job? = null
   private var idle: Boolean = true
 
@@ -236,7 +232,7 @@ private class CloudyModifierNode(
   }
 
   /**
-   * Coalesces capture requests (intervention 4).
+   * Coalesces capture requests.
    *
    * On an idle -> active transition a leading capture fires immediately so the first
    * change shows without latency. Either way we (re)arm a trailing timer: while changes
@@ -264,7 +260,7 @@ private class CloudyModifierNode(
   }
 
   /**
-   * Funnels a debounced request through the in-flight gate (intervention 1).
+   * Funnels a debounced request through the in-flight gate.
    *
    * If a capture is already running, the request is recorded as the single queued
    * request (latest wins) and the running job re-runs once on completion. Otherwise a
@@ -380,12 +376,8 @@ private class CloudyModifierNode(
     blurJob =
       coroutineScope.launch(Dispatchers.Main, start = kotlinx.coroutines.CoroutineStart.ATOMIC) {
         try {
-          // (intervention 2) Materialize the recorded layer via the known-good
-          // GraphicsLayer.toImageBitmap(). PATH A already recorded at the capture resolution,
-          // so this reads back an already-small bitmap directly — no full-res snapshot and no
-          // main-thread createScaledBitmap. The readback is ~16x smaller at captureScale=0.25,
-          // and the debounce + in-flight gate keep even this small readback off the per-frame
-          // path.
+          // PATH A recorded at the capture resolution, so this reads back an already-small bitmap
+          // (~16x smaller at captureScale=0.25) — no full-res snapshot, no main-thread scale.
           val capturedBitmap: Bitmap = try {
             captureSmallLayer(graphicsLayer)
           } catch (e: CancellationException) {
@@ -395,12 +387,8 @@ private class CloudyModifierNode(
             return@launch
           }
 
-          // (intervention 3) Native blur on the already-small bitmap.
-          //
-          // The capture is already downscaled, so we run a PLAIN RenderScriptToolkit.blur
-          // here (NOT backgroundBlur) to avoid a redundant second downscale. The user
-          // radius is scaled to the capture resolution and clamped to the native single
-          // pass range [1, 25]; anything larger falls back to iterativeBlur.
+          // The capture is already downscaled, so run a plain blur (not backgroundBlur) to avoid a
+          // second downscale. Radius is scaled to the capture resolution; > 25 falls back to iterativeBlur.
           val blurResult: Bitmap? = withContext(Dispatchers.Default) {
             val output: Bitmap = capturedBitmap.copy(Bitmap.Config.ARGB_8888, true)
             val scaledRadius = (capturedRadius * captureScale).roundToInt().coerceAtLeast(1)
@@ -458,8 +446,7 @@ private class CloudyModifierNode(
           graphicsContext.releaseGraphicsLayer(graphicsLayer)
           isProcessing = false
           blurJob = null
-          // (intervention 1) Re-run ONCE if the queued state diverged from what we just
-          // produced, so the final radius/content is never dropped.
+          // Re-run once if the queued state diverged from what we produced, so the final state renders.
           val queuedRerun = hasQueuedRequest &&
             (queuedRadius != cachedBlurRadius || queuedContentDirty || contentMayHaveChanged)
           // Retry an empty (not-yet-drawn) capture on the next frame, bounded so a genuinely

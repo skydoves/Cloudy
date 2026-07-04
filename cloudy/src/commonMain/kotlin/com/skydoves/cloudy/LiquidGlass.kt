@@ -25,17 +25,11 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 
 /**
- * Holder for the Liquid Glass specular light direction.
+ * Stable holder for the Liquid Glass specular light direction (screen-space, y-down).
  *
- * The [direction] is a screen-space 2D vector (y-down) that drives the rim specular
- * highlight in the glass shader. Wrapping it in a stable holder (rather than passing a
- * raw [Offset]) keeps the [Modifier.liquidGlass] call from recomposing on every update:
- * the holder identity stays constant while only [direction]'s value changes, so a
- * high-frequency source (e.g. a gyroscope at 30 Hz) invalidates only the draw, not the
- * composition.
- *
- * Create a static light with the [LiquidGlassLight] factory (remember it if the offset is
- * computed inline), or a motion-driven one with `rememberGyroLightSource`.
+ * The stable holder identity (vs. a raw [Offset]) lets a high-frequency source invalidate
+ * only the draw, not the composition. Create a static light with the [LiquidGlassLight]
+ * factory, or a motion-driven one with `rememberGyroLightSource`.
  *
  * @see rememberGyroLightSource
  * @see LiquidGlassDefaults.Light
@@ -47,30 +41,26 @@ public class LiquidGlassLight internal constructor(internal val direction: State
  * Creates a static (fixed) [LiquidGlassLight] pointing in [direction].
  *
  * Wrap inline calls in `remember` (or use [LiquidGlassDefaults.Light]) so the holder
- * identity is stable across recompositions; constructing a new holder every recomposition
- * reallocates the modifier and defeats the stability guarantee.
+ * identity stays stable across recompositions.
  *
- * @param direction Screen-space light direction (y-down). Magnitude is irrelevant — the
+ * @param direction Screen-space light direction (y-down). Magnitude is irrelevant; the
  *   shader normalizes it.
  */
 public fun LiquidGlassLight(direction: Offset): LiquidGlassLight =
   LiquidGlassLight(mutableStateOf(direction))
 
 /**
- * Perceptual tuning for the Liquid Glass specular glint — the bright single-lobe rim highlight
- * that the [light] source sweeps around the lens.
+ * Perceptual tuning for the Liquid Glass specular glint — the bright rim highlight that the
+ * [light] source sweeps around the lens.
  *
- * Exposes the two knobs a caller usually wants: how bright the glint is ([intensity]) and how
- * tight/focused it is ([sharpness]). The remaining shader tunables (radial sweep blend, band
- * width) are held at their tuned defaults and are only reachable through the experimental
+ * Exposes the two knobs a caller usually wants: brightness ([intensity]) and focus
+ * ([sharpness]). The remaining shader tunables are only reachable through the experimental
  * [Modifier.liquidGlassTuned] modifier.
  *
- * This is intentionally **not** a `data class`: the constructor is internal and `equals`/
- * `hashCode` are hand-written, so future knobs can be added via a secondary constructor (or by
- * widening the factory) without breaking the generated-component / copy ABI of a data class.
+ * Intentionally not a `data class`: the internal constructor and hand-written `equals`/
+ * `hashCode` let future knobs be added without breaking ABI.
  *
- * Construct with the [LiquidGlassGlow] factory; defaults are the tuned values for the new specular
- * model ([LiquidGlassDefaults.Glow]).
+ * Construct with the [LiquidGlassGlow] factory; defaults are [LiquidGlassDefaults.Glow].
  *
  * @property intensity Peak highlight brightness, roughly `0..1` (screen-blended, so it stays
  *   `<= 1.0`). `0` disables the glint. Maps to the shader's `specStrength`.
@@ -89,9 +79,7 @@ public class LiquidGlassGlow internal constructor(
     (other is LiquidGlassGlow && intensity == other.intensity && sharpness == other.sharpness)
 
   override fun hashCode(): Int {
-    // equals() uses `==` so -0.0f and 0.0f compare equal, but Float.hashCode() hashes their bits
-    // and would differ. Normalize -0.0f -> 0.0f (the `== 0f` check catches both) to keep the
-    // equals/hashCode contract: equal instances must yield equal hash codes.
+    // Normalize -0.0f to 0.0f: it compares == in equals() but Float.hashCode() hashes its bits.
     val i = if (intensity == 0f) 0f else intensity
     val s = if (sharpness == 0f) 0f else sharpness
     return i.hashCode() * 31 + s.hashCode()
@@ -103,11 +91,8 @@ public class LiquidGlassGlow internal constructor(
     /**
      * Creates a [LiquidGlassGlow] from the two perceptual knobs.
      *
-     * Exposed as a companion `invoke` rather than a same-named top-level factory function: the
-     * primary constructor is `internal` and takes the same `(Float, Float)` signature, so a
-     * top-level `fun LiquidGlassGlow(Float, Float)` would be a conflicting overload. `invoke`
-     * keeps the intended `LiquidGlassGlow(...)` call syntax while leaving the internal
-     * constructor free for future secondary-constructor additions (ABI stability).
+     * A companion `invoke` rather than a top-level factory: the internal constructor has the
+     * same `(Float, Float)` signature, so a top-level factory would be a conflicting overload.
      *
      * @param intensity Peak highlight brightness (`0..1`). `0` disables the glint.
      *   Default: [LiquidGlassDefaults.GLOW_INTENSITY].
@@ -122,10 +107,9 @@ public class LiquidGlassGlow internal constructor(
 }
 
 /**
- * Full specular tuning. Internal: the stable public surface only exposes the two perceptual knobs
- * via [LiquidGlassGlow]; the extra knobs ([rimMix], [widthPx], [lightZ], [domeFrac], [bodyPower],
- * [bodyGain]) are reachable only through the experimental [Modifier.liquidGlassTuned]. Every platform
- * binding writes all eight as uniforms each draw, so the shader never sees a missing uniform.
+ * Full specular tuning (internal). The public surface exposes only [intensity]/[sharpness] via
+ * [LiquidGlassGlow]; the extra knobs are reachable through the experimental
+ * [Modifier.liquidGlassTuned]. Every platform binding writes all knobs as uniforms each draw.
  *
  * @property intensity peak highlight brightness (screen-blended; stays `<= 1.0`).
  * @property sharpness rim/back lobe sharpness (Blinn).
@@ -133,14 +117,12 @@ public class LiquidGlassGlow internal constructor(
  * @property widthPx rim band thickness, decoupled from `edge`.
  * @property lightZ fake-3D light z-height; tilts the synthesized bevel normal toward the viewer.
  * @property domeFrac bevel depth as a fraction of the lens half-extent; `> 1` removes the static
- *   dead-core (no interior pixel reaches `n_cos == 0`).
+ *   dead-core.
  * @property bodyPower body-sheen lobe sharpness (broad, gentle ramp).
  * @property bodyGain body-sheen intensity scale.
  * @property focalK moving-hotspot offset toward the light, as a fraction of the lens half-extent.
- *   This is what makes the highlight pour across the face on BOTH axes (pitch=vertical, roll=
- *   horizontal): the focal pool center is `lensCenter + lightVec * (minHalf * focalK)`.
- * @property poolFrac focal-pool radius as a fraction of the lens half-extent; smaller = a tighter,
- *   more localized pool of light.
+ *   Drives the highlight sweep on both axes: pool center is `lensCenter + lightVec * (minHalf * focalK)`.
+ * @property poolFrac focal-pool radius as a fraction of the lens half-extent; smaller = tighter.
  * @property poolGain focal-pool peak scale (multiplies `intensity`); the dominant visible term at
  *   the default [rimMix].
  */
@@ -148,8 +130,7 @@ public class LiquidGlassGlow internal constructor(
 internal class GlowTuning(
   val intensity: Float = LiquidGlassDefaults.GLOW_INTENSITY,
   val sharpness: Float = LiquidGlassDefaults.GLOW_SHARPNESS,
-  // rimMix biased toward the body (focal pool) so the moving hotspot — not the thin rim band —
-  // carries the visible, dual-axis motion. rimMix=1 still reverts to the legacy pure-rim glint.
+  // Biased toward the body so the moving focal pool, not the thin rim, carries the visible motion.
   val rimMix: Float = 0.4f,
   val widthPx: Float = 12.0f,
   val lightZ: Float = 0.55f,
@@ -197,11 +178,9 @@ public object LiquidGlassDefaults {
   public const val EDGE: Float = 0.2f
 
   /**
-   * Default specular light direction (screen-space, y-down). Unnormalized raw value; the
-   * shader applies `normalize(lightDir)`, so this reproduces the *direction* of the old fixed
-   * light (`normalize(float2(-1, -1))`). The highlight itself is a new multi-term specular model
-   * (focal pool + body sheen + Blinn rim + back-rim), so the visuals differ from pre-1.x — this is
-   * an intended upgrade, not a drop-in match. Only the light direction carries over.
+   * Default specular light direction (screen-space, y-down). Unnormalized; the shader applies
+   * `normalize(lightDir)`. Reproduces the old fixed light's direction, but the highlight is a new
+   * multi-term specular model, so the visuals differ from pre-1.x.
    */
   public val LIGHT_DIR: Offset = Offset(-1f, -1f)
 

@@ -62,8 +62,7 @@ public actual fun Modifier.liquidGlass(
   tint = tint,
   edge = edge,
   light = light,
-  // The stable public surface only exposes the two perceptual knobs; widen to the full 4-knob
-  // tuning (extra knobs at their tuned defaults) for the single uniform-writing path below.
+  // Widen the two public knobs to the full tuning (extras at defaults) for the single uniform path.
   tuning = glow.toTuning(),
   enabled = enabled,
 )
@@ -128,7 +127,6 @@ private fun Modifier.liquidGlassImpl(
   tuning: GlowTuning,
   enabled: Boolean,
 ): Modifier {
-  // Validation
   require(lensSize.width > 0f) { "lensSize.width must be > 0, but was ${lensSize.width}" }
   require(lensSize.height > 0f) { "lensSize.height must be > 0, but was ${lensSize.height}" }
   require(cornerRadius >= 0f) { "cornerRadius must be >= 0, but was $cornerRadius" }
@@ -143,7 +141,7 @@ private fun Modifier.liquidGlassImpl(
     return this
   }
 
-  // Create and cache the RuntimeEffect and RuntimeShaderBuilder
+  // Cache the RuntimeEffect + RuntimeShaderBuilder across recompositions.
   val shaderBuilder = remember {
     try {
       val effect = RuntimeEffect.makeForShader(LiquidGlassShaderSource.SKSL)
@@ -153,7 +151,6 @@ private fun Modifier.liquidGlassImpl(
     }
   }
 
-  // If shader failed to compile, return unchanged
   if (shaderBuilder == null) {
     return this
   }
@@ -163,7 +160,6 @@ private fun Modifier.liquidGlassImpl(
     val height = size.height
 
     if (width > 0 && height > 0) {
-      // Update uniforms on the cached builder
       shaderBuilder.uniform("resolution", width, height)
       shaderBuilder.uniform("lensCenter", lensCenter.x, lensCenter.y)
       shaderBuilder.uniform("lensSize", lensSize.width, lensSize.height)
@@ -175,36 +171,30 @@ private fun Modifier.liquidGlassImpl(
       shaderBuilder.uniform("contrast", contrast)
       shaderBuilder.uniform("tint", tint.red, tint.green, tint.blue, tint.alpha)
       shaderBuilder.uniform("edge", edge)
-      // Draw-phase read: holder identity is stable, so a high-frequency light source
-      // invalidates the draw without recomposing. Always set — Skia throws if any declared
-      // uniform is missing before makeRuntimeShader.
+      // Draw-phase read: holder identity is stable, so a high-frequency light source invalidates
+      // the draw without recomposing.
       val lightDir = light.direction.value
       shaderBuilder.uniform("lightDir", lightDir.x, lightDir.y)
-      // Specular glint tuning — Skia throws on any unset declared uniform, so write all eight
-      // every draw (gate-free), right alongside lightDir.
+      // Skia throws on any unset declared uniform, so write all of them every draw (gate-free).
       shaderBuilder.uniform("specStrength", tuning.intensity)
       shaderBuilder.uniform("specPower", tuning.sharpness)
-      shaderBuilder.uniform("specRimMix", tuning.rimMix) // 변경: was specSweep / tuning.travel
+      shaderBuilder.uniform("specRimMix", tuning.rimMix)
       shaderBuilder.uniform("specWidthPx", tuning.widthPx)
-      // Skia는 선언됐는데 unset인 uniform에 throw → bevel 4 + focal 3 모두 write.
       shaderBuilder.uniform("specLightZ", tuning.lightZ)
       shaderBuilder.uniform("specDomeFrac", tuning.domeFrac)
       shaderBuilder.uniform("specBodyPower", tuning.bodyPower)
       shaderBuilder.uniform("specBodyGain", tuning.bodyGain)
-      // Moving focal hotspot (dual-axis) — same gate-free contract.
       shaderBuilder.uniform("specFocalK", tuning.focalK)
       shaderBuilder.uniform("specPoolFrac", tuning.poolFrac)
       shaderBuilder.uniform("specPoolGain", tuning.poolGain)
 
-      // Create ImageFilter with RuntimeShader
-      // "content" binds to the underlying content (null input = source content)
+      // "content" binds to the underlying content (null input = source content).
       val imageFilter = ImageFilter.makeRuntimeShader(
         runtimeShaderBuilder = shaderBuilder,
         shaderName = "content",
-        input = null, // null means use the source content from the layer
+        input = null,
       )
 
-      // Apply as Compose RenderEffect
       renderEffect = imageFilter.asComposeRenderEffect()
     }
   }
