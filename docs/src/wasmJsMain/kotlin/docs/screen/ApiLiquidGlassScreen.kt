@@ -85,6 +85,8 @@ fun ApiLiquidGlassScreen() {
           contrast: Float = LiquidGlassDefaults.CONTRAST,
           tint: Color = LiquidGlassDefaults.TINT,
           edge: Float = LiquidGlassDefaults.EDGE,
+          light: LiquidGlassLight = LiquidGlassDefaults.Light,
+          glow: LiquidGlassGlow = LiquidGlassDefaults.Glow,
           enabled: Boolean = true,
         ): Modifier
       """,
@@ -194,6 +196,26 @@ fun ApiLiquidGlassScreen() {
       color = DocsTheme.colors.onSurfaceVariant,
     )
 
+    Spacer(modifier = Modifier.height(32.dp))
+
+    // Motion-driven specular
+    Text(
+      text = "Motion-driven specular",
+      style = DocsTheme.typography.h2,
+      color = DocsTheme.colors.onBackground,
+    )
+
+    Spacer(modifier = Modifier.height(12.dp))
+
+    Text(
+      text = "The light parameter drives the rim highlight. The default is a fixed light; pass a " +
+        "motion-driven LiquidGlassLight to make the highlight sweep as the surface tilts, and " +
+        "use glow to tune its brightness and focus. See the Motion Light screen for " +
+        "rememberGyroLightSource and rememberTransformLightSource.",
+      style = DocsTheme.typography.body,
+      color = DocsTheme.colors.onSurfaceVariant,
+    )
+
     Spacer(modifier = Modifier.height(48.dp))
   }
 }
@@ -253,6 +275,16 @@ private fun LiquidGlassParameterTable() {
     LiquidGlassParamRow("contrast", "Float", "Contrast adjustment. 1.0 = normal.")
     LiquidGlassParamRow("tint", "Color", "Optional color tint overlay.")
     LiquidGlassParamRow("edge", "Float", "Edge lighting/rim width.")
+    LiquidGlassParamRow(
+      "light",
+      "LiquidGlassLight",
+      "Specular light source. See the Motion Light screen.",
+    )
+    LiquidGlassParamRow(
+      "glow",
+      "LiquidGlassGlow",
+      "Glint tuning: intensity (brightness) and sharpness (focus).",
+    )
     LiquidGlassParamRow("enabled", "Boolean", "If false, disables the effect.")
   }
 }
