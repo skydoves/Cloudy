@@ -53,10 +53,10 @@ public annotation class ExperimentalLiquidGlassMotion
  *
  * All other parameters mirror [Modifier.liquidGlass]; see that modifier for their semantics.
  *
- * @param glowIntensity ex-`SPEC_STRENGTH` — peak highlight brightness (`0..1`, screen-blended).
- * @param glowSharpness ex-`SPEC_POWER` — lobe sharpness; higher = one tighter glint.
+ * @param glowIntensity peak highlight brightness (`0..1`, screen-blended).
+ * @param glowSharpness lobe sharpness; higher = one tighter glint.
  * @param glowRimMix body↔rim crossfade (0 = body sheen, 1 = rim glint).
- * @param glowWidthPx ex-`SPEC_WIDTH_PX` — specular band thickness in pixels, decoupled from `edge`.
+ * @param glowWidthPx specular band thickness in pixels, decoupled from `edge`.
  *
  * @see Modifier.liquidGlass
  */

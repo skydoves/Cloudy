@@ -69,8 +69,8 @@ public fun LiquidGlassLight(direction: Offset): LiquidGlassLight =
  * `hashCode` are hand-written, so future knobs can be added via a secondary constructor (or by
  * widening the factory) without breaking the generated-component / copy ABI of a data class.
  *
- * Construct with the [LiquidGlassGlow] factory; defaults reproduce the historical hardcoded glint
- * ([LiquidGlassDefaults.Glow]).
+ * Construct with the [LiquidGlassGlow] factory; defaults are the tuned values for the new specular
+ * model ([LiquidGlassDefaults.Glow]).
  *
  * @property intensity Peak highlight brightness, roughly `0..1` (screen-blended, so it stays
  *   `<= 1.0`). `0` disables the glint. Maps to the shader's `specStrength`.
@@ -127,10 +127,10 @@ public class LiquidGlassGlow internal constructor(
  * [bodyGain]) are reachable only through the experimental [Modifier.liquidGlassTuned]. Every platform
  * binding writes all eight as uniforms each draw, so the shader never sees a missing uniform.
  *
- * @property intensity ex-`SPEC_STRENGTH` — peak highlight (screen-blended; stays `<= 1.0`).
- * @property sharpness ex-`SPEC_POWER` — rim/back lobe sharpness (Blinn).
+ * @property intensity peak highlight brightness (screen-blended; stays `<= 1.0`).
+ * @property sharpness rim/back lobe sharpness (Blinn).
  * @property rimMix body↔rim crossfade: `0` = pure body sheen, `1` = pure rim glint.
- * @property widthPx ex-`SPEC_WIDTH_PX` — rim band thickness, decoupled from `edge`.
+ * @property widthPx rim band thickness, decoupled from `edge`.
  * @property lightZ fake-3D light z-height; tilts the synthesized bevel normal toward the viewer.
  * @property domeFrac bevel depth as a fraction of the lens half-extent; `> 1` removes the static
  *   dead-core (no interior pixel reaches `n_cos == 0`).
@@ -198,30 +198,32 @@ public object LiquidGlassDefaults {
 
   /**
    * Default specular light direction (screen-space, y-down). Unnormalized raw value; the
-   * shader applies `normalize(lightDir)`, so this evaluates to exactly the historical
-   * hardcoded `normalize(float2(-1, -1))` — output is unchanged unless a caller opts in.
+   * shader applies `normalize(lightDir)`, so this reproduces the *direction* of the old fixed
+   * light (`normalize(float2(-1, -1))`). The highlight itself is a new multi-term specular model
+   * (focal pool + body sheen + Blinn rim + back-rim), so the visuals differ from pre-1.x — this is
+   * an intended upgrade, not a drop-in match. Only the light direction carries over.
    */
   public val LIGHT_DIR: Offset = Offset(-1f, -1f)
 
   /**
-   * Default fixed light — matches the pre-motion behavior. Singleton; do not reassign.
+   * Default fixed light — reuses the pre-motion light direction. Singleton; do not reassign.
    */
   public val Light: LiquidGlassLight = LiquidGlassLight(LIGHT_DIR)
 
   /**
-   * Default specular glint intensity (peak brightness). Reproduces the historical hardcoded
-   * `SPEC_STRENGTH`, so output is unchanged unless a caller opts into a custom [LiquidGlassGlow].
+   * Default specular glint intensity (peak brightness) for the new multi-term specular model.
+   * Screen-blended, so it stays `<= 1.0`.
    */
   public const val GLOW_INTENSITY: Float = 0.7f
 
   /**
-   * Default specular glint sharpness (lobe power). Reproduces the historical hardcoded
-   * `SPEC_POWER` — one tight glint.
+   * Default specular glint sharpness (lobe power) for the new multi-term specular model —
+   * one tight glint.
    */
   public const val GLOW_SHARPNESS: Float = 10.0f
 
   /**
-   * Default glow — matches the historical hardcoded glint. Singleton; do not reassign.
+   * Default glow for the new specular model. Singleton; do not reassign.
    */
   public val Glow: LiquidGlassGlow = LiquidGlassGlow(GLOW_INTENSITY, GLOW_SHARPNESS)
 

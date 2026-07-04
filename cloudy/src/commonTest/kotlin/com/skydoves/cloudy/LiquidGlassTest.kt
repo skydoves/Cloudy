@@ -73,12 +73,12 @@ internal class LiquidGlassTest :
       }
 
       test("should have valid default glow intensity") {
-        // Reproduces the historical hardcoded SPEC_STRENGTH.
+        // Default peak brightness for the new multi-term specular model.
         LiquidGlassDefaults.GLOW_INTENSITY.shouldBe(0.7f)
       }
 
       test("should have valid default glow sharpness") {
-        // Reproduces the historical hardcoded SPEC_POWER.
+        // Default lobe sharpness for the new multi-term specular model.
         LiquidGlassDefaults.GLOW_SHARPNESS.shouldBe(10.0f)
       }
 
