@@ -22,6 +22,7 @@ import com.skydoves.cloudy.internal.DUOTONE_KERNEL_AGSL
 import com.skydoves.cloudy.internal.DUOTONE_KERNEL_SKSL
 import com.skydoves.cloudy.internal.Dialect
 import com.skydoves.cloudy.internal.MirageProgramCache
+import io.kotest.assertions.throwables.shouldNotThrowAny
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.string.shouldContain
@@ -83,5 +84,26 @@ internal class MirageProgramCacheTest :
       // Dedup: same generated source -> the very same cached instance (not just an equal one).
       b.shouldBeSameInstanceAs(a)
       b.backend.shouldBeSameInstanceAs(a.backend)
+    }
+
+    // The real proof that the preset-porting codegen is correct: every bundled MirageOptics kernel
+    // must compile through the pipeline on the skiko backend (schema uniforms emitted, no duplicate
+    // inline declaration, standard uniforms resolved). If the inline-uniform strip or the iTime ->
+    // mirageTime rename were wrong, RuntimeEffect.makeForShader would throw here.
+    test("every bundled preset optic compiles through the skiko backend") {
+      shouldNotThrowAny {
+        listOf(
+          MirageOptics.Specular,
+          MirageOptics.Chromatic,
+          MirageOptics.OilSlick,
+          MirageOptics.SoapBubble,
+          MirageOptics.MetallicFoil,
+          MirageOptics.Pearl,
+          MirageOptics.Foil,
+          MirageOptics.Duotone,
+        ).forEach { optic ->
+          MirageProgramCache.obtain(optic, Dialect.Sksl).shouldNotBeNull()
+        }
+      }
     }
   })

@@ -17,22 +17,18 @@ package com.skydoves.cloudy.internal
 
 /**
  * Kernel bodies the [MirageCompiler] splices onto the [MiragePreamble] and generated uniform
- * declarations. This is the successor of the top-level `MirageShaders.kt` recipe consts: the
- * specular / chromatic / foil bodies are carried here verbatim so the preset-porting step (a later
- * milestone) can pair each with its [MirageParams] subclass and register it as an
- * [Optic][com.skydoves.cloudy.Optic].
+ * declarations. Each body is paired with its [MirageParams] subclass and registered as an
+ * [Optic][com.skydoves.cloudy.Optic] in [MirageOptics][com.skydoves.cloudy.MirageOptics].
  *
- * ## Why the uniform names are NOT renamed here
- * The ported bodies still name the historical uniforms (`iLight`, `chromaticGain`, `spec*`, …). The
- * final naming is decided where a kernel is paired with its params, because the property names of
- * that [MirageParams] subclass *become* the uniform identifiers the compiler emits — renaming the
- * kernel text without an authored params schema would reference names no schema provides. So the
- * rename (`iLight` -> `light`, `chromaticGain` -> `gain`, …) is deferred to the preset-porting step,
- * keeping this step a pure text move. `MirageShaders.kt` stays alongside this file until that step
- * consumes it, then it is deleted.
+ * ## Uniforms are declared by the paired params, not inline
+ * A Composite / Generate body names its uniforms (`lensCenter`, `iLight`, `spec*`, `chromatic*`,
+ * `foil*`, …) but does **not** declare them: the compiler emits one declaration per schema entry from
+ * the paired params, so an inline `uniform ...;` would collide and fail to compile. The property names
+ * of the params subclass therefore *are* the uniform identifiers, and they match the identifiers these
+ * bodies read. The one non-uniform rename applied here is `iTime` -> the standard `mirageTime` uniform,
+ * so the codegen clock drives the foil shimmer.
  *
- * AGSL and SKSL bodies are kept byte-identical (the two languages share this surface), following the
- * existing `MirageShaders.kt` convention.
+ * AGSL and SKSL bodies are kept byte-identical (the two languages share this surface).
  */
 
 // ---------------------------------------------------------------------------------------------
@@ -67,20 +63,14 @@ half4 kernel(float2 p, half4 src) {
 // standard-uniform renames; here it is an unchanged text move.
 // ---------------------------------------------------------------------------------------------
 
-/** AGSL Composite `main` body for the specular optic. */
+/**
+ * AGSL Composite `main` body for the specular optic.
+ *
+ * The `spec*` / lens / `iLight` uniforms are NOT declared here: they are the property names of the
+ * paired `SpecularParams`, so the compiler emits their declarations from that schema. Declaring them
+ * inline as well would be a duplicate-uniform compile error.
+ */
 internal const val SPECULAR_KERNEL_AGSL: String = """
-uniform float specStrength;
-uniform float specPower;
-uniform float specRimMix;
-uniform float specWidthPx;
-uniform float specLightZ;
-uniform float specDomeFrac;
-uniform float specBodyPower;
-uniform float specBodyGain;
-uniform float specFocalK;
-uniform float specPoolFrac;
-uniform float specPoolGain;
-
 half4 main(float2 xy) {
     float2 halfDim = lensSize * 0.5;
     float r = min(cornerRadius, min(halfDim.x, halfDim.y));
@@ -213,18 +203,6 @@ half4 main(float2 xy) {
 
 /** SKSL Composite `main` body for the specular optic — byte-identical to [SPECULAR_KERNEL_AGSL]. */
 internal const val SPECULAR_KERNEL_SKSL: String = """
-uniform float specStrength;
-uniform float specPower;
-uniform float specRimMix;
-uniform float specWidthPx;
-uniform float specLightZ;
-uniform float specDomeFrac;
-uniform float specBodyPower;
-uniform float specBodyGain;
-uniform float specFocalK;
-uniform float specPoolFrac;
-uniform float specPoolGain;
-
 half4 main(float2 xy) {
     float2 halfDim = lensSize * 0.5;
     float r = min(cornerRadius, min(halfDim.x, halfDim.y));
@@ -356,21 +334,14 @@ half4 main(float2 xy) {
 """
 
 // ---------------------------------------------------------------------------------------------
-// CHROMATIC — Composite main() carried verbatim from MirageShaders.kt CHROMATIC_*. Parameterized
-// thin-film iridescence; self-declares its 7 chromatic* uniforms. Carried unchanged (see the file
-// note on deferred renaming).
+// CHROMATIC — Composite main() carried from MirageShaders.kt CHROMATIC_*. Parameterized thin-film
+// iridescence. The 7 `chromatic*` / lens / `iLight` uniforms are declared by the paired
+// `ChromaticParams` schema, so they are NOT declared inline (a duplicate would fail to compile); the
+// `CHROMA_*` consts stay in the body since they are shader-private, not uniforms.
 // ---------------------------------------------------------------------------------------------
 
 /** AGSL Composite `main` body for the chromatic optic. */
 internal const val CHROMATIC_KERNEL_AGSL: String = """
-uniform float chromaticIntensity;
-uniform float chromaticGain;
-uniform float4 chromaticKRGB;   // .xyz = r/g/b wavenumber ratios; float4 to match the 4-arg write
-uniform float chromaticFloor;
-uniform float chromaticWashout;
-uniform float chromaticModulate;
-uniform float chromaticRimBoost;
-
 // thin-film: thickness = bevel depth (center 0 -> rim 1), cos = light incidence; THICK_MIX blends
 // thickness rings vs pure light angle. OPD_BASE seats the silver 0th order at the center.
 const float CHROMA_OPD_BASE  = 0.10;
@@ -449,14 +420,6 @@ half4 main(float2 xy) {
 
 /** SKSL Composite `main` body for the chromatic optic — byte-identical to [CHROMATIC_KERNEL_AGSL]. */
 internal const val CHROMATIC_KERNEL_SKSL: String = """
-uniform float chromaticIntensity;
-uniform float chromaticGain;
-uniform float4 chromaticKRGB;   // .xyz = r/g/b wavenumber ratios; float4 to match the 4-arg write
-uniform float chromaticFloor;
-uniform float chromaticWashout;
-uniform float chromaticModulate;
-uniform float chromaticRimBoost;
-
 // thin-film: thickness = bevel depth (center 0 -> rim 1), cos = light incidence; THICK_MIX blends
 // thickness rings vs pure light angle. OPD_BASE seats the silver 0th order at the center.
 const float CHROMA_OPD_BASE  = 0.10;
@@ -534,18 +497,14 @@ half4 main(float2 xy) {
 """
 
 // ---------------------------------------------------------------------------------------------
-// FOIL — Generate main() carried verbatim from MirageShaders.kt FOIL_*. Content-free overlay: it
-// never samples content and self-declares its 5 foil/sparkle uniforms. Carried unchanged.
+// FOIL — Generate main() carried from MirageShaders.kt FOIL_*. Content-free overlay: it never samples
+// content. The 5 foil/sparkle + lens + `iLight` uniforms come from the paired `FoilParams` schema
+// (not declared inline). The old `iTime` reference is renamed to the standard `mirageTime` uniform so
+// the codegen clock drives the animated shimmer.
 // ---------------------------------------------------------------------------------------------
 
 /** AGSL Generate `main` body for the foil overlay optic. */
 internal const val FOIL_KERNEL_AGSL: String = """
-uniform float foilBands;
-uniform float foilPhase;
-uniform float chromaticGain;
-uniform float sparkleDensity;
-uniform float sparkleAmplitude;
-
 // hash for the sparkle field — bounded input (lens-local, fract) so sin() never blows up at scale.
 float foilHash(float2 c) {
     return fract(sin(dot(c, float2(127.1, 311.7))) * 43758.5453);
@@ -574,7 +533,7 @@ half4 main(float2 xy) {
     float dome  = (1.0 - smoothstep(0.0, 1.0, length(pNorm))) * 0.5; // gentle center fill
 
     // --- 2. thin-film rainbow: HSV band along the light + a thin-film tint (reuses chromaticGain) ---
-    float hueF = fract(along * foilBands + foilPhase + 0.05 * iTime); // slow flow with time
+    float hueF = fract(along * foilBands + foilPhase + 0.05 * mirageTime); // slow flow with time
     float3 hsv = clamp(
         abs(fract(float3(hueF) + float3(0.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0) - 1.0,
         0.0, 1.0);
@@ -593,7 +552,7 @@ half4 main(float2 xy) {
     // units, so an analytic ~1px soft band gives the same crawl-free dot edge, no derivatives.
     float  aa   = clamp(sparkleDensity / max(minHalf, 1.0), 0.02, 0.25);
     float  dot0 = 1.0 - smoothstep(0.18 - aa, 0.18 + aa, d);        // soft round dot
-    float  twinkle = 0.5 + 0.5 * sin(6.2831853 * (h + 0.3 * iTime)); // per-cell time shimmer
+    float  twinkle = 0.5 + 0.5 * sin(6.2831853 * (h + 0.3 * mirageTime)); // per-cell time shimmer
     float  spark = step(0.78, h) * dot0 * twinkle * sparkleAmplitude; // only the brightest cells
 
     // --- composite: rainbow tinted by glare/dome, plus additive sparkle, masked to the lens ---
@@ -608,12 +567,6 @@ half4 main(float2 xy) {
 
 /** SKSL Generate `main` body for the foil overlay optic — byte-identical to [FOIL_KERNEL_AGSL]. */
 internal const val FOIL_KERNEL_SKSL: String = """
-uniform float foilBands;
-uniform float foilPhase;
-uniform float chromaticGain;
-uniform float sparkleDensity;
-uniform float sparkleAmplitude;
-
 // hash for the sparkle field — bounded input (lens-local, fract) so sin() never blows up at scale.
 float foilHash(float2 c) {
     return fract(sin(dot(c, float2(127.1, 311.7))) * 43758.5453);
@@ -642,7 +595,7 @@ half4 main(float2 xy) {
     float dome  = (1.0 - smoothstep(0.0, 1.0, length(pNorm))) * 0.5; // gentle center fill
 
     // --- 2. thin-film rainbow: HSV band along the light + a thin-film tint (reuses chromaticGain) ---
-    float hueF = fract(along * foilBands + foilPhase + 0.05 * iTime); // slow flow with time
+    float hueF = fract(along * foilBands + foilPhase + 0.05 * mirageTime); // slow flow with time
     float3 hsv = clamp(
         abs(fract(float3(hueF) + float3(0.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0) - 1.0,
         0.0, 1.0);
@@ -661,7 +614,7 @@ half4 main(float2 xy) {
     // units, so an analytic ~1px soft band gives the same crawl-free dot edge, no derivatives.
     float  aa   = clamp(sparkleDensity / max(minHalf, 1.0), 0.02, 0.25);
     float  dot0 = 1.0 - smoothstep(0.18 - aa, 0.18 + aa, d);        // soft round dot
-    float  twinkle = 0.5 + 0.5 * sin(6.2831853 * (h + 0.3 * iTime)); // per-cell time shimmer
+    float  twinkle = 0.5 + 0.5 * sin(6.2831853 * (h + 0.3 * mirageTime)); // per-cell time shimmer
     float  spark = step(0.78, h) * dot0 * twinkle * sparkleAmplitude; // only the brightest cells
 
     // --- composite: rainbow tinted by glare/dome, plus additive sparkle, masked to the lens ---
