@@ -35,7 +35,7 @@ import com.skydoves.cloudy.FilterOptic
 import com.skydoves.cloudy.GenerateOptic
 import com.skydoves.cloudy.MirageClock
 import com.skydoves.cloudy.MirageParams
-import com.skydoves.cloudy.MiragePlanScope
+import com.skydoves.cloudy.MirageScope
 import com.skydoves.cloudy.UColor
 import com.skydoves.cloudy.UFloat
 import com.skydoves.cloudy.UFloatArray
@@ -90,7 +90,7 @@ internal sealed class Stage(val optic: com.skydoves.cloudy.Optic<*>, val params:
  * the per-draw block; the built [stages] are what the node draws through.
  */
 @OptIn(ExperimentalMirage::class)
-internal class MiragePlanBuilder : MiragePlanScope {
+internal class MiragePlanBuilder : MirageScope {
 
   val stages: MutableList<Stage> = mutableListOf()
 
@@ -368,7 +368,7 @@ internal class MirageNode(var clock: MirageClock, var enabled: Boolean, stages: 
 internal class MirageElement(
   private val clock: MirageClock,
   private val enabled: Boolean,
-  private val plan: MiragePlanScope.() -> Unit,
+  private val plan: MirageScope.() -> Unit,
 ) : ModifierNodeElement<MirageNode>() {
 
   // Build the stage list eagerly so create()/equals share one evaluation of the plan.

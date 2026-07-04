@@ -28,5 +28,5 @@ import com.skydoves.cloudy.internal.MirageElement
 public actual fun Modifier.mirage(
   clock: MirageClock,
   enabled: Boolean,
-  plan: MiragePlanScope.() -> Unit,
+  plan: MirageScope.() -> Unit,
 ): Modifier = this.then(MirageElement(clock, enabled, plan))

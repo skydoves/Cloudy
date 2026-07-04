@@ -32,7 +32,7 @@ public sealed interface MirageClock {
    * to decay float32 `sin()` precision.
    */
   // RequiresOptIn does not propagate to nested members, so each carries the marker explicitly to stay
-  // out of the stable ABI dumps (same precedent as MirageInputMode's nested objects).
+  // out of the stable ABI dumps.
   @ExperimentalMirage
   public data object Auto : MirageClock
 
@@ -52,12 +52,11 @@ public sealed interface MirageClock {
  * Stage declaration scope for [Modifier.mirage]. The block runs once (when the node attaches) to fix
  * the ordered stage list; each stage's `params` block re-runs every draw.
  *
- * A distinct type from the recipe-era [MirageScope] (which is a per-draw uniform *writer* for the
- * older `Modifier.mirage(recipe, …)` overload): this scope *declares* the optics of a plan, it does
- * not bind uniforms.
+ * This scope *declares* the optics of a plan; it does not write uniforms — a stage's uniforms are
+ * bound each draw from its `params` block against the optic's [MirageParams].
  */
 @ExperimentalMirage
-public interface MiragePlanScope {
+public interface MirageScope {
   /**
    * Declares a content-transforming stage (a [ColorizeOptic] / [CompositeOptic] / raw filter). The
    * content pixels feed the shader and its output replaces them. Declared filters apply in the order
@@ -106,12 +105,12 @@ public interface MiragePlanScope {
  * @param clock time-driving policy for the standard `mirageTime` uniform. Default: [MirageClock.Auto].
  * @param enabled when `false`, the whole plan is bypassed and the content passes through unmodified.
  *   Compiled programs remain cached process-wide, so re-enabling incurs no recompile.
- * @param plan the stage declaration block; see [MiragePlanScope].
+ * @param plan the stage declaration block; see [MirageScope].
  * @return a [Modifier] that applies the plan.
  */
 @ExperimentalMirage
 public expect fun Modifier.mirage(
   clock: MirageClock = MirageClock.Auto,
   enabled: Boolean = true,
-  plan: MiragePlanScope.() -> Unit,
+  plan: MirageScope.() -> Unit,
 ): Modifier
