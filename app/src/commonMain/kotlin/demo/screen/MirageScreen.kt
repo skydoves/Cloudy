@@ -137,7 +137,8 @@ fun MirageScreen(onBackClick: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(16.dp),
       ) {
         Text(
-          text = "One Modifier.mirage { } block applies an open optic plan to any content. Pick a " +
+          text =
+          "One Modifier.mirage { } block applies an open optic plan to any content. Pick a " +
             "look, or enable chaining to overlay Foil over a refracting Oil Slick. Android 13+ / Skia.",
           fontSize = 14.sp,
           color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
