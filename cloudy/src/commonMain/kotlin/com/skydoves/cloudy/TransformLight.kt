@@ -20,6 +20,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.geometry.Offset
@@ -78,11 +79,16 @@ public fun rememberTransformLightSource(
   base: Offset = LiquidGlassDefaults.LIGHT_DIR,
   gain: Float = 1.2f,
 ): LiquidGlassLight {
+  // Keep the latest lambdas without re-keying the LaunchedEffect: a caller passing a non-State-backed
+  // lambda (recreated each recomposition) would otherwise leave the effect holding a stale lambda and
+  // silently freeze. rememberUpdatedState swaps in the newest lambda while the collect keeps running.
+  val rx by rememberUpdatedState(rotationX)
+  val ry by rememberUpdatedState(rotationY)
   val dir = remember { mutableStateOf(transformToLight(rotationX(), rotationY(), base, gain)) }
   // Deferred reads inside snapshotFlow: per-frame rotation changes re-emit and update the holder
   // value (draw invalidation) without recomposing this factory. Re-keyed only on base/gain.
   LaunchedEffect(base, gain) {
-    snapshotFlow { transformToLight(rotationX(), rotationY(), base, gain) }
+    snapshotFlow { transformToLight(rx(), ry(), base, gain) }
       .collect { dir.value = it }
   }
   // Stable holder identity; only dir.value changes per frame.
