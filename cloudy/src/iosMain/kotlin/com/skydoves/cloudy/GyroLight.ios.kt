@@ -20,7 +20,9 @@ package com.skydoves.cloudy
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.geometry.Offset
 import kotlinx.cinterop.ExperimentalForeignApi
@@ -54,9 +56,12 @@ internal actual fun rememberTiltSource(
   tiltGain: Float,
   out: MutableState<Offset>,
 ) {
-  // Read Reduce Motion BEFORE any motion start, so a reduce-motion user never starts updates (and
-  // never triggers the NSMotionUsageDescription prompt). Re-read on the live notification below.
-  val reduceMotion = remember { UIAccessibilityIsReduceMotionEnabled() }
+  // Live Reduce Motion state, observed for the whole composition (its own effect registers a
+  // notification observer). Reading it here — before any motion start — keeps the property that a
+  // reduce-motion user never starts updates (so never triggers the NSMotionUsageDescription prompt),
+  // and keying the motion effect on it makes BOTH directions work: ON->OFF re-acquires the sensor,
+  // OFF->ON releases and freezes.
+  val reduceMotion by rememberReduceMotionState()
 
   DisposableEffect(enabled, hz, tiltGain, reduceMotion) {
     if (!enabled || reduceMotion || !SharedMotionManager.deviceMotionAvailable) {
@@ -87,25 +92,33 @@ internal actual fun rememberTiltSource(
       dispatch_async(dispatch_get_main_queue()) { out.value = o } // Compose write on main
     }
 
-    // Live Reduce Motion: when turned ON, stop and freeze immediately (accessibility-sensitive).
-    // The resume path is handled by this DisposableEffect re-running once `reduceMotion` flips.
+    onDispose {
+      SharedMotionManager.release(token)
+      out.value = base
+    }
+  }
+}
+
+/**
+ * Live [Reduce Motion][UIAccessibilityIsReduceMotionEnabled] state. Seeds from the current value and
+ * updates via a [UIAccessibilityReduceMotionStatusDidChangeNotification] observer registered for the
+ * whole composition (main queue). Mirrors Android's `rememberReduceMotionState`, so toggling the
+ * setting while on screen takes effect in both directions.
+ */
+@Composable
+private fun rememberReduceMotionState(): State<Boolean> {
+  val state = remember { mutableStateOf(UIAccessibilityIsReduceMotionEnabled()) }
+  DisposableEffect(Unit) {
     val observer = NSNotificationCenter.defaultCenter.addObserverForName(
       name = UIAccessibilityReduceMotionStatusDidChangeNotification,
       `object` = null,
       queue = NSOperationQueue.mainQueue,
     ) { _ ->
-      if (UIAccessibilityIsReduceMotionEnabled()) {
-        SharedMotionManager.release(token)
-        out.value = base
-      }
+      state.value = UIAccessibilityIsReduceMotionEnabled()
     }
-
-    onDispose {
-      SharedMotionManager.release(token)
-      NSNotificationCenter.defaultCenter.removeObserver(observer)
-      out.value = base
-    }
+    onDispose { NSNotificationCenter.defaultCenter.removeObserver(observer) }
   }
+  return state
 }
 
 /**
