@@ -22,6 +22,10 @@ package com.skydoves.cloudy
  * This API lets callers author arbitrary AGSL / SKSL optics and bind their typed uniforms, so its
  * surface (the optic author contract, the plan scope, the modifier parameters) may still change.
  * Opt in with `@OptIn(ExperimentalMirage::class)` or by propagating the annotation.
+ *
+ * The marker is self-annotated so binary-compatibility validation treats it as a non-public (opt-in)
+ * declaration and keeps it out of the committed .api dumps, matching the experimental members it
+ * guards. Declaring an opt-in marker requires no opt-in, so this is not circular.
  */
 @RequiresOptIn(
   level = RequiresOptIn.Level.WARNING,
@@ -29,8 +33,5 @@ package com.skydoves.cloudy
 )
 @Retention(AnnotationRetention.BINARY)
 @Target(AnnotationTarget.FUNCTION, AnnotationTarget.PROPERTY, AnnotationTarget.CLASS)
-// Self-annotated so binary-compatibility validation treats the marker itself as a non-public
-// (opt-in) declaration and keeps it out of the committed .api dumps, matching the experimental
-// members it guards. Declaring an opt-in marker requires no opt-in, so this is not circular.
 @ExperimentalMirage
 public annotation class ExperimentalMirage

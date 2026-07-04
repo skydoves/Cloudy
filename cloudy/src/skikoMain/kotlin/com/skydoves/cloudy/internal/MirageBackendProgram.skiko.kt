@@ -51,8 +51,10 @@ internal actual fun createBackendProgram(compiled: CompiledProgram): MirageBacke
 
 internal actual fun MirageBackendProgram.uniformSink(): UniformSink = SkikoUniformSink(builder)
 
-// makeRuntimeShader with input = null feeds the layer's own content as the `content` child, matching
-// the Android createRuntimeShaderEffect(shader, "content") path.
+/**
+ * makeRuntimeShader with input = null feeds the layer's own content as the `content` child, matching
+ * the Android createRuntimeShaderEffect(shader, "content") path.
+ */
 internal actual fun MirageBackendProgram.asContentRenderEffect(): RenderEffect = ImageFilter
   .makeRuntimeShader(
     runtimeShaderBuilder = builder,
@@ -61,8 +63,10 @@ internal actual fun MirageBackendProgram.asContentRenderEffect(): RenderEffect =
   )
   .asComposeRenderEffect()
 
-// Skia bakes uniforms into the Shader at makeShader() time, so this rebuilds from the builder's
-// current uniforms each call — the node calls it after writing the per-draw values.
+/**
+ * Skia bakes uniforms into the Shader at makeShader() time, so this rebuilds from the builder's
+ * current uniforms each call - the node calls it after writing the per-draw values.
+ */
 internal actual fun MirageBackendProgram.asShaderBrush(): ShaderBrush =
   ShaderBrush(builder.makeShader())
 
@@ -79,23 +83,27 @@ private class SkikoUniformSink(private val builder: RuntimeShaderBuilder) : Unif
 
   override fun floatArray(name: String, v: FloatArray): Unit = builder.uniform(name, v)
 
-  // §8-2 — skiko's RuntimeShaderBuilder has NO color-space-aware setter (verified against the skiko
-  // 0.9.37.3 source: it exposes only uniform(Int…/Float…/FloatArray/Matrix…) and child(Shader/
-  // ColorFilter) — there is no Color overload and no layout(color) handling). So, unlike Android's
-  // setColorUniform, we convert the Color ourselves and write a plain float4. We pick sRGB
-  // unpremultiplied as the canonical encoding: Color.convert(Srgb) normalises any source gamut (e.g.
-  // a Display-P3 literal) to sRGB before reading components, matching how an sRGB layout(color) on
-  // Android is treated. CAVEAT: because the shader receives raw sRGB float4 with no working-color-
-  // space conversion, wide-gamut displays may render this color slightly differently from Android,
-  // where setColorUniform performs the working-space transform. M1 presets use only sRGB literals, so
-  // this is a no-op in practice today; it is documented here for the day a P3 color is introduced.
+  /**
+   * Section 8-2 - skiko's RuntimeShaderBuilder has NO color-space-aware setter (verified against the skiko
+   * 0.9.37.3 source: it exposes only uniform(Int.../Float.../FloatArray/Matrix...) and child(Shader/
+   * ColorFilter) - there is no Color overload and no layout(color) handling). So, unlike Android's
+   * setColorUniform, we convert the Color ourselves and write a plain float4. We pick sRGB
+   * unpremultiplied as the canonical encoding: Color.convert(Srgb) normalises any source gamut (e.g.
+   * a Display-P3 literal) to sRGB before reading components, matching how an sRGB layout(color) on
+   * Android is treated. CAVEAT: because the shader receives raw sRGB float4 with no working-color-
+   * space conversion, wide-gamut displays may render this color slightly differently from Android,
+   * where setColorUniform performs the working-space transform. M1 presets use only sRGB literals, so
+   * this is a no-op in practice today; it is documented here for the day a P3 color is introduced.
+   */
   override fun color(name: String, c: Color) {
     val srgb = c.convert(ColorSpaces.Srgb)
     builder.uniform(name, srgb.red, srgb.green, srgb.blue, srgb.alpha)
   }
 
-  // Bind an image as a child shader. The compose->skia bitmap bridge is public (asSkiaBitmap); the
-  // Compose->skia TileMode map is not exported from compose-ui, so it is inlined below.
+  /**
+   * Bind an image as a child shader. The compose->skia bitmap bridge is public (asSkiaBitmap); the
+   * Compose->skia TileMode map is not exported from compose-ui, so it is inlined below.
+   */
   override fun texture(name: String, img: ImageBitmap?, tileMode: TileMode) {
     if (img == null) return
     val tile = tileMode.toSkiaFilterTileMode()
@@ -104,8 +112,10 @@ private class SkikoUniformSink(private val builder: RuntimeShaderBuilder) : Unif
   }
 }
 
-// Compose TileMode -> skia FilterTileMode. Mirrors compose-ui's internal toSkiaTileMode(), which is
-// not visible outside its package.
+/**
+ * Compose TileMode -> skia FilterTileMode. Mirrors compose-ui's internal toSkiaTileMode(), which is
+ * not visible outside its package.
+ */
 private fun TileMode.toSkiaFilterTileMode(): FilterTileMode = when (this) {
   TileMode.Repeated -> FilterTileMode.REPEAT
   TileMode.Mirror -> FilterTileMode.MIRROR

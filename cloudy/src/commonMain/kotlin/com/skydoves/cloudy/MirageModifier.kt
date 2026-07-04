@@ -30,9 +30,10 @@ public sealed interface MirageClock {
    * [com.skydoves.cloudy.internal.CompiledProgram]). The value fed to the shader is seconds since the
    * node attached, wrapped at 3600s so a long-running session never grows the argument large enough
    * to decay float32 `sin()` precision.
+   *
+   * RequiresOptIn does not propagate to nested members, so each carries the marker explicitly to stay
+   * out of the stable ABI dumps.
    */
-  // RequiresOptIn does not propagate to nested members, so each carries the marker explicitly to stay
-  // out of the stable ABI dumps.
   @ExperimentalMirage
   public data object Auto : MirageClock
 

@@ -42,7 +42,7 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 internal class MiragePlanModifierTest {
 
-  // A trivial colorize filter and a trivial generator overlay, enough to populate a plan.
+  /** A trivial colorize filter and a trivial generator overlay, enough to populate a plan. */
   private val tintFilter: ColorizeOptic<MirageParams> = Optic.colorize(
     name = "test-tint",
     paramsFactory = { EmptyParams() },
@@ -128,7 +128,7 @@ internal class MiragePlanModifierTest {
   private fun elementOf(modifier: Modifier): MirageElement =
     modifier.firstElementOrNull() as MirageElement
 
-  // foldIn returns the first ModifierNodeElement in the chain (there is exactly one here).
+  /** foldIn returns the first ModifierNodeElement in the chain (there is exactly one here). */
   private fun Modifier.firstElementOrNull(): ModifierNodeElement<*>? =
     foldIn<ModifierNodeElement<*>?>(null) { acc, element ->
       acc ?: element as? ModifierNodeElement<*>

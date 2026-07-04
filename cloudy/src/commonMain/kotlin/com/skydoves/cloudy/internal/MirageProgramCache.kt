@@ -62,7 +62,6 @@ internal object MirageProgramCache {
     val compiled = MirageCompiler.compile(optic, dialect)
     val key = compiled.source
 
-    // Fast path: already compiled and stored.
     entries.load()[key]?.let { return it }
 
     // Build the backend program once for this call. Null means the platform cannot support it (e.g.

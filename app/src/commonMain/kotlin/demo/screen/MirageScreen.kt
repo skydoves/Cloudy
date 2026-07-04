@@ -155,8 +155,6 @@ fun MirageScreen(onBackClick: () -> Unit) {
 
         PosterPane(onCentered = { lensCenter = it }) { paneModifier ->
           if (chained) {
-            // A filter stage refracts the content; the overlay stage composites Foil on top of the
-            // filtered result (the plan orders overlays over filters).
             paneModifier.mirage {
               filter(MirageOptics.OilSlick) { lensFraming() }
               overlay(MirageOptics.Foil) { lensFraming() }

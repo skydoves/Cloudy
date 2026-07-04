@@ -122,7 +122,7 @@ internal class MirageCompilerTest :
 
         val program = MirageCompiler.compile(optic, Dialect.Agsl)
 
-        program.source.shouldContain("float boxRoundedSDF(") // preamble helper present
+        program.source.shouldContain("float boxRoundedSDF(")
         program.source.shouldContain("uniform shader content;")
         // No Colorize wrapper is appended: the author owns the single main.
         program.source.shouldNotContain("return kernel(xy, content.eval(xy));")

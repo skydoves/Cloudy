@@ -57,14 +57,16 @@ import kotlinx.coroutines.launch
 /** The shading language the current platform runs (Android = AGSL, every skiko target = SKSL). */
 internal expect fun currentDialect(): Dialect
 
-// Standard uniform names the compiler emits on demand. The node binds each one only when the compiled
-// program declared it: Android's RuntimeShader throws IllegalArgumentException on a write to an
-// undeclared uniform (skiko tolerates it), so the CompiledProgram.uses* flags gate every bind.
+/**
+ * Standard uniform names the compiler emits on demand. The node binds each one only when the compiled
+ * program declared it: Android's RuntimeShader throws IllegalArgumentException on a write to an
+ * undeclared uniform (skiko tolerates it), so the CompiledProgram.uses* flags gate every bind.
+ */
 private const val STD_RESOLUTION = "mirageResolution"
 private const val STD_TIME = "mirageTime"
 private const val STD_DENSITY = "mirageDensity"
 
-// mirageTime wraps here so a long session never grows the argument enough to decay float32 sin().
+/** mirageTime wraps here so a long session never grows the argument enough to decay float32 sin(). */
 private const val TIME_WRAP_SECONDS = 3600f
 
 /**
@@ -149,20 +151,26 @@ internal class MirageNode(var clock: MirageClock, var enabled: Boolean, stages: 
   var stages: List<Stage> = stages
     private set
 
-  // Reusable filter layers, one per filter stage, indexed by stage order. Rebuilt lazily on first
-  // draw and released on detach; never allocated inside the steady-state draw.
+  /**
+   * Reusable filter layers, one per filter stage, indexed by stage order. Rebuilt lazily on first
+   * draw and released on detach; never allocated inside the steady-state draw.
+   */
   private var filterLayers: Array<GraphicsLayer?> = arrayOfNulls(0)
 
-  // mirageTime, in seconds. Auto advances it from the frame loop; Fixed writes a constant; Paused
-  // freezes the last value. Plain field (not snapshot state): the clock loop invalidateDraw()s
-  // explicitly, and Fixed/Paused change only when the node is re-created on a new key.
+  /**
+   * mirageTime, in seconds. Auto advances it from the frame loop; Fixed writes a constant; Paused
+   * freezes the last value. Plain field (not snapshot state): the clock loop invalidateDraw()s
+   * explicitly, and Fixed/Paused change only when the node is re-created on a new key.
+   */
   private var timeSeconds: Float = 0f
 
-  // Wall-clock nanos of the first Auto frame, so timeSeconds is measured from attach.
+  /** Wall-clock nanos of the first Auto frame, so timeSeconds is measured from attach. */
   private var startNanos: Long = -1L
 
-  // True if any stage's compiled kernel references mirageTime — computed once at attach from the
-  // (already-warmed) cache, so the draw loop never re-queries it.
+  /**
+   * True if any stage's compiled kernel references mirageTime - computed once at attach from the
+   * (already-warmed) cache, so the draw loop never re-queries it.
+   */
   private var planUsesTime: Boolean = false
 
   fun update(clock: MirageClock, enabled: Boolean, stages: List<Stage>) {
@@ -181,8 +189,10 @@ internal class MirageNode(var clock: MirageClock, var enabled: Boolean, stages: 
     warmAndSchedule()
   }
 
-  // Warm the cache for every stage (so usesTime is known and the draw loop enters with programs
-  // ready), then start the frame loop when the clock is Auto and some stage is time-driven.
+  /**
+   * Warm the cache for every stage (so usesTime is known and the draw loop enters with programs
+   * ready), then start the frame loop when the clock is Auto and some stage is time-driven.
+   */
   private fun warmAndSchedule() {
     val dialect = currentDialect()
     var usesTime = false
@@ -223,7 +233,6 @@ internal class MirageNode(var clock: MirageClock, var enabled: Boolean, stages: 
     val density = currentValueOf(LocalDensity).density
     val time = timeFor(clock)
 
-    // Split stages once: filters chain first, overlays composite over the result.
     val filters = stages.filterIsInstance<Stage.Filter>()
     val overlays = stages.filterIsInstance<Stage.Overlay>()
 
@@ -231,9 +240,11 @@ internal class MirageNode(var clock: MirageClock, var enabled: Boolean, stages: 
     drawOverlays(overlays, dialect, width, height, density, time)
   }
 
-  // Filters: record the running content into a per-stage layer, bind that stage's program, apply it
-  // as the layer's content-bound render effect, then draw the layer — feeding the next stage. A stage
-  // whose program is unavailable (API < 33) is skipped, leaving the running content untouched.
+  /**
+   * Filters: record the running content into a per-stage layer, bind that stage's program, apply it
+   * as the layer's content-bound render effect, then draw the layer - feeding the next stage. A stage
+   * whose program is unavailable (API < 33) is skipped, leaving the running content untouched.
+   */
   private fun ContentDrawScope.drawFilteredContent(
     filters: List<Stage.Filter>,
     dialect: Dialect,
@@ -279,8 +290,10 @@ internal class MirageNode(var clock: MirageClock, var enabled: Boolean, stages: 
     drawLayer(filterLayers[applicable.lastIndex]!!)
   }
 
-  // Overlays: draw the (already filtered) content first happened above; here just composite each
-  // generator over it via a ShaderBrush under the stage's blend mode.
+  /**
+   * Overlays: the (already filtered) content was drawn above; here just composite each generator over
+   * it via a ShaderBrush under the stage's blend mode.
+   */
   private fun ContentDrawScope.drawOverlays(
     overlays: List<Stage.Overlay>,
     dialect: Dialect,
@@ -296,8 +309,10 @@ internal class MirageNode(var clock: MirageClock, var enabled: Boolean, stages: 
     }
   }
 
-  // Resets each handle to its declared default, runs the caller's per-draw block, then pushes the
-  // standard uniforms + every schema slot through the sink in declaration order.
+  /**
+   * Resets each handle to its declared default, runs the caller's per-draw block, then pushes the
+   * standard uniforms + every schema slot through the sink in declaration order.
+   */
   private fun bindUniforms(
     cached: CachedProgram,
     params: MirageParams,
@@ -379,7 +394,7 @@ internal class MirageElement(
   private val plan: MirageScope.() -> Unit,
 ) : ModifierNodeElement<MirageNode>() {
 
-  // Build the stage list eagerly so create()/equals share one evaluation of the plan.
+  /** Build the stage list eagerly so create()/equals share one evaluation of the plan. */
   private val stages: List<Stage> = MiragePlanBuilder().apply(plan).stages
 
   override fun create(): MirageNode = MirageNode(clock, enabled, stages)
@@ -395,9 +410,11 @@ internal class MirageElement(
     properties["stages"] = stages.map { it.optic.name }
   }
 
-  // Equal when the same plan shape would produce the same programs: same clock, enabled, and the same
-  // ordered (optic, kind, blendMode) tuple. paramsBlock lambdas are excluded (never comparable), and
-  // the mint-once params instances are per-node identity, so both are left out.
+  /**
+   * Equal when the same plan shape would produce the same programs: same clock, enabled, and the same
+   * ordered (optic, kind, blendMode) tuple. paramsBlock lambdas are excluded (never comparable), and
+   * the mint-once params instances are per-node identity, so both are left out.
+   */
   override fun equals(other: Any?): Boolean {
     if (this === other) return true
     if (other !is MirageElement) return false
@@ -424,8 +441,10 @@ internal class MirageElement(
   }
 }
 
-// Resets each handle on [params] back to the declared default from its schema entry, so an unset
-// uniform this draw re-uses its default rather than a stale prior-draw value.
+/**
+ * Resets each handle on [params] back to the declared default from its schema entry, so an unset
+ * uniform this draw re-uses its default rather than a stale prior-draw value.
+ */
 @OptIn(ExperimentalMirage::class)
 private fun resetToDefaults(params: MirageParams, schema: UniformSchema) {
   for (handle in params.handles) {

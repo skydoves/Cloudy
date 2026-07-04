@@ -31,14 +31,13 @@ package com.skydoves.cloudy.internal
  * AGSL and SKSL bodies are kept byte-identical (the two languages share this surface).
  */
 
-// ---------------------------------------------------------------------------------------------
-// DUOTONE — a new Colorize demo kernel. Point-wise: it reads only the passed `src` pixel (never the
-// content sampler), maps luminance onto a shadow -> highlight gradient, and cross-fades by `amount`.
-// The compiler wraps this `kernel(...)` with `half4 main(float2 xy){ return kernel(xy, content.eval(xy)); }`.
-// `shadow` / `highlight` / `amount` are supplied by the paired MirageParams (uniformColor / uniform).
-// ---------------------------------------------------------------------------------------------
-
-/** AGSL Colorize kernel for the Duotone demo optic. */
+/**
+ * AGSL Colorize kernel for the Duotone demo optic. Point-wise: it reads only the passed `src` pixel
+ * (never the content sampler), maps luminance onto a shadow -> highlight gradient, and cross-fades by
+ * `amount`. The compiler wraps this `kernel(...)` with
+ * `half4 main(float2 xy){ return kernel(xy, content.eval(xy)); }`. `shadow` / `highlight` / `amount`
+ * are supplied by the paired MirageParams (uniformColor / uniform).
+ */
 internal const val DUOTONE_KERNEL_AGSL: String = """
 half4 kernel(float2 p, half4 src) {
     half g = half(dot(src.rgb, half3(0.2126, 0.7152, 0.0722)));
@@ -56,15 +55,9 @@ half4 kernel(float2 p, half4 src) {
 }
 """
 
-// ---------------------------------------------------------------------------------------------
-// SPECULAR — Composite main() carried verbatim from MirageShaders.kt SPECULAR_*. Self-declares its
-// 11 spec* uniforms and reads the standard lens uniforms + preamble helpers. The preset-porting step
-// will strip the inline `uniform ...;` lines (the params schema will declare them) and apply the
-// standard-uniform renames; here it is an unchanged text move.
-// ---------------------------------------------------------------------------------------------
-
 /**
- * AGSL Composite `main` body for the specular optic.
+ * AGSL Composite `main` body for the specular optic. Reads the standard lens uniforms + preamble
+ * helpers, and its 11 `spec*` terms.
  *
  * The `spec*` / lens / `iLight` uniforms are NOT declared here: they are the property names of the
  * paired `SpecularParams`, so the compiler emits their declarations from that schema. Declaring them
@@ -333,14 +326,12 @@ half4 main(float2 xy) {
 }
 """
 
-// ---------------------------------------------------------------------------------------------
-// CHROMATIC — Composite main() carried from MirageShaders.kt CHROMATIC_*. Parameterized thin-film
-// iridescence. The 7 `chromatic*` / lens / `iLight` uniforms are declared by the paired
-// `ChromaticParams` schema, so they are NOT declared inline (a duplicate would fail to compile); the
-// `CHROMA_*` consts stay in the body since they are shader-private, not uniforms.
-// ---------------------------------------------------------------------------------------------
-
-/** AGSL Composite `main` body for the chromatic optic. */
+/**
+ * AGSL Composite `main` body for the chromatic optic - parameterized thin-film iridescence. The 7
+ * `chromatic*` / lens / `iLight` uniforms are declared by the paired `ChromaticParams` schema, so they
+ * are NOT declared inline (a duplicate would fail to compile); the `CHROMA_*` consts stay in the body
+ * since they are shader-private, not uniforms.
+ */
 internal const val CHROMATIC_KERNEL_AGSL: String = """
 // thin-film: thickness = bevel depth (center 0 -> rim 1), cos = light incidence; THICK_MIX blends
 // thickness rings vs pure light angle. OPD_BASE seats the silver 0th order at the center.
@@ -496,14 +487,12 @@ half4 main(float2 xy) {
 }
 """
 
-// ---------------------------------------------------------------------------------------------
-// FOIL — Generate main() carried from MirageShaders.kt FOIL_*. Content-free overlay: it never samples
-// content. The 5 foil/sparkle + lens + `iLight` uniforms come from the paired `FoilParams` schema
-// (not declared inline). The old `iTime` reference is renamed to the standard `mirageTime` uniform so
-// the codegen clock drives the animated shimmer.
-// ---------------------------------------------------------------------------------------------
-
-/** AGSL Generate `main` body for the foil overlay optic. */
+/**
+ * AGSL Generate `main` body for the foil overlay optic. Content-free overlay: it never samples
+ * content. The 5 foil/sparkle + lens + `iLight` uniforms come from the paired `FoilParams` schema (not
+ * declared inline). The old `iTime` reference is renamed to the standard `mirageTime` uniform so the
+ * codegen clock drives the animated shimmer.
+ */
 internal const val FOIL_KERNEL_AGSL: String = """
 // hash for the sparkle field — bounded input (lens-local, fract) so sin() never blows up at scale.
 float foilHash(float2 c) {

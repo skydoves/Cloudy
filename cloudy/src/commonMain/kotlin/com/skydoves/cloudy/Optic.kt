@@ -50,14 +50,18 @@ public sealed class Optic<P : MirageParams> protected constructor(
   public val name: String,
   internal val paramsFactory: () -> P,
 ) {
-  // Declared abstract, not final: the comparable tuple (name + sources + category) is only complete
-  // at the leaf subtype, so each supplies its own implementation over the fields it actually holds.
+  /**
+   * Declared abstract, not final: the comparable tuple (name + sources + category) is only complete
+   * at the leaf subtype, so each supplies its own implementation over the fields it actually holds.
+   */
   abstract override fun equals(other: Any?): Boolean
 
   abstract override fun hashCode(): Int
 
-  // The companion is a separate ABI class (Optic$Companion); the marker on the outer class does not
-  // reach it, so it carries its own to stay out of the stable dumps.
+  /**
+   * The companion is a separate ABI class (Optic$Companion); the marker on the outer class does not
+   * reach it, so it carries its own to stay out of the stable dumps.
+   */
   @ExperimentalMirage
   public companion object {
     /**
@@ -166,11 +170,13 @@ public sealed class FilterOptic<P : MirageParams> protected constructor(
   internal val skipLint: Boolean = false,
 ) : Optic<P>(name, paramsFactory) {
 
-  // The comparable tuple is complete for every filter subtype at this level (all hold name + sources
-  // + category + skipLint), so the equality contract is implemented once here rather than per leaf.
-  // paramsFactory is excluded on purpose: it is a lambda and only feeds params into the program
-  // identified by the sources — two optics with equal name/sources/category/skipLint compile to the
-  // same GPU program.
+  /**
+   * The comparable tuple is complete for every filter subtype at this level (all hold name + sources
+   * + category + skipLint), so the equality contract is implemented once here rather than per leaf.
+   * paramsFactory is excluded on purpose: it is a lambda and only feeds params into the program
+   * identified by the sources - two optics with equal name/sources/category/skipLint compile to the
+   * same GPU program.
+   */
   final override fun equals(other: Any?): Boolean = this === other ||
     (
       other is FilterOptic<*> &&
@@ -239,8 +245,10 @@ public class GenerateOptic<P : MirageParams> internal constructor(
   internal val sksl: String,
 ) : Optic<P>(name, paramsFactory) {
 
-  // Category is fixed (Generate) for every instance, so it is not part of the comparable tuple — the
-  // (name, agsl, sksl) triple already distinguishes generators. paramsFactory excluded as elsewhere.
+  /**
+   * Category is fixed (Generate) for every instance, so it is not part of the comparable tuple - the
+   * (name, agsl, sksl) triple already distinguishes generators. paramsFactory excluded as elsewhere.
+   */
   override fun equals(other: Any?): Boolean = this === other ||
     (
       other is GenerateOptic<*> &&

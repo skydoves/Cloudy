@@ -47,9 +47,11 @@ public abstract class MirageParams {
 
   private val registered: MutableList<UniformEntry> = mutableListOf()
 
-  // The live handles, parallel to [registered] by declaration order (handle.slot == list index). The
-  // node walks these to read each draw's current value; the schema entry at the same slot carries the
-  // name / type / default. Kept alongside the entries so the two lists never drift.
+  /**
+   * The live handles, parallel to [registered] by declaration order (handle.slot == list index). The
+   * node walks these to read each draw's current value; the schema entry at the same slot carries the
+   * name / type / default. Kept alongside the entries so the two lists never drift.
+   */
   private val registeredHandles: MutableList<UniformHandle> = mutableListOf()
 
   internal val schemaEntries: List<UniformEntry>
@@ -110,8 +112,10 @@ public abstract class MirageParams {
   ): UniformProvider<UTexture> =
     registerHandle("shader", default, isTexture = true) { UTexture(it, default, tileMode) }
 
-  // Provider whose slot index is the current registration size at delegate time, so the handle and
-  // its schema entry are appended together in declaration order.
+  /**
+   * Provider whose slot index is the current registration size at delegate time, so the handle and
+   * its schema entry are appended together in declaration order.
+   */
   private inline fun <H : UniformHandle> registerHandle(
     glslType: String,
     default: Any?,

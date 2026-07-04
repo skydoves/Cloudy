@@ -132,7 +132,6 @@ internal object MirageCompiler {
   fun lint(kernelSource: String, category: OpticCategory): Unit =
     lintCode(stripComments(kernelSource), category)
 
-  // Lint over already comment-stripped code (the compile path strips once and reuses).
   private fun lintCode(code: String, category: OpticCategory) {
     for (token in FORBIDDEN_TOKENS) {
       if (code.contains(token)) {
@@ -203,30 +202,29 @@ internal object MirageCompiler {
     usesDensity: Boolean,
     usesContent: Boolean,
   ): String = buildString {
-    // 1. preamble (lens helpers) - Composite / Generate reach into the lens field; Colorize does not.
+    // Colorize is point-wise and does not read the lens field, so it gets no preamble.
     if (category != OpticCategory.Colorize) {
       append(miragePreambleHelpers(dialect))
       append('\n')
     }
 
-    // 2. standard uniforms - referenced-only, so an unused standard input never reaches the shader.
-    //    The same flags gate the node's binds, so declaration and binding stay in lockstep.
+    // Standard uniforms are referenced-only, and the same flags gate the node's binds, so declaration
+    // and binding stay in lockstep (Android rejects a write to an undeclared uniform).
     if (usesResolution) appendLine("uniform float2 $STD_RESOLUTION;")
     if (usesTime) appendLine("uniform float $STD_TIME;")
     if (usesDensity) appendLine("uniform float $STD_DENSITY;")
 
-    // 3. schema uniforms - one per entry, in declaration (= bind) order.
+    // Schema uniforms, one per entry, in declaration (= bind) order.
     for (entry in schema.entries) {
       appendLine(declarationOf(entry))
     }
 
-    // 4. content sampler - every category except a pure generator samples content.
     if (usesContent) appendLine("uniform shader content;")
 
     append('\n')
 
-    // 5. kernel body. Colorize authors only `kernel(p, src)`; codegen adds the content-sampling main.
-    //    Composite / Generate author the full `main`, spliced as-is.
+    // Colorize authors only `kernel(p, src)`; codegen adds the content-sampling main. Composite /
+    // Generate author the full `main`, spliced as-is.
     append(kernel)
     if (category == OpticCategory.Colorize) {
       append('\n')
@@ -235,17 +233,17 @@ internal object MirageCompiler {
     }
   }
 
-  // Maps a schema entry to its shader declaration. isColor takes precedence (a color is a float4 with
-  // a layout qualifier); isTexture is a child sampler; otherwise the glslType is already the token.
+  /**
+   * Maps a schema entry to its shader declaration. isColor takes precedence (a color is a float4 with
+   * a layout qualifier); isTexture is a child sampler; otherwise the glslType is already the token.
+   */
   private fun declarationOf(entry: UniformEntry): String = when {
     entry.isColor -> "layout(color) uniform float4 ${entry.name};"
     entry.isTexture -> "uniform shader ${entry.name};"
     else -> "uniform ${entry.glslType} ${entry.name};"
   }
 
-  // ----------------------------------------------------------------------------------------------
-  // Optic accessors - Optic is sealed to FilterOptic / GenerateOptic, so this branch is exhaustive.
-  // ----------------------------------------------------------------------------------------------
+  // Optic is sealed to FilterOptic / GenerateOptic, so these accessor branches are exhaustive.
 
   private fun categoryOf(optic: Optic<*>): OpticCategory = when (optic) {
     is FilterOptic<*> -> optic.category
@@ -259,21 +257,23 @@ internal object MirageCompiler {
 
   private fun isRaw(optic: Optic<*>): Boolean = optic is FilterOptic<*> && optic.skipLint
 
-  // Standard uniform names the compiler emits on demand. The kernel references these directly.
+  /** Standard uniform names the compiler emits on demand. The kernel references these directly. */
   private const val STD_RESOLUTION = "mirageResolution"
   private const val STD_TIME = "mirageTime"
   private const val STD_DENSITY = "mirageDensity"
 
-  // The content child sampler name (both the generated declaration and the wrapper reference it).
+  /** The content child sampler name (both the generated declaration and the wrapper reference it). */
   private const val CONTENT_TOKEN = "content"
 
-  // Colorize wrapper: sample content once at the fragment coord and hand the pixel to the kernel.
+  /** Colorize wrapper: sample content once at the fragment coord and hand the pixel to the kernel. */
   private const val COLORIZE_MAIN_WRAPPER =
     "half4 main(float2 xy) { return kernel(xy, content.eval(xy)); }"
 
-  // Tokens that never compile in a runtime shader (any category). fwidth/dFdx/dFdy are derivative
-  // functions AGSL lacks; '#version' / '#' are preprocessor directives the runtime rejects;
-  // sk_FragCoord is the raw builtin the wrapper's `xy` argument replaces.
+  /**
+   * Tokens that never compile in a runtime shader (any category). fwidth/dFdx/dFdy are derivative
+   * functions AGSL lacks; '#version' / '#' are preprocessor directives the runtime rejects;
+   * sk_FragCoord is the raw builtin the wrapper's `xy` argument replaces.
+   */
   private val FORBIDDEN_TOKENS = listOf(
     "fwidth",
     "dFdx",
