@@ -135,7 +135,7 @@ public sealed class Optic<P : MirageParams> protected constructor(
       paramsFactory: () -> P,
       agsl: String,
       sksl: String,
-    ): FilterOptic<P> = CompositeOptic(name, paramsFactory, agsl, sksl)
+    ): FilterOptic<P> = CompositeOptic(name, paramsFactory, agsl, sksl, skipLint = true)
   }
 }
 
@@ -151,6 +151,10 @@ public sealed class Optic<P : MirageParams> protected constructor(
  *   [Composite][OpticCategory.Composite] and raw optics it is the full `main` body.
  * @property sksl The Skia (SKSL) counterpart of [agsl].
  * @property category The codegen category this optic lowers into.
+ * @property skipLint Whether the compiler emits the source verbatim with no codegen and no lint (a
+ *   raw escape-hatch optic, built via [Optic.raw]). A raw optic and a `composite()` optic with the
+ *   same body compile to *different* programs (raw = source verbatim; composite = preamble + emitted
+ *   uniforms + body), so this flag is part of the cache-key identity below.
  */
 @ExperimentalMirage
 public sealed class FilterOptic<P : MirageParams> protected constructor(
@@ -159,19 +163,22 @@ public sealed class FilterOptic<P : MirageParams> protected constructor(
   internal val agsl: String,
   internal val sksl: String,
   internal val category: OpticCategory,
+  internal val skipLint: Boolean = false,
 ) : Optic<P>(name, paramsFactory) {
 
   // The comparable tuple is complete for every filter subtype at this level (all hold name + sources
-  // + category), so the equality contract is implemented once here rather than per leaf. paramsFactory
-  // is excluded on purpose: it is a lambda and only feeds params into the program identified by the
-  // sources — two optics with equal name/sources/category compile to the same GPU program.
+  // + category + skipLint), so the equality contract is implemented once here rather than per leaf.
+  // paramsFactory is excluded on purpose: it is a lambda and only feeds params into the program
+  // identified by the sources — two optics with equal name/sources/category/skipLint compile to the
+  // same GPU program.
   final override fun equals(other: Any?): Boolean = this === other ||
     (
       other is FilterOptic<*> &&
         name == other.name &&
         agsl == other.agsl &&
         sksl == other.sksl &&
-        category == other.category
+        category == other.category &&
+        skipLint == other.skipLint
       )
 
   final override fun hashCode(): Int {
@@ -179,6 +186,7 @@ public sealed class FilterOptic<P : MirageParams> protected constructor(
     result = result * 31 + agsl.hashCode()
     result = result * 31 + sksl.hashCode()
     result = result * 31 + category.hashCode()
+    result = result * 31 + skipLint.hashCode()
     return result
   }
 
@@ -210,7 +218,8 @@ public class CompositeOptic<P : MirageParams> internal constructor(
   paramsFactory: () -> P,
   agsl: String,
   sksl: String,
-) : FilterOptic<P>(name, paramsFactory, agsl, sksl, OpticCategory.Composite)
+  skipLint: Boolean = false,
+) : FilterOptic<P>(name, paramsFactory, agsl, sksl, OpticCategory.Composite, skipLint)
 
 /**
  * A content-free generator for an overlay (wired via `MirageScope.overlay` in a later step). The
