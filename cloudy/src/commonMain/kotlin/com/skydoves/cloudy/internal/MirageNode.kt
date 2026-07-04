@@ -18,7 +18,12 @@
 package com.skydoves.cloudy.internal
 
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
@@ -36,6 +41,7 @@ import com.skydoves.cloudy.GenerateOptic
 import com.skydoves.cloudy.MirageClock
 import com.skydoves.cloudy.MirageParams
 import com.skydoves.cloudy.MirageScope
+import com.skydoves.cloudy.Optic
 import com.skydoves.cloudy.UColor
 import com.skydoves.cloudy.UFloat
 import com.skydoves.cloudy.UFloatArray
@@ -67,7 +73,7 @@ private const val TIME_WRAP_SECONDS = 3600f
  * draw (no per-draw allocation); [paramsBlock] is the caller's per-draw uniform block, re-run each
  * draw against [params].
  */
-internal sealed class Stage(val optic: com.skydoves.cloudy.Optic<*>, val params: MirageParams) {
+internal sealed class Stage(val optic: Optic<*>, val params: MirageParams) {
   /** A content-transforming filter — applied as a content-bound render effect. */
   class Filter(
     optic: FilterOptic<*>,
@@ -136,7 +142,7 @@ internal class MiragePlanBuilder : MirageScope {
  */
 @OptIn(ExperimentalMirage::class)
 internal class MirageNode(var clock: MirageClock, var enabled: Boolean, stages: List<Stage>) :
-  androidx.compose.ui.Modifier.Node(),
+  Modifier.Node(),
   DrawModifierNode,
   CompositionLocalConsumerModifierNode {
 
@@ -426,16 +432,16 @@ private fun resetToDefaults(params: MirageParams, schema: UniformSchema) {
     val default = schema.entries[handle.slot].default
     when (handle) {
       is UFloat -> handle.value = default as Float
-      is UOffset -> handle.value = default as androidx.compose.ui.geometry.Offset
-      is USize -> handle.value = default as androidx.compose.ui.geometry.Size
+      is UOffset -> handle.value = default as Offset
+      is USize -> handle.value = default as Size
       is UInt1 -> handle.value = default as Int
       is UVec3 -> handle.value = (default as FloatArray).copyOf()
       is UVec4 -> handle.value = (default as FloatArray).copyOf()
       is UFloatArray -> handle.value = (default as FloatArray).copyOf()
-      is UColor -> handle.value = default as androidx.compose.ui.graphics.Color
+      is UColor -> handle.value = default as Color
       is UTexture -> {
         @Suppress("UNCHECKED_CAST")
-        handle.value = default as androidx.compose.ui.graphics.ImageBitmap?
+        handle.value = default as ImageBitmap?
       }
     }
   }
