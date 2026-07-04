@@ -55,9 +55,86 @@ public actual fun Modifier.liquidGlass(
   contrast: Float,
   tint: Color,
   edge: Float,
+  light: LiquidGlassLight,
+  glow: LiquidGlassGlow,
+  enabled: Boolean,
+): Modifier = liquidGlassImpl(
+  lensCenter = lensCenter,
+  lensSize = lensSize,
+  cornerRadius = cornerRadius,
+  refraction = refraction,
+  curve = curve,
+  dispersion = dispersion,
+  saturation = saturation,
+  contrast = contrast,
+  tint = tint,
+  edge = edge,
+  light = light,
+  // Widen the two public knobs to the full tuning (extras at defaults) for the single uniform path.
+  tuning = glow.toTuning(),
+  enabled = enabled,
+)
+
+@ExperimentalLiquidGlassMotion
+@Composable
+public actual fun Modifier.liquidGlassTuned(
+  lensCenter: Offset,
+  lensSize: Size,
+  cornerRadius: Float,
+  refraction: Float,
+  curve: Float,
+  dispersion: Float,
+  saturation: Float,
+  contrast: Float,
+  tint: Color,
+  edge: Float,
+  light: LiquidGlassLight,
+  glowIntensity: Float,
+  glowSharpness: Float,
+  glowRimMix: Float,
+  glowWidthPx: Float,
+  enabled: Boolean,
+): Modifier = liquidGlassImpl(
+  lensCenter = lensCenter,
+  lensSize = lensSize,
+  cornerRadius = cornerRadius,
+  refraction = refraction,
+  curve = curve,
+  dispersion = dispersion,
+  saturation = saturation,
+  contrast = contrast,
+  tint = tint,
+  edge = edge,
+  light = light,
+  tuning = GlowTuning(
+    intensity = glowIntensity,
+    sharpness = glowSharpness,
+    rimMix = glowRimMix,
+    widthPx = glowWidthPx,
+  ),
+  enabled = enabled,
+)
+
+/**
+ * Single entry point shared by [liquidGlass] and [liquidGlassTuned]. Takes the full internal
+ * [GlowTuning] so there is exactly one uniform-writing code path (in [liquidGlassApi33]).
+ */
+@Composable
+private fun Modifier.liquidGlassImpl(
+  lensCenter: Offset,
+  lensSize: Size,
+  cornerRadius: Float,
+  refraction: Float,
+  curve: Float,
+  dispersion: Float,
+  saturation: Float,
+  contrast: Float,
+  tint: Color,
+  edge: Float,
+  light: LiquidGlassLight,
+  tuning: GlowTuning,
   enabled: Boolean,
 ): Modifier {
-  // Validation
   require(lensSize.width > 0f) { "lensSize.width must be > 0, but was ${lensSize.width}" }
   require(lensSize.height > 0f) { "lensSize.height must be > 0, but was ${lensSize.height}" }
   require(cornerRadius >= 0f) { "cornerRadius must be >= 0, but was $cornerRadius" }
@@ -72,12 +149,11 @@ public actual fun Modifier.liquidGlass(
     return this
   }
 
-  // Preview mode fallback
   if (LocalInspectionMode.current) {
     return this
   }
 
-  // API level check - RuntimeShader requires API 33+
+  // RuntimeShader requires API 33+.
   return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
     liquidGlassApi33(
       lensCenter = lensCenter,
@@ -90,10 +166,11 @@ public actual fun Modifier.liquidGlass(
       contrast = contrast,
       tint = tint,
       edge = edge,
+      light = light,
+      tuning = tuning,
     )
   } else {
-    // Fallback for older Android versions
-    // Provides saturation, contrast, tint, and edge effects without lens refraction
+    // Fallback (< API 33): no shader, so light/glow tuning is not forwarded (no specular uniforms).
     liquidGlassFallback(
       lensCenter = lensCenter,
       lensSize = lensSize,
@@ -119,8 +196,10 @@ private fun Modifier.liquidGlassApi33(
   contrast: Float,
   tint: Color,
   edge: Float,
+  light: LiquidGlassLight,
+  tuning: GlowTuning,
 ): Modifier {
-  // Create and cache the RuntimeShader
+  // Cache the RuntimeShader across recompositions.
   val shader = remember {
     try {
       RuntimeShader(LiquidGlassShaderSource.AGSL)
@@ -130,7 +209,6 @@ private fun Modifier.liquidGlassApi33(
     }
   }
 
-  // If shader failed to compile, return unchanged
   if (shader == null) {
     return this
   }
@@ -140,7 +218,6 @@ private fun Modifier.liquidGlassApi33(
     val height = size.height
 
     if (width > 0 && height > 0) {
-      // Update shader uniforms
       shader.setFloatUniform("resolution", width, height)
       shader.setFloatUniform("lensCenter", lensCenter.x, lensCenter.y)
       shader.setFloatUniform("lensSize", lensSize.width, lensSize.height)
@@ -152,8 +229,24 @@ private fun Modifier.liquidGlassApi33(
       shader.setFloatUniform("contrast", contrast)
       shader.setFloatUniform("tint", tint.red, tint.green, tint.blue, tint.alpha)
       shader.setFloatUniform("edge", edge)
+      // Draw-phase read: only the value changes per tick (holder identity is stable), so a
+      // high-frequency light source invalidates the draw without recomposing.
+      val lightDir = light.direction.value
+      shader.setFloatUniform("lightDir", lightDir.x, lightDir.y)
+      // Every declared uniform must be set on every draw (gate-free), or the shader reads garbage.
+      shader.setFloatUniform("specStrength", tuning.intensity)
+      shader.setFloatUniform("specPower", tuning.sharpness)
+      shader.setFloatUniform("specRimMix", tuning.rimMix)
+      shader.setFloatUniform("specWidthPx", tuning.widthPx)
+      shader.setFloatUniform("specLightZ", tuning.lightZ)
+      shader.setFloatUniform("specDomeFrac", tuning.domeFrac)
+      shader.setFloatUniform("specBodyPower", tuning.bodyPower)
+      shader.setFloatUniform("specBodyGain", tuning.bodyGain)
+      shader.setFloatUniform("specFocalK", tuning.focalK)
+      shader.setFloatUniform("specPoolFrac", tuning.poolFrac)
+      shader.setFloatUniform("specPoolGain", tuning.poolGain)
 
-      // Apply shader as RenderEffect - "content" binds to underlying layer
+      // "content" binds to the underlying layer.
       renderEffect = RenderEffect
         .createRuntimeShaderEffect(shader, "content")
         .asComposeRenderEffect()
@@ -179,17 +272,14 @@ private fun Modifier.liquidGlassFallback(
   tint: Color,
   edge: Float,
 ): Modifier = this.drawWithContent {
-  // Draw original content first
   drawContent()
 
-  // Calculate lens bounds centered on lens center position
   val halfWidth = lensSize.width / 2f
   val halfHeight = lensSize.height / 2f
   val lensLeft = lensCenter.x - halfWidth
   val lensTop = lensCenter.y - halfHeight
   val clampedCornerRadius = cornerRadius.coerceAtMost(minOf(halfWidth, halfHeight))
 
-  // Create lens path
   val lensPath = Path().apply {
     addRoundRect(
       RoundRect(
@@ -202,12 +292,10 @@ private fun Modifier.liquidGlassFallback(
     )
   }
 
-  // Draw color-adjusted overlay inside the lens shape
   if (saturation != 1f || contrast != 1f) {
     clipPath(lensPath) {
-      // Draw a semi-transparent overlay that simulates the color adjustment
-      // This is a simplified approximation since we can't re-render content with a filter
-      // Use absolute deviation from 1.0 to handle both directions (over/under saturation/contrast)
+      // Approximation only: without a shader we can't re-render content through a color filter, so
+      // simulate it with an overlay. Absolute deviation from 1.0 handles over/under in both cases.
       val saturationDelta = kotlin.math.abs(1f - saturation).coerceIn(0f, 1f)
       val contrastDelta = kotlin.math.abs(1f - contrast).coerceIn(0f, 1f)
       val overlayAlpha = 0.3f * (saturationDelta + contrastDelta)
@@ -221,7 +309,6 @@ private fun Modifier.liquidGlassFallback(
     }
   }
 
-  // Draw tint overlay inside the lens
   if (tint != Color.Transparent && tint.alpha > 0f) {
     clipPath(lensPath) {
       drawRect(
@@ -232,9 +319,8 @@ private fun Modifier.liquidGlassFallback(
     }
   }
 
-  // Draw edge lighting effect
   if (edge > 0f) {
-    val strokeWidth = edge * 20f // Scale edge value to reasonable stroke width
+    val strokeWidth = edge * 20f // scale edge value to a reasonable stroke width
     val edgeColor = Color.White.copy(alpha = (edge * 0.5f).coerceIn(0f, 0.8f))
 
     drawPath(

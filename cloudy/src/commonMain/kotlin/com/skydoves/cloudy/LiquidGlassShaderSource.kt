@@ -47,9 +47,22 @@ uniform float saturation;
 uniform float contrast;
 uniform float4 tint;
 uniform float edge;
+uniform float2 lightDir;
+uniform float specStrength;
+uniform float specPower;
+uniform float specRimMix;     // body<->rim crossfade
+uniform float specWidthPx;
+uniform float specLightZ;
+uniform float specDomeFrac;
+uniform float specBodyPower;
+uniform float specBodyGain;
+uniform float specFocalK;      // focal-pool offset toward light (fraction of minHalf)
+uniform float specPoolFrac;    // focal-pool radius (fraction of minHalf)
+uniform float specPoolGain;    // focal-pool peak scale
 uniform shader content;
 
 const float SMOOTH_EDGE_PX = 1.5;
+const float SEAM_BLEND_PX = 8.0;   // diagonal blend half-width (px); larger = softer interior crease
 
 // Signed distance to a box with rounded corners
 // Negative = inside, Positive = outside, Zero = on boundary
@@ -137,12 +150,74 @@ half4 main(float2 xy) {
 
     pixel.rgb = processColor(pixel.rgb, saturation, contrast, tint);
 
-    // Specular rim highlight
-    if (edge > 0.0) {
-        float rimBlend = smoothstep(-edge * 10.0, 0.0, sdf);
-        float2 lightVec = normalize(float2(-1.0, -1.0));
-        float specular = abs(dot(normal, lightVec));
-        pixel.rgb += half3(rimBlend * specular * edge);
+    // Specular highlight: 4 terms — focal pool (dual-axis moving hotspot) + body sheen + Blinn rim
+    // glint + back-rim fill. The gate also tests specStrength, so NoGlow is bit-exact off.
+    if (edge > 0.0 && specStrength > 0.0) {
+        float2 lightVec = normalize(lightDir);
+
+        // Seam-free in-plane direction (specular only; refraction's 'normal' is untouched). The
+        // rounded-rect interior is an L-inf field, so the true gradient is discontinuous along the
+        // diagonal; blend it over SEAM_BLEND_PX.
+        float2 d2 = abs(p) - halfDim + float2(r);
+        float2 s2 = float2(p.x >= 0.0 ? 1.0 : -1.0, p.y >= 0.0 ? 1.0 : -1.0);
+        float2 specDir2;
+        if (max(d2.x, d2.y) > 0.0) {
+            specDir2 = s2 * normalize(max(d2, 0.0));
+        } else {
+            // +1e-4 guards the dead-center normalize singularity.
+            float w  = clamp(0.5 + 0.5 * (d2.x - d2.y) / SEAM_BLEND_PX, 0.0, 1.0);
+            float2 v = float2(s2.x * w, s2.y * (1.0 - w)) + float2(0.0, 1.0e-4);
+            specDir2 = normalize(v);
+        }
+
+        // Fake-3D surface normal from the rounded-rect bevel.
+        float minHalf = min(halfDim.x, halfDim.y);
+        float bevelPx = max(minHalf * specDomeFrac, 1.0);
+        float depthIn = max(-sdf, 0.0);
+        float t       = clamp(depthIn / bevelPx, 0.0, 1.0);
+        float n_cos   = 1.0 - t;
+        float n_sin   = sqrt(max(1.0 - n_cos * n_cos, 0.0));      // float, not half: cancellation near n_cos~1
+        float3 N      = normalize(float3(specDir2 * n_cos, n_sin + 1.0e-3));
+
+        float3 L = normalize(float3(lightVec, specLightZ));
+        float3 V = float3(0.0, 0.0, 1.0);
+
+        // Moving focal hotspot: offset toward lightVec so the bright pool tracks tilt on both axes
+        // (pitch=vertical, roll=horizontal). inside masks it off past the rim.
+        float2 focal     = lightVec * (minHalf * specFocalK);
+        float  poolR     = max(minHalf * specPoolFrac, 1.0);      // guard against zero-width smoothstep
+        float  poolD     = length(p - focal);
+        float  pool      = 1.0 - smoothstep(0.0, poolR, poolD);   // 1 at focal, 0 at rim
+        float  inside    = 1.0 - smoothstep(-6.0, 0.0, sdf);
+        float  focalPool = pool * pool * specStrength * specPoolGain * inside; // pool^2 = tighter core
+
+        // Broad body sheen (gentle modeling fill). float, not half: pow bands in fp16 (applies below too).
+        float ndl       = max(dot(N, L), 0.0);
+        float bodySheen = pow(ndl, specBodyPower) * specStrength * specBodyGain;
+
+        // Tight Blinn rim glint, confined to the rim band. max(specWidthPx, 1.0) guards the
+        // zero-width (implementation-defined hard-step) smoothstep.
+        float3 H       = normalize(L + V);
+        float  rimBand = smoothstep(-max(specWidthPx, 1.0), 0.0, sdf);
+        float  glint   = pow(max(dot(N, H), 0.0), specPower) * specStrength;
+        float  rim     = glint * rimBand;
+
+        // Back-rim fill (opposite light, rim-locked, 1/4 weight).
+        float3 Lb   = normalize(float3(-lightVec, specLightZ));
+        float  back  = pow(max(dot(N, Lb), 0.0), specPower) * specStrength * rimBand * 0.25;
+
+        // Ordered dither to break 8-bit Mach banding on the body ramp. fract-bound the coord before
+        // sin so the sin argument can't blow up on large lenses.
+        float2 hp = fract((p / minHalf) * 0.5 + 0.5);             // bounded ~[0,1)
+        float  dn = fract(sin(dot(hp, float2(12.9898, 78.233))) * 43758.5453) - 0.5;
+
+        // Linear body<->rim crossfade: rimMix=0 pure focal pool, rimMix=1 pure rim glint (legacy look).
+        float body      = focalPool + bodySheen + dn * (1.0 / 255.0) * specStrength;
+        float rimMix    = clamp(specRimMix, 0.0, 1.0);
+        float highlight = body * (1.0 - rimMix) + (rim + back) * rimMix;
+
+        // Screen blend, clamped to [0,1] so it survives bright backgrounds and never exceeds 1.0.
+        pixel.rgb += half3((1.0 - pixel.rgb) * clamp(highlight, 0.0, 1.0));
     }
 
     // Anti-aliased edge transition
@@ -167,9 +242,22 @@ uniform float saturation;
 uniform float contrast;
 uniform float4 tint;
 uniform float edge;
+uniform float2 lightDir;
+uniform float specStrength;
+uniform float specPower;
+uniform float specRimMix;     // body<->rim crossfade
+uniform float specWidthPx;
+uniform float specLightZ;
+uniform float specDomeFrac;
+uniform float specBodyPower;
+uniform float specBodyGain;
+uniform float specFocalK;      // focal-pool offset toward light (fraction of minHalf)
+uniform float specPoolFrac;    // focal-pool radius (fraction of minHalf)
+uniform float specPoolGain;    // focal-pool peak scale
 uniform shader content;
 
 const float SMOOTH_EDGE_PX = 1.5;
+const float SEAM_BLEND_PX = 8.0;   // diagonal blend half-width (px); larger = softer interior crease
 
 // Signed distance to a box with rounded corners
 // Negative = inside, Positive = outside, Zero = on boundary
@@ -257,12 +345,74 @@ half4 main(float2 xy) {
 
     pixel.rgb = processColor(pixel.rgb, saturation, contrast, tint);
 
-    // Specular rim highlight
-    if (edge > 0.0) {
-        float rimBlend = smoothstep(-edge * 10.0, 0.0, sdf);
-        float2 lightVec = normalize(float2(-1.0, -1.0));
-        float specular = abs(dot(normal, lightVec));
-        pixel.rgb += half3(rimBlend * specular * edge);
+    // Specular highlight: 4 terms — focal pool (dual-axis moving hotspot) + body sheen + Blinn rim
+    // glint + back-rim fill. The gate also tests specStrength, so NoGlow is bit-exact off.
+    if (edge > 0.0 && specStrength > 0.0) {
+        float2 lightVec = normalize(lightDir);
+
+        // Seam-free in-plane direction (specular only; refraction's 'normal' is untouched). The
+        // rounded-rect interior is an L-inf field, so the true gradient is discontinuous along the
+        // diagonal; blend it over SEAM_BLEND_PX.
+        float2 d2 = abs(p) - halfDim + float2(r);
+        float2 s2 = float2(p.x >= 0.0 ? 1.0 : -1.0, p.y >= 0.0 ? 1.0 : -1.0);
+        float2 specDir2;
+        if (max(d2.x, d2.y) > 0.0) {
+            specDir2 = s2 * normalize(max(d2, 0.0));
+        } else {
+            // +1e-4 guards the dead-center normalize singularity.
+            float w  = clamp(0.5 + 0.5 * (d2.x - d2.y) / SEAM_BLEND_PX, 0.0, 1.0);
+            float2 v = float2(s2.x * w, s2.y * (1.0 - w)) + float2(0.0, 1.0e-4);
+            specDir2 = normalize(v);
+        }
+
+        // Fake-3D surface normal from the rounded-rect bevel.
+        float minHalf = min(halfDim.x, halfDim.y);
+        float bevelPx = max(minHalf * specDomeFrac, 1.0);
+        float depthIn = max(-sdf, 0.0);
+        float t       = clamp(depthIn / bevelPx, 0.0, 1.0);
+        float n_cos   = 1.0 - t;
+        float n_sin   = sqrt(max(1.0 - n_cos * n_cos, 0.0));      // float, not half: cancellation near n_cos~1
+        float3 N      = normalize(float3(specDir2 * n_cos, n_sin + 1.0e-3));
+
+        float3 L = normalize(float3(lightVec, specLightZ));
+        float3 V = float3(0.0, 0.0, 1.0);
+
+        // Moving focal hotspot: offset toward lightVec so the bright pool tracks tilt on both axes
+        // (pitch=vertical, roll=horizontal). inside masks it off past the rim.
+        float2 focal     = lightVec * (minHalf * specFocalK);
+        float  poolR     = max(minHalf * specPoolFrac, 1.0);      // guard against zero-width smoothstep
+        float  poolD     = length(p - focal);
+        float  pool      = 1.0 - smoothstep(0.0, poolR, poolD);   // 1 at focal, 0 at rim
+        float  inside    = 1.0 - smoothstep(-6.0, 0.0, sdf);
+        float  focalPool = pool * pool * specStrength * specPoolGain * inside; // pool^2 = tighter core
+
+        // Broad body sheen (gentle modeling fill). float, not half: pow bands in fp16 (applies below too).
+        float ndl       = max(dot(N, L), 0.0);
+        float bodySheen = pow(ndl, specBodyPower) * specStrength * specBodyGain;
+
+        // Tight Blinn rim glint, confined to the rim band. max(specWidthPx, 1.0) guards the
+        // zero-width (implementation-defined hard-step) smoothstep.
+        float3 H       = normalize(L + V);
+        float  rimBand = smoothstep(-max(specWidthPx, 1.0), 0.0, sdf);
+        float  glint   = pow(max(dot(N, H), 0.0), specPower) * specStrength;
+        float  rim     = glint * rimBand;
+
+        // Back-rim fill (opposite light, rim-locked, 1/4 weight).
+        float3 Lb   = normalize(float3(-lightVec, specLightZ));
+        float  back  = pow(max(dot(N, Lb), 0.0), specPower) * specStrength * rimBand * 0.25;
+
+        // Ordered dither to break 8-bit Mach banding on the body ramp. fract-bound the coord before
+        // sin so the sin argument can't blow up on large lenses.
+        float2 hp = fract((p / minHalf) * 0.5 + 0.5);             // bounded ~[0,1)
+        float  dn = fract(sin(dot(hp, float2(12.9898, 78.233))) * 43758.5453) - 0.5;
+
+        // Linear body<->rim crossfade: rimMix=0 pure focal pool, rimMix=1 pure rim glint (legacy look).
+        float body      = focalPool + bodySheen + dn * (1.0 / 255.0) * specStrength;
+        float rimMix    = clamp(specRimMix, 0.0, 1.0);
+        float highlight = body * (1.0 - rimMix) + (rim + back) * rimMix;
+
+        // Screen blend, clamped to [0,1] so it survives bright backgrounds and never exceeds 1.0.
+        pixel.rgb += half3((1.0 - pixel.rgb) * clamp(highlight, 0.0, 1.0));
     }
 
     // Anti-aliased edge transition

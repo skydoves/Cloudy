@@ -315,6 +315,7 @@ LaunchedEffect(selectedTab) {
 | `radius` | `20` (`CloudyDefaults.BACKGROUND_RADIUS`) | Blur radius in pixels. Must be non-negative. |
 | `progressive` | `CloudyProgressive.None` | Gradient blur configuration. |
 | `tint` | `Color.Transparent` | Optional color blended over the blurred backdrop. |
+| `light` | `null` | Optional experimental `LiquidGlassLight`; when non-null, a moving specular highlight is drawn over the blurred backdrop. `null` leaves the blur unchanged. Requires Android API 33+ for the shader highlight (no-op below). |
 | `enabled` | `true` | When `false`, the effect is disabled (renders nothing). |
 | `cpuBlurEnabled` | `false` (`CloudyDefaults.CPP_BLUR_ENABLED`) | Enable CPU blur on Android 30-; otherwise a scrim is shown. |
 | `shape` | `RectangleShape` | Shape the blurred backdrop is clipped to. |
@@ -429,9 +430,63 @@ You can customize the liquid glass effect with various parameters:
 | `contrast` | 1.0f | Light/dark contrast (1.0 = normal) | Approximation |
 | `tint` | Transparent | Optional color tint overlay | Yes |
 | `edge` | 0.2f | Edge lighting width (0 = none) | Yes (as stroke) |
+| `light` | Fixed | Specular light source (see Motion-driven specular) | No (requires API 33+) |
+| `glow` | `LiquidGlassDefaults.Glow` | Perceptual glint tuning: brightness (`intensity`) and focus (`sharpness`). Use `LiquidGlassDefaults.NoGlow` to remove the glint | No (requires API 33+) |
 | `enabled` | true | Enable/disable the effect | Yes |
 
 > **Note:** On Android 32 and below, the lens refraction effect is not available since it requires `RuntimeShader` (API 33+). The fallback draws a visible lens shape with tint, edge lighting, and color adjustments. For blur effects, use `Modifier.cloudy()` separately.
+
+### Motion-driven specular (experimental)
+
+By default the rim highlight uses a fixed light direction that reproduces the *direction* of the old fixed light. The specular itself is a new multi-term model (a moving focal pool, body sheen, a Blinn rim, and a back-rim, screen-blended), so the highlight looks different from pre-release versions — an intended upgrade, not a bit-for-bit match. Opt in to **gyro-driven specular** to make the highlight sweep across the glass as the device tilts (à la iOS 26 "lights move in space"):
+
+```kotlin
+@OptIn(ExperimentalLiquidGlassMotion::class)
+@Composable
+fun GlassCard() {
+  // Hoist once and share across items in a list — one call registers one sensor.
+  val light = rememberGyroLightSource(enabled = true)
+
+  Box(
+    modifier = Modifier.liquidGlass(
+      lensCenter = lensCenter,
+      light = light,
+    ),
+  ) { /* ... */ }
+}
+```
+
+- **Opt-in & accessible:** the default is a fixed light *direction*; motion is opt-in. Enabling gyro only changes where the light *direction* comes from — the specular model itself is the same whether the light is fixed or motion-driven. When **Reduce Motion** is enabled (Android animator scale `0`, iOS `isReduceMotionEnabled`), the light is frozen and no sensors are registered — observed live.
+- **Platform support:** Android **API 33+** (the fallback path has no shader → no-op), iOS, and any device with a motion sensor. Desktop/Web and sensorless devices keep a static light.
+- **Lists:** call `rememberGyroLightSource()` **once** above the list and pass the result to each item, so a single sensor listener is shared.
+
+> **iOS:** the consuming app's `Info.plist` **must** declare `NSMotionUsageDescription`, or recent iOS terminates the app on the first device-motion read. iOS v1 uses a portrait-oriented projection; landscape is not yet remapped.
+
+#### Transform-driven light (no sensor)
+
+`rememberTransformLightSource` is the sibling of `rememberGyroLightSource`. Instead of the device gyro, it drives the highlight from a composable's **own** `rotationX` / `rotationY` — the same values you apply through `Modifier.graphicsLayer`. It needs no sensor, no platform code, and works on every target including Desktop and Web:
+
+```kotlin
+@OptIn(ExperimentalLiquidGlassMotion::class)
+@Composable
+fun TiltCard() {
+  var rx by remember { mutableFloatStateOf(0f) }
+  var ry by remember { mutableFloatStateOf(0f) }
+  val light = rememberTransformLightSource(rotationX = { rx }, rotationY = { ry })
+
+  Box(
+    modifier = Modifier
+      .graphicsLayer { rotationX = rx; rotationY = ry; cameraDistance = 12f * density }
+      .liquidGlass(lensCenter = lensCenter, light = light),
+  ) { /* ... */ }
+}
+```
+
+The rotations are read as lambdas (deferred reads) so per-frame updates invalidate the draw without recomposing the modifier, matching the gyro source's behavior.
+
+#### Glint tuning
+
+The `glow` parameter tunes the specular glint with two perceptual knobs: `intensity` (brightness) and `sharpness` (focus). Build one with the `LiquidGlassGlow(intensity = …, sharpness = …)` factory, or use `LiquidGlassDefaults.NoGlow` to switch the glint off. The full set of shader tunables — `glowRimMix` and `glowWidthPx`, alongside `glowIntensity` / `glowSharpness` — lives on the experimental `Modifier.liquidGlassTuned` overload, intended for live experimentation rather than the committed API surface.
 
 ## Find this repository useful? :heart:
 Support it by joining __[stargazers](https://github.com/skydoves/cloudy/stargazers)__ for this repository. :star: <br>

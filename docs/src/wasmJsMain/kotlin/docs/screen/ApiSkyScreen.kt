@@ -139,6 +139,7 @@ fun ApiSkyScreen() {
           radius: Int = CloudyDefaults.BACKGROUND_RADIUS,
           progressive: CloudyProgressive = CloudyProgressive.None,
           tint: Color = Color.Transparent,
+          light: LiquidGlassLight? = null,
           enabled: Boolean = true,
           cpuBlurEnabled: Boolean = CloudyDefaults.CPP_BLUR_ENABLED,
           shape: Shape = RectangleShape,
@@ -327,6 +328,11 @@ private fun BackgroundBlurParameterTable() {
     ParamRow("radius", "20", "Blur radius in pixels")
     ParamRow("progressive", "None", "Progressive blur configuration")
     ParamRow("tint", "Transparent", "Tint color over blurred background")
+    ParamRow(
+      "light",
+      "null",
+      "Optional motion-driven specular highlight (API 33+); see Motion Light",
+    )
     ParamRow("enabled", "true", "Enable/disable the blur effect")
     ParamRow("cpuBlurEnabled", "false", "Enable CPU blur on Android 30-")
     ParamRow("shape", "RectangleShape", "Shape the blurred backdrop is clipped to")
