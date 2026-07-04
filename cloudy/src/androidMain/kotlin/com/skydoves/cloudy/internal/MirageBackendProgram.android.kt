@@ -50,17 +50,23 @@ internal actual fun createBackendProgram(compiled: CompiledProgram): MirageBacke
   return MirageBackendProgram(RuntimeShader(compiled.source))
 }
 
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 internal actual fun MirageBackendProgram.uniformSink(): UniformSink = AndroidUniformSink(shader)
 
-// Both application paths are only reached on API 33+: the program is built by createBackendProgram,
-// which returns null (and the node no-ops) below TIRAMISU, so a non-null program guarantees the API.
+/**
+ * Both application paths are only reached on API 33+: the program is built by createBackendProgram,
+ * which returns null (and the node no-ops) below TIRAMISU, so a non-null program guarantees the API.
+ */
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 internal actual fun MirageBackendProgram.asContentRenderEffect(): RenderEffect = AndroidRenderEffect
   .createRuntimeShaderEffect(shader, "content")
   .asComposeRenderEffect()
 
-// RuntimeShader extends android.graphics.Shader, so it drives a ShaderBrush directly; its uniforms
-// are read live at draw time (no rebuild needed, unlike skiko).
+/**
+ * RuntimeShader extends android.graphics.Shader, so it drives a ShaderBrush directly; its uniforms
+ * are read live at draw time (no rebuild needed, unlike skiko).
+ */
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 internal actual fun MirageBackendProgram.asShaderBrush(): ShaderBrush = ShaderBrush(shader)
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
@@ -77,9 +83,11 @@ private class AndroidUniformSink(private val shader: RuntimeShader) : UniformSin
 
   override fun floatArray(name: String, v: FloatArray): Unit = shader.setFloatUniform(name, v)
 
-  // Android's setColorUniform(name, sRGB-int) converts the color into the shader's working color
-  // space for us — no manual conversion (contrast the skiko actual, which has no color-aware setter).
-  // This is the one platform where layout(color) is safe. toArgb() is the KMP-common sRGB bridge.
+  /**
+   * Android's setColorUniform(name, sRGB-int) converts the color into the shader's working color
+   * space for us - no manual conversion (contrast the skiko actual, which has no color-aware setter).
+   * This is the one platform where layout(color) is safe. toArgb() is the KMP-common sRGB bridge.
+   */
   override fun color(name: String, c: Color): Unit = shader.setColorUniform(name, c.toArgb())
 
   override fun texture(name: String, img: ImageBitmap?, tileMode: TileMode) {
@@ -90,8 +98,11 @@ private class AndroidUniformSink(private val shader: RuntimeShader) : UniformSin
   }
 }
 
-// TileMode is a Compose type; map it to the framework enum the BitmapShader wants. Decal is API 31+,
-// which is always satisfied here (this sink only exists on API 33+).
+/**
+ * TileMode is a Compose type; map it to the framework enum the BitmapShader wants. Decal is API 31+,
+ * which is always satisfied here (this sink only exists on API 33+).
+ */
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 private fun TileMode.toAndroidTileMode(): Shader.TileMode = when (this) {
   TileMode.Repeated -> Shader.TileMode.REPEAT
   TileMode.Mirror -> Shader.TileMode.MIRROR
