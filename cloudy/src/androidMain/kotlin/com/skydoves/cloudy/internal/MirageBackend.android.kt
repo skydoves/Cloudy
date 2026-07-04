@@ -16,14 +16,18 @@
 package com.skydoves.cloudy.internal
 
 import android.graphics.BitmapShader
+import android.graphics.RenderEffect as AndroidRenderEffect
 import android.graphics.RuntimeShader
 import android.graphics.Shader
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.RenderEffect
+import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.toArgb
 
 /**
@@ -45,6 +49,18 @@ internal actual fun createBackendProgram(compiled: CompiledProgram): MirageBacke
 }
 
 internal actual fun MirageBackendProgram.uniformSink(): UniformSink = AndroidUniformSink(shader)
+
+// Both application paths are only reached on API 33+: the program is built by createBackendProgram,
+// which returns null (and the node no-ops) below TIRAMISU, so a non-null program guarantees the API.
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
+internal actual fun MirageBackendProgram.asContentRenderEffect(): RenderEffect =
+  AndroidRenderEffect
+    .createRuntimeShaderEffect(shader, "content")
+    .asComposeRenderEffect()
+
+// RuntimeShader extends android.graphics.Shader, so it drives a ShaderBrush directly; its uniforms
+// are read live at draw time (no rebuild needed, unlike skiko).
+internal actual fun MirageBackendProgram.asShaderBrush(): ShaderBrush = ShaderBrush(shader)
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 private class AndroidUniformSink(private val shader: RuntimeShader) : UniformSink {

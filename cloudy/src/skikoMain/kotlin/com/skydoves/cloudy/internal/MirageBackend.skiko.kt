@@ -17,11 +17,15 @@ package com.skydoves.cloudy.internal
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.RenderEffect
+import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.asSkiaBitmap
 import androidx.compose.ui.graphics.colorspace.ColorSpaces
 import org.jetbrains.skia.FilterTileMode
 import org.jetbrains.skia.Image
+import org.jetbrains.skia.ImageFilter
 import org.jetbrains.skia.RuntimeEffect
 import org.jetbrains.skia.RuntimeShaderBuilder
 
@@ -46,6 +50,21 @@ internal actual fun createBackendProgram(compiled: CompiledProgram): MirageBacke
 }
 
 internal actual fun MirageBackendProgram.uniformSink(): UniformSink = SkikoUniformSink(builder)
+
+// makeRuntimeShader with input = null feeds the layer's own content as the `content` child, matching
+// the Android createRuntimeShaderEffect(shader, "content") path.
+internal actual fun MirageBackendProgram.asContentRenderEffect(): RenderEffect =
+  ImageFilter
+    .makeRuntimeShader(
+      runtimeShaderBuilder = builder,
+      shaderName = "content",
+      input = null,
+    )
+    .asComposeRenderEffect()
+
+// Skia bakes uniforms into the Shader at makeShader() time, so this rebuilds from the builder's
+// current uniforms each call — the node calls it after writing the per-draw values.
+internal actual fun MirageBackendProgram.asShaderBrush(): ShaderBrush = ShaderBrush(builder.makeShader())
 
 private class SkikoUniformSink(private val builder: RuntimeShaderBuilder) : UniformSink {
 

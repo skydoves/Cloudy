@@ -17,6 +17,8 @@ package com.skydoves.cloudy.internal
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.RenderEffect
+import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.TileMode
 
 /**
@@ -74,3 +76,19 @@ internal interface UniformSink {
 
 /** Returns a [UniformSink] bound to this backend program's live uniforms. */
 internal expect fun MirageBackendProgram.uniformSink(): UniformSink
+
+/**
+ * Builds a [RenderEffect] that runs this program over the layer's content, binding the content as the
+ * `content` shader child. This is the **filter** application path (`usesContent = true`): the node
+ * sets it as `graphicsLayer { renderEffect = … }` so the program's output replaces the content. Call
+ * *after* the per-draw [uniformSink] writes, since the effect captures the program's current uniforms.
+ */
+internal expect fun MirageBackendProgram.asContentRenderEffect(): RenderEffect
+
+/**
+ * Builds a [ShaderBrush] over this program with its current uniforms, for the **overlay** application
+ * path (a [Generate][OpticCategory.Generate] optic drawn over the content). The node fills the draw
+ * area with it under a caller-chosen blend mode. Call *after* the per-draw [uniformSink] writes:
+ * skiko bakes uniforms at shader-build time, so this must observe the latest values.
+ */
+internal expect fun MirageBackendProgram.asShaderBrush(): ShaderBrush
