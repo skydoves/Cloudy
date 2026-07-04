@@ -53,18 +53,18 @@ internal actual fun MirageBackendProgram.uniformSink(): UniformSink = SkikoUnifo
 
 // makeRuntimeShader with input = null feeds the layer's own content as the `content` child, matching
 // the Android createRuntimeShaderEffect(shader, "content") path.
-internal actual fun MirageBackendProgram.asContentRenderEffect(): RenderEffect =
-  ImageFilter
-    .makeRuntimeShader(
-      runtimeShaderBuilder = builder,
-      shaderName = "content",
-      input = null,
-    )
-    .asComposeRenderEffect()
+internal actual fun MirageBackendProgram.asContentRenderEffect(): RenderEffect = ImageFilter
+  .makeRuntimeShader(
+    runtimeShaderBuilder = builder,
+    shaderName = "content",
+    input = null,
+  )
+  .asComposeRenderEffect()
 
 // Skia bakes uniforms into the Shader at makeShader() time, so this rebuilds from the builder's
 // current uniforms each call — the node calls it after writing the per-draw values.
-internal actual fun MirageBackendProgram.asShaderBrush(): ShaderBrush = ShaderBrush(builder.makeShader())
+internal actual fun MirageBackendProgram.asShaderBrush(): ShaderBrush =
+  ShaderBrush(builder.makeShader())
 
 private class SkikoUniformSink(private val builder: RuntimeShaderBuilder) : UniformSink {
 
