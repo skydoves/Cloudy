@@ -76,9 +76,16 @@ internal actual fun rememberTiltSource(
   // lifecycle effect) and keyed only on values that change its math, so the thread is created
   // once and torn down exactly once — register/unregister cycling does not leak it.
   val provider = remember(base, tiltGain, hz) {
+    val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+    val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     TiltLightProvider(
-      sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager,
-      windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager,
+      registrar = RealSensorRegistrar(sensorManager, hz),
+      // Read display rotation on the main thread (start() is main-confined); the sensor thread reads
+      // only the cached @Volatile copy, never Display directly.
+      currentRotation = {
+        @Suppress("DEPRECATION") // context.display is API 30+; defaultDisplay works at minSdk 23
+        windowManager.defaultDisplay.rotation
+      },
       base = base,
       tiltGain = tiltGain,
       hz = hz,
@@ -156,27 +163,28 @@ private fun isReduceMotionEnabled(context: Context): Boolean = Settings.Global.g
 ) == 0f
 
 /**
- * Reads one motion sensor and emits a smoothed, throttled, gated screen-space light direction.
- *
- * Threading contract:
- * - [start]/[stop]/[shutdown] are called on the MAIN thread (lifecycle + content-observer).
- * - [onSensorChanged] runs on a dedicated background [HandlerThread]; the math fields below are
- *   confined to it. The only cross-thread hop is the [mainHandler] post of the emitted value.
+ * Register/unregister seam for the tilt sensor. Owns the sensor selection, the background
+ * [HandlerThread] the listener runs on, and thread teardown. Extracted behind an interface so a
+ * fake can drive the provider's lifecycle in unit tests without a real [SensorManager].
  */
-private class TiltLightProvider(
-  private val sensorManager: SensorManager,
-  private val windowManager: WindowManager,
-  private val base: Offset,
-  private val tiltGain: Float,
-  hz: Int,
-  private val mainHandler: Handler,
-  private val onLight: (Offset) -> Unit,
-) : SensorEventListener {
+internal interface SensorRegistrar {
+  /** True when a usable motion sensor exists. When false the provider stays frozen at base. */
+  val hasSensor: Boolean
 
+  /** Registers [listener] to receive events on the sensor thread. No-op when [hasSensor] is false. */
+  fun register(listener: SensorEventListener)
+
+  /** Unregisters [listener]. Idempotent. */
+  fun unregister(listener: SensorEventListener)
+
+  /** Tears down the sensor thread (safe drain). Called once from [TiltLightProvider.shutdown]. */
+  fun quit()
+}
+
+/** Production [SensorRegistrar] over a real [SensorManager] + a dedicated [HandlerThread]. */
+private class RealSensorRegistrar(private val sensorManager: SensorManager, hz: Int) :
+  SensorRegistrar {
   private val periodUs = 1_000_000 / hz // sensor rate hint (not honored exactly; we re-throttle)
-  private val minEmitNs = 1_000_000_000L / hz
-  private val alpha = 0.2f
-  private val epsilon = 0.003f // ~0.17° on a unit vector, below sensor noise floor
 
   // Pick ONE sensor for the whole lifetime so there is no scale jump from runtime switching.
   private val sensor: Sensor? =
@@ -188,8 +196,53 @@ private class TiltLightProvider(
   private val thread = HandlerThread("cloudy-tilt").apply { start() }
   private val sensorHandler = Handler(thread.looper)
 
+  override val hasSensor: Boolean get() = sensor != null
+
+  override fun register(listener: SensorEventListener) {
+    val s = sensor ?: return
+    sensorManager.registerListener(listener, s, periodUs, sensorHandler)
+  }
+
+  override fun unregister(listener: SensorEventListener) {
+    sensorManager.unregisterListener(listener)
+  }
+
+  override fun quit() {
+    thread.quitSafely()
+  }
+}
+
+/**
+ * Reads one motion sensor and emits a smoothed, throttled, gated screen-space light direction.
+ *
+ * Threading contract:
+ * - [start]/[stop]/[shutdown] are called on the MAIN thread (lifecycle + content-observer).
+ * - [onSensorChanged] runs on a dedicated background [HandlerThread] (owned by the [registrar]); the
+ *   math fields below are confined to it. The only cross-thread hop is the [mainHandler] post of the
+ *   emitted value.
+ */
+internal class TiltLightProvider(
+  private val registrar: SensorRegistrar,
+  private val currentRotation: () -> Int,
+  private val base: Offset,
+  private val tiltGain: Float,
+  hz: Int,
+  private val mainHandler: Handler,
+  private val onLight: (Offset) -> Unit,
+) : SensorEventListener {
+
+  private val minEmitNs = 1_000_000_000L / hz
+  private val alpha = 0.2f
+  private val epsilon = 0.003f // ~0.17° on a unit vector, below sensor noise floor
+
   // --- confined to main thread ---
   private var started = false
+
+  // Display rotation cached on the main thread at register time (Display access is a main-thread
+  // contract). Read on the sensor HandlerThread as a plain @Volatile int, which is safe. Refreshed
+  // in start(), which runs on ON_START — the point a fresh registration re-reads the environment.
+  @Volatile
+  private var displayRotation = Surface.ROTATION_0
 
   // --- confined to the sensor HandlerThread (touched only in onSensorChanged) ---
   private var smooth = base
@@ -211,23 +264,31 @@ private class TiltLightProvider(
   private var generation = 0
 
   fun start() {
-    val s = sensor ?: return // no sensor → stay frozen at base
+    if (!registrar.hasSensor) return // no sensor → stay frozen at base
     if (started) return
     started = true
-    sensorManager.registerListener(this, s, periodUs, sensorHandler)
+    // Bump generation on start too: any in-flight post from a prior registration that runs after
+    // this start is invalidated against the fresh baseline (belt-and-suspenders with the main-only
+    // `started` guard in onSensorChanged's post).
+    generation++
+    // Cache display rotation on the main thread (start() is main-confined); the sensor thread reads
+    // the @Volatile copy instead of touching Display off the main thread.
+    displayRotation = currentRotation()
+    registrar.register(this)
   }
 
   fun stop() {
     if (!started) return
     started = false
     generation++ // invalidate any in-flight mainHandler posts (stale emissions)
-    sensorManager.unregisterListener(this)
+    registrar.unregister(this)
   }
 
   fun shutdown() {
+    if (!alive) return // idempotent: quit the sensor thread exactly once
     stop()
     alive = false
-    thread.quitSafely()
+    registrar.quit()
   }
 
   override fun onSensorChanged(event: SensorEvent) {
@@ -263,20 +324,26 @@ private class TiltLightProvider(
     smooth = outVal // snap EMA onto the emitted unit vector so a still phone truly stops emitting
     lastEmitNs = now
     lastSent = outVal
-    val g = generation // capture now; the post drops itself if stop() bumped it before it ran
-    mainHandler.post { if (alive && g == generation) onLight(outVal) } // Compose write on main
+    // Capture generation now; the post drops itself if start()/stop() bumped it before it ran.
+    val g = generation
+    // The post runs on main, where `started` is confined, so reading it here is safe: a post queued
+    // before stop() but running after it sees started == false and drops itself, so no stale tilt
+    // can overwrite the frozen base. (Compose write on main.)
+    mainHandler.post { if (alive && started && g == generation) onLight(outVal) }
   }
 
   override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
 
-  /** Rotates in-plane gravity (device axes) into screen-space, accounting for display rotation. */
-  private fun remapGravityToScreen(gx: Float, gy: Float): Pair<Float, Float> {
-    @Suppress("DEPRECATION") // context.display is API 30+; defaultDisplay works at minSdk 23
-    return when (windowManager.defaultDisplay.rotation) {
+  /**
+   * Rotates in-plane gravity (device axes) into screen-space, accounting for display rotation.
+   * Reads the [displayRotation] cached on the main thread (never touches Display from this sensor
+   * thread).
+   */
+  private fun remapGravityToScreen(gx: Float, gy: Float): Pair<Float, Float> =
+    when (displayRotation) {
       Surface.ROTATION_90 -> -gy to gx
       Surface.ROTATION_180 -> -gx to -gy
       Surface.ROTATION_270 -> gy to -gx
       else -> gx to gy // ROTATION_0
     }
-  }
 }
