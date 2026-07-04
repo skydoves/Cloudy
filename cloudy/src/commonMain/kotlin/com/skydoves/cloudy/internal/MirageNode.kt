@@ -75,21 +75,25 @@ private const val TIME_WRAP_SECONDS = 3600f
  * draw (no per-draw allocation); [paramsBlock] is the caller's per-draw uniform block, re-run each
  * draw against [params].
  */
-internal sealed class Stage(val optic: Optic<*>, val params: MirageParams) {
+internal sealed class Stage(
+  val optic: Optic<*>,
+  val params: MirageParams,
+  val paramsBlock: (MirageParams.() -> Unit)?,
+) {
   /** A content-transforming filter — applied as a content-bound render effect. */
   class Filter(
     optic: FilterOptic<*>,
     params: MirageParams,
-    val paramsBlock: (MirageParams.() -> Unit)?,
-  ) : Stage(optic, params)
+    paramsBlock: (MirageParams.() -> Unit)?,
+  ) : Stage(optic, params, paramsBlock)
 
   /** A content-free overlay generator — drawn over the content with [blendMode]. */
   class Overlay(
     optic: GenerateOptic<*>,
     params: MirageParams,
-    val paramsBlock: (MirageParams.() -> Unit)?,
+    paramsBlock: (MirageParams.() -> Unit)?,
     val blendMode: BlendMode,
-  ) : Stage(optic, params)
+  ) : Stage(optic, params, paramsBlock)
 }
 
 /**
@@ -174,9 +178,27 @@ internal class MirageNode(var clock: MirageClock, var enabled: Boolean, stages: 
   private var planUsesTime: Boolean = false
 
   fun update(clock: MirageClock, enabled: Boolean, stages: List<Stage>) {
+    // A recomposition re-creates the params blocks every time (they are lambdas), so the element is
+    // unequal — and thus update() runs — on every recomposition even when only the blocks changed. If
+    // the structural plan (clock, enabled, and the ordered stage optics/kinds/blend modes) is
+    // unchanged, only the per-draw blocks moved: swap the stage list and redraw without tearing down
+    // the layers or re-warming the cache. This keeps a params-driven animation cheap (no per-frame
+    // layer churn) while still adopting the newly captured blocks so draw N runs recomposition N's
+    // block. sameStructure is exactly the structural half of MirageElement.equals (which additionally
+    // requires the blocks to match), so an unequal element with an unchanged structure lands here.
+    val structuralChange = clock != this.clock || enabled != this.enabled ||
+      !sameStructure(this.stages, stages)
+
     this.clock = clock
     this.enabled = enabled
     this.stages = stages
+
+    if (!structuralChange) {
+      // Blocks-only change: the layers still match the (unchanged) filter count, so keep them.
+      if (isAttached) invalidateDraw()
+      return
+    }
+
     releaseLayers()
     filterLayers = arrayOfNulls(0)
     if (isAttached) {
@@ -383,9 +405,34 @@ internal class MirageNode(var clock: MirageClock, var enabled: Boolean, stages: 
 }
 
 /**
- * Element that reconciles a [MirageNode]. Equatable on [clock], [enabled], and the plan's stage
- * optics + blend modes (params blocks are lambdas, excluded — like every other lambda cache key in
- * this codebase). The stage list is captured by running the plan once here.
+ * True when two stage lists describe the same plan structure: same length and, in order, the same
+ * stage kind, optic, and (for overlays) blend mode. The per-draw params blocks are deliberately not
+ * compared — this is the "would the same programs and layer stack be built?" test that decides whether
+ * [MirageNode.update] can take the cheap blocks-only path. Kept beside [MirageElement.equals], which
+ * runs the identical comparison to decide element equality.
+ */
+@OptIn(ExperimentalMirage::class)
+private fun sameStructure(a: List<Stage>, b: List<Stage>): Boolean {
+  if (a.size != b.size) return false
+  for (i in a.indices) {
+    val x = a[i]
+    val y = b[i]
+    if (x::class != y::class) return false
+    if (x.optic != y.optic) return false
+    if (x is Stage.Overlay && y is Stage.Overlay && x.blendMode != y.blendMode) return false
+  }
+  return true
+}
+
+/**
+ * Element that reconciles a [MirageNode]. Equatable on [clock], [enabled], the plan's ordered stage
+ * optics + blend modes, **and** the per-stage params-block identities. The blocks are included (by
+ * reference, like Compose's own `clickable`/`graphicsLayer` treat their lambda parameters) so that a
+ * recomposition which re-creates the blocks — e.g. to feed a freshly measured lens center or an
+ * animated uniform — is *not* equal to the previous element, and [update] runs to adopt the new
+ * blocks. Excluding them would freeze the node on whatever block it first captured. [update] takes a
+ * cheap path when only the blocks changed, so this does not cause per-recomposition layer churn. The
+ * stage list is captured by running the plan once here.
  */
 @OptIn(ExperimentalMirage::class)
 internal class MirageElement(
@@ -411,21 +458,19 @@ internal class MirageElement(
   }
 
   /**
-   * Equal when the same plan shape would produce the same programs: same clock, enabled, and the same
-   * ordered (optic, kind, blendMode) tuple. paramsBlock lambdas are excluded (never comparable), and
-   * the mint-once params instances are per-node identity, so both are left out.
+   * Equal when the same plan would produce the same programs *and* run the same per-draw blocks: same
+   * clock, enabled, the same ordered (optic, kind, blendMode) tuple, and the same params-block
+   * identities. Blocks are compared by reference (`===`); a recomposition re-creates them, so this is
+   * unequal on recomposition and [update] runs. The mint-once params instances are per-node identity,
+   * so they are left out. See [sameStructure] for the structure-only half [update] reuses.
    */
   override fun equals(other: Any?): Boolean {
     if (this === other) return true
     if (other !is MirageElement) return false
     if (clock != other.clock || enabled != other.enabled) return false
-    if (stages.size != other.stages.size) return false
+    if (!sameStructure(stages, other.stages)) return false
     for (i in stages.indices) {
-      val a = stages[i]
-      val b = other.stages[i]
-      if (a::class != b::class) return false
-      if (a.optic != b.optic) return false
-      if (a is Stage.Overlay && b is Stage.Overlay && a.blendMode != b.blendMode) return false
+      if (stages[i].paramsBlock !== other.stages[i].paramsBlock) return false
     }
     return true
   }
@@ -436,6 +481,7 @@ internal class MirageElement(
     for (stage in stages) {
       result = 31 * result + stage.optic.hashCode()
       if (stage is Stage.Overlay) result = 31 * result + stage.blendMode.hashCode()
+      result = 31 * result + (stage.paramsBlock?.hashCode() ?: 0)
     }
     return result
   }
