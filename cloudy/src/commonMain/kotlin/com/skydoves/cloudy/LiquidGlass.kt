@@ -230,6 +230,10 @@ public object LiquidGlassDefaults {
  * the lens distortion effect and can be combined with Cloudy's blur for a complete
  * frosted glass look.
  *
+ * **Refraction-only:** for pure refraction without the specular glint, pass
+ * `glow = LiquidGlassDefaults.NoGlow`; apply the specular separately and tunably with
+ * `Modifier.mirage { filter(MirageOptics.Specular) }`.
+ *
  * ## Platform Behavior
  *
  * | Platform | Implementation | Features |

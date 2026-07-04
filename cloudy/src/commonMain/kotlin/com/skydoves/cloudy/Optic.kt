@@ -35,10 +35,10 @@ import com.skydoves.cloudy.internal.OpticCategory
  *
  * The equality contract is declared abstract here and implemented per concrete subtype: each subtype
  * supplies its own kernel sources (and, for the [FilterOptic] family, its [OpticCategory]), so the
- * comparable tuple only becomes concrete at the leaf. This is intentionally **not** a `data class`
- * for the same reason as [MirageRecipe]: it holds a function-typed field ([paramsFactory]) for which
- * a generated structural `equals` would be meaningless, and an `internal` constructor keeps the
- * generated-component / `copy` ABI from freezing the field set.
+ * comparable tuple only becomes concrete at the leaf. This is intentionally **not** a `data class`:
+ * it holds a function-typed field ([paramsFactory]) for which a generated structural `equals` would be
+ * meaningless, and an `internal` constructor keeps the generated-component / `copy` ABI from freezing
+ * the field set.
  *
  * @param P The [MirageParams] subclass declaring this optic's uniforms.
  * @property name Stable identifier used in cache keys and diagnostics.
@@ -57,7 +57,7 @@ public sealed class Optic<P : MirageParams> protected constructor(
   abstract override fun hashCode(): Int
 
   // The companion is a separate ABI class (Optic$Companion); the marker on the outer class does not
-  // reach it, so it carries its own to stay out of the stable dumps (same precedent as MirageRecipe).
+  // reach it, so it carries its own to stay out of the stable dumps.
   @ExperimentalMirage
   public companion object {
     /**
@@ -141,7 +141,7 @@ public sealed class Optic<P : MirageParams> protected constructor(
 
 /**
  * An [Optic] that filters the content it is attached to — the common supertype accepted by
- * `MirageScope.filter` (wired in a later step).
+ * [MirageScope.filter].
  *
  * Sealed so the compiler can branch exhaustively on the concrete filtering [category] and so new
  * filter kinds can be added without breaking callers that only construct the provided subtypes.
@@ -222,7 +222,7 @@ public class CompositeOptic<P : MirageParams> internal constructor(
 ) : FilterOptic<P>(name, paramsFactory, agsl, sksl, OpticCategory.Composite, skipLint)
 
 /**
- * A content-free generator for an overlay (wired via `MirageScope.overlay` in a later step). The
+ * A content-free generator for an overlay (declared via [MirageScope.overlay]). The
  * kernel synthesizes pixels from uniforms only — there is no `content` sampler, so referencing
  * content is a compile error. Deliberately **not** a [FilterOptic]: the type system blocks it from
  * the content-filtering path. Its category is implicitly [Generate][OpticCategory.Generate]. Build
