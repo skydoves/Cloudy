@@ -51,9 +51,9 @@ import kotlinx.coroutines.launch
 /** The shading language the current platform runs (Android = AGSL, every skiko target = SKSL). */
 internal expect fun currentDialect(): Dialect
 
-// Standard uniform names the compiler emits on demand; the node writes all of them each draw. Writing
-// one the shader did not declare is a harmless no-op on both backends (they key uniforms by name), so
-// there is no need to interrogate the program for which it actually references.
+// Standard uniform names the compiler emits on demand. The node binds each one only when the compiled
+// program declared it: Android's RuntimeShader throws IllegalArgumentException on a write to an
+// undeclared uniform (skiko tolerates it), so the CompiledProgram.uses* flags gate every bind.
 private const val STD_RESOLUTION = "mirageResolution"
 private const val STD_TIME = "mirageTime"
 private const val STD_DENSITY = "mirageDensity"
@@ -308,10 +308,12 @@ internal class MirageNode(var clock: MirageClock, var enabled: Boolean, stages: 
 
     val sink = cached.backend.uniformSink()
 
-    // Standard uniforms first (harmless if the shader did not declare a given one).
-    sink.float2(STD_RESOLUTION, width, height)
-    sink.float(STD_TIME, time)
-    sink.float(STD_DENSITY, density)
+    // Standard uniforms first, each gated on whether the compiled kernel declared it: Android's
+    // RuntimeShader throws on a write to an undeclared uniform name.
+    val compiled = cached.compiled
+    if (compiled.usesResolution) sink.float2(STD_RESOLUTION, width, height)
+    if (compiled.usesTime) sink.float(STD_TIME, time)
+    if (compiled.usesDensity) sink.float(STD_DENSITY, density)
 
     // Schema uniforms in declaration (= bind) order: the params' live handles and the compiled
     // schema entries share the same slot index, so entries[handle.slot] names each write.

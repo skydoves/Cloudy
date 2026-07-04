@@ -180,18 +180,41 @@ internal class MirageCompilerTest :
         untimed.source.shouldNotContain("uniform float mirageTime;")
       }
 
-      test("mirageResolution / mirageDensity are declared only when referenced") {
+      test("mirageResolution / mirageDensity are declared only when referenced, and drive their flags") {
         val kernel = """
           half4 main(float2 xy) { return half4(half(mirageResolution.x), 0.0, 0.0, 1.0); }
         """.trimIndent()
 
-        val src = MirageCompiler.compile(
+        val program = MirageCompiler.compile(
           Optic.generate("r", ::EmptyParams, kernel, kernel),
           Dialect.Agsl,
-        ).source
+        )
 
-        src.shouldContain("uniform float2 mirageResolution;")
-        src.shouldNotContain("uniform float mirageDensity;")
+        program.source.shouldContain("uniform float2 mirageResolution;")
+        program.source.shouldNotContain("uniform float mirageDensity;")
+        program.usesResolution.shouldBe(true)
+        program.usesDensity.shouldBe(false)
+      }
+
+      // Regression guard for the RuntimeShader SIGABRT: a Colorize kernel that names no standard
+      // uniform must report every uses* flag false, so the node binds none. Binding a standard uniform
+      // the shader never declared throws IllegalArgumentException on Android's RuntimeShader.
+      test("a kernel that names no standard uniform reports every uses* flag false") {
+        val optic = Optic.colorize(
+          name = "duotone",
+          paramsFactory = ::DuotoneParams,
+          agsl = DUOTONE_KERNEL_AGSL,
+          sksl = DUOTONE_KERNEL_SKSL,
+        )
+
+        val program = MirageCompiler.compile(optic, Dialect.Agsl)
+
+        program.usesResolution.shouldBe(false)
+        program.usesTime.shouldBe(false)
+        program.usesDensity.shouldBe(false)
+        program.source.shouldNotContain("uniform float2 mirageResolution;")
+        program.source.shouldNotContain("uniform float mirageTime;")
+        program.source.shouldNotContain("uniform float mirageDensity;")
       }
     }
 

@@ -70,13 +70,17 @@ internal class UniformSchema(val entries: List<UniformEntry>) {
  * @property source The complete shader source (preamble + generated uniform declarations + kernel).
  * @property schema The uniform layout the binder writes each draw.
  * @property usesContent Whether the kernel samples the attached content (false for pure generators).
+ * @property usesResolution Whether the kernel references the resolution standard uniform.
  * @property usesTime Whether the kernel references the mirage clock (drives redraw scheduling).
+ * @property usesDensity Whether the kernel references the density standard uniform.
  * @property category The codegen category this program was emitted from.
  */
 internal class CompiledProgram(
   val source: String,
   val schema: UniformSchema,
   val usesContent: Boolean,
+  val usesResolution: Boolean,
   val usesTime: Boolean,
+  val usesDensity: Boolean,
   val category: OpticCategory,
 )

@@ -33,16 +33,16 @@ internal class MirageLintException(message: String) : IllegalArgumentException(m
 /**
  * Lowers an authored [Optic] into a per-dialect [CompiledProgram]. Pure and side-effect-free: it
  * touches no GPU, Compose-UI, or Node type, only strings and the schema captured from a probe params
- * instance. That purity is the point of this layer — every codegen decision is unit-testable off any
+ * instance. That purity is the point of this layer - every codegen decision is unit-testable off any
  * device.
  *
  * The emitted source is assembled from four parts, gated by what the kernel actually references so an
  * unused input never reaches the shader:
- *   1. preamble (lens helpers) — Composite / Generate only; Colorize is point-wise and needs none;
- *   2. standard uniforms — each of `mirageResolution` / `mirageTime` / `mirageDensity` only if the
+ *   1. preamble (lens helpers) - Composite / Generate only; Colorize is point-wise and needs none;
+ *   2. standard uniforms - each of `mirageResolution` / `mirageTime` / `mirageDensity` only if the
  *      kernel text names it (replacing the old "declare them all" waste);
- *   3. schema uniforms — one declaration per [UniformSchema] entry, in declaration order;
- *   4. content sampler + kernel body — Colorize wraps `kernel(...)` in a content-sampling `main`;
+ *   3. schema uniforms - one declaration per [UniformSchema] entry, in declaration order;
+ *   4. content sampler + kernel body - Colorize wraps `kernel(...)` in a content-sampling `main`;
  *      Composite / Generate splice the author's `main` directly.
  *
  * A raw optic ([FilterOptic.skipLint]) bypasses all four: its source is authored complete, so it is
@@ -67,12 +67,16 @@ internal object MirageCompiler {
     // Every reference/token scan runs against comment-stripped code, never the raw text: a token that
     // only appears in a comment (e.g. the foil body's "// ...fwidth..." note, or a "#124" ticket ref)
     // must not trip lint or force a spurious standard-uniform declaration. The emitted source keeps
-    // the original kernel (comments intact) — only the analysis is comment-blind.
+    // the original kernel (comments intact) - only the analysis is comment-blind.
     val code = stripComments(kernel)
 
-    // usesTime is a static scan in every path (raw included): the redraw scheduler must know whether
-    // the clock drives this program regardless of whether codegen ran.
+    // Standard-uniform references are static scans over comment-stripped code in every path (raw
+    // included). Each gates two things in lockstep: whether the uniform is declared in the emitted
+    // source, and whether the node binds it. Android's RuntimeShader rejects a write to an undeclared
+    // uniform, so these must agree exactly. (usesTime additionally drives redraw scheduling.)
+    val usesResolution = code.contains(STD_RESOLUTION)
     val usesTime = code.contains(STD_TIME)
+    val usesDensity = code.contains(STD_DENSITY)
 
     // A raw optic owns its full source (uniform declarations included) and is treated as Composite,
     // so it always samples content. Emit it verbatim: no preamble, no generated declarations, no wrap.
@@ -81,7 +85,9 @@ internal object MirageCompiler {
         source = kernel,
         schema = schema,
         usesContent = true,
+        usesResolution = usesResolution,
         usesTime = usesTime,
+        usesDensity = usesDensity,
         category = OpticCategory.Composite,
       )
     }
@@ -89,13 +95,18 @@ internal object MirageCompiler {
     lintCode(code, category)
 
     val usesContent = category != OpticCategory.Generate
-    val source = assemble(kernel, code, schema, category, dialect, usesTime, usesContent)
+    val source = assemble(
+      kernel, schema, category, dialect,
+      usesResolution, usesTime, usesDensity, usesContent,
+    )
 
     return CompiledProgram(
       source = source,
       schema = schema,
       usesContent = usesContent,
+      usesResolution = usesResolution,
       usesTime = usesTime,
+      usesDensity = usesDensity,
       category = category,
     )
   }
@@ -106,7 +117,7 @@ internal object MirageCompiler {
    * Compile-breakers (any category): derivative functions (AGSL fixes GLSL ES 1.0, which has none),
    * any preprocessor directive, and the raw fragment-coord builtin (the runtime provides coords via
    * `main`'s argument). Category contradictions: a Colorize kernel must reach content only through
-   * its `src` argument, and a Generate overlay must not reach content at all — a `content` token in
+   * its `src` argument, and a Generate overlay must not reach content at all - a `content` token in
    * either means the author actually wanted a Composite.
    *
    * Comments are stripped before the scan so a forbidden token that only appears in a comment (a
@@ -146,14 +157,14 @@ internal object MirageCompiler {
 
   /**
    * Strips `//` line comments and `/* */` block comments from shader source so the analysis scans
-   * only live code. A minimal single-pass state machine — shader source has no string literals, so
+   * only live code. A minimal single-pass state machine - shader source has no string literals, so
    * there is no in-string false comment to guard against.
    */
   private fun stripComments(source: String): String = buildString(source.length) {
     var i = 0
     while (i < source.length) {
       val c = source[i]
-      val next = if (i + 1 < source.length) source[i + 1] else ' '
+      val next = if (i + 1 < source.length) source[i + 1] else '\u0000'
       when {
         c == '/' && next == '/' -> {
           i += 2
@@ -178,31 +189,32 @@ internal object MirageCompiler {
 
   private fun assemble(
     kernel: String,
-    code: String,
     schema: UniformSchema,
     category: OpticCategory,
     dialect: Dialect,
+    usesResolution: Boolean,
     usesTime: Boolean,
+    usesDensity: Boolean,
     usesContent: Boolean,
   ): String = buildString {
-    // 1. preamble (lens helpers) — Composite / Generate reach into the lens field; Colorize does not.
+    // 1. preamble (lens helpers) - Composite / Generate reach into the lens field; Colorize does not.
     if (category != OpticCategory.Colorize) {
       append(miragePreambleHelpers(dialect))
       append('\n')
     }
 
-    // 2. standard uniforms — referenced-only (comment-blind), so an unused standard input never
-    //    reaches the shader.
-    if (code.contains(STD_RESOLUTION)) appendLine("uniform float2 $STD_RESOLUTION;")
+    // 2. standard uniforms - referenced-only, so an unused standard input never reaches the shader.
+    //    The same flags gate the node's binds, so declaration and binding stay in lockstep.
+    if (usesResolution) appendLine("uniform float2 $STD_RESOLUTION;")
     if (usesTime) appendLine("uniform float $STD_TIME;")
-    if (code.contains(STD_DENSITY)) appendLine("uniform float $STD_DENSITY;")
+    if (usesDensity) appendLine("uniform float $STD_DENSITY;")
 
-    // 3. schema uniforms — one per entry, in declaration (= bind) order.
+    // 3. schema uniforms - one per entry, in declaration (= bind) order.
     for (entry in schema.entries) {
       appendLine(declarationOf(entry))
     }
 
-    // 4. content sampler — every category except a pure generator samples content.
+    // 4. content sampler - every category except a pure generator samples content.
     if (usesContent) appendLine("uniform shader content;")
 
     append('\n')
@@ -226,7 +238,7 @@ internal object MirageCompiler {
   }
 
   // ----------------------------------------------------------------------------------------------
-  // Optic accessors — Optic is sealed to FilterOptic / GenerateOptic, so this branch is exhaustive.
+  // Optic accessors - Optic is sealed to FilterOptic / GenerateOptic, so this branch is exhaustive.
   // ----------------------------------------------------------------------------------------------
 
   private fun categoryOf(optic: Optic<*>): OpticCategory = when (optic) {
