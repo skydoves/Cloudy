@@ -133,8 +133,13 @@ internal fun projectGravityPortrait(gx: Float, gy: Float, base: Offset, tiltGain
 }
 
 /**
- * Whether the sensor should actually run. Encodes every gate with zero platform dependencies so
- * the decision is unit-testable.
+ * Spec/oracle helper: the AND of every gate that must hold for the sensor to run, with zero platform
+ * dependencies so the gating logic is unit-testable in isolation.
+ *
+ * This is **not** wired into the production path — each platform actual applies these gates inline
+ * (see `rememberTiltSource`): the API/preview/enabled gate is a hard early return, and reduce-motion
+ * and sensor-presence are checked at registration. This function only documents and pins that truth
+ * table; it does not itself gate anything at runtime.
  */
 internal fun shouldRunSensor(
   enabled: Boolean,
