@@ -29,6 +29,7 @@ import docs.component.DocsSidebar
 import docs.navigation.DocsRoute
 import docs.screen.ApiCloudyScreen
 import docs.screen.ApiLiquidGlassScreen
+import docs.screen.ApiMirageScreen
 import docs.screen.ApiMotionLightScreen
 import docs.screen.ApiProgressiveScreen
 import docs.screen.ApiSkyScreen
@@ -66,6 +67,7 @@ fun DocsApp() {
           DocsRoute.ApiState -> ApiStateScreen()
           DocsRoute.ApiLiquidGlass -> ApiLiquidGlassScreen()
           DocsRoute.ApiMotionLight -> ApiMotionLightScreen()
+          DocsRoute.ApiMirage -> ApiMirageScreen()
           DocsRoute.Playground -> PlaygroundScreen()
         }
       }
