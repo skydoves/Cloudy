@@ -120,7 +120,8 @@ half4 main(float2 xy) {
         // --- seam-free in-plane direction (specular only; the 'normal' the refraction reads is unchanged) ---
         // The refraction path (above) keeps using the hard-pick 'normal' (no regression, G1).
         // Only here do we build a separate continuous direction that removes the d.x==d.y diagonal crease.
-        // A rounded rect interior is an L-inf field, so the true gradient breaks on the diagonal -> blend with an 8px softmax.
+        // A rounded rect interior is an L-inf field, so the true gradient breaks on the diagonal -> blend over
+        // SEAM_BLEND_PX: a soft-min direction, wide enough (measured) that the turn no longer reads as an X.
         float2 d2 = abs(p) - halfDim + float2(r);                 // same basis as boxRoundedSDF
         float2 s2 = float2(p.x >= 0.0 ? 1.0 : -1.0, p.y >= 0.0 ? 1.0 : -1.0);
         float2 specDir2;
@@ -252,7 +253,8 @@ half4 main(float2 xy) {
         // --- seam-free in-plane direction (specular only; the 'normal' the refraction reads is unchanged) ---
         // The refraction path (above) keeps using the hard-pick 'normal' (no regression, G1).
         // Only here do we build a separate continuous direction that removes the d.x==d.y diagonal crease.
-        // A rounded rect interior is an L-inf field, so the true gradient breaks on the diagonal -> blend with an 8px softmax.
+        // A rounded rect interior is an L-inf field, so the true gradient breaks on the diagonal -> blend over
+        // SEAM_BLEND_PX: a soft-min direction, wide enough (measured) that the turn no longer reads as an X.
         float2 d2 = abs(p) - halfDim + float2(r);                 // same basis as boxRoundedSDF
         float2 s2 = float2(p.x >= 0.0 ? 1.0 : -1.0, p.y >= 0.0 ? 1.0 : -1.0);
         float2 specDir2;

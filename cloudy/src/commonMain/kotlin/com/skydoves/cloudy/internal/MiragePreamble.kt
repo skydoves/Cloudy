@@ -38,7 +38,7 @@ package com.skydoves.cloudy.internal
 /** AGSL lens helpers + shared consts a Composite / Generate kernel may call. */
 internal const val MIRAGE_PREAMBLE_HELPERS_AGSL: String = """
 const float SMOOTH_EDGE_PX = 1.5;
-const float SEAM_BLEND_PX = 8.0;   // diagonal-seam blend half-width (px); larger = softer interior crease
+const float SEAM_BLEND_PX = 24.0;  // diagonal-seam blend half-width (px); larger = softer interior crease
 
 // Signed distance to a box with rounded corners
 // Negative = inside, Positive = outside, Zero = on boundary
@@ -77,7 +77,7 @@ half3 processColor(half3 src, float vibrancy, float intensity, float4 overlay) {
 /** SKSL lens helpers — byte-identical to [MIRAGE_PREAMBLE_HELPERS_AGSL] (AGSL/SKSL parity). */
 internal const val MIRAGE_PREAMBLE_HELPERS_SKSL: String = """
 const float SMOOTH_EDGE_PX = 1.5;
-const float SEAM_BLEND_PX = 8.0;   // diagonal-seam blend half-width (px); larger = softer interior crease
+const float SEAM_BLEND_PX = 24.0;  // diagonal-seam blend half-width (px); larger = softer interior crease
 
 // Signed distance to a box with rounded corners
 // Negative = inside, Positive = outside, Zero = on boundary
