@@ -14,11 +14,11 @@
 </p><br>
 
 <p align="center">
-Kotlin Multiplatform blur and liquid glass effect library for Compose, with GPU-accelerated rendering and CPU fallback for older devices. See <a href="https://skydoves.github.io/Cloudy/">documentation</a> for more details.
+Kotlin Multiplatform surface effects library for Compose — blur, liquid glass, and shader-driven looks — with GPU-accelerated rendering and CPU fallback for older devices. See <a href="https://skydoves.github.io/Cloudy/">documentation</a> for more details.
 </p><br>
 
-> <p align="center">The `blur` modifier supports only Android 12 and higher, and `RenderScript` APIs are deprecated starting in Android 12.
-> Cloudy is the backport of the blur effect for Jetpack Compose with cross-platform support.</p>
+> <p align="center">Cloudy started as a backport of the blur effect for Jetpack Compose with cross-platform support, and has grown to cover liquid glass and open shader effects as well.
+> The `Modifier.cloudy(radius = …)` blur path supports only Android 12 and higher without the deprecated `RenderScript` APIs; see <a href="#platform-support-self-blur">Platform Support</a> for the CPU fallback on older devices.</p>
 
 <p align="center">
 <img src="preview/gif0.gif" width="268"/>
