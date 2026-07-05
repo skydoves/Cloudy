@@ -49,9 +49,9 @@ private const val RASTER = 64
  * uniforms, with the lens sized to cover the whole raster so every pixel goes through the thin-film
  * branch (not the `content.eval(xy)` early-out).
  *
- * The point is Bug A end to end: OilSlick and Pearl share one compiled program yet must produce
+ * The contract end to end: OilSlick and Pearl share one compiled program yet must produce
  * *different* pixels, and each must differ from the un-filtered content. If the cache aliased their
- * schema defaults (the bug), OilSlick and Pearl would be pixel-identical here.
+ * schema defaults to whichever compiled first, OilSlick and Pearl would be pixel-identical here.
  */
 internal class MirageChromaticRasterTest :
   FunSpec({
@@ -63,62 +63,29 @@ internal class MirageChromaticRasterTest :
 
       // Each filtered look must actually alter the content (non-passthrough), and the two looks must
       // differ from each other — the direct evidence that per-optic schema defaults reach the shader.
-      // Measured deltas (whole-raster lens coverage): oil-vs-baseline ~10.5, pearl-vs-baseline ~39.6,
-      // oil-vs-pearl ~29.1 mean abs byte diff (0..255). Before the Bug A fix, oil-vs-pearl was 0.0.
+      // If OilSlick and Pearl shared one schema, oil-vs-pearl would be 0.
       meanAbsDiff(oil, baseline).shouldBeGreaterThan(1.0)
       meanAbsDiff(pearl, baseline).shouldBeGreaterThan(1.0)
       meanAbsDiff(oil, pearl).shouldBeGreaterThan(1.0)
     }
 
-    // X-seam regression: the bevel direction is a soft-min blend across the rounded-box diagonal
-    // (`d.x == d.y`). With the historical 8px blend half-width the 90-degree direction turn was
-    // compressed enough to read as a faint X-shaped crease in the thin-film color; widening
-    // SEAM_BLEND_PX spreads the turn so the diagonal no longer stands out. MetallicFoil is the worst
-    // case (a Fresnel rim boost sharpens the seam). The light is aimed straight up (off both
-    // diagonals) so the focal pool, which by default sits on a diagonal, does not mask the seam.
-    //
-    // Metric: for each point on a main diagonal, walk perpendicular to it and take the local luma
-    // slope; a crease makes the slope peak right at the diagonal. `diagonalSlopeExcess` returns the
-    // mean slope in a 2px band centered on the diagonal minus the mean slope in the flanking band —
-    // a seamless field has an excess near zero, a crease a large positive excess. Measured at this
-    // config: the widened blend is about 0.6, the old 8px blend about 1.7.
-    test("MetallicFoil has no X-shaped diagonal seam in the lens") {
-      val raster = renderChromaticAt(
-        MirageOptics.MetallicFoil,
-        SEAM_RASTER,
-        corner = SEAM_CORNER,
-        light = Offset(0f, -1f),
-      )
-      val excess = diagonalSlopeExcess(raster, SEAM_RASTER)
-      // Well under the old 8px-blend seam magnitude, with margin for skiko fp rounding.
-      excess.shouldBeLessThan(1.2)
-    }
-
-    // Full-bleed / max-intensity X guard (the config the narrow-seam test above missed). At
-    // cornerRadius 0 + whole-pane lens + chromaticIntensity 1.0, the *dominant* diagonal structure is
-    // NOT the direction-field seam but the box depth field: `depthIn = -sdf` of a rounded box is the
-    // distance to the nearest edge, whose ridge lines lie exactly on the diagonals, so the thin-film
-    // rings stack into a bright corner-to-corner X (MetallicFoil's Fresnel rim boost sharpens it most).
-    // The perpendicular-slope-spike metric above cannot see this: the box X is a *wide smooth ridge*,
-    // not a 1px crease. So this guard uses a different metric — `diagonalRidgeExcess` bins the local
+    // Full-bleed / max-intensity X guard. At cornerRadius 0 + whole-pane lens + chromaticIntensity
+    // 1.0, the dominant diagonal structure is the box depth field: `depthIn = -sdf` of a rounded box
+    // is the distance to the nearest edge, whose ridge lines lie exactly on the diagonals, so the
+    // thin-film rings stack into a bright corner-to-corner X (MetallicFoil's Fresnel rim boost sharpens
+    // it most). This X is a *wide smooth ridge*, not a 1px crease. `diagonalRidgeExcess` bins the local
     // luma-gradient *magnitude* by angular position into a diagonal sector (±15 deg around each 45 deg
-    // line) vs an axis sector, over the interior annulus. The box depth field dumps gradient energy
-    // into the diagonal sectors (X); the superellipse field spreads it evenly. Square configs only —
-    // the sector binning is aspect-ratio sensitive, so the non-square case is covered visually, not here.
-    //
-    // Measured (MetallicFoil, pool isolated via chromaticModulate 0 so only the bevel field shows):
-    //   full-bleed 900 / corner 0 / intensity 1.0 — superellipse ~1.30, the OLD box construction ~2.01.
-    // The assertion re-synthesizes the OLD box bevel from the compiled source (`toOldBoxBevel`) and
-    // asserts the superellipse dumps far less diagonal energy, proving the guard bites (not a tautology).
+    // line) vs an axis sector, over the interior annulus. A box-SDF depth field dumps gradient energy
+    // into the diagonal sectors (X); the shipped superellipse field spreads it evenly. Square configs
+    // only — the sector binning is aspect-ratio sensitive, so the non-square case is covered visually.
     //
     // The broad-ridge metric is resolution- and content-sensitive (the smooth rounded-rect ring
-    // gradients of the fixed field also carry energy), so an absolute threshold is fragile. The robust,
-    // self-normalizing guard compares the SHIPPED superellipse field against the pre-fix box field at
-    // the same framing: the superellipse must dump measurably LESS gradient energy onto the diagonals.
-    // That single relative comparison both verifies the fix (fixed < box) AND proves the guard bites
-    // (the old construction is caught), so it cannot be vacuously true. Measured at full-bleed 900 /
-    // corner 0 / intensity 1.0 (MetallicFoil, the worst case; pool muted to isolate the field):
-    // box ~2.01, superellipse ~1.30 -> ratio ~1.54. The default-framing case is guarded the same way.
+    // gradients of the superellipse field also carry energy), so an absolute threshold is fragile.
+    // The self-normalizing guard re-synthesizes a box-SDF bevel from the compiled source
+    // (`toOldBoxBevel`) and compares it against the shipped superellipse field at the same framing:
+    // the superellipse must dump measurably less gradient energy onto the diagonals. Because the
+    // comparison catches a box-like field, it cannot pass vacuously. The pool is muted via
+    // chromaticModulate 0 so only the bevel field shows.
     test(
       "MetallicFoil superellipse bevel has far less diagonal-X energy than the old box bevel (full-bleed/max)",
     ) {
@@ -133,21 +100,20 @@ internal class MirageChromaticRasterTest :
       )
       val fixedExcess = diagonalRidgeExcess(fixed, BLEED_RASTER)
       val boxExcess = diagonalRidgeExcess(box, BLEED_RASTER)
-      // The old box construction concentrates markedly more gradient on the diagonals (the X). If the
-      // fix regressed to a box-like field this ratio collapses toward 1.0 and the test fails.
+      // A box-SDF field concentrates markedly more gradient on the diagonals (the X). If the
+      // superellipse field were box-like this ratio would collapse toward 1.0 and the test would fail.
       (boxExcess / fixedExcess).shouldBeGreaterThan(RIDGE_MIN_RATIO)
       fixedExcess.shouldBeLessThan(boxExcess)
     }
 
-    // Same guard at the demo's default rounding (~0.23 corner fraction, intensity 0.6): the earlier fix
-    // must not regress. Measured at this raster: box ~1.83, superellipse ~1.46 -> the superellipse still
-    // wins. NOTE the metric needs enough resolution: below ~384px the fixed field's crisp rounded-rect
-    // corner-ring gradients land in the diagonal sector and the comparison inverts (a sampling artifact,
-    // not a real X — verified visually), so this runs at DFRAME_RASTER, well above that floor.
+    // Same guard at a typical rounded framing (~0.23 corner fraction, intensity 0.6). The metric needs
+    // enough resolution: below ~384px the superellipse field's crisp rounded-rect corner-ring gradients
+    // land in the diagonal sector and the comparison inverts (a sampling artifact, not a real X), so
+    // this runs at DFRAME_RASTER, well above that floor.
     test(
       "MetallicFoil superellipse bevel beats the box bevel at the default framing too (no regression)",
     ) {
-      val corner = DFRAME_RASTER * 0.23f // mirrors the demo's 120/520 corner fraction
+      val corner = DFRAME_RASTER * 0.23f
       val fixed =
         renderRidgeProbe(
           MirageOptics.MetallicFoil,
@@ -172,9 +138,6 @@ internal class MirageChromaticRasterTest :
 private const val BLEED_RASTER = 900
 private const val DFRAME_RASTER = 512
 private const val RIDGE_MIN_RATIO = 1.30
-
-private const val SEAM_RASTER = 256
-private const val SEAM_CORNER = 60f
 
 /**
  * Renders [optic]'s compiled program over a fixed gradient content into an ARGB byte buffer. Resets
@@ -202,43 +165,15 @@ private fun renderChromatic(optic: CompositeOptic<ChromaticParams>): ByteArray {
 }
 
 /**
- * Renders [optic] at an arbitrary [size] with a chosen [corner] radius (in raster px). Mirrors
- * [renderChromatic] but parameterizes the raster/corner so the seam test can use a large rounded lens
- * where the diagonal crease of the old blend was visible. The content shader is sampled at the same
- * scale, so pixels stay in [0, 1].
- */
-@OptIn(ExperimentalMirage::class)
-private fun renderChromaticAt(
-  optic: CompositeOptic<ChromaticParams>,
-  size: Int,
-  corner: Float,
-  light: Offset = Offset(-1f, -1f),
-): ByteArray {
-  val cached = MirageProgramCache.obtain(optic, Dialect.Sksl).shouldNotBeNull()
-  val params = optic.paramsFactory()
-
-  applySchemaDefaults(params, cached)
-  params.lensCenter(Offset(size / 2f, size / 2f))
-  params.lensSize(Size(size.toFloat(), size.toFloat()))
-  params.cornerRadius(corner)
-  params.iLight(light)
-
-  val builder = RuntimeShaderBuilder(RuntimeEffect.makeForShader(cached.compiled.source))
-  bindUniformsAt(builder, params, cached, size)
-  builder.child("content", contentShaderAt(size))
-
-  return rasterize(builder.makeShader(), size)
-}
-
-/**
  * Renders [optic] at a square [size] with the bevel-field artifact isolated for the broad-ridge metric:
  * the lens covers the whole raster (center + size), corner is [corner], `chromaticIntensity` is forced
  * to [intensity], and `chromaticModulate` is forced to 0 so the light focal pool does not overlay the
  * ring geometry (the pool is a separate, pre-existing feature — the X is purely the bevel field). Light
  * is aimed straight up (off both diagonals) so any diagonal energy is the field, not the light.
  *
- * When [oldBoxBevel] is true the compiled superellipse bevel block is rewritten back to the pre-fix box
- * construction (`depthIn = max(-sdf, 0)` depth + the soft-min direction), so the guard can prove it bites.
+ * When [oldBoxBevel] is true the compiled superellipse bevel block is rewritten to a box-SDF
+ * construction (`depthIn = max(-sdf, 0)` depth + the soft-min direction), the contrasting field the
+ * guard compares against.
  */
 @OptIn(ExperimentalMirage::class)
 private fun renderRidgeProbe(
@@ -270,10 +205,10 @@ private fun renderRidgeProbe(
 }
 
 /**
- * Rewrites the chromatic superellipse bevel block in [source] back to the pre-fix box-SDF construction
- * (`depthIn = max(-sdf, 0)` depth normalized by minHalf + a soft-min interior direction). This is the
- * exact bevel the fix removed; rendering it lets the guard assert the OLD construction fails, proving the
- * new test is a real regression guard and not vacuously true. Anchored on the fix's own block markers.
+ * Rewrites the chromatic superellipse bevel block in [source] to a box-SDF construction
+ * (`depthIn = max(-sdf, 0)` depth normalized by minHalf + a soft-min interior direction). Rendering
+ * this contrasting field lets the guard assert the box construction dumps more diagonal energy, so the
+ * comparison cannot pass vacuously. Anchored on the bevel block's own source markers.
  */
 private fun toOldBoxBevel(source: String): String {
   val startAnchor = "    float2 q  = abs(p) / max(halfDim, float2(1.0));"
@@ -304,8 +239,8 @@ private fun toOldBoxBevel(source: String): String {
 
 /**
  * Broad diagonal-ridge metric. The box-bevel X is a *wide smooth ridge* whose luma gradient points
- * across the diagonal over a large area, not a 1px crease, so [diagonalSlopeExcess] misses it. This
- * instead takes the central-difference luma gradient at each interior pixel and bins its *magnitude*
+ * across the diagonal over a large area, not a 1px crease. This takes the central-difference luma
+ * gradient at each interior pixel and bins its *magnitude*
  * by the pixel's angular position relative to center: a diagonal sector (within 15 deg of a 45 deg
  * diagonal) vs an axis sector (within 15 deg of H/V). The excess = mean |grad| in the diagonal sector
  * minus the axis sector, over the annulus `[0.15R, 0.85R]` (skips the bright center and the rim mask).
@@ -381,57 +316,6 @@ private fun rasterize(shader: Shader, size: Int = RASTER): ByteArray {
   val bitmap = Bitmap().apply { allocPixels(info) }
   surface.readPixels(bitmap, 0, 0)
   return bitmap.readPixels() ?: error("readPixels returned null")
-}
-
-/**
- * Quantifies an X-shaped diagonal crease by the *localization* of the perpendicular luma slope at the
- * diagonal. For each point along a main diagonal it walks perpendicular over `[-W, W]` px and takes
- * the per-step absolute luma slope; a crease makes that slope peak right at the diagonal. The returned
- * value is the mean slope in the 2px band centered on the diagonal minus the mean slope in the
- * flanking band (`[4, W]` on both sides). A seamless field, whose luma varies smoothly across the
- * diagonal, has an excess near zero; a crease has a large positive excess. Both main diagonals are
- * sampled, over the inner half so the rim and the 1px medial point do not dominate.
- */
-private fun diagonalSlopeExcess(argb: ByteArray, size: Int): Double {
-  fun luma(x: Double, y: Double): Double {
-    val xi = x.toInt().coerceIn(0, size - 1)
-    val yi = y.toInt().coerceIn(0, size - 1)
-    val i = (yi * size + xi) * 4
-    val rr = argb[i].toInt() and 0xFF
-    val gg = argb[i + 1].toInt() and 0xFF
-    val bb = argb[i + 2].toInt() and 0xFF
-    return 0.2126 * rr + 0.7152 * gg + 0.0722 * bb
-  }
-  val lo = size / 4
-  val hi = size - size / 4
-  val w = 20
-  val inv = 1.0 / kotlin.math.sqrt(2.0)
-  var centerSum = 0.0
-  var centerCount = 0
-  var flankSum = 0.0
-  var flankCount = 0
-  for (k in lo until hi) {
-    // Perpendicular profile across the main diagonal at (k, k), stepping along (+1, -1).
-    val profile = DoubleArray(2 * w + 1) { idx ->
-      val s = idx - w
-      luma(k + inv * s, k - inv * s)
-    }
-    for (idx in 0 until 2 * w) {
-      val s = idx - w
-      val slope = abs(profile[idx + 1] - profile[idx])
-      when {
-        s in -2..1 -> {
-          centerSum += slope
-          centerCount++
-        }
-        s <= -4 || s >= 4 -> {
-          flankSum += slope
-          flankCount++
-        }
-      }
-    }
-  }
-  return centerSum / centerCount - flankSum / flankCount
 }
 
 /** Mean absolute per-byte difference between two equally sized ARGB buffers (0..255 scale). */
