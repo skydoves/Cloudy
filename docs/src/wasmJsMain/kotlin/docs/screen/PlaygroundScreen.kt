@@ -693,17 +693,17 @@ private fun MirageDemo() {
       val mirageCode = buildString {
         append("@OptIn(ExperimentalMirage::class)\n")
         append("Box(\n")
-        append("  modifier = Modifier.mirage {\n")
+        if (enabled) {
+          append("  modifier = Modifier.mirage {\n")
+        } else {
+          append("  modifier = Modifier.mirage(enabled = false) {\n")
+        }
         append("    filter(MirageOptics.${preset.displayName}) {\n")
         append("      lensCenter(lensCenter)\n")
         append("      lensSize(Size(180f, 180f))\n")
         append("      cornerRadius(40f)\n")
         append("    }\n")
-        if (!enabled) {
-          append("  }, enabled = false,\n")
-        } else {
-          append("  }\n")
-        }
+        append("  },\n")
         append(") {\n")
         append("  // Your content here\n")
         append("}")
