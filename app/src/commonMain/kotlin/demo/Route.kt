@@ -99,4 +99,12 @@ sealed interface Route {
    */
   @Serializable
   data object BlurLight : Route
+
+  /**
+   * The open shader-effect test screen — applies an optic plan from [com.skydoves.cloudy.MirageOptics]
+   * to a poster with a single `Modifier.mirage { }` block and toggles between the specular / chromatic
+   * looks.
+   */
+  @Serializable
+  data object Mirage : Route
 }

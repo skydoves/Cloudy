@@ -26,11 +26,20 @@ sealed class DocsRoute(val path: String, val title: String) {
   data object ApiState : DocsRoute("/api/state", "CloudyState")
   data object ApiLiquidGlass : DocsRoute("/api/liquid-glass", "Liquid Glass")
   data object ApiMotionLight : DocsRoute("/api/motion-light", "Motion Light")
+  data object ApiMirage : DocsRoute("/api/mirage", "Mirage")
   data object Playground : DocsRoute("/playground", "Playground")
 
   companion object {
     val guideRoutes = listOf(GettingStarted, Installation, PlatformSupport)
     val apiRoutes =
-      listOf(ApiCloudy, ApiSky, ApiProgressive, ApiState, ApiLiquidGlass, ApiMotionLight)
+      listOf(
+        ApiCloudy,
+        ApiSky,
+        ApiProgressive,
+        ApiState,
+        ApiLiquidGlass,
+        ApiMotionLight,
+        ApiMirage,
+      )
   }
 }

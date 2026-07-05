@@ -59,6 +59,7 @@ fun MenuHomeScreen(
   onGyroLightClick: () -> Unit,
   onTransformLightClick: () -> Unit,
   onBlurLightClick: () -> Unit,
+  onMirageClick: () -> Unit,
 ) {
   val posters = remember { MockUtil.getMockPosters() }
 
@@ -147,6 +148,14 @@ fun MenuHomeScreen(
             description = "A liquid-glass light pool rides the blurred backdrop — drag to sweep it",
             poster = posters[6],
             onClick = onBlurLightClick,
+          )
+        }
+        item {
+          MenuCard(
+            title = "Shader Effect (plan)",
+            description = "Apply an open optic plan in one modifier block — specular vs chromatic",
+            poster = posters[5],
+            onClick = onMirageClick,
           )
         }
       }

@@ -199,6 +199,11 @@ kotlin {
     val desktopTest by getting {
       dependencies {
         implementation(libs.kotest.runner.junit5)
+        // The OS/arch-specific skiko native runtime (the .dylib/.so/.dll). Present tests are pure
+        // codegen and never touch native skiko, but MirageProgramCacheTest compiles real SKSL through
+        // RuntimeEffect on the skiko backend, which needs the native lib loaded. currentOs resolves
+        // the right classifier per host so this stays portable on CI.
+        implementation(compose.desktop.currentOs)
       }
     }
 
