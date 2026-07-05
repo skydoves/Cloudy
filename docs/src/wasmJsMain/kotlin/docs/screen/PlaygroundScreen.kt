@@ -63,9 +63,12 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.skydoves.cloudy.CloudyProgressive
+import com.skydoves.cloudy.ExperimentalMirage
 import com.skydoves.cloudy.LiquidGlassDefaults
+import com.skydoves.cloudy.MirageOptics
 import com.skydoves.cloudy.cloudy
 import com.skydoves.cloudy.liquidGlass
+import com.skydoves.cloudy.mirage
 import com.skydoves.cloudy.rememberSky
 import com.skydoves.cloudy.sky
 import docs.component.CodeBlock
@@ -100,7 +103,7 @@ fun PlaygroundScreen() {
     Spacer(modifier = Modifier.height(16.dp))
 
     Text(
-      text = "Adjust parameters and see blur effects in real-time. " +
+      text = "Adjust parameters and see every surface effect in real-time. " +
         "The code snippet updates automatically.",
       style = DocsTheme.typography.body,
       color = DocsTheme.colors.onSurfaceVariant,
@@ -115,13 +118,18 @@ fun PlaygroundScreen() {
 
     Spacer(modifier = Modifier.height(48.dp))
 
+    // Background Blur Demo
+    BackgroundBlurDemo()
+
+    Spacer(modifier = Modifier.height(48.dp))
+
     // Liquid Glass Demo
     LiquidGlassDemo()
 
     Spacer(modifier = Modifier.height(48.dp))
 
-    // Background Blur Demo
-    // BackgroundBlurDemo()
+    // Mirage Demo
+    MirageDemo()
 
     Spacer(modifier = Modifier.height(48.dp))
   }
@@ -503,6 +511,205 @@ private fun LiquidGlassDemo() {
       }
 
       CodeBlock(code = liquidGlassCode)
+    }
+  }
+}
+
+private enum class MiragePresetOption(val displayName: String) {
+  Specular("Specular"),
+  Chromatic("Chromatic"),
+  OilSlick("OilSlick"),
+  SoapBubble("SoapBubble"),
+  MetallicFoil("MetallicFoil"),
+  Pearl("Pearl"),
+}
+
+@OptIn(ExperimentalMirage::class)
+@Composable
+private fun MirageDemo() {
+  var lensCenter by remember { mutableStateOf(Offset.Zero) }
+  var preset by remember { mutableStateOf(MiragePresetOption.Chromatic) }
+  var dropdownExpanded by remember { mutableStateOf(false) }
+  var enabled by remember { mutableStateOf(true) }
+
+  Card(
+    modifier = Modifier.fillMaxWidth(),
+    colors = CardDefaults.cardColors(containerColor = DocsTheme.colors.surface),
+    shape = RoundedCornerShape(16.dp),
+  ) {
+    Column(modifier = Modifier.padding(24.dp)) {
+      Text(
+        text = "Mirage (Modifier.mirage)",
+        style = DocsTheme.typography.h2,
+        color = DocsTheme.colors.onBackground,
+      )
+
+      Spacer(modifier = Modifier.height(8.dp))
+
+      Text(
+        text = "Drag on the preview to move the optic's lens. Experimental — behind " +
+          "@OptIn(ExperimentalMirage::class). Foil (an overlay) and Duotone (no lens) " +
+          "aren't lens-driven presets, so they're left out of this drag demo — see the " +
+          "Mirage reference for the full gallery.",
+        style = DocsTheme.typography.bodySmall,
+        color = DocsTheme.colors.onSurfaceVariant,
+      )
+
+      Spacer(modifier = Modifier.height(24.dp))
+
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(24.dp),
+      ) {
+        // Controls
+        Column(modifier = Modifier.weight(1f)) {
+          Text(
+            text = "Preset",
+            style = DocsTheme.typography.bodySmall,
+            color = DocsTheme.colors.onSurface,
+          )
+          Spacer(modifier = Modifier.height(4.dp))
+
+          Box {
+            OutlinedButton(onClick = { dropdownExpanded = true }) {
+              Text(preset.displayName)
+            }
+
+            DropdownMenu(
+              expanded = dropdownExpanded,
+              onDismissRequest = { dropdownExpanded = false },
+            ) {
+              MiragePresetOption.entries.forEach { option ->
+                DropdownMenuItem(
+                  text = { Text(option.displayName) },
+                  onClick = {
+                    preset = option
+                    dropdownExpanded = false
+                  },
+                )
+              }
+            }
+          }
+
+          Spacer(modifier = Modifier.height(16.dp))
+
+          // Enabled Toggle
+          Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(
+              checked = enabled,
+              onCheckedChange = { enabled = it },
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+              text = "Enabled",
+              style = DocsTheme.typography.bodySmall,
+              color = DocsTheme.colors.onSurface,
+            )
+          }
+        }
+
+        // Preview
+        Box(
+          modifier = Modifier
+            .size(200.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .border(1.dp, DocsTheme.colors.divider, RoundedCornerShape(12.dp))
+            .onSizeChanged { size ->
+              lensCenter = Offset(size.width / 2f, size.height / 2f)
+            }
+            .pointerInput(Unit) {
+              detectDragGestures { change, dragAmount ->
+                lensCenter += dragAmount
+                change.consume()
+              }
+            }
+            .mirage(enabled = enabled) {
+              // Each preset carries its own MirageLensParams subclass, so the filter() call
+              // (and its type-inferred params block) must be repeated per branch rather than
+              // hoisted behind a shared `val optic = when (...) { ... }`.
+              when (preset) {
+                MiragePresetOption.Specular -> filter(MirageOptics.Specular) {
+                  lensCenter(lensCenter)
+                  lensSize(Size(180f, 180f))
+                  cornerRadius(40f)
+                }
+
+                MiragePresetOption.Chromatic -> filter(MirageOptics.Chromatic) {
+                  lensCenter(lensCenter)
+                  lensSize(Size(180f, 180f))
+                  cornerRadius(40f)
+                }
+
+                MiragePresetOption.OilSlick -> filter(MirageOptics.OilSlick) {
+                  lensCenter(lensCenter)
+                  lensSize(Size(180f, 180f))
+                  cornerRadius(40f)
+                }
+
+                MiragePresetOption.SoapBubble -> filter(MirageOptics.SoapBubble) {
+                  lensCenter(lensCenter)
+                  lensSize(Size(180f, 180f))
+                  cornerRadius(40f)
+                }
+
+                MiragePresetOption.MetallicFoil -> filter(MirageOptics.MetallicFoil) {
+                  lensCenter(lensCenter)
+                  lensSize(Size(180f, 180f))
+                  cornerRadius(40f)
+                }
+
+                MiragePresetOption.Pearl -> filter(MirageOptics.Pearl) {
+                  lensCenter(lensCenter)
+                  lensSize(Size(180f, 180f))
+                  cornerRadius(40f)
+                }
+              }
+            },
+          contentAlignment = Alignment.Center,
+        ) {
+          GradientBackground()
+
+          Text(
+            text = if (enabled) "Drag to move lens" else "disabled",
+            style = DocsTheme.typography.caption,
+            color = Color.White,
+            fontWeight = FontWeight.Bold,
+          )
+        }
+      }
+
+      Spacer(modifier = Modifier.height(24.dp))
+
+      // Generated Code
+      Text(
+        text = "Generated Code",
+        style = DocsTheme.typography.bodySmall,
+        fontWeight = FontWeight.SemiBold,
+        color = DocsTheme.colors.onSurface,
+      )
+
+      Spacer(modifier = Modifier.height(8.dp))
+
+      val mirageCode = buildString {
+        append("@OptIn(ExperimentalMirage::class)\n")
+        append("Box(\n")
+        append("  modifier = Modifier.mirage {\n")
+        append("    filter(MirageOptics.${preset.displayName}) {\n")
+        append("      lensCenter(lensCenter)\n")
+        append("      lensSize(Size(180f, 180f))\n")
+        append("      cornerRadius(40f)\n")
+        append("    }\n")
+        if (!enabled) {
+          append("  }, enabled = false,\n")
+        } else {
+          append("  }\n")
+        }
+        append(") {\n")
+        append("  // Your content here\n")
+        append("}")
+      }
+
+      CodeBlock(code = mirageCode)
     }
   }
 }
