@@ -93,15 +93,14 @@ internal class MirageProgramCacheTest :
 
       // Dedup: same generated source -> the very same shared backend (the expensive GPU program).
       b.backend.shouldBeSameInstanceAs(a.backend)
-      // But each call returns its own CachedProgram wrapper carrying its own CompiledProgram, so a
-      // caller's schema defaults are never aliased to another optic's (the Bug A regression below).
+      // Each call returns its own CachedProgram wrapper carrying its own CompiledProgram, so a
+      // caller's schema defaults are never aliased to another same-source optic's.
       b.shouldNotBeSameInstanceAs(a)
     }
 
-    // Bug A regression: OilSlick and Pearl are the same chromatic kernel at different ChromaticParams
-    // defaults, so they share one backend but must NOT share a schema. Before the fix, obtain()
-    // returned the first-compiled CachedProgram on a cache hit, aliasing every same-source optic's
-    // schema defaults to whichever compiled first -> all thin-film chips rendered identically.
+    // OilSlick and Pearl are the same chromatic kernel at different ChromaticParams defaults, so they
+    // share one backend but must keep separate schemas: a cache hit must return this optic's own
+    // CachedProgram, not the first-compiled one, or every same-source optic would render identically.
     test("same-source optics keep their own schema defaults over a shared backend") {
       val oil = MirageProgramCache.obtain(MirageOptics.OilSlick, Dialect.Sksl).shouldNotBeNull()
       val pearl = MirageProgramCache.obtain(MirageOptics.Pearl, Dialect.Sksl).shouldNotBeNull()
@@ -115,10 +114,10 @@ internal class MirageProgramCacheTest :
       gainDefaultOf(pearl).shouldBe(2.4f)
     }
 
-    // The real proof that the preset-porting codegen is correct: every bundled MirageOptics kernel
-    // must compile through the pipeline on the skiko backend (schema uniforms emitted, no duplicate
-    // inline declaration, standard uniforms resolved). If the inline-uniform strip or the iTime ->
-    // mirageTime rename were wrong, RuntimeEffect.makeForShader would throw here.
+    // Every bundled MirageOptics kernel must compile through the pipeline on the skiko backend
+    // (schema uniforms emitted, no duplicate inline declaration, standard uniforms resolved): if the
+    // inline-uniform strip or the iTime -> mirageTime rename were wrong, RuntimeEffect.makeForShader
+    // would throw here.
     test("every bundled preset optic compiles through the skiko backend") {
       shouldNotThrowAny {
         listOf(

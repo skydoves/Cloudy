@@ -198,9 +198,9 @@ internal class MirageCompilerTest :
         program.usesDensity.shouldBe(false)
       }
 
-      // Regression guard for the RuntimeShader SIGABRT: a Colorize kernel that names no standard
-      // uniform must report every uses* flag false, so the node binds none. Binding a standard uniform
-      // the shader never declared throws IllegalArgumentException on Android's RuntimeShader.
+      // Android's RuntimeShader throws IllegalArgumentException if the node binds a standard uniform
+      // the shader never declared, so a kernel that names no standard uniform must report every uses*
+      // flag false and the node must bind none.
       test("a kernel that names no standard uniform reports every uses* flag false") {
         val optic = Optic.colorize(
           name = "duotone",
@@ -315,8 +315,8 @@ internal class MirageCompilerTest :
     }
 
     context("carried kernels compile through the pipeline") {
-      // The specular/chromatic/foil bodies moved into MirageKernels.kt must survive lint (they use
-      // no forbidden tokens) so the later preset-porting step can wire them as optics.
+      // The specular/chromatic/foil bodies in MirageKernels.kt must pass lint (they use no forbidden
+      // tokens) so they can be wired as optics.
       test("the ported Composite bodies pass lint") {
         shouldNotThrowAny {
           MirageCompiler.lint(SPECULAR_KERNEL_AGSL, OpticCategory.Composite)

@@ -40,7 +40,7 @@ internal class MirageLintException(message: String) : IllegalArgumentException(m
  * unused input never reaches the shader:
  *   1. preamble (lens helpers) - Composite / Generate only; Colorize is point-wise and needs none;
  *   2. standard uniforms - each of `mirageResolution` / `mirageTime` / `mirageDensity` only if the
- *      kernel text names it (replacing the old "declare them all" waste);
+ *      kernel text names it;
  *   3. schema uniforms - one declaration per [UniformSchema] entry, in declaration order;
  *   4. content sampler + kernel body - Colorize wraps `kernel(...)` in a content-sampling `main`;
  *      Composite / Generate splice the author's `main` directly.
@@ -65,9 +65,9 @@ internal object MirageCompiler {
     val kernel = kernelOf(optic, dialect)
 
     // Every reference/token scan runs against comment-stripped code, never the raw text: a token that
-    // only appears in a comment (e.g. the foil body's "// ...fwidth..." note, or a "#124" ticket ref)
-    // must not trip lint or force a spurious standard-uniform declaration. The emitted source keeps
-    // the original kernel (comments intact) - only the analysis is comment-blind.
+    // only appears in a comment (e.g. a "// ...fwidth..." note, or a "#" in prose) must not trip lint
+    // or force a spurious standard-uniform declaration. The emitted source keeps the original kernel
+    // (comments intact) - only the analysis is comment-blind.
     val code = stripComments(kernel)
 
     // Standard-uniform references are static scans over comment-stripped code in every path (raw
@@ -127,7 +127,7 @@ internal object MirageCompiler {
    * either means the author actually wanted a Composite.
    *
    * Comments are stripped before the scan so a forbidden token that only appears in a comment (a
-   * "no fwidth here" note, a "#124" ticket reference) is not a false positive.
+   * "no fwidth here" note, a "#" in prose) is not a false positive.
    */
   fun lint(kernelSource: String, category: OpticCategory): Unit =
     lintCode(stripComments(kernelSource), category)

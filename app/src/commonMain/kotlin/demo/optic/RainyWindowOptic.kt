@@ -33,11 +33,11 @@ import com.skydoves.cloudy.UTexture
  * per-drop appear/sit/fade life cycle so the field slowly evolves under [com.skydoves.cloudy.MirageClock.Auto].
  *
  * ### Architecture: static droplet maps + a cheap animating shader
- * Rather than hashing and shaping a drop per grid cell every frame (the previous iteration), the drop
- * shapes are baked **once** into a tileable RGBA texture ([DropletMap]) and the shader only animates
- * and refracts. Each texel carries the drop's surface normal (`R,G`), coverage/height (`A`), and a
- * per-drop random phase (`B`); see [DropletMap] for the full channel encoding and tileability notes.
- * The kernel takes a single texture tap and never hashes — the texture *is* the randomness.
+ * Rather than hashing and shaping a drop per grid cell every frame, the drop shapes are baked **once**
+ * into a tileable RGBA texture ([DropletMap]) and the shader only animates and refracts. Each texel
+ * carries the drop's surface normal (`R,G`), coverage/height (`A`), and a per-drop random phase (`B`);
+ * see [DropletMap] for the full channel encoding and tileability notes. The kernel takes a single
+ * texture tap and never hashes — the texture *is* the randomness.
  *
  * ### Technique & attribution (clean-room, independent implementation)
  * The static-droplet-map approach (offline normal + height + per-drop-phase maps; the shader remaps
@@ -70,7 +70,7 @@ public object RainyWindowOptic {
  * @property rainAmount `0..1` droplet density — drives the coverage threshold, so a low value shows
  *   only the largest/most-covered drop cores and a high value reveals the fine mist too. Default `0.35`.
  * @property blurRadius background fog blur step in px. Kept small so the misted glass stays light and
- *   the drops read (S25 feedback: heavy fog was muddy). Default `1.6`; further wiped sharp near drops.
+ *   the drops read; heavy fog turns muddy. Default `1.6`; further wiped sharp near drops.
  * @property dropScale texture repeats across the screen; larger `dropScale` = smaller drops on screen
  *   (more repeats). Default `1.6` (a comfortable drop size on a phone pane).
  */
@@ -103,12 +103,11 @@ public class RainyWindowParams : MirageParams() {
  * field evolves without per-drop animation and without popping. `rainAmount` sets a coverage threshold
  * so the slider scales how much of the mist is visible.
  *
- * Robustness notes (see `RainyWindowRasterTest`) — lessons already paid for on this branch:
- *  - **No large-argument sin/hash.** The old kernel hashed the drifting cell through `sin(dot(...))`;
- *    with gravity drift that argument grew unbounded (~2.7e6 near the t=3599s wrap) and fp32 `sin()`
- *    range reduction decays on some GPUs (measured Adreno on a Galaxy S25), collapsing the field. The
- *    texture removes all hashing; the only time math is `fract(mirageTime * speed + phase)`, whose
- *    product stays small, so fp32/fp16 paths agree on every GPU.
+ * Robustness notes (see `RainyWindowRasterTest`) — GPU-portability constraints the kernel keeps:
+ *  - **No large-argument sin/hash.** fp32 `sin()` range reduction decays on some GPUs (notably Adreno)
+ *    once its argument grows large, so hashing a time-drifting coordinate through `sin(dot(...))` would
+ *    collapse the field at long run times. The texture removes all hashing; the only time math is
+ *    `fract(mirageTime * speed + phase)`, whose product stays small, so fp32/fp16 paths agree on every GPU.
  *  - **Bounded refraction.** The offset is clamped to `<= 14px`; scattered large `content.eval` offsets
  *    thrash the texture cache (DRAM-bound frames), so a hard small bound keeps reads local.
  *  - **Clamped taps.** Every `content.eval` coord is clamped into `[0.5, res - 0.5]`; on Android

@@ -41,22 +41,21 @@ private const val RASTER = 96
  * the skiko backend does at draw time. This makes the SKSL kernel the single source of truth while
  * still gating it on the `:cloudy:desktopTest` task the CI gate runs.
  *
- * The regression guarded here is the large-`mirageTime` hash decay. An earlier kernel hashed the
- * drifting cell coordinate through `sin(dot(cell, ...))`; with the gravity drift the argument grows to
- * ~4.4e5 at t=600s and ~2.7e6 near the wrap at t=3599s, and fp32 `sin()` range reduction degrades on
- * some GPUs (measured Adreno) into near-random output, collapsing the droplet field and producing
- * arbitrary refraction offsets (which read as dark edge smears and 200-400ms frames on device). The
- * current kernel is texture-backed and hash-free — the only time math is `fract(mirageTime * speed +
- * phase)` with a tiny product — but the same large-time invariants are asserted so a regression back to
- * unbounded time arguments would still be caught.
+ * The invariant this protects is that droplet animation stays exact at large `mirageTime`. fp32
+ * `sin()` range reduction decays on some GPUs (notably Adreno) once its argument grows large, so a
+ * kernel that hashed a time-drifting coordinate through `sin(dot(...))` would collapse the droplet
+ * field into near-random output at long run times. The current kernel is texture-backed and hash-free
+ * — the only time math is `fract(mirageTime * speed + phase)` with a tiny product, keeping every
+ * argument small so `sin`/`fract` stay exact on all GPUs — and the large-time invariants are asserted
+ * so any drift back to unbounded time arguments is caught.
  *
  * A raster CPU skiko does not reproduce a specific GPU's `sin()` decay, so a pass here is not a proof
- * that a broken kernel is broken. Instead this asserts the *fixed* kernel's invariants hold at both a
- * small and a large `mirageTime`: the output is non-black, has real spatial variation (not a collapsed
- * uniform field), contains no NaN, and the two times differ (the drops actually animate). A kernel that
- * regressed to unbounded `sin` inputs would fail these on any backend whose `sin()` decays; on a
- * backend whose `sin()` stays exact it would still animate, so the value of this test is the invariant
- * documentation plus the compile/animation guard on the exact source the app ships.
+ * that a broken kernel is broken. Instead this asserts the kernel's invariants hold at both a small
+ * and a large `mirageTime`: the output is non-black, has real spatial variation (not a collapsed
+ * uniform field), contains no NaN, and the two times differ (the drops actually animate). A kernel
+ * with unbounded `sin` inputs would fail these on any backend whose `sin()` decays; on a backend whose
+ * `sin()` stays exact it would still animate, so the value of this test is the invariant documentation
+ * plus the compile/animation guard on the exact source the app ships.
  */
 internal class RainyWindowRasterTest :
   FunSpec({
@@ -73,9 +72,9 @@ internal class RainyWindowRasterTest :
       meanLuma(early).shouldBeGreaterThan(20.0)
       meanLuma(late).shouldBeGreaterThan(20.0)
 
-      // Real spatial variation at both times: a collapsed/degenerate hash (the regression) would flood
-      // the frame with one refracted value or transparent black, killing the stddev. The content is a
-      // diagonal gradient, so even the pure-blur baseline has a healthy spread; assert we keep it.
+      // Real spatial variation at both times: a collapsed/degenerate hash would flood the frame with
+      // one refracted value or transparent black, killing the stddev. The content is a diagonal
+      // gradient, so even the pure-blur baseline has a healthy spread; assert we keep it.
       lumaStdDev(early).shouldBeGreaterThan(15.0)
       lumaStdDev(late).shouldBeGreaterThan(15.0)
 
@@ -84,9 +83,9 @@ internal class RainyWindowRasterTest :
       minAlpha(early) shouldNotBe 0
       minAlpha(late) shouldNotBe 0
 
-      // The drops drift with mirageTime, so the two frames must differ. If the large-time hash had
-      // collapsed to a constant field, `late` would look frozen/degenerate and this delta would vanish
-      // or spike into pure noise; a healthy animated field gives a modest, bounded delta.
+      // The drops drift with mirageTime, so the two frames must differ. A field that collapsed at large
+      // time would look frozen/degenerate and this delta would vanish or spike into pure noise; a
+      // healthy animated field gives a modest, bounded delta.
       val delta = meanAbsDiff(early, late)
       delta.shouldBeGreaterThan(0.2)
       delta.shouldBeLessThan(80.0)

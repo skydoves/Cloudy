@@ -23,12 +23,11 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 
 /**
- * Regression gate for the [MirageOptics] preset defaults.
+ * Pins the [MirageOptics] preset defaults.
  *
  * Each preset's look lives entirely in its params' declared defaults, so these are the values a visual
  * regression would move. This test mints a fresh params instance from each optic's `paramsFactory` and
- * asserts the handle defaults against the historical recipe-era numbers in lockstep — the same role
- * the deleted `MirageRecipeTest` bindUniforms assertions played, now over the typed schema.
+ * asserts the handle defaults in lockstep over the typed schema.
  *
  * The `spec*` defaults are cross-checked against the shared `LiquidGlassDefaults.GLOW_*` constants so
  * the test moves with them if those defaults ever change (the built-in `liquidGlass` glint contract).
@@ -71,7 +70,7 @@ internal class MiragePresetTest :
     }
 
     context("thin-film looks carry their #124 parameters in lockstep") {
-      // (intensity, gain, kRGB, floor, washout, modulate, rimBoost) — the exact recipe-era numbers.
+      // (intensity, gain, kRGB, floor, washout, modulate, rimBoost).
       fun assertChromatic(
         params: ChromaticParams,
         intensity: Float,

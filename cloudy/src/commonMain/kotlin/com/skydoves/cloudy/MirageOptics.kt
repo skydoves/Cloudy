@@ -41,19 +41,17 @@ import com.skydoves.cloudy.internal.SPECULAR_KERNEL_SKSL
  * Shared lens geometry ([MirageLensParams.lensCenter] / [lensSize][MirageLensParams.lensSize] /
  * [cornerRadius][MirageLensParams.cornerRadius]) and the specular light ([MirageLensParams.iLight])
  * default to the built-in liquid-glass framing, so a preset applied with no `params` block reproduces
- * the historical look. Override them per draw from a `filter { … }` / `overlay { … }` block (e.g.
+ * that built-in look. Override them per draw from a `filter { … }` / `overlay { … }` block (e.g.
  * feed `iLight` a `rememberGyroLightSource` direction for motion lighting).
  */
 @ExperimentalMirage
 public object MirageOptics {
 
-  // --- carried presets (recipe-era → Optic) ----------------------------------------------------
-
   /**
    * The liquid-glass specular glint (moving focal hotspot + Blinn rim). A [CompositeOptic] because it
    * shares intermediates (SDF, bevel normal) across the refraction and specular terms. Its defaults
-   * are the historical `GlowTuning` values, so applying it over the default lens framing reproduces
-   * the built-in `liquidGlass` glint bit-for-bit.
+   * are the `GlowTuning` values, so applying it over the default lens framing reproduces the built-in
+   * `liquidGlass` glint bit-for-bit.
    */
   public val Specular: CompositeOptic<SpecularParams> = Optic.composite(
     name = "specular",
@@ -118,13 +116,11 @@ public object MirageOptics {
     sksl = FOIL_KERNEL_SKSL,
   )
 
-  // --- v2 demo preset (new M1 Colorize) --------------------------------------------------------
-
   /**
    * A point-wise duotone grade: maps luminance onto a [shadow][DuotoneParams.shadow] →
    * [highlight][DuotoneParams.highlight] gradient and cross-fades by [amount][DuotoneParams.amount].
-   * A [ColorizeOptic], so it fuses cheaply and needs no lens framing. New in v2 — the defaults are a
-   * warm split-tone (deep indigo shadows, cream highlights), not a carried regression look.
+   * A [ColorizeOptic], so it fuses cheaply and needs no lens framing. The defaults are a warm
+   * split-tone (deep indigo shadows, cream highlights).
    */
   public val Duotone: ColorizeOptic<DuotoneParams> = Optic.colorize(
     name = "duotone",
@@ -195,9 +191,9 @@ public abstract class MirageLensParams : MirageParams() {
 }
 
 /**
- * Params for [MirageOptics.Specular]. The 11 `spec*` defaults are the historical `GlowTuning` values
- * (= the built-in `liquidGlass` glint), so the schema is the regression gate: changing a default here
- * changes the visual look.
+ * Params for [MirageOptics.Specular]. The 11 `spec*` defaults are the `GlowTuning` values (= the
+ * built-in `liquidGlass` glint), so the schema defines the look: changing a default here changes the
+ * visual result.
  */
 @ExperimentalMirage
 public class SpecularParams : MirageLensParams() {
@@ -216,8 +212,8 @@ public class SpecularParams : MirageLensParams() {
 
 /**
  * Params for the thin-film [chromatic][MirageOptics.chromatic] presets. Built with per-look defaults
- * so one kernel expresses every named look; the constructor arguments are the regression gate for
- * each [MirageOptics] look (e.g. [MirageOptics.OilSlick]'s `gain == 5.5`).
+ * so one kernel expresses every named look; the constructor arguments define each [MirageOptics] look
+ * (e.g. [MirageOptics.OilSlick]'s `gain == 5.5`).
  *
  * `chromaticKRGB` is declared `float4` because the shader reads `.xyz` and the backends require a
  * write arity that matches the declared size; the `.w` component is unused.

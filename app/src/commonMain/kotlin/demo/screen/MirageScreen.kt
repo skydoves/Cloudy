@@ -81,8 +81,8 @@ import demo.theme.Dimens
 /**
  * The look applied by the demo's chips. Each pick keeps a fully typed optic reference so the per-draw
  * params block can set that optic's own subclass uniform (e.g. `specStrength`, `chromaticIntensity`,
- * `rainAmount`) with no unchecked cast — the demo's erased `FilterOptic<out MirageLensParams>` could
- * not. A pick declares its stage into the [MirageScope] via [declare], driving the shared strength
+ * `rainAmount`) with no unchecked cast, which an erased `FilterOptic<out MirageLensParams>` would
+ * require. A pick declares its stage into the [MirageScope] via [declare], driving the shared strength
  * slider ([strength] `0..1`) into whichever param reads as "how strong" for that look.
  */
 private sealed interface MiragePick {
@@ -156,7 +156,7 @@ private val BASE_PICKS: List<MiragePick> = listOf(
  *   proving any app can author an optic through the public API with no core change.
  * - **Strength slider:** one `0..1` slider feeds each look's "how strong" uniform (`specStrength` /
  *   `chromaticIntensity` / `rainAmount`) from the per-draw params block, so sliding re-renders live
- *   (the block identity is part of the node's element equality now, so it updates cheaply).
+ *   (the block identity is part of the node's element equality, so it updates cheaply).
  * - **Full-bleed lens:** a toggle grows the lens to the whole pane, so the bevel/rim terms hug the
  *   pane edges. The rainy-window look is full-bleed regardless (it is content-shaped, not lens-shaped).
  * - **Overlay over filter:** the chaining toggle adds an `overlay(MirageOptics.Foil)` on top of an

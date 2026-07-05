@@ -123,8 +123,8 @@ half4 main(float2 xy) {
         float2 lightVec = normalize(iLight);
 
         // --- superellipse in-plane direction (specular only; the refraction 'normal' is unchanged) ---
-        // The refraction path (above) keeps using the hard-pick 'normal' (no regression, G1). Only here
-        // do we build a separate continuous direction. The box SDF depth field ridges on the diagonals,
+        // The refraction path (above) keeps using the hard-pick 'normal'. Only here do we build a
+        // separate continuous direction. The box SDF depth field ridges on the diagonals,
         // so its bevel rings stack into a corner-to-corner X at high strength/full-bleed; a superellipse
         // (power-4) normalized distance has smooth rounded-rect iso-contours with no diagonal ridge, and
         // its gradient is the bevel direction. Power 4 on |q|<=~1.4 is fp-safe; the 1e-4 bias keeps
@@ -151,8 +151,8 @@ half4 main(float2 xy) {
 
         // --- MOVING FOCAL HOTSPOT — "light pours across the face on both axes" ---
         // Shift the hotspot along lightVec by minHalf*specFocalK: pitch(lightVec.y)=vertical,
-        // roll(lightVec.x)=horizontal move -> a moving bright pool (both axes). Unlike the old body
-        // sheen that collapsed to N~+Z, it follows the light strongly across the face; the inside mask fades it outside/at the rim.
+        // roll(lightVec.x)=horizontal move -> a moving bright pool (both axes). It follows the light
+        // strongly across the face; the inside mask fades it outside/at the rim.
         float2 focal     = lightVec * (minHalf * specFocalK);     // offset from lensCenter (=origin)
         float  poolR     = max(minHalf * specPoolFrac, 1.0);      // 0 guard (avoid zero-width smoothstep)
         float  poolD     = length(p - focal);
@@ -259,8 +259,8 @@ half4 main(float2 xy) {
         float2 lightVec = normalize(iLight);
 
         // --- superellipse in-plane direction (specular only; the refraction 'normal' is unchanged) ---
-        // The refraction path (above) keeps using the hard-pick 'normal' (no regression, G1). Only here
-        // do we build a separate continuous direction. The box SDF depth field ridges on the diagonals,
+        // The refraction path (above) keeps using the hard-pick 'normal'. Only here do we build a
+        // separate continuous direction. The box SDF depth field ridges on the diagonals,
         // so its bevel rings stack into a corner-to-corner X at high strength/full-bleed; a superellipse
         // (power-4) normalized distance has smooth rounded-rect iso-contours with no diagonal ridge, and
         // its gradient is the bevel direction. Power 4 on |q|<=~1.4 is fp-safe; the 1e-4 bias keeps
@@ -287,8 +287,8 @@ half4 main(float2 xy) {
 
         // --- MOVING FOCAL HOTSPOT — "light pours across the face on both axes" ---
         // Shift the hotspot along lightVec by minHalf*specFocalK: pitch(lightVec.y)=vertical,
-        // roll(lightVec.x)=horizontal move -> a moving bright pool (both axes). Unlike the old body
-        // sheen that collapsed to N~+Z, it follows the light strongly across the face; the inside mask fades it outside/at the rim.
+        // roll(lightVec.x)=horizontal move -> a moving bright pool (both axes). It follows the light
+        // strongly across the face; the inside mask fades it outside/at the rim.
         float2 focal     = lightVec * (minHalf * specFocalK);     // offset from lensCenter (=origin)
         float  poolR     = max(minHalf * specPoolFrac, 1.0);      // 0 guard (avoid zero-width smoothstep)
         float  poolD     = length(p - focal);
@@ -409,8 +409,8 @@ half4 main(float2 xy) {
     float  chroma  = chromaticIntensity * mix(1.0, poolNorm, clamp(chromaticModulate, 0.0, 1.0));
 
     // --- alpha-branched blend (transparent -> multiply rainbow, opaque -> screen glow) ---
-    // Blend done in half space (proven #124 idiom): cOnWhite multiply on a white card = pure rainbow
-    // (screen would erase it), cOnSrc screen glow over an opaque photo (multiply would darken it).
+    // Blend done in half space: cOnWhite multiply on a white card = pure rainbow (screen would erase
+    // it), cOnSrc screen glow over an opaque photo (multiply would darken it).
     half  cChroma    = half(clamp(chroma, 0.0, 1.0));
     half3 cChromaRGB = half3(chromaRGB) * cChroma;
     half3 cOnWhite   = half3(chromaRGB);
@@ -494,8 +494,8 @@ half4 main(float2 xy) {
     float  chroma  = chromaticIntensity * mix(1.0, poolNorm, clamp(chromaticModulate, 0.0, 1.0));
 
     // --- alpha-branched blend (transparent -> multiply rainbow, opaque -> screen glow) ---
-    // Blend done in half space (proven #124 idiom): cOnWhite multiply on a white card = pure rainbow
-    // (screen would erase it), cOnSrc screen glow over an opaque photo (multiply would darken it).
+    // Blend done in half space: cOnWhite multiply on a white card = pure rainbow (screen would erase
+    // it), cOnSrc screen glow over an opaque photo (multiply would darken it).
     half  cChroma    = half(clamp(chroma, 0.0, 1.0));
     half3 cChromaRGB = half3(chromaRGB) * cChroma;
     half3 cOnWhite   = half3(chromaRGB);
@@ -512,8 +512,8 @@ half4 main(float2 xy) {
 /**
  * AGSL Generate `main` body for the foil overlay optic. Content-free overlay: it never samples
  * content. The 5 foil/sparkle + lens + `iLight` uniforms come from the paired `FoilParams` schema (not
- * declared inline). The old `iTime` reference is renamed to the standard `mirageTime` uniform so the
- * codegen clock drives the animated shimmer.
+ * declared inline). It reads the standard `mirageTime` uniform so the codegen clock drives the
+ * animated shimmer.
  */
 internal const val FOIL_KERNEL_AGSL: String = """
 // hash for the sparkle field — bounded input (lens-local, fract) so sin() never blows up at scale.

@@ -25,11 +25,10 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 
 /**
- * Bug B regression: [MirageElement] equality must include the per-stage params-block identity, so a
- * recomposition that re-creates the block (e.g. to feed a freshly measured lens center or an animated
- * uniform) produces an *unequal* element and Compose calls `update()` to adopt it. Excluding the
- * blocks (the previous behavior) froze the node on whatever block it first captured — in the demo the
- * lens stayed pinned to the corner (`Offset.Zero`) after `onSizeChanged` seeded the real center.
+ * [MirageElement] equality must include the per-stage params-block identity, so a recomposition that
+ * re-creates the block (e.g. to feed a freshly measured lens center or an animated uniform) produces
+ * an *unequal* element and Compose calls `update()` to adopt it. If equality excluded the blocks, the
+ * node would freeze on whatever block it first captured and never see a later-seeded lens center.
  *
  * This tests the equality contract directly (pure logic, no GraphicsContext); the "cheap update()
  * path when only blocks changed" lives in [MirageNode.update] and is covered by the desktop raster /
@@ -72,7 +71,7 @@ internal class MirageElementEqualityTest :
     test("OilSlick and Pearl share one block instance and reconcile equal at the element level") {
       // OilSlick and Pearl are .equals-equal optics (same kernel), so with a shared block instance the
       // elements ARE equal here. The look difference between them lives in the schema defaults reached
-      // at draw time (Bug A), not in element identity. Assert the documented behavior explicitly.
+      // at draw time, not in element identity.
       val block: MirageParams.() -> Unit = { }
       val oil =
         MirageElement(MirageClock.Auto, true, plan = { filter(MirageOptics.OilSlick, block) })
