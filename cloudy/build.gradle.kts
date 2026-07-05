@@ -19,7 +19,7 @@ import com.skydoves.cloudy.activeArch
 
 plugins {
   id(libs.plugins.kotlin.multiplatform.get().pluginId)
-  id(libs.plugins.android.library.get().pluginId)
+  id(libs.plugins.android.kotlin.multiplatform.library.get().pluginId)
   id(libs.plugins.compose.multiplatform.get().pluginId)
   id(libs.plugins.compose.compiler.get().pluginId)
   id(libs.plugins.nexus.plugin.get().pluginId)
@@ -52,7 +52,20 @@ kotlin {
     )
   }
 
-  androidTarget()
+  // Built-in ABI validation; covers desktop + klib. Android target not covered yet (KT-78025).
+  @OptIn(org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation::class)
+  abiValidation {
+    // Keep opt-in experimental API out of the committed dump so it stays free to change.
+    filters {
+      exclude {
+        annotatedWith.add("com.skydoves.cloudy.ExperimentalMirage")
+        annotatedWith.add("com.skydoves.cloudy.ExperimentalLiquidGlassMotion")
+      }
+    }
+  }
+
+  // The com.android.kotlin.multiplatform.library plugin registers the "android" target itself;
+  // adding androidTarget() is a hard error.
 
   // JVM Desktop target
   jvm("desktop") {
@@ -86,16 +99,14 @@ kotlin {
       iosSimulatorArm64()
     }
 
-    Arch.X86_64 -> iosX64()
+    Arch.X86_64 -> iosSimulatorArm64()
     Arch.ALL -> {
       iosArm64()
-      iosX64()
       iosSimulatorArm64()
     }
   }
 
-  // macOS native targets
-  macosX64()
+  // macOS native target
   macosArm64()
 
   // Configure skikoMain intermediate source set
@@ -111,38 +122,15 @@ kotlin {
     }
   }
 
-  android {
-    compileSdk = Configuration.compileSdk
+  androidLibrary {
     namespace = "com.skydoves.cloudy"
-    defaultConfig {
-      minSdk = Configuration.minSdk
-      // Runner for instrumented (androidInstrumentedTest) screenshot specs. The instrumented source
-      // set itself is mapped by the KMP convention to src/androidInstrumentedTest/kotlin; these
-      // specs are @Ignore'd Phase-2 placeholders that need a real GPU/emulator, so this runner is
-      // only exercised on the Phase-2 emulator job, not the host CI.
-      testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-      externalNativeBuild {
-        cmake {
-          cppFlags += "-std=c++17"
-          arguments += listOf("-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON")
-        }
-      }
-    }
-    externalNativeBuild {
-      cmake {
-        path = file("src/main/cpp/CMakeLists.txt")
-      }
-    }
+    compileSdk = Configuration.compileSdk
+    minSdk = Configuration.minSdk
 
-    buildFeatures {
-      compose = true
-    }
-
-    testOptions {
-      unitTests {
-        isIncludeAndroidResources = true
-        all { it.systemProperty("robolectric.pixelCopyRenderMode", "hardware") }
-      }
+    // Floor consumers at the highest API this library calls (33, RenderEffect.createRuntimeShaderEffect),
+    // so our compileSdk 37 doesn't force them up.
+    aarMetadata {
+      minCompileSdk = 33
     }
 
     packaging {
@@ -151,17 +139,18 @@ kotlin {
       }
     }
 
-    sourceSets {
-      getByName("main") {
-        assets.srcDirs("src/androidMain/assets")
-        java.srcDirs("src/androidMain/kotlin")
-        res.srcDirs("src/androidMain/res")
+    withHostTest {
+      isIncludeAndroidResources = true
+
+      // The KMP-library plugin defaults host-test targetSdk to compileSdk (37); Robolectric 4.16.1
+      // rejects targetSdk > 36. Pin it to 36 (affects only the test manifest, not the published aar).
+      targetSdk {
+        version = release(36)
       }
-      getByName("test") {
-        assets.srcDirs("src/androidUnitTest/assets")
-        java.srcDirs("src/androidUnitTest/kotlin")
-        res.srcDirs("src/androidUnitTest/res")
-      }
+    }
+
+    withDeviceTest {
+      instrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
   }
 
@@ -175,6 +164,9 @@ kotlin {
     }
 
     androidMain.dependencies {
+      // Native .so backend; must be a project() dep (an external-coordinate string dep is dropped
+      // from published metadata).
+      implementation(project(":cloudy-native"))
       implementation(libs.androidx.core.ktx)
       implementation(libs.androidx.compose.ui)
       implementation(libs.androidx.compose.runtime)
@@ -207,7 +199,8 @@ kotlin {
       }
     }
 
-    androidUnitTest.dependencies {
+    // Kotlin 2.4.0 has no typed accessor for these KMP-library source sets yet; reach them by name.
+    getByName("androidHostTest").dependencies {
       implementation(libs.kotlin.test)
       implementation(libs.kotlinx.coroutines.test)
       implementation(libs.androidx.compose.ui.test)
@@ -225,7 +218,7 @@ kotlin {
     // (backdrop + liquid glass) that need a real GPU/RenderThread; this set exists so they compile
     // and are ready to run on the Phase-2 emulator job. Pixel assertions there use
     // android.graphics.Bitmap (NOT java.awt/javax.imageio, which are absent on Dalvik).
-    androidInstrumentedTest.dependencies {
+    getByName("androidDeviceTest").dependencies {
       implementation(libs.androidx.compose.ui)
       implementation(libs.androidx.compose.foundation)
       implementation(libs.androidx.compose.runtime)
@@ -243,6 +236,19 @@ kotlin {
   }
 }
 
+// The KMP-library host-test DSL has no systemProperty hook, so set it here; omitting this silently
+// renders GPU-blur Roborazzi goldens wrong while the build stays green.
+tasks.withType<Test>().configureEach {
+  systemProperty("robolectric.pixelCopyRenderMode", "hardware")
+}
+
 tasks.named<Test>("desktopTest") {
   useJUnitPlatform()
+}
+
+// Kotest's runner is JVM-only, so the shared commonTest sources compile for the Kotlin/Native
+// targets but no runner discovers them there. Gradle 9 fails a test task that finds zero tests
+// (failOnNoDiscoveredTests defaults to true); allow the empty native test tasks to pass instead.
+tasks.withType<org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeTest>().configureEach {
+  failOnNoDiscoveredTests = false
 }

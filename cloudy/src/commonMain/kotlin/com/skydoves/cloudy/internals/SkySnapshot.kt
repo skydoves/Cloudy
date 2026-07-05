@@ -88,18 +88,21 @@ internal data class SkySnapshot(
           fadeEnd = 1f,
           easing = FastOutSlowInEasing,
         )
+
         is CloudyProgressive.TopToBottom -> ProgressiveParams(
           direction = ProgressiveDirection.TOP_TO_BOTTOM,
           fadeStart = progressive.start,
           fadeEnd = progressive.end,
           easing = progressive.easing,
         )
+
         is CloudyProgressive.BottomToTop -> ProgressiveParams(
           direction = ProgressiveDirection.BOTTOM_TO_TOP,
           fadeStart = progressive.start,
           fadeEnd = progressive.end,
           easing = progressive.easing,
         )
+
         is CloudyProgressive.Edges -> ProgressiveParams(
           direction = ProgressiveDirection.EDGES,
           fadeStart = progressive.fadeDistance,

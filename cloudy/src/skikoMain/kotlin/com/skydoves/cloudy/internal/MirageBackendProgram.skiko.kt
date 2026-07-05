@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.RenderEffect
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.asComposeRenderEffect
+import androidx.compose.ui.graphics.asComposeShader
 import androidx.compose.ui.graphics.asSkiaBitmap
 import androidx.compose.ui.graphics.colorspace.ColorSpaces
 import org.jetbrains.skia.FilterTileMode
@@ -68,7 +69,7 @@ internal actual fun MirageBackendProgram.asContentRenderEffect(): RenderEffect =
  * current uniforms each call - the node calls it after writing the per-draw values.
  */
 internal actual fun MirageBackendProgram.asShaderBrush(): ShaderBrush =
-  ShaderBrush(builder.makeShader())
+  ShaderBrush(builder.makeShader().asComposeShader())
 
 private class SkikoUniformSink(private val builder: RuntimeShaderBuilder) : UniformSink {
 

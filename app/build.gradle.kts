@@ -17,8 +17,8 @@ import com.skydoves.cloudy.Configuration
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 
 plugins {
-  id(libs.plugins.android.application.get().pluginId)
   id(libs.plugins.kotlin.multiplatform.get().pluginId)
+  id(libs.plugins.android.kotlin.multiplatform.library.get().pluginId)
   id(libs.plugins.compose.multiplatform.get().pluginId)
   id(libs.plugins.compose.compiler.get().pluginId)
   alias(libs.plugins.kotlinx.serialization)
@@ -40,7 +40,8 @@ kotlin {
       }
     }
 
-  androidTarget()
+  // The com.android.kotlin.multiplatform.library plugin registers the "android" target itself;
+  // adding androidTarget() is a hard error.
 
   // JVM Desktop target
   jvm("desktop") {
@@ -62,7 +63,6 @@ kotlin {
 
   // iOS targets
   listOf(
-    iosX64(),
     iosArm64(),
     iosSimulatorArm64()
   ).forEach { iosTarget ->
@@ -72,12 +72,7 @@ kotlin {
     }
   }
 
-  // macOS targets
-  macosX64 {
-    binaries.executable {
-      entryPoint = "main"
-    }
-  }
+  // macOS target
   macosArm64 {
     binaries.executable {
       entryPoint = "main"
@@ -95,6 +90,16 @@ kotlin {
         withWasmJs()
       }
     }
+  }
+
+  androidLibrary {
+    // Must differ from :app-android's com.skydoves.cloudydemo; two modules cannot share a namespace.
+    namespace = "com.skydoves.cloudydemo.shared"
+    compileSdk = Configuration.compileSdk
+    minSdk = Configuration.minSdk
+    // The android @Preview functions render Res.drawable.poster; the KMP-library plugin leaves
+    // Compose-resource generation for the Android target off by default.
+    androidResources.enable = true
   }
 
   sourceSets {
@@ -119,8 +124,8 @@ kotlin {
     }
 
     androidMain.dependencies {
-      implementation(compose.preview)
       implementation(libs.androidx.activity.compose)
+      implementation(libs.androidx.compose.ui.tooling.preview)
     }
 
     commonMain.dependencies {
@@ -143,42 +148,4 @@ kotlin {
       implementation(libs.kotlinx.serialization.json)
     }
   }
-}
-
-android {
-  compileSdk = Configuration.compileSdk
-  namespace = "com.skydoves.cloudydemo"
-  defaultConfig {
-    applicationId = "com.skydoves.cloudydemo"
-    minSdk = Configuration.minSdk
-    targetSdk = Configuration.targetSdk
-    versionCode = Configuration.versionCode
-    versionName = Configuration.versionName
-  }
-
-  buildFeatures {
-    compose = true
-  }
-
-  packaging {
-    jniLibs.pickFirsts.add("lib/*/librenderscript-toolkit.so")
-  }
-
-  buildTypes {
-    create("benchmark") {
-      signingConfig = signingConfigs.getByName("debug")
-      matchingFallbacks += listOf("release")
-      isDebuggable = false
-    }
-  }
-
-  lint {
-    abortOnError = false
-  }
-}
-
-dependencies {
-  implementation(libs.material)
-  implementation(libs.androidx.compose.ui.tooling)
-  implementation(libs.androidx.compose.constraintlayout)
 }

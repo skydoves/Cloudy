@@ -22,11 +22,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.skydoves.cloudydemo.R
+import cloudydemo.app.generated.resources.Res
+import cloudydemo.app.generated.resources.poster
 import demo.theme.PosterTheme
+import org.jetbrains.compose.resources.painterResource
 
 @Preview(
   name = "GridPosterItem - API 31+ (RenderEffect)",
@@ -42,7 +43,7 @@ private fun GridPosterItemApi31Preview() {
         blurRadius = 10,
       ) { modifier ->
         Image(
-          painter = painterResource(R.drawable.ic_launcher_foreground),
+          painter = painterResource(Res.drawable.poster),
           contentDescription = null,
           modifier = modifier,
           contentScale = ContentScale.Crop,
@@ -68,7 +69,7 @@ private fun MenuCardApi31Preview() {
         blurRadius = 10,
       ) { modifier ->
         Image(
-          painter = painterResource(R.drawable.ic_launcher_foreground),
+          painter = painterResource(Res.drawable.poster),
           contentDescription = null,
           modifier = modifier,
           contentScale = ContentScale.Crop,
@@ -92,7 +93,7 @@ private fun GridPosterItemApi30Preview() {
         blurRadius = 10,
       ) { modifier ->
         Image(
-          painter = painterResource(R.drawable.ic_launcher_foreground),
+          painter = painterResource(Res.drawable.poster),
           contentDescription = null,
           modifier = modifier,
           contentScale = ContentScale.Crop,
@@ -118,7 +119,7 @@ private fun MenuCardApi30Preview() {
         blurRadius = 10,
       ) { modifier ->
         Image(
-          painter = painterResource(R.drawable.ic_launcher_foreground),
+          painter = painterResource(Res.drawable.poster),
           contentDescription = null,
           modifier = modifier,
           contentScale = ContentScale.Crop,
@@ -142,7 +143,7 @@ private fun GridPosterItemNoBlurPreview() {
         blurRadius = 0,
       ) { modifier ->
         Image(
-          painter = painterResource(R.drawable.ic_launcher_foreground),
+          painter = painterResource(Res.drawable.poster),
           contentDescription = null,
           modifier = modifier,
           contentScale = ContentScale.Crop,
@@ -168,7 +169,7 @@ private fun MenuCardHighBlurPreview() {
         blurRadius = 25,
       ) { modifier ->
         Image(
-          painter = painterResource(R.drawable.ic_launcher_foreground),
+          painter = painterResource(Res.drawable.poster),
           contentDescription = null,
           modifier = modifier,
           contentScale = ContentScale.Crop,
@@ -194,7 +195,7 @@ private fun MenuCardDarkApi31Preview() {
         onClick = {},
       ) { modifier ->
         Image(
-          painter = painterResource(R.drawable.ic_launcher_foreground),
+          painter = painterResource(Res.drawable.poster),
           contentDescription = null,
           modifier = modifier,
           contentScale = ContentScale.Crop,
@@ -220,7 +221,7 @@ private fun MenuCardDarkApi30Preview() {
         onClick = {},
       ) { modifier ->
         Image(
-          painter = painterResource(R.drawable.ic_launcher_foreground),
+          painter = painterResource(Res.drawable.poster),
           contentDescription = null,
           modifier = modifier,
           contentScale = ContentScale.Crop,

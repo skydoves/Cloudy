@@ -33,7 +33,7 @@ jobs:
           distribution: 'zulu'
           java-version: 21
       - name: API check
-        run: ./gradlew apiCheck
+        run: ./gradlew checkKotlinAbi
 
   build:
     runs-on: ubuntu-latest

@@ -3,7 +3,6 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
   alias(libs.plugins.android.application) apply false
   alias(libs.plugins.android.library) apply false
-  alias(libs.plugins.kotlin.android) apply false
   alias(libs.plugins.compose.compiler) apply false
   alias(libs.plugins.kotlin.multiplatform) apply false
   alias(libs.plugins.compose.multiplatform) apply false
@@ -11,17 +10,6 @@ plugins {
   alias(libs.plugins.nexus.plugin)
   alias(libs.plugins.spotless)
   alias(libs.plugins.dokka)
-  alias(libs.plugins.kotlinBinaryCompatibilityValidator)
-}
-
-apiValidation {
-  ignoredProjects.addAll(listOf("app"))
-  // Members behind these opt-in markers are excluded from the committed .api dumps: the open
-  // shader-recipe API is experimental, and the motion marker's members (liquidGlassTuned,
-  // rememberGyroLightSource, rememberTransformLightSource) were leaking into the android/desktop
-  // dumps despite being opt-in.
-  nonPublicMarkers.add("com.skydoves.cloudy.ExperimentalMirage")
-  nonPublicMarkers.add("com.skydoves.cloudy.ExperimentalLiquidGlassMotion")
 }
 
 subprojects {
@@ -40,7 +28,8 @@ subprojects {
           project.layout.buildDirectory.asFile.get().absolutePath + "/compose_metrics"
       )
     )
-    compilerOptions.jvmTarget.set(JvmTarget.JVM_1_8)
+    // Keep at 11: JVM_1_8 breaks inlining kotest's JVM-11 bytecode into the Android unit test.
+    compilerOptions.jvmTarget.set(JvmTarget.JVM_11)
   }
 
   apply(plugin = rootProject.libs.plugins.spotless.get().pluginId)

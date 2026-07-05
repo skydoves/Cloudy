@@ -663,6 +663,7 @@ private fun BackgroundBlurDemo() {
           // Glass card with real blur
           val progressive = when (progressiveType) {
             ProgressiveTypeOption.None -> CloudyProgressive.None
+
             ProgressiveTypeOption.TopToBottom -> CloudyProgressive.TopToBottom(
               start = progressiveStart,
               end = progressiveEnd,

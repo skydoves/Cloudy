@@ -87,6 +87,7 @@ private fun highlightKotlinSyntax(code: String): AnnotatedString {
           }
           i = end
         }
+
         // Comments
         code.substring(i).startsWith("//") -> {
           val end = code.indexOf('\n', i).let { if (it == -1) code.length else it }
@@ -95,6 +96,7 @@ private fun highlightKotlinSyntax(code: String): AnnotatedString {
           }
           i = end
         }
+
         // Numbers
         code[i].isDigit() -> {
           val end = findNumberEnd(code, i)
@@ -103,6 +105,7 @@ private fun highlightKotlinSyntax(code: String): AnnotatedString {
           }
           i = end
         }
+
         // Annotations
         code[i] == '@' -> {
           val end = findWordEnd(code, i + 1) // Skip '@' and find word end
@@ -112,6 +115,7 @@ private fun highlightKotlinSyntax(code: String): AnnotatedString {
           }
           i = end
         }
+
         // Words (keywords or identifiers)
         code[i].isLetter() || code[i] == '_' -> {
           val end = findWordEnd(code, i)
@@ -127,6 +131,7 @@ private fun highlightKotlinSyntax(code: String): AnnotatedString {
           }
           i = end
         }
+
         // Other characters
         else -> {
           withStyle(SpanStyle(color = colors.codeForeground)) {

@@ -446,7 +446,9 @@ internal fun validateRestriction(
  */
 internal fun vectorSize(bitmap: Bitmap): Int = when (bitmap.config) {
   Bitmap.Config.ARGB_8888 -> 4
+
   Bitmap.Config.ALPHA_8 -> 1
+
   else -> throw IllegalArgumentException(
     "$EXTERNAL_NAME. Only ARGB_8888 and ALPHA_8 Bitmap are supported.",
   )

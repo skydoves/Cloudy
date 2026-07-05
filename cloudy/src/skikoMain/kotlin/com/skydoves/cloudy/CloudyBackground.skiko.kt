@@ -425,12 +425,14 @@ private class CloudyBackgroundModifierNode(
   private fun ContentDrawScope.clipToShape(block: DrawScope.() -> Unit) {
     when (val outline = shape.createOutline(size, layoutDirection, this)) {
       is Outline.Rectangle -> clipRect { block() }
+
       is Outline.Rounded -> {
         val path = (clipPathCache ?: Path().also { clipPathCache = it })
         path.rewind()
         path.addRoundRect(outline.roundRect)
         clipPath(path) { block() }
       }
+
       is Outline.Generic -> clipPath(outline.path) { block() }
     }
   }

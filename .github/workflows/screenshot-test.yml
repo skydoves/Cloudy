@@ -9,7 +9,7 @@
 # See: https://docs.github.com/actions -> workflow_run "label or comment on pull requests from forks".
 #
 # Why no StoreScreenshot baseline workflow (the upstream sample has one): Cloudy commits its
-# goldens in-repo under cloudy/src/androidUnitTest/assets/screenshots/, so verifyRoborazziDebug
+# goldens in-repo under cloudy/src/androidHostTest/assets/screenshots/, so verifyRoborazziAndroidHostTest
 # compares the fresh capture against the committed PNG directly. There is no per-branch baseline
 # to stash as an artifact, so the third workflow from
 # takahirom/roborazzi-compare-on-github-comment-sample is intentionally omitted.
@@ -51,14 +51,14 @@ jobs:
       - name: Make Gradle executable
         run: chmod +x ./gradlew
 
-      # Verifies recorded goldens under cloudy/src/androidUnitTest/assets/screenshots/.
+      # Verifies recorded goldens under cloudy/src/androidHostTest/assets/screenshots/.
       # Pure JVM (Robolectric native graphics) -- no emulator. Regenerate goldens locally with
-      # ./gradlew :cloudy:recordRoborazziDebug when an intentional UI change lands.
+      # ./gradlew :cloudy:recordRoborazziAndroidHostTest when an intentional UI change lands.
       # On a mismatch this FAILS the build (red check) and Roborazzi writes
       # <name>_compare.png (side-by-side before/after/diff) + <name>_actual.png to
       # cloudy/build/outputs/roborazzi/ -- verified by a corrupt-golden probe.
       - name: Verify screenshots
-        run: ./gradlew :cloudy:verifyRoborazziDebug
+        run: ./gradlew :cloudy:verifyRoborazziAndroidHostTest
 
       # The *_compare.png diff images only exist when verify FAILED (a mismatch). On a clean pass
       # this dir is empty, so if-no-files-found: ignore keeps the step green and silent. The
@@ -83,7 +83,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
-      # results-summary.json is written by verifyRoborazziDebug on EVERY run (pass or fail) and
+      # results-summary.json is written by verifyRoborazziAndroidHostTest on EVERY run (pass or fail) and
       # carries the per-run counts (total/unchanged/changed/added). The comment workflow reads it to
       # post an always-on summary comment, not just a gallery on regression.
       - name: Upload screenshot summary
