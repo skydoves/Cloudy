@@ -32,10 +32,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Android
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.BlurOn
 import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.Gradient
+import androidx.compose.material.icons.filled.Lens
 import androidx.compose.material.icons.filled.PhoneIphone
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Rocket
@@ -106,7 +106,8 @@ private fun HeroSection(onNavigate: (DocsRoute) -> Unit) {
     Spacer(modifier = Modifier.height(8.dp))
 
     Text(
-      text = "Cross-platform blur effects for Compose Multiplatform",
+      text = "Cross-platform surface effects for Compose Multiplatform — blur, liquid " +
+        "glass, and shader-driven looks",
       style = DocsTheme.typography.body,
       color = DocsTheme.colors.onSurfaceVariant,
       textAlign = TextAlign.Center,
@@ -172,21 +173,23 @@ private fun FeaturesSection() {
 
       FeatureCard(
         icon = Icons.Default.BlurOn,
-        title = "Smooth & Seamless",
-        description = "Silky smooth blur animations with minimal overhead, " +
-          "seamlessly integrating into your Compose UI",
+        title = "Blur",
+        description = "Blur a composable's own content, or the content behind it " +
+          "for frosted-glass surfaces — with progressive fade and gyro-driven light",
       )
 
       FeatureCard(
-        icon = Icons.Default.Gradient,
-        title = "Progressive Blur",
-        description = "Create gradient blur effects with TopToBottom, BottomToTop, and Edges modes",
+        icon = Icons.Default.Lens,
+        title = "Liquid Glass",
+        description = "A realistic glass lens with SDF edges, normal-based refraction, " +
+          "and chromatic dispersion",
       )
 
       FeatureCard(
-        icon = Icons.Default.Android,
-        title = "Legacy Support",
-        description = "CPU-based blur for Android API 23-30 using native C++ SIMD optimizations",
+        icon = Icons.Default.AutoAwesome,
+        title = "Mirage",
+        description = "An open shader-effect plan — thin-film and specular presets, " +
+          "or author your own optic with no library change",
       )
 
       FeatureCard(
@@ -266,7 +269,7 @@ private fun QuickLinksSection(onNavigate: (DocsRoute) -> Unit) {
 
       QuickLinkCard(
         title = "Playground",
-        description = "Try blur effects live",
+        description = "Try every effect live",
         onClick = { onNavigate(DocsRoute.Playground) },
       )
     }
