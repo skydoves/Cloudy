@@ -149,6 +149,7 @@ internal object MirageCompiler {
               "only through its `src` argument. Use composite() to sample content.",
           )
         }
+
       OpticCategory.Generate ->
         if (code.contains(CONTENT_TOKEN)) {
           throw MirageLintException(
@@ -156,6 +157,7 @@ internal object MirageCompiler {
               "sampler. Use composite() to sample content.",
           )
         }
+
       OpticCategory.Composite -> Unit // free content access is exactly what Composite is for.
     }
   }
@@ -175,11 +177,13 @@ internal object MirageCompiler {
           i += 2
           while (i < source.length && source[i] != '\n') i++
         }
+
         c == '/' && next == '*' -> {
           i += 2
           while (i + 1 < source.length && !(source[i] == '*' && source[i + 1] == '/')) i++
           i += 2 // skip the closing */
         }
+
         else -> {
           append(c)
           i++

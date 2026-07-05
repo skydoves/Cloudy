@@ -19,7 +19,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.IntSize
 
-/**
+/*
  * Shared tuning for the background-blur specular highlight drawn by [Modifier.cloudy] when a
  * [LiquidGlassLight] is supplied. These mirror the focal-pool terms of the AGSL/SKSL Liquid Glass
  * shader (`LiquidGlassShaderSource`) so the Compose-side approximation lines up with the shader look,

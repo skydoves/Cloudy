@@ -31,14 +31,13 @@ import java.io.File
 import javax.imageio.ImageIO
 
 /**
- * Root-relative directory (under the `androidUnitTest` assets source set) where Roborazzi
+ * Root-relative directory (under the `androidHostTest` assets source set) where Roborazzi
  * golden PNGs for Cloudy are recorded and verified.
  *
- * The assets directory is wired into the Android `test` source set in `build.gradle.kts`
- * (`assets.srcDirs("src/androidUnitTest/assets")`), so a path rooted here resolves to
- * `cloudy/src/androidUnitTest/assets/screenshots/`.
+ * The KMP-library plugin maps `src/androidHostTest/assets` into the host-test assets by
+ * convention, so a path rooted here resolves to `cloudy/src/androidHostTest/assets/screenshots/`.
  */
-internal const val SCREENSHOT_DIR: String = "src/androidUnitTest/assets/screenshots"
+internal const val SCREENSHOT_DIR: String = "src/androidHostTest/assets/screenshots"
 
 /**
  * Tolerant pixel comparator shared by every Cloudy golden.

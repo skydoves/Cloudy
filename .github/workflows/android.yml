@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ '*' ]
 
+# These jobs only read the repo (checkout + Gradle); none push or comment.
+permissions:
+  contents: read
+
 jobs:
   lint:
     name: Spotless check
@@ -33,7 +37,7 @@ jobs:
           distribution: 'zulu'
           java-version: 21
       - name: API check
-        run: ./gradlew apiCheck
+        run: ./gradlew checkKotlinAbi
 
   build:
     runs-on: ubuntu-latest

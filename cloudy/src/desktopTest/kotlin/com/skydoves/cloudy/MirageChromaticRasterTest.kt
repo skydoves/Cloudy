@@ -278,6 +278,7 @@ private fun diagonalRidgeExcess(argb: ByteArray, size: Int): Double {
           diagSum += mag
           diagCnt++
         }
+
         fold >= 30.0 -> {
           axisSum += mag
           axisCnt++

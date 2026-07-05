@@ -496,13 +496,21 @@ private fun resetToDefaults(params: MirageParams, schema: UniformSchema) {
     val default = schema.entries[handle.slot].default
     when (handle) {
       is UFloat -> handle.value = default as Float
+
       is UOffset -> handle.value = default as Offset
+
       is USize -> handle.value = default as Size
+
       is UInt1 -> handle.value = default as Int
+
       is UVec3 -> handle.value = (default as FloatArray).copyOf()
+
       is UVec4 -> handle.value = (default as FloatArray).copyOf()
+
       is UFloatArray -> handle.value = (default as FloatArray).copyOf()
+
       is UColor -> handle.value = default as Color
+
       is UTexture -> {
         @Suppress("UNCHECKED_CAST")
         handle.value = default as ImageBitmap?

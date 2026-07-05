@@ -21,5 +21,7 @@ dependencyResolutionManagement {
 
 rootProject.name = "CloudyDemo"
 include(":app")
+include(":app-android")
 include(":cloudy")
+include(":cloudy-native")
 include(":docs")

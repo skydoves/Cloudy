@@ -51,11 +51,13 @@ fun Callout(text: String, modifier: Modifier = Modifier, type: CalloutType = Cal
       DocsTheme.colors.primary,
       Icons.Default.Info,
     )
+
     CalloutType.WARNING -> Triple(
       DocsTheme.colors.warning.copy(alpha = 0.15f),
       DocsTheme.colors.warning,
       Icons.Default.Warning,
     )
+
     CalloutType.NOTE -> Triple(
       DocsTheme.colors.secondary.copy(alpha = 0.15f),
       DocsTheme.colors.secondary,

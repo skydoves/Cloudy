@@ -15,17 +15,9 @@
  */
 
 import com.skydoves.cloudy.Configuration
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
   id("com.android.test")
-  id("org.jetbrains.kotlin.android")
-}
-
-kotlin {
-  compilerOptions {
-    jvmTarget.set(JvmTarget.JVM_1_8)
-  }
 }
 
 android {
@@ -33,8 +25,9 @@ android {
   compileSdk = Configuration.compileSdk
 
   compileOptions {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    // Must match the root subprojects{} Kotlin jvmTarget=11, else AGP fails "Inconsistent JVM targets".
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
   }
 
   defaultConfig {
@@ -58,7 +51,7 @@ android {
     abortOnError = false
   }
 
-  targetProjectPath = ":app"
+  targetProjectPath = ":app-android"
   experimentalProperties["android.experimental.self-instrumenting"] = true
 }
 

@@ -1,0 +1,375 @@
+// Klib ABI Dump
+// Targets: [iosArm64, iosSimulatorArm64, macosArm64, wasmJs]
+// Alias: apple => [iosArm64, iosSimulatorArm64, macosArm64]
+// Alias: ios => [iosArm64, iosSimulatorArm64]
+// Rendering settings:
+// - Signature version: 2
+// - Show manifest properties: true
+// - Show declarations: true
+
+// Library unique name: <com.github.skydoves:cloudy>
+open annotation class com.skydoves.cloudy/ExperimentalLiquidGlassMotion : kotlin/Annotation { // com.skydoves.cloudy/ExperimentalLiquidGlassMotion|null[0]
+    constructor <init>() // com.skydoves.cloudy/ExperimentalLiquidGlassMotion.<init>|<init>(){}[0]
+}
+
+sealed interface com.skydoves.cloudy/CloudyProgressive { // com.skydoves.cloudy/CloudyProgressive|null[0]
+    final class BottomToTop : com.skydoves.cloudy/CloudyProgressive { // com.skydoves.cloudy/CloudyProgressive.BottomToTop|null[0]
+        constructor <init>(kotlin/Float = ..., kotlin/Float = ..., androidx.compose.animation.core/Easing = ...) // com.skydoves.cloudy/CloudyProgressive.BottomToTop.<init>|<init>(kotlin.Float;kotlin.Float;androidx.compose.animation.core.Easing){}[0]
+
+        final val easing // com.skydoves.cloudy/CloudyProgressive.BottomToTop.easing|{}easing[0]
+            final fun <get-easing>(): androidx.compose.animation.core/Easing // com.skydoves.cloudy/CloudyProgressive.BottomToTop.easing.<get-easing>|<get-easing>(){}[0]
+        final val end // com.skydoves.cloudy/CloudyProgressive.BottomToTop.end|{}end[0]
+            final fun <get-end>(): kotlin/Float // com.skydoves.cloudy/CloudyProgressive.BottomToTop.end.<get-end>|<get-end>(){}[0]
+        final val start // com.skydoves.cloudy/CloudyProgressive.BottomToTop.start|{}start[0]
+            final fun <get-start>(): kotlin/Float // com.skydoves.cloudy/CloudyProgressive.BottomToTop.start.<get-start>|<get-start>(){}[0]
+
+        final fun component1(): kotlin/Float // com.skydoves.cloudy/CloudyProgressive.BottomToTop.component1|component1(){}[0]
+        final fun component2(): kotlin/Float // com.skydoves.cloudy/CloudyProgressive.BottomToTop.component2|component2(){}[0]
+        final fun component3(): androidx.compose.animation.core/Easing // com.skydoves.cloudy/CloudyProgressive.BottomToTop.component3|component3(){}[0]
+        final fun copy(kotlin/Float = ..., kotlin/Float = ..., androidx.compose.animation.core/Easing = ...): com.skydoves.cloudy/CloudyProgressive.BottomToTop // com.skydoves.cloudy/CloudyProgressive.BottomToTop.copy|copy(kotlin.Float;kotlin.Float;androidx.compose.animation.core.Easing){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // com.skydoves.cloudy/CloudyProgressive.BottomToTop.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // com.skydoves.cloudy/CloudyProgressive.BottomToTop.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // com.skydoves.cloudy/CloudyProgressive.BottomToTop.toString|toString(){}[0]
+    }
+
+    final class Edges : com.skydoves.cloudy/CloudyProgressive { // com.skydoves.cloudy/CloudyProgressive.Edges|null[0]
+        constructor <init>(kotlin/Float = ..., androidx.compose.animation.core/Easing = ...) // com.skydoves.cloudy/CloudyProgressive.Edges.<init>|<init>(kotlin.Float;androidx.compose.animation.core.Easing){}[0]
+
+        final val easing // com.skydoves.cloudy/CloudyProgressive.Edges.easing|{}easing[0]
+            final fun <get-easing>(): androidx.compose.animation.core/Easing // com.skydoves.cloudy/CloudyProgressive.Edges.easing.<get-easing>|<get-easing>(){}[0]
+        final val fadeDistance // com.skydoves.cloudy/CloudyProgressive.Edges.fadeDistance|{}fadeDistance[0]
+            final fun <get-fadeDistance>(): kotlin/Float // com.skydoves.cloudy/CloudyProgressive.Edges.fadeDistance.<get-fadeDistance>|<get-fadeDistance>(){}[0]
+
+        final fun component1(): kotlin/Float // com.skydoves.cloudy/CloudyProgressive.Edges.component1|component1(){}[0]
+        final fun component2(): androidx.compose.animation.core/Easing // com.skydoves.cloudy/CloudyProgressive.Edges.component2|component2(){}[0]
+        final fun copy(kotlin/Float = ..., androidx.compose.animation.core/Easing = ...): com.skydoves.cloudy/CloudyProgressive.Edges // com.skydoves.cloudy/CloudyProgressive.Edges.copy|copy(kotlin.Float;androidx.compose.animation.core.Easing){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // com.skydoves.cloudy/CloudyProgressive.Edges.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // com.skydoves.cloudy/CloudyProgressive.Edges.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // com.skydoves.cloudy/CloudyProgressive.Edges.toString|toString(){}[0]
+    }
+
+    final class TopToBottom : com.skydoves.cloudy/CloudyProgressive { // com.skydoves.cloudy/CloudyProgressive.TopToBottom|null[0]
+        constructor <init>(kotlin/Float = ..., kotlin/Float = ..., androidx.compose.animation.core/Easing = ...) // com.skydoves.cloudy/CloudyProgressive.TopToBottom.<init>|<init>(kotlin.Float;kotlin.Float;androidx.compose.animation.core.Easing){}[0]
+
+        final val easing // com.skydoves.cloudy/CloudyProgressive.TopToBottom.easing|{}easing[0]
+            final fun <get-easing>(): androidx.compose.animation.core/Easing // com.skydoves.cloudy/CloudyProgressive.TopToBottom.easing.<get-easing>|<get-easing>(){}[0]
+        final val end // com.skydoves.cloudy/CloudyProgressive.TopToBottom.end|{}end[0]
+            final fun <get-end>(): kotlin/Float // com.skydoves.cloudy/CloudyProgressive.TopToBottom.end.<get-end>|<get-end>(){}[0]
+        final val start // com.skydoves.cloudy/CloudyProgressive.TopToBottom.start|{}start[0]
+            final fun <get-start>(): kotlin/Float // com.skydoves.cloudy/CloudyProgressive.TopToBottom.start.<get-start>|<get-start>(){}[0]
+
+        final fun component1(): kotlin/Float // com.skydoves.cloudy/CloudyProgressive.TopToBottom.component1|component1(){}[0]
+        final fun component2(): kotlin/Float // com.skydoves.cloudy/CloudyProgressive.TopToBottom.component2|component2(){}[0]
+        final fun component3(): androidx.compose.animation.core/Easing // com.skydoves.cloudy/CloudyProgressive.TopToBottom.component3|component3(){}[0]
+        final fun copy(kotlin/Float = ..., kotlin/Float = ..., androidx.compose.animation.core/Easing = ...): com.skydoves.cloudy/CloudyProgressive.TopToBottom // com.skydoves.cloudy/CloudyProgressive.TopToBottom.copy|copy(kotlin.Float;kotlin.Float;androidx.compose.animation.core.Easing){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // com.skydoves.cloudy/CloudyProgressive.TopToBottom.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // com.skydoves.cloudy/CloudyProgressive.TopToBottom.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // com.skydoves.cloudy/CloudyProgressive.TopToBottom.toString|toString(){}[0]
+    }
+
+    final object None : com.skydoves.cloudy/CloudyProgressive { // com.skydoves.cloudy/CloudyProgressive.None|null[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // com.skydoves.cloudy/CloudyProgressive.None.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // com.skydoves.cloudy/CloudyProgressive.None.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // com.skydoves.cloudy/CloudyProgressive.None.toString|toString(){}[0]
+    }
+}
+
+sealed interface com.skydoves.cloudy/CloudyState { // com.skydoves.cloudy/CloudyState|null[0]
+    sealed interface Success : com.skydoves.cloudy/CloudyState { // com.skydoves.cloudy/CloudyState.Success|null[0]
+        final class Captured : com.skydoves.cloudy/CloudyState.Success { // com.skydoves.cloudy/CloudyState.Success.Captured|null[0]
+            constructor <init>(com.skydoves.cloudy/PlatformBitmap) // com.skydoves.cloudy/CloudyState.Success.Captured.<init>|<init>(com.skydoves.cloudy.PlatformBitmap){}[0]
+
+            final val bitmap // com.skydoves.cloudy/CloudyState.Success.Captured.bitmap|{}bitmap[0]
+                final fun <get-bitmap>(): com.skydoves.cloudy/PlatformBitmap // com.skydoves.cloudy/CloudyState.Success.Captured.bitmap.<get-bitmap>|<get-bitmap>(){}[0]
+
+            final fun component1(): com.skydoves.cloudy/PlatformBitmap // com.skydoves.cloudy/CloudyState.Success.Captured.component1|component1(){}[0]
+            final fun copy(com.skydoves.cloudy/PlatformBitmap = ...): com.skydoves.cloudy/CloudyState.Success.Captured // com.skydoves.cloudy/CloudyState.Success.Captured.copy|copy(com.skydoves.cloudy.PlatformBitmap){}[0]
+            final fun equals(kotlin/Any?): kotlin/Boolean // com.skydoves.cloudy/CloudyState.Success.Captured.equals|equals(kotlin.Any?){}[0]
+            final fun hashCode(): kotlin/Int // com.skydoves.cloudy/CloudyState.Success.Captured.hashCode|hashCode(){}[0]
+            final fun toString(): kotlin/String // com.skydoves.cloudy/CloudyState.Success.Captured.toString|toString(){}[0]
+        }
+
+        final object Applied : com.skydoves.cloudy/CloudyState.Success { // com.skydoves.cloudy/CloudyState.Success.Applied|null[0]
+            final fun equals(kotlin/Any?): kotlin/Boolean // com.skydoves.cloudy/CloudyState.Success.Applied.equals|equals(kotlin.Any?){}[0]
+            final fun hashCode(): kotlin/Int // com.skydoves.cloudy/CloudyState.Success.Applied.hashCode|hashCode(){}[0]
+            final fun toString(): kotlin/String // com.skydoves.cloudy/CloudyState.Success.Applied.toString|toString(){}[0]
+        }
+
+        final object Scrim : com.skydoves.cloudy/CloudyState.Success { // com.skydoves.cloudy/CloudyState.Success.Scrim|null[0]
+            final fun equals(kotlin/Any?): kotlin/Boolean // com.skydoves.cloudy/CloudyState.Success.Scrim.equals|equals(kotlin.Any?){}[0]
+            final fun hashCode(): kotlin/Int // com.skydoves.cloudy/CloudyState.Success.Scrim.hashCode|hashCode(){}[0]
+            final fun toString(): kotlin/String // com.skydoves.cloudy/CloudyState.Success.Scrim.toString|toString(){}[0]
+        }
+    }
+
+    final class Error : com.skydoves.cloudy/CloudyState { // com.skydoves.cloudy/CloudyState.Error|null[0]
+        constructor <init>(kotlin/Throwable) // com.skydoves.cloudy/CloudyState.Error.<init>|<init>(kotlin.Throwable){}[0]
+
+        final val throwable // com.skydoves.cloudy/CloudyState.Error.throwable|{}throwable[0]
+            final fun <get-throwable>(): kotlin/Throwable // com.skydoves.cloudy/CloudyState.Error.throwable.<get-throwable>|<get-throwable>(){}[0]
+
+        final fun component1(): kotlin/Throwable // com.skydoves.cloudy/CloudyState.Error.component1|component1(){}[0]
+        final fun copy(kotlin/Throwable = ...): com.skydoves.cloudy/CloudyState.Error // com.skydoves.cloudy/CloudyState.Error.copy|copy(kotlin.Throwable){}[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // com.skydoves.cloudy/CloudyState.Error.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // com.skydoves.cloudy/CloudyState.Error.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // com.skydoves.cloudy/CloudyState.Error.toString|toString(){}[0]
+    }
+
+    final object Loading : com.skydoves.cloudy/CloudyState { // com.skydoves.cloudy/CloudyState.Loading|null[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // com.skydoves.cloudy/CloudyState.Loading.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // com.skydoves.cloudy/CloudyState.Loading.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // com.skydoves.cloudy/CloudyState.Loading.toString|toString(){}[0]
+    }
+
+    final object Nothing : com.skydoves.cloudy/CloudyState { // com.skydoves.cloudy/CloudyState.Nothing|null[0]
+        final fun equals(kotlin/Any?): kotlin/Boolean // com.skydoves.cloudy/CloudyState.Nothing.equals|equals(kotlin.Any?){}[0]
+        final fun hashCode(): kotlin/Int // com.skydoves.cloudy/CloudyState.Nothing.hashCode|hashCode(){}[0]
+        final fun toString(): kotlin/String // com.skydoves.cloudy/CloudyState.Nothing.toString|toString(){}[0]
+    }
+}
+
+final class com.skydoves.cloudy/LiquidGlassGlow { // com.skydoves.cloudy/LiquidGlassGlow|null[0]
+    final val intensity // com.skydoves.cloudy/LiquidGlassGlow.intensity|{}intensity[0]
+        final fun <get-intensity>(): kotlin/Float // com.skydoves.cloudy/LiquidGlassGlow.intensity.<get-intensity>|<get-intensity>(){}[0]
+    final val sharpness // com.skydoves.cloudy/LiquidGlassGlow.sharpness|{}sharpness[0]
+        final fun <get-sharpness>(): kotlin/Float // com.skydoves.cloudy/LiquidGlassGlow.sharpness.<get-sharpness>|<get-sharpness>(){}[0]
+
+    final fun equals(kotlin/Any?): kotlin/Boolean // com.skydoves.cloudy/LiquidGlassGlow.equals|equals(kotlin.Any?){}[0]
+    final fun hashCode(): kotlin/Int // com.skydoves.cloudy/LiquidGlassGlow.hashCode|hashCode(){}[0]
+    final fun toString(): kotlin/String // com.skydoves.cloudy/LiquidGlassGlow.toString|toString(){}[0]
+
+    final object Companion { // com.skydoves.cloudy/LiquidGlassGlow.Companion|null[0]
+        final fun invoke(kotlin/Float = ..., kotlin/Float = ...): com.skydoves.cloudy/LiquidGlassGlow // com.skydoves.cloudy/LiquidGlassGlow.Companion.invoke|invoke(kotlin.Float;kotlin.Float){}[0]
+    }
+}
+
+final class com.skydoves.cloudy/LiquidGlassLight // com.skydoves.cloudy/LiquidGlassLight|null[0]
+
+final class com.skydoves.cloudy/PlatformBitmap { // com.skydoves.cloudy/PlatformBitmap|null[0]
+    final val height // com.skydoves.cloudy/PlatformBitmap.height|{}height[0]
+        final fun <get-height>(): kotlin/Int // com.skydoves.cloudy/PlatformBitmap.height.<get-height>|<get-height>(){}[0]
+    final val isRecyclable // com.skydoves.cloudy/PlatformBitmap.isRecyclable|{}isRecyclable[0]
+        final fun <get-isRecyclable>(): kotlin/Boolean // com.skydoves.cloudy/PlatformBitmap.isRecyclable.<get-isRecyclable>|<get-isRecyclable>(){}[0]
+    final val width // com.skydoves.cloudy/PlatformBitmap.width|{}width[0]
+        final fun <get-width>(): kotlin/Int // com.skydoves.cloudy/PlatformBitmap.width.<get-width>|<get-width>(){}[0]
+
+    // Targets: [apple]
+    final val image // com.skydoves.cloudy/PlatformBitmap.image|{}image[0]
+        // Targets: [ios]
+        final fun <get-image>(): platform.UIKit/UIImage // com.skydoves.cloudy/PlatformBitmap.image.<get-image>|<get-image>(){}[0]
+
+        // Targets: [macosArm64]
+        final fun <get-image>(): platform.AppKit/NSImage // com.skydoves.cloudy/PlatformBitmap.image.<get-image>|<get-image>(){}[0]
+
+    // Targets: [ios]
+    constructor <init>(platform.UIKit/UIImage) // com.skydoves.cloudy/PlatformBitmap.<init>|<init>(platform.UIKit.UIImage){}[0]
+
+    // Targets: [macosArm64]
+    constructor <init>(platform.AppKit/NSImage) // com.skydoves.cloudy/PlatformBitmap.<init>|<init>(platform.AppKit.NSImage){}[0]
+
+    // Targets: [wasmJs]
+    constructor <init>(org.jetbrains.skia/Bitmap) // com.skydoves.cloudy/PlatformBitmap.<init>|<init>(org.jetbrains.skia.Bitmap){}[0]
+
+    // Targets: [wasmJs]
+    final val bitmap // com.skydoves.cloudy/PlatformBitmap.bitmap|{}bitmap[0]
+        final fun <get-bitmap>(): org.jetbrains.skia/Bitmap // com.skydoves.cloudy/PlatformBitmap.bitmap.<get-bitmap>|<get-bitmap>(){}[0]
+}
+
+final class com.skydoves.cloudy/Sky { // com.skydoves.cloudy/Sky|null[0]
+    final fun invalidate() // com.skydoves.cloudy/Sky.invalidate|invalidate(){}[0]
+    final fun invalidate(kotlin/Long) // com.skydoves.cloudy/Sky.invalidate|invalidate(kotlin.Long){}[0]
+}
+
+final object com.skydoves.cloudy/CloudyDefaults { // com.skydoves.cloudy/CloudyDefaults|null[0]
+    final const val BACKGROUND_RADIUS // com.skydoves.cloudy/CloudyDefaults.BACKGROUND_RADIUS|{}BACKGROUND_RADIUS[0]
+        final fun <get-BACKGROUND_RADIUS>(): kotlin/Int // com.skydoves.cloudy/CloudyDefaults.BACKGROUND_RADIUS.<get-BACKGROUND_RADIUS>|<get-BACKGROUND_RADIUS>(){}[0]
+    final const val CPP_BLUR_ENABLED // com.skydoves.cloudy/CloudyDefaults.CPP_BLUR_ENABLED|{}CPP_BLUR_ENABLED[0]
+        final fun <get-CPP_BLUR_ENABLED>(): kotlin/Boolean // com.skydoves.cloudy/CloudyDefaults.CPP_BLUR_ENABLED.<get-CPP_BLUR_ENABLED>|<get-CPP_BLUR_ENABLED>(){}[0]
+    final const val EDGES_FADE_DISTANCE // com.skydoves.cloudy/CloudyDefaults.EDGES_FADE_DISTANCE|{}EDGES_FADE_DISTANCE[0]
+        final fun <get-EDGES_FADE_DISTANCE>(): kotlin/Float // com.skydoves.cloudy/CloudyDefaults.EDGES_FADE_DISTANCE.<get-EDGES_FADE_DISTANCE>|<get-EDGES_FADE_DISTANCE>(){}[0]
+    final const val PROGRESSIVE_FADE_END // com.skydoves.cloudy/CloudyDefaults.PROGRESSIVE_FADE_END|{}PROGRESSIVE_FADE_END[0]
+        final fun <get-PROGRESSIVE_FADE_END>(): kotlin/Float // com.skydoves.cloudy/CloudyDefaults.PROGRESSIVE_FADE_END.<get-PROGRESSIVE_FADE_END>|<get-PROGRESSIVE_FADE_END>(){}[0]
+
+    final val DefaultScrimColor // com.skydoves.cloudy/CloudyDefaults.DefaultScrimColor|{}DefaultScrimColor[0]
+        final fun <get-DefaultScrimColor>(): androidx.compose.ui.graphics/Color // com.skydoves.cloudy/CloudyDefaults.DefaultScrimColor.<get-DefaultScrimColor>|<get-DefaultScrimColor>(){}[0]
+}
+
+final object com.skydoves.cloudy/LiquidGlassDefaults { // com.skydoves.cloudy/LiquidGlassDefaults|null[0]
+    final const val CONTRAST // com.skydoves.cloudy/LiquidGlassDefaults.CONTRAST|{}CONTRAST[0]
+        final fun <get-CONTRAST>(): kotlin/Float // com.skydoves.cloudy/LiquidGlassDefaults.CONTRAST.<get-CONTRAST>|<get-CONTRAST>(){}[0]
+    final const val CORNER_RADIUS // com.skydoves.cloudy/LiquidGlassDefaults.CORNER_RADIUS|{}CORNER_RADIUS[0]
+        final fun <get-CORNER_RADIUS>(): kotlin/Float // com.skydoves.cloudy/LiquidGlassDefaults.CORNER_RADIUS.<get-CORNER_RADIUS>|<get-CORNER_RADIUS>(){}[0]
+    final const val CURVE // com.skydoves.cloudy/LiquidGlassDefaults.CURVE|{}CURVE[0]
+        final fun <get-CURVE>(): kotlin/Float // com.skydoves.cloudy/LiquidGlassDefaults.CURVE.<get-CURVE>|<get-CURVE>(){}[0]
+    final const val DISPERSION // com.skydoves.cloudy/LiquidGlassDefaults.DISPERSION|{}DISPERSION[0]
+        final fun <get-DISPERSION>(): kotlin/Float // com.skydoves.cloudy/LiquidGlassDefaults.DISPERSION.<get-DISPERSION>|<get-DISPERSION>(){}[0]
+    final const val EDGE // com.skydoves.cloudy/LiquidGlassDefaults.EDGE|{}EDGE[0]
+        final fun <get-EDGE>(): kotlin/Float // com.skydoves.cloudy/LiquidGlassDefaults.EDGE.<get-EDGE>|<get-EDGE>(){}[0]
+    final const val GLOW_INTENSITY // com.skydoves.cloudy/LiquidGlassDefaults.GLOW_INTENSITY|{}GLOW_INTENSITY[0]
+        final fun <get-GLOW_INTENSITY>(): kotlin/Float // com.skydoves.cloudy/LiquidGlassDefaults.GLOW_INTENSITY.<get-GLOW_INTENSITY>|<get-GLOW_INTENSITY>(){}[0]
+    final const val GLOW_SHARPNESS // com.skydoves.cloudy/LiquidGlassDefaults.GLOW_SHARPNESS|{}GLOW_SHARPNESS[0]
+        final fun <get-GLOW_SHARPNESS>(): kotlin/Float // com.skydoves.cloudy/LiquidGlassDefaults.GLOW_SHARPNESS.<get-GLOW_SHARPNESS>|<get-GLOW_SHARPNESS>(){}[0]
+    final const val MIN_ANDROID_API_FALLBACK // com.skydoves.cloudy/LiquidGlassDefaults.MIN_ANDROID_API_FALLBACK|{}MIN_ANDROID_API_FALLBACK[0]
+        final fun <get-MIN_ANDROID_API_FALLBACK>(): kotlin/Int // com.skydoves.cloudy/LiquidGlassDefaults.MIN_ANDROID_API_FALLBACK.<get-MIN_ANDROID_API_FALLBACK>|<get-MIN_ANDROID_API_FALLBACK>(){}[0]
+    final const val MIN_ANDROID_API_FULL // com.skydoves.cloudy/LiquidGlassDefaults.MIN_ANDROID_API_FULL|{}MIN_ANDROID_API_FULL[0]
+        final fun <get-MIN_ANDROID_API_FULL>(): kotlin/Int // com.skydoves.cloudy/LiquidGlassDefaults.MIN_ANDROID_API_FULL.<get-MIN_ANDROID_API_FULL>|<get-MIN_ANDROID_API_FULL>(){}[0]
+    final const val REFRACTION // com.skydoves.cloudy/LiquidGlassDefaults.REFRACTION|{}REFRACTION[0]
+        final fun <get-REFRACTION>(): kotlin/Float // com.skydoves.cloudy/LiquidGlassDefaults.REFRACTION.<get-REFRACTION>|<get-REFRACTION>(){}[0]
+    final const val SATURATION // com.skydoves.cloudy/LiquidGlassDefaults.SATURATION|{}SATURATION[0]
+        final fun <get-SATURATION>(): kotlin/Float // com.skydoves.cloudy/LiquidGlassDefaults.SATURATION.<get-SATURATION>|<get-SATURATION>(){}[0]
+
+    final val Glow // com.skydoves.cloudy/LiquidGlassDefaults.Glow|{}Glow[0]
+        final fun <get-Glow>(): com.skydoves.cloudy/LiquidGlassGlow // com.skydoves.cloudy/LiquidGlassDefaults.Glow.<get-Glow>|<get-Glow>(){}[0]
+    final val LENS_SIZE // com.skydoves.cloudy/LiquidGlassDefaults.LENS_SIZE|{}LENS_SIZE[0]
+        final fun <get-LENS_SIZE>(): androidx.compose.ui.geometry/Size // com.skydoves.cloudy/LiquidGlassDefaults.LENS_SIZE.<get-LENS_SIZE>|<get-LENS_SIZE>(){}[0]
+    final val LIGHT_DIR // com.skydoves.cloudy/LiquidGlassDefaults.LIGHT_DIR|{}LIGHT_DIR[0]
+        final fun <get-LIGHT_DIR>(): androidx.compose.ui.geometry/Offset // com.skydoves.cloudy/LiquidGlassDefaults.LIGHT_DIR.<get-LIGHT_DIR>|<get-LIGHT_DIR>(){}[0]
+    final val Light // com.skydoves.cloudy/LiquidGlassDefaults.Light|{}Light[0]
+        final fun <get-Light>(): com.skydoves.cloudy/LiquidGlassLight // com.skydoves.cloudy/LiquidGlassDefaults.Light.<get-Light>|<get-Light>(){}[0]
+    final val NoGlow // com.skydoves.cloudy/LiquidGlassDefaults.NoGlow|{}NoGlow[0]
+        final fun <get-NoGlow>(): com.skydoves.cloudy/LiquidGlassGlow // com.skydoves.cloudy/LiquidGlassDefaults.NoGlow.<get-NoGlow>|<get-NoGlow>(){}[0]
+    final val TINT // com.skydoves.cloudy/LiquidGlassDefaults.TINT|{}TINT[0]
+        final fun <get-TINT>(): androidx.compose.ui.graphics/Color // com.skydoves.cloudy/LiquidGlassDefaults.TINT.<get-TINT>|<get-TINT>(){}[0]
+}
+
+final object com.skydoves.cloudy/LiquidGlassShaderSource { // com.skydoves.cloudy/LiquidGlassShaderSource|null[0]
+    final const val AGSL // com.skydoves.cloudy/LiquidGlassShaderSource.AGSL|{}AGSL[0]
+        final fun <get-AGSL>(): kotlin/String // com.skydoves.cloudy/LiquidGlassShaderSource.AGSL.<get-AGSL>|<get-AGSL>(){}[0]
+    final const val SKSL // com.skydoves.cloudy/LiquidGlassShaderSource.SKSL|{}SKSL[0]
+        final fun <get-SKSL>(): kotlin/String // com.skydoves.cloudy/LiquidGlassShaderSource.SKSL.<get-SKSL>|<get-SKSL>(){}[0]
+}
+
+final val com.skydoves.cloudy.internal/com_skydoves_cloudy_internal_Stage_Filter$stableprop // com.skydoves.cloudy.internal/com_skydoves_cloudy_internal_Stage_Filter$stableprop|#static{}com_skydoves_cloudy_internal_Stage_Filter$stableprop[0]
+final val com.skydoves.cloudy.internal/com_skydoves_cloudy_internal_Stage_Overlay$stableprop // com.skydoves.cloudy.internal/com_skydoves_cloudy_internal_Stage_Overlay$stableprop|#static{}com_skydoves_cloudy_internal_Stage_Overlay$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_ChromaticParams$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_ChromaticParams$stableprop|#static{}com_skydoves_cloudy_ChromaticParams$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_CloudyDefaults$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_CloudyDefaults$stableprop|#static{}com_skydoves_cloudy_CloudyDefaults$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_CloudyProgressive_BottomToTop$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_CloudyProgressive_BottomToTop$stableprop|#static{}com_skydoves_cloudy_CloudyProgressive_BottomToTop$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_CloudyProgressive_Edges$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_CloudyProgressive_Edges$stableprop|#static{}com_skydoves_cloudy_CloudyProgressive_Edges$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_CloudyProgressive_None$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_CloudyProgressive_None$stableprop|#static{}com_skydoves_cloudy_CloudyProgressive_None$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_CloudyProgressive_TopToBottom$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_CloudyProgressive_TopToBottom$stableprop|#static{}com_skydoves_cloudy_CloudyProgressive_TopToBottom$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_CloudyState_Error$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_CloudyState_Error$stableprop|#static{}com_skydoves_cloudy_CloudyState_Error$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_CloudyState_Loading$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_CloudyState_Loading$stableprop|#static{}com_skydoves_cloudy_CloudyState_Loading$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_CloudyState_Nothing$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_CloudyState_Nothing$stableprop|#static{}com_skydoves_cloudy_CloudyState_Nothing$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_CloudyState_Success_Applied$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_CloudyState_Success_Applied$stableprop|#static{}com_skydoves_cloudy_CloudyState_Success_Applied$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_CloudyState_Success_Captured$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_CloudyState_Success_Captured$stableprop|#static{}com_skydoves_cloudy_CloudyState_Success_Captured$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_CloudyState_Success_Scrim$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_CloudyState_Success_Scrim$stableprop|#static{}com_skydoves_cloudy_CloudyState_Success_Scrim$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_ColorizeOptic$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_ColorizeOptic$stableprop|#static{}com_skydoves_cloudy_ColorizeOptic$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_CompositeOptic$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_CompositeOptic$stableprop|#static{}com_skydoves_cloudy_CompositeOptic$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_DuotoneParams$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_DuotoneParams$stableprop|#static{}com_skydoves_cloudy_DuotoneParams$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_FilterOptic$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_FilterOptic$stableprop|#static{}com_skydoves_cloudy_FilterOptic$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_FoilParams$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_FoilParams$stableprop|#static{}com_skydoves_cloudy_FoilParams$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_GenerateOptic$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_GenerateOptic$stableprop|#static{}com_skydoves_cloudy_GenerateOptic$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_LiquidGlassDefaults$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_LiquidGlassDefaults$stableprop|#static{}com_skydoves_cloudy_LiquidGlassDefaults$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_LiquidGlassGlow$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_LiquidGlassGlow$stableprop|#static{}com_skydoves_cloudy_LiquidGlassGlow$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_LiquidGlassLight$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_LiquidGlassLight$stableprop|#static{}com_skydoves_cloudy_LiquidGlassLight$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_LiquidGlassShaderSource$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_LiquidGlassShaderSource$stableprop|#static{}com_skydoves_cloudy_LiquidGlassShaderSource$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_MirageClock_Auto$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_MirageClock_Auto$stableprop|#static{}com_skydoves_cloudy_MirageClock_Auto$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_MirageClock_Fixed$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_MirageClock_Fixed$stableprop|#static{}com_skydoves_cloudy_MirageClock_Fixed$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_MirageClock_Paused$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_MirageClock_Paused$stableprop|#static{}com_skydoves_cloudy_MirageClock_Paused$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_MirageLensParams$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_MirageLensParams$stableprop|#static{}com_skydoves_cloudy_MirageLensParams$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_MirageOptics$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_MirageOptics$stableprop|#static{}com_skydoves_cloudy_MirageOptics$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_MirageParams$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_MirageParams$stableprop|#static{}com_skydoves_cloudy_MirageParams$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_Optic$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_Optic$stableprop|#static{}com_skydoves_cloudy_Optic$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_PlatformBitmap$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_PlatformBitmap$stableprop|#static{}com_skydoves_cloudy_PlatformBitmap$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_Sky$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_Sky$stableprop|#static{}com_skydoves_cloudy_Sky$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_SpecularParams$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_SpecularParams$stableprop|#static{}com_skydoves_cloudy_SpecularParams$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_UColor$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_UColor$stableprop|#static{}com_skydoves_cloudy_UColor$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_UFloat$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_UFloat$stableprop|#static{}com_skydoves_cloudy_UFloat$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_UFloatArray$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_UFloatArray$stableprop|#static{}com_skydoves_cloudy_UFloatArray$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_UInt1$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_UInt1$stableprop|#static{}com_skydoves_cloudy_UInt1$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_UOffset$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_UOffset$stableprop|#static{}com_skydoves_cloudy_UOffset$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_USize$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_USize$stableprop|#static{}com_skydoves_cloudy_USize$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_UTexture$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_UTexture$stableprop|#static{}com_skydoves_cloudy_UTexture$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_UVec3$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_UVec3$stableprop|#static{}com_skydoves_cloudy_UVec3$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_UVec4$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_UVec4$stableprop|#static{}com_skydoves_cloudy_UVec4$stableprop[0]
+final val com.skydoves.cloudy/com_skydoves_cloudy_UniformProvider$stableprop // com.skydoves.cloudy/com_skydoves_cloudy_UniformProvider$stableprop|#static{}com_skydoves_cloudy_UniformProvider$stableprop[0]
+
+final fun (androidx.compose.ui/Modifier).com.skydoves.cloudy/cloudy(com.skydoves.cloudy/Sky, kotlin/Int, com.skydoves.cloudy/CloudyProgressive?, androidx.compose.ui.graphics/Color, com.skydoves.cloudy/LiquidGlassLight?, kotlin/Boolean, kotlin/Boolean, androidx.compose.ui.graphics/Shape?, kotlin/Function1<com.skydoves.cloudy/CloudyState, kotlin/Unit>?, androidx.compose.runtime/Composer?, kotlin/Int, kotlin/Int): androidx.compose.ui/Modifier // com.skydoves.cloudy/cloudy|cloudy@androidx.compose.ui.Modifier(com.skydoves.cloudy.Sky;kotlin.Int;com.skydoves.cloudy.CloudyProgressive?;androidx.compose.ui.graphics.Color;com.skydoves.cloudy.LiquidGlassLight?;kotlin.Boolean;kotlin.Boolean;androidx.compose.ui.graphics.Shape?;kotlin.Function1<com.skydoves.cloudy.CloudyState,kotlin.Unit>?;androidx.compose.runtime.Composer?;kotlin.Int;kotlin.Int){}[0]
+final fun (androidx.compose.ui/Modifier).com.skydoves.cloudy/cloudy(kotlin/Int, kotlin/Boolean, kotlin/Function1<com.skydoves.cloudy/CloudyState, kotlin/Unit>?, androidx.compose.runtime/Composer?, kotlin/Int, kotlin/Int): androidx.compose.ui/Modifier // com.skydoves.cloudy/cloudy|cloudy@androidx.compose.ui.Modifier(kotlin.Int;kotlin.Boolean;kotlin.Function1<com.skydoves.cloudy.CloudyState,kotlin.Unit>?;androidx.compose.runtime.Composer?;kotlin.Int;kotlin.Int){}[0]
+final fun (androidx.compose.ui/Modifier).com.skydoves.cloudy/liquidGlass(androidx.compose.ui.geometry/Offset, androidx.compose.ui.geometry/Size, kotlin/Float, kotlin/Float, kotlin/Float, kotlin/Float, kotlin/Float, kotlin/Float, androidx.compose.ui.graphics/Color, kotlin/Float, com.skydoves.cloudy/LiquidGlassLight?, com.skydoves.cloudy/LiquidGlassGlow?, kotlin/Boolean, androidx.compose.runtime/Composer?, kotlin/Int, kotlin/Int, kotlin/Int): androidx.compose.ui/Modifier // com.skydoves.cloudy/liquidGlass|liquidGlass@androidx.compose.ui.Modifier(androidx.compose.ui.geometry.Offset;androidx.compose.ui.geometry.Size;kotlin.Float;kotlin.Float;kotlin.Float;kotlin.Float;kotlin.Float;kotlin.Float;androidx.compose.ui.graphics.Color;kotlin.Float;com.skydoves.cloudy.LiquidGlassLight?;com.skydoves.cloudy.LiquidGlassGlow?;kotlin.Boolean;androidx.compose.runtime.Composer?;kotlin.Int;kotlin.Int;kotlin.Int){}[0]
+final fun (androidx.compose.ui/Modifier).com.skydoves.cloudy/sky(com.skydoves.cloudy/Sky, androidx.compose.runtime/Composer?, kotlin/Int): androidx.compose.ui/Modifier // com.skydoves.cloudy/sky|sky@androidx.compose.ui.Modifier(com.skydoves.cloudy.Sky;androidx.compose.runtime.Composer?;kotlin.Int){}[0]
+final fun (com.skydoves.cloudy/PlatformBitmap).com.skydoves.cloudy/createCompatible(): com.skydoves.cloudy/PlatformBitmap // com.skydoves.cloudy/createCompatible|createCompatible@com.skydoves.cloudy.PlatformBitmap(){}[0]
+final fun (com.skydoves.cloudy/PlatformBitmap).com.skydoves.cloudy/dispose() // com.skydoves.cloudy/dispose|dispose@com.skydoves.cloudy.PlatformBitmap(){}[0]
+final fun com.skydoves.cloudy.internal/com_skydoves_cloudy_internal_Stage_Filter$stableprop_getter(): kotlin/Int // com.skydoves.cloudy.internal/com_skydoves_cloudy_internal_Stage_Filter$stableprop_getter|com_skydoves_cloudy_internal_Stage_Filter$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy.internal/com_skydoves_cloudy_internal_Stage_Overlay$stableprop_getter(): kotlin/Int // com.skydoves.cloudy.internal/com_skydoves_cloudy_internal_Stage_Overlay$stableprop_getter|com_skydoves_cloudy_internal_Stage_Overlay$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/LiquidGlassLight(androidx.compose.ui.geometry/Offset): com.skydoves.cloudy/LiquidGlassLight // com.skydoves.cloudy/LiquidGlassLight|LiquidGlassLight(androidx.compose.ui.geometry.Offset){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_ChromaticParams$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_ChromaticParams$stableprop_getter|com_skydoves_cloudy_ChromaticParams$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_CloudyDefaults$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_CloudyDefaults$stableprop_getter|com_skydoves_cloudy_CloudyDefaults$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_CloudyProgressive_BottomToTop$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_CloudyProgressive_BottomToTop$stableprop_getter|com_skydoves_cloudy_CloudyProgressive_BottomToTop$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_CloudyProgressive_Edges$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_CloudyProgressive_Edges$stableprop_getter|com_skydoves_cloudy_CloudyProgressive_Edges$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_CloudyProgressive_None$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_CloudyProgressive_None$stableprop_getter|com_skydoves_cloudy_CloudyProgressive_None$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_CloudyProgressive_TopToBottom$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_CloudyProgressive_TopToBottom$stableprop_getter|com_skydoves_cloudy_CloudyProgressive_TopToBottom$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_CloudyState_Error$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_CloudyState_Error$stableprop_getter|com_skydoves_cloudy_CloudyState_Error$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_CloudyState_Loading$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_CloudyState_Loading$stableprop_getter|com_skydoves_cloudy_CloudyState_Loading$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_CloudyState_Nothing$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_CloudyState_Nothing$stableprop_getter|com_skydoves_cloudy_CloudyState_Nothing$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_CloudyState_Success_Applied$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_CloudyState_Success_Applied$stableprop_getter|com_skydoves_cloudy_CloudyState_Success_Applied$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_CloudyState_Success_Captured$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_CloudyState_Success_Captured$stableprop_getter|com_skydoves_cloudy_CloudyState_Success_Captured$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_CloudyState_Success_Scrim$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_CloudyState_Success_Scrim$stableprop_getter|com_skydoves_cloudy_CloudyState_Success_Scrim$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_ColorizeOptic$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_ColorizeOptic$stableprop_getter|com_skydoves_cloudy_ColorizeOptic$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_CompositeOptic$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_CompositeOptic$stableprop_getter|com_skydoves_cloudy_CompositeOptic$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_DuotoneParams$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_DuotoneParams$stableprop_getter|com_skydoves_cloudy_DuotoneParams$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_FilterOptic$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_FilterOptic$stableprop_getter|com_skydoves_cloudy_FilterOptic$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_FoilParams$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_FoilParams$stableprop_getter|com_skydoves_cloudy_FoilParams$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_GenerateOptic$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_GenerateOptic$stableprop_getter|com_skydoves_cloudy_GenerateOptic$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_LiquidGlassDefaults$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_LiquidGlassDefaults$stableprop_getter|com_skydoves_cloudy_LiquidGlassDefaults$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_LiquidGlassGlow$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_LiquidGlassGlow$stableprop_getter|com_skydoves_cloudy_LiquidGlassGlow$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_LiquidGlassLight$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_LiquidGlassLight$stableprop_getter|com_skydoves_cloudy_LiquidGlassLight$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_LiquidGlassShaderSource$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_LiquidGlassShaderSource$stableprop_getter|com_skydoves_cloudy_LiquidGlassShaderSource$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_MirageClock_Auto$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_MirageClock_Auto$stableprop_getter|com_skydoves_cloudy_MirageClock_Auto$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_MirageClock_Fixed$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_MirageClock_Fixed$stableprop_getter|com_skydoves_cloudy_MirageClock_Fixed$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_MirageClock_Paused$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_MirageClock_Paused$stableprop_getter|com_skydoves_cloudy_MirageClock_Paused$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_MirageLensParams$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_MirageLensParams$stableprop_getter|com_skydoves_cloudy_MirageLensParams$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_MirageOptics$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_MirageOptics$stableprop_getter|com_skydoves_cloudy_MirageOptics$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_MirageParams$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_MirageParams$stableprop_getter|com_skydoves_cloudy_MirageParams$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_Optic$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_Optic$stableprop_getter|com_skydoves_cloudy_Optic$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_PlatformBitmap$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_PlatformBitmap$stableprop_getter|com_skydoves_cloudy_PlatformBitmap$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_Sky$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_Sky$stableprop_getter|com_skydoves_cloudy_Sky$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_SpecularParams$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_SpecularParams$stableprop_getter|com_skydoves_cloudy_SpecularParams$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_UColor$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_UColor$stableprop_getter|com_skydoves_cloudy_UColor$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_UFloat$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_UFloat$stableprop_getter|com_skydoves_cloudy_UFloat$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_UFloatArray$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_UFloatArray$stableprop_getter|com_skydoves_cloudy_UFloatArray$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_UInt1$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_UInt1$stableprop_getter|com_skydoves_cloudy_UInt1$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_UOffset$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_UOffset$stableprop_getter|com_skydoves_cloudy_UOffset$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_USize$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_USize$stableprop_getter|com_skydoves_cloudy_USize$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_UTexture$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_UTexture$stableprop_getter|com_skydoves_cloudy_UTexture$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_UVec3$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_UVec3$stableprop_getter|com_skydoves_cloudy_UVec3$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_UVec4$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_UVec4$stableprop_getter|com_skydoves_cloudy_UVec4$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/com_skydoves_cloudy_UniformProvider$stableprop_getter(): kotlin/Int // com.skydoves.cloudy/com_skydoves_cloudy_UniformProvider$stableprop_getter|com_skydoves_cloudy_UniformProvider$stableprop_getter(){}[0]
+final fun com.skydoves.cloudy/rememberCloudyState(com.skydoves.cloudy/CloudyState?, kotlin/Any?, androidx.compose.runtime/Composer?, kotlin/Int, kotlin/Int): androidx.compose.runtime/MutableState<com.skydoves.cloudy/CloudyState> // com.skydoves.cloudy/rememberCloudyState|rememberCloudyState(com.skydoves.cloudy.CloudyState?;kotlin.Any?;androidx.compose.runtime.Composer?;kotlin.Int;kotlin.Int){}[0]
+final fun com.skydoves.cloudy/rememberSky(androidx.compose.runtime/Composer?, kotlin/Int): com.skydoves.cloudy/Sky // com.skydoves.cloudy/rememberSky|rememberSky(androidx.compose.runtime.Composer?;kotlin.Int){}[0]
+
+// Targets: [ios]
+final fun (androidx.compose.ui.graphics/ImageBitmap).com.skydoves.cloudy/toUIImage(): platform.UIKit/UIImage? // com.skydoves.cloudy/toUIImage|toUIImage@androidx.compose.ui.graphics.ImageBitmap(){}[0]
+
+// Targets: [ios]
+final fun (com.skydoves.cloudy/PlatformBitmap).com.skydoves.cloudy/toUIImage(): platform.UIKit/UIImage // com.skydoves.cloudy/toUIImage|toUIImage@com.skydoves.cloudy.PlatformBitmap(){}[0]
+
+// Targets: [ios]
+final fun (platform.UIKit/UIImage).com.skydoves.cloudy/asImageBitmap(): androidx.compose.ui.graphics/ImageBitmap? // com.skydoves.cloudy/asImageBitmap|asImageBitmap@platform.UIKit.UIImage(){}[0]
+
+// Targets: [ios]
+final fun (platform.UIKit/UIImage).com.skydoves.cloudy/toPlatformBitmap(): com.skydoves.cloudy/PlatformBitmap // com.skydoves.cloudy/toPlatformBitmap|toPlatformBitmap@platform.UIKit.UIImage(){}[0]
+
+// Targets: [macosArm64]
+final fun (androidx.compose.ui.graphics/ImageBitmap).com.skydoves.cloudy/toNSImage(): platform.AppKit/NSImage? // com.skydoves.cloudy/toNSImage|toNSImage@androidx.compose.ui.graphics.ImageBitmap(){}[0]
+
+// Targets: [macosArm64]
+final fun (com.skydoves.cloudy/PlatformBitmap).com.skydoves.cloudy/toNSImage(): platform.AppKit/NSImage // com.skydoves.cloudy/toNSImage|toNSImage@com.skydoves.cloudy.PlatformBitmap(){}[0]
+
+// Targets: [macosArm64]
+final fun (platform.AppKit/NSImage).com.skydoves.cloudy/asImageBitmap(): androidx.compose.ui.graphics/ImageBitmap? // com.skydoves.cloudy/asImageBitmap|asImageBitmap@platform.AppKit.NSImage(){}[0]
+
+// Targets: [macosArm64]
+final fun (platform.AppKit/NSImage).com.skydoves.cloudy/toPlatformBitmap(): com.skydoves.cloudy/PlatformBitmap // com.skydoves.cloudy/toPlatformBitmap|toPlatformBitmap@platform.AppKit.NSImage(){}[0]
+
+// Targets: [wasmJs]
+final fun (androidx.compose.ui.graphics/ImageBitmap).com.skydoves.cloudy/toSkiaBitmap(): org.jetbrains.skia/Bitmap // com.skydoves.cloudy/toSkiaBitmap|toSkiaBitmap@androidx.compose.ui.graphics.ImageBitmap(){}[0]
+
+// Targets: [wasmJs]
+final fun (com.skydoves.cloudy/PlatformBitmap).com.skydoves.cloudy/toSkiaBitmap(): org.jetbrains.skia/Bitmap // com.skydoves.cloudy/toSkiaBitmap|toSkiaBitmap@com.skydoves.cloudy.PlatformBitmap(){}[0]
+
+// Targets: [wasmJs]
+final fun (org.jetbrains.skia/Bitmap).com.skydoves.cloudy/asImageBitmap(): androidx.compose.ui.graphics/ImageBitmap // com.skydoves.cloudy/asImageBitmap|asImageBitmap@org.jetbrains.skia.Bitmap(){}[0]
+
+// Targets: [wasmJs]
+final fun (org.jetbrains.skia/Bitmap).com.skydoves.cloudy/toPlatformBitmap(): com.skydoves.cloudy/PlatformBitmap // com.skydoves.cloudy/toPlatformBitmap|toPlatformBitmap@org.jetbrains.skia.Bitmap(){}[0]

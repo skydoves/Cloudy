@@ -20,13 +20,6 @@ import org.mockito.Mockito.mock
 import org.mockito.Mockito.`when`
 
 /**
- * Creates a mock `PlatformBitmap` of the specified width and height for testing purposes.
- *
- * @param width The width of the bitmap in pixels. Defaults to 100.
- * @param height The height of the bitmap in pixels. Defaults to 100.
- * @return A `PlatformBitmap` instance wrapping a mocked Android Bitmap.
- */
-/**
  * Creates a test PlatformBitmap that wraps a Mockito-mocked Android Bitmap with the given dimensions and a non-recycled, mutable state.
  *
  * @param width The mocked bitmap width in pixels.

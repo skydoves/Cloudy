@@ -102,7 +102,9 @@ internal actual fun rememberTiltSource(
             provider.stop()
             out.value = base
           }
+
         Lifecycle.Event.ON_STOP -> provider.stop()
+
         else -> Unit
       }
     }
@@ -286,6 +288,7 @@ internal class TiltLightProvider(
         val (gx, gy) = remapGravityToScreen(event.values[0], event.values[1])
         gravityToLight(gx, gy, base, tiltGain)
       }
+
       Sensor.TYPE_GAME_ROTATION_VECTOR,
       Sensor.TYPE_ROTATION_VECTOR,
       -> {
@@ -294,6 +297,7 @@ internal class TiltLightProvider(
         val (gx, gy) = remapGravityToScreen(-rotM[2] * 9.81f, -rotM[5] * 9.81f)
         gravityToLight(gx, gy, base, tiltGain)
       }
+
       Sensor.TYPE_ACCELEROMETER -> {
         // Low-pass to extract gravity from raw acceleration.
         gFilt[0] += alpha * (event.values[0] - gFilt[0])
@@ -301,6 +305,7 @@ internal class TiltLightProvider(
         val (gx, gy) = remapGravityToScreen(gFilt[0], gFilt[1])
         gravityToLight(gx, gy, base, tiltGain)
       }
+
       else -> return
     }
 

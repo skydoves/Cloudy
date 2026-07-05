@@ -413,9 +413,11 @@ private class CloudyBackgroundModifierNode(
       Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
         drawWithRenderEffect(backgroundLayer, snapshot)
       }
+
       cpuBlurEnabled -> {
         drawWithBitmap(backgroundLayer, snapshot)
       }
+
       else -> {
         drawScrimFallback(backgroundLayer, snapshot)
       }
@@ -448,12 +450,14 @@ private class CloudyBackgroundModifierNode(
   private fun ContentDrawScope.clipToShape(block: DrawScope.() -> Unit) {
     when (val outline = shape.createOutline(size, layoutDirection, this)) {
       is Outline.Rectangle -> clipRect { block() }
+
       is Outline.Rounded -> {
         val path = (clipPathCache ?: Path().also { clipPathCache = it })
         path.rewind()
         path.addRoundRect(outline.roundRect)
         clipPath(path) { block() }
       }
+
       is Outline.Generic -> clipPath(outline.path) { block() }
     }
   }
@@ -706,10 +710,13 @@ private class CloudyBackgroundModifierNode(
         val progressiveDir = when (capturedSnapshot.direction) {
           SkySnapshot.ProgressiveDirection.TOP_TO_BOTTOM ->
             RenderScriptToolkit.ProgressiveDirection.TOP_TO_BOTTOM
+
           SkySnapshot.ProgressiveDirection.BOTTOM_TO_TOP ->
             RenderScriptToolkit.ProgressiveDirection.BOTTOM_TO_TOP
+
           SkySnapshot.ProgressiveDirection.EDGES ->
             RenderScriptToolkit.ProgressiveDirection.EDGES
+
           SkySnapshot.ProgressiveDirection.NONE ->
             RenderScriptToolkit.ProgressiveDirection.NONE
         }

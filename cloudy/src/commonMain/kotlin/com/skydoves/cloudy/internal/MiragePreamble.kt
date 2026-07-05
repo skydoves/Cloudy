@@ -15,7 +15,7 @@
  */
 package com.skydoves.cloudy.internal
 
-/**
+/*
  * Shared shader preamble text the [MirageCompiler] prepends before a codegen kernel body.
  *
  * The preamble owns the lens geometry/color helpers (`boxRoundedSDF`, `lensNormalDirection`,

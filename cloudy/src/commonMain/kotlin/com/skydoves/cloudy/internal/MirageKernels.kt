@@ -15,7 +15,7 @@
  */
 package com.skydoves.cloudy.internal
 
-/**
+/*
  * Kernel bodies the [MirageCompiler] splices onto the [MiragePreamble] and generated uniform
  * declarations. Each body is paired with its [MirageParams] subclass and registered as an
  * [Optic][com.skydoves.cloudy.Optic] in [MirageOptics][com.skydoves.cloudy.MirageOptics].
