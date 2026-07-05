@@ -138,7 +138,7 @@ private fun rasterizeRain(kernel: String, time: Float): ByteArray {
   builder.uniform("mirageResolution", RASTER.toFloat(), RASTER.toFloat())
   builder.uniform("mirageTime", time)
   builder.uniform("rainAmount", 0.35f)
-  builder.uniform("blurRadius", 3f)
+  builder.uniform("blurRadius", 1.6f)
   builder.child("content", contentShader())
   return rasterize(builder.makeShader())
 }
