@@ -53,6 +53,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
@@ -72,6 +73,7 @@ import com.skydoves.landscapist.coil3.CoilImage
 import demo.component.CollapsingAppBarScaffold
 import demo.component.MaxWidthContainer
 import demo.model.MockUtil
+import demo.optic.DropletMap
 import demo.optic.RainyWindowOptic
 import demo.optic.RainyWindowParams
 import demo.theme.Dimens
@@ -118,26 +120,31 @@ private sealed interface MiragePick {
 
   /**
    * The demo-authored rainy-window optic (open-API showcase). Full-bleed by design and content-shaped,
-   * so it ignores the lens [framing]; strength maps to `rainAmount`.
+   * so it ignores the lens [framing]; strength maps to `rainAmount`. Carries the baked, tileable
+   * [dropletMap] (generated once and remembered in the composable) that the texture-backed kernel taps.
    */
-  data object RainyWindow : MiragePick {
+  data class RainyWindow(private val dropletMap: ImageBitmap) : MiragePick {
     override val label = "Rainy Window"
     override fun MirageScope.declare(framing: MirageLensParams.() -> Unit, strength: Float) {
       filter(RainyWindowOptic.RainyWindow) {
+        dropletMap(this@RainyWindow.dropletMap)
         rainAmount(strength)
       }
     }
   }
 }
 
-private val PICKS: List<MiragePick> = listOf(
+/**
+ * The looks that need no per-composition state. The rainy-window pick is appended in the composable
+ * because it carries a remembered droplet texture (see [MirageScreen]).
+ */
+private val BASE_PICKS: List<MiragePick> = listOf(
   MiragePick.Specular,
   MiragePick.Chromatic("Iridescent", MirageOptics.Chromatic),
   MiragePick.Chromatic("Oil Slick", MirageOptics.OilSlick),
   MiragePick.Chromatic("Soap Bubble", MirageOptics.SoapBubble),
   MiragePick.Chromatic("Metallic Foil", MirageOptics.MetallicFoil),
   MiragePick.Chromatic("Pearl", MirageOptics.Pearl),
-  MiragePick.RainyWindow,
 )
 
 /**
@@ -165,6 +172,11 @@ private val PICKS: List<MiragePick> = listOf(
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun MirageScreen(onBackClick: () -> Unit) {
+  // The droplet map is a one-shot offline bake; remember it so it survives recompositions and is
+  // uploaded once. It is deterministic (fixed seed), so the field is stable across runs.
+  val dropletMap = remember { DropletMap.generate() }
+  val picks = remember(dropletMap) { BASE_PICKS + MiragePick.RainyWindow(dropletMap) }
+
   var pick: MiragePick by remember { mutableStateOf(MiragePick.Specular) }
   var gyroEnabled by remember { mutableStateOf(true) }
   var chained by remember { mutableStateOf(false) }
@@ -259,7 +271,7 @@ fun MirageScreen(onBackClick: () -> Unit) {
             )
             Spacer(modifier = Modifier.height(8.dp))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-              PICKS.forEach { entry ->
+              picks.forEach { entry ->
                 FilterChip(
                   selected = !chained && pick == entry,
                   onClick = {

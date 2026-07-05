@@ -41,11 +41,14 @@ private const val RASTER = 96
  * the skiko backend does at draw time. This makes the SKSL kernel the single source of truth while
  * still gating it on the `:cloudy:desktopTest` task the CI gate runs.
  *
- * The regression guarded here is the large-`mirageTime` hash decay. The original kernel hashed the
+ * The regression guarded here is the large-`mirageTime` hash decay. An earlier kernel hashed the
  * drifting cell coordinate through `sin(dot(cell, ...))`; with the gravity drift the argument grows to
  * ~4.4e5 at t=600s and ~2.7e6 near the wrap at t=3599s, and fp32 `sin()` range reduction degrades on
  * some GPUs (measured Adreno) into near-random output, collapsing the droplet field and producing
- * arbitrary refraction offsets (which read as dark edge smears and 200-400ms frames on device).
+ * arbitrary refraction offsets (which read as dark edge smears and 200-400ms frames on device). The
+ * current kernel is texture-backed and hash-free — the only time math is `fract(mirageTime * speed +
+ * phase)` with a tiny product — but the same large-time invariants are asserted so a regression back to
+ * unbounded time arguments would still be caught.
  *
  * A raster CPU skiko does not reproduce a specific GPU's `sin()` decay, so a pass here is not a proof
  * that a broken kernel is broken. Instead this asserts the *fixed* kernel's invariants hold at both a
@@ -117,21 +120,26 @@ private fun readRainyWindowKernel(): String {
 /**
  * The uniform header the mirage compiler prepends before splicing a composite kernel (see
  * `MirageCompiler`): the standard `mirageResolution`/`mirageTime` uniforms, the schema uniforms this
- * optic declares (`rainAmount`, `blurRadius`), and the `content` child shader. The raw kernel body
- * references these but does not declare them, so the test must prepend the same header to compile.
+ * optic declares (`dropletMap`, `rainAmount`, `blurRadius`, `dropScale`), and the `content` child
+ * shader. The raw kernel body references these but does not declare them, so the test must prepend the
+ * same header to compile. `dropletMap` is a `uniform shader` child the texture-backed kernel taps.
  */
 private const val KERNEL_HEADER: String = """
 uniform float2 mirageResolution;
 uniform float mirageTime;
+uniform shader dropletMap;
 uniform float rainAmount;
 uniform float blurRadius;
+uniform float dropScale;
 uniform shader content;
 """
 
 /**
  * Rasterizes the rainy-window kernel over an opaque diagonal-gradient content at a chosen [time]. Binds
  * the standard mirage uniforms the kernel reads (`mirageResolution`, `mirageTime`) plus the schema
- * uniforms (`rainAmount`, `blurRadius`) at their demo defaults. Returns RGBA_8888 bytes.
+ * uniforms (`rainAmount`, `blurRadius`, `dropScale`) at their demo defaults, and a synthetic droplet
+ * map as the `dropletMap` child (a procedural paraboloid field standing in for the baked texture, so
+ * the test does not depend on the app's `DropletMap` generator). Returns RGBA_8888 bytes.
  */
 private fun rasterizeRain(kernel: String, time: Float): ByteArray {
   val builder = RuntimeShaderBuilder(RuntimeEffect.makeForShader(KERNEL_HEADER + kernel))
@@ -139,9 +147,42 @@ private fun rasterizeRain(kernel: String, time: Float): ByteArray {
   builder.uniform("mirageTime", time)
   builder.uniform("rainAmount", 0.35f)
   builder.uniform("blurRadius", 1.6f)
+  builder.uniform("dropScale", 1.6f)
+  builder.child("dropletMap", dropletMapShader())
   builder.child("content", contentShader())
   return rasterize(builder.makeShader())
 }
+
+/**
+ * A synthetic droplet map standing in for the baked [DropletMap] texture: a procedural field that
+ * scatters paraboloid drops on a 512-px grid and encodes the same channels the kernel decodes — surface
+ * normal in R,G (`0.5 + 0.5 * n`), coverage/height in A, and a per-cell random phase in B. It samples in
+ * texel space just like the REPEAT-tiled bitmap child, so the kernel's `dropletMap.eval(mod(...,512))`
+ * reads a non-degenerate field with real drops, exercising refraction + the life cycle in the test.
+ */
+private fun dropletMapShader(): Shader = RuntimeEffect.makeForShader(
+  """
+  float2 cellHash(float2 c) {
+    float3 p = fract(float3(c.xyx) * float3(0.1031, 0.1030, 0.0973));
+    p += dot(p, p.yzx + 33.33);
+    return fract((p.xx + p.yz) * p.zy);
+  }
+  half4 main(float2 xy) {
+    float2 grid = xy / 64.0;            // ~8 cells across the 512 texture
+    float2 cell = floor(grid);
+    float2 h = cellHash(cell);
+    float2 local = fract(grid) - float2(0.35 + 0.3 * h.x, 0.35 + 0.3 * h.y);
+    float radius = 0.22 + 0.12 * h.x;
+    float dist = length(local);
+    float u = dist / radius;
+    if (u >= 1.0) { return half4(0.5, 0.5, 0.0, 0.0); }
+    float cov = (1.0 - u * u * u * u);
+    float slope = 4.0 * u * (1.0 - u);        // hump peaking mid-drop, matching the generator
+    float2 n = (dist > 1e-4) ? (local / dist) * slope : float2(0.0);
+    return half4(half(0.5 + 0.5 * n.x), half(0.5 + 0.5 * n.y), half(h.y), half(cov));
+  }
+  """.trimIndent(),
+).let { RuntimeShaderBuilder(it).makeShader() }
 
 /** A deterministic opaque diagonal gradient, so the sharp/blur taps sample real spatial variation. */
 private fun contentShader(): Shader = RuntimeEffect.makeForShader(
