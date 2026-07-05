@@ -44,8 +44,8 @@ internal expect fun createBackendProgram(compiled: CompiledProgram): MirageBacke
  * identifier (the schema entry name), so writes stay name-keyed rather than positional — the backend
  * decides how to resolve it (Android/skiko both key uniforms by name).
  *
- * There is deliberately **no** `vec3` for a raw `float3` value even though [UVec3] exists: the M1
- * handle set has no float3 preset and both backends already expose float2/float3/float4 through
+ * There is deliberately **no** `vec3` for a raw `float3` value even though [UVec3] exists: no handle
+ * uses a float3 preset and both backends already expose float2/float3/float4 through
  * [floatArray] (skiko `uniform(name, FloatArray)`, Android `setFloatUniform(name, FloatArray)`), so a
  * separate arity method would be dead surface. A float3 handle binds through [floatArray] with a
  * length-3 array.

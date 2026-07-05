@@ -100,8 +100,8 @@ public interface MirageScope {
  *
  * ## Stage order
  * Filters chain in declared order (`content -> f1 -> f2 -> …`); overlays are then composited over the
- * filtered result in declared order. There is no cross-stage fusion in this milestone — each stage is
- * a separate program applied in sequence (see the node for why).
+ * filtered result in declared order. Stages are not fused: each is a separate program applied in
+ * sequence (see the node for why).
  *
  * @param clock time-driving policy for the standard `mirageTime` uniform. Default: [MirageClock.Auto].
  * @param enabled when `false`, the whole plan is bypassed and the content passes through unmodified.

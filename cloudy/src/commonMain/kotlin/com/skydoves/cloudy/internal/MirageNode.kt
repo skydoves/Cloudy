@@ -136,9 +136,8 @@ internal class MiragePlanBuilder : MirageScope {
  * ## Draw model (no fusion)
  * Filters chain through a stack of [GraphicsLayer]s — each stage records the previous stage's output,
  * sets its content-bound render effect, and hands its own layer forward. Overlays are then composited
- * over the filtered result. There is deliberately no cross-stage fusion in this milestone: each stage
- * is a separate program applied in sequence, which keeps the compiler and cache keyed on single
- * optics. Fusing adjacent kernels into one program is a later optimization.
+ * over the filtered result. Stages are not fused: each is a separate program applied in sequence,
+ * which keeps the compiler and cache keyed on single optics.
  *
  * ## API < 33 / unsupported platform
  * A stage whose program cannot be built right now ([MirageProgramCache.obtain] returns `null`, e.g.

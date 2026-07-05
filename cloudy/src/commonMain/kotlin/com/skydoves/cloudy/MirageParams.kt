@@ -39,8 +39,7 @@ import kotlin.reflect.KProperty
  * the single draw-phase thread, so no synchronization and no per-frame allocation.
  *
  * A handle here is a plain typed slot, not a shader expression: it carries the per-draw value and
- * its binding slot, nothing more. (The tracing eDSL that turns handles into expression nodes is a
- * later milestone.)
+ * its binding slot, nothing more.
  */
 @ExperimentalMirage
 public abstract class MirageParams {

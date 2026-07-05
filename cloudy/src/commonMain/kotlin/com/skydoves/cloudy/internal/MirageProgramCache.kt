@@ -48,8 +48,7 @@ internal class CachedProgram(val compiled: CompiledProgram, val backend: MirageB
  *
  * ## Ownership
  * This is a process-wide singleton, deliberately **not** owned by any node's attach/detach lifecycle.
- * A per-node cache would recompile on every re-attach and could not be pre-warmed; keeping it here
- * lets a future `warmUp()` and an eviction policy (P2) attach without moving ownership.
+ * A per-node cache would recompile on every re-attach and could not be pre-warmed.
  *
  * ## Concurrency
  * The draw thread reads and fills this, and different draw targets can race on first compile, so the
@@ -59,7 +58,7 @@ internal class CachedProgram(val compiled: CompiledProgram, val backend: MirageB
  * contention — two racing threads may each *compile* once (a rare, harmless duplicate the loser
  * discards), but only one backend is ever stored and handed out.
  *
- * LRU / trim-on-memory is intentionally absent in M1 (P2): the map is unbounded but real.
+ * The map is unbounded: it holds one backend per distinct kernel source, with no eviction.
  */
 internal object MirageProgramCache {
 

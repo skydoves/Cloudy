@@ -92,8 +92,8 @@ private class SkikoUniformSink(private val builder: RuntimeShaderBuilder) : Unif
    * a Display-P3 literal) to sRGB before reading components, matching how an sRGB layout(color) on
    * Android is treated. CAVEAT: because the shader receives raw sRGB float4 with no working-color-
    * space conversion, wide-gamut displays may render this color slightly differently from Android,
-   * where setColorUniform performs the working-space transform. M1 presets use only sRGB literals, so
-   * this is a no-op in practice today; it is documented here for the day a P3 color is introduced.
+   * where setColorUniform performs the working-space transform. The bundled presets use only sRGB
+   * literals, so this difference is a no-op in practice; it matters only for a wide-gamut color.
    */
   override fun color(name: String, c: Color) {
     val srgb = c.convert(ColorSpaces.Srgb)
