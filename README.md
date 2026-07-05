@@ -488,6 +488,115 @@ The rotations are read as lambdas (deferred reads) so per-frame updates invalida
 
 The `glow` parameter tunes the specular glint with two perceptual knobs: `intensity` (brightness) and `sharpness` (focus). Build one with the `LiquidGlassGlow(intensity = …, sharpness = …)` factory, or use `LiquidGlassDefaults.NoGlow` to switch the glint off. The full set of shader tunables — `glowRimMix` and `glowWidthPx`, alongside `glowIntensity` / `glowSharpness` — lives on the experimental `Modifier.liquidGlassTuned` overload, intended for live experimentation rather than the committed API surface.
 
+## Mirage (open shader effect)
+
+`Modifier.mirage { }` applies an **open shader-effect plan** to any composable: one modifier runs a plan of typed `Optic`s — either the bundled looks or optics you author yourself — against the content it wraps. It ships a family of thin-film / specular presets, and because an optic is just a kernel plus a typed uniform schema, consumers can add new effects without any library change.
+
+Mirage is behind an experimental opt-in and is excluded from the stable ABI while its surface settles:
+
+```kotlin
+@OptIn(ExperimentalMirage::class)
+@Composable
+fun Poster() { /* ... */ }
+```
+
+### Platform Support (Mirage)
+
+| Platform | Implementation | Behavior |
+|----------|----------------|----------|
+| Android 33+ | RuntimeShader (AGSL) | Full effect |
+| Android 32- | — | Each stage is skipped; content passes through unchanged |
+| iOS / macOS / Desktop (JVM) / WASM | Skia RuntimeEffect (SKSL) | Full effect |
+
+### Basic Usage
+
+Apply a preset by declaring a `filter` in the plan. Lens-shaped optics read a `lensCenter` (in the content's local pixels); it defaults to the content origin, so seed the pane center for a centered lens:
+
+```kotlin
+var lensCenter by remember { mutableStateOf(Offset.Zero) }
+
+Box(
+  modifier = Modifier
+    .onSizeChanged { lensCenter = Offset(it.width / 2f, it.height / 2f) }
+    .mirage {
+      filter(MirageOptics.Specular) {
+        lensCenter(lensCenter)
+        lensSize(Size(520f, 520f))
+        cornerRadius(120f)
+      }
+    },
+) {
+  Image(painter = painterResource(R.drawable.photo), contentDescription = null)
+}
+```
+
+### Presets
+
+The bundled optics live in `MirageOptics`:
+
+| Preset | Kind | Look |
+|--------|------|------|
+| `Specular` | Composite | Lit-glass specular glint (matches the `liquidGlass` highlight) |
+| `Chromatic` | Composite | Thin-film (Newton's-rings) iridescence — the default look |
+| `OilSlick` | Composite | Saturated, dark-based rainbow with little wash-out |
+| `SoapBubble` | Composite | Pale, pastel iridescence — few wide bands, high wash-out |
+| `MetallicFoil` | Composite | Sharp metallic sheen with a Fresnel rim boost |
+| `Pearl` | Composite | Soft, luminous, low-saturation lustre |
+| `Foil` | Generate | Content-free overlay: glare + flowing rainbow + sparkle |
+| `Duotone` | Colorize | Point-wise shadow→highlight duotone grade |
+
+The five thin-film looks (`Chromatic` and friends) are one kernel expressed at different uniform defaults; `Specular` and the others are distinct programs.
+
+### Clock
+
+`Modifier.mirage(clock = …)` controls the `mirageTime` uniform that time-driven optics (e.g. `Foil`'s sparkle) read:
+
+- `MirageClock.Auto` (default) — advances `mirageTime` from the frame loop.
+- `MirageClock.Paused` — freezes it at the last value.
+- `MirageClock.Fixed(seconds)` — pins it to a constant, for deterministic rendering.
+
+### Overlays
+
+An `overlay` composites a content-free generator on top of the filtered result under a blend mode. Ordering follows declaration, regardless of where the overlay appears in the block:
+
+```kotlin
+Modifier.mirage {
+  filter(MirageOptics.OilSlick) { lensCenter(center); lensSize(size); cornerRadius(120f) }
+  overlay(MirageOptics.Foil) { lensCenter(center); lensSize(size); cornerRadius(120f) }
+}
+```
+
+### Authoring your own optic
+
+An optic is a kernel plus a `MirageParams` subclass whose property names are the shader uniform identifiers. A `composite` optic authors a full `half4 main(float2 xy)` and samples the content through the compiler-provided `content` shader:
+
+```kotlin
+class VignetteParams : MirageParams() {
+  val strength by uniform(0.6f)
+}
+
+val Vignette = Optic.composite(
+  name = "vignette",
+  paramsFactory = ::VignetteParams,
+  agsl = VIGNETTE_SRC,
+  sksl = VIGNETTE_SRC, // AGSL and SKSL are the same text here
+)
+
+private const val VIGNETTE_SRC = """
+half4 main(float2 xy) {
+    half4 src = content.eval(xy);
+    float2 uv = xy / mirageResolution;          // standard uniform, auto-declared when referenced
+    float d = distance(uv, float2(0.5));
+    float v = 1.0 - strength * smoothstep(0.3, 0.75, d);
+    return half4(src.rgb * half(v), src.a);
+}
+"""
+```
+
+Apply it exactly like a preset: `Modifier.mirage { filter(Vignette) { strength(0.8f) } }`.
+
+The other factories are `Optic.colorize` (a point-wise `half4 kernel(float2 p, half4 src)` that never reaches `content` directly), `Optic.generate` (a content-free overlay), and `Optic.raw` (an escape hatch that emits your source verbatim). The compiler declares the standard uniforms (`mirageResolution` / `mirageTime` / `mirageDensity`) only when the kernel references them, and rejects kernels that use derivative builtins, preprocessor directives, or the raw fragment-coord builtin (none of which compile as a runtime shader).
+
 ## Find this repository useful? :heart:
 Support it by joining __[stargazers](https://github.com/skydoves/cloudy/stargazers)__ for this repository. :star: <br>
 Also, __[follow me](https://github.com/skydoves)__ on GitHub for my next creations! 🤩
