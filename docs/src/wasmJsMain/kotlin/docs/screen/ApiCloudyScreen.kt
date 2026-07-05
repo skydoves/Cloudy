@@ -290,8 +290,7 @@ private fun PlatformBehaviorTable() {
       )
     }
 
-    PlatformRow("Android 33+", "AGSL RuntimeShader", "CloudyState.Success.Applied")
-    PlatformRow("Android 31-32", "RenderEffect (GPU)", "CloudyState.Success.Applied")
+    PlatformRow("Android 31+", "RenderEffect (GPU)", "CloudyState.Success.Applied")
     PlatformRow("Android 23-30", "Native C++ (CPU)", "CloudyState.Success.Captured")
     PlatformRow("iOS", "Skia BlurEffect", "CloudyState.Success.Applied")
     PlatformRow("macOS", "Skia BlurEffect", "CloudyState.Success.Applied")
