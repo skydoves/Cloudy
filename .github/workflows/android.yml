@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ '*' ]
 
+# These jobs only read the repo (checkout + Gradle); none push or comment.
+permissions:
+  contents: read
+
 jobs:
   lint:
     name: Spotless check
