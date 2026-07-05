@@ -56,8 +56,8 @@ fun PlatformSupportScreen() {
     Spacer(modifier = Modifier.height(16.dp))
 
     Text(
-      text = "Cloudy supports all Kotlin Multiplatform targets " +
-        "with platform-optimized implementations.",
+      text = "Cloudy's blur, Liquid Glass, and Mirage effects all support every Kotlin " +
+        "Multiplatform target, with platform-optimized implementations.",
       style = DocsTheme.typography.body,
       color = DocsTheme.colors.onSurfaceVariant,
     )
@@ -90,9 +90,12 @@ fun PlatformSupportScreen() {
       text = """
         Android uses different implementations based on API level:
 
-        • API 33+: AGSL RuntimeShader for progressive blur with custom shaders
-        • API 31-32: RenderEffect.createBlurEffect() for GPU-accelerated uniform blur
+        • API 31+: RenderEffect.createBlurEffect() for GPU-accelerated blur
         • API 23-30: Native C++ with NEON/SIMD optimizations for CPU-based blur
+
+        Progressive (gradient) blur, Liquid Glass's lens refraction, and Mirage all need one
+        API level higher — 33+ — since they run on AGSL RuntimeShader rather than
+        RenderEffect. See the Progressive Blur Support table below.
       """.trimIndent(),
       style = DocsTheme.typography.body,
       color = DocsTheme.colors.onSurfaceVariant,
@@ -119,6 +122,28 @@ fun PlatformSupportScreen() {
     Spacer(modifier = Modifier.height(16.dp))
 
     ProgressiveBlurTable()
+
+    Spacer(modifier = Modifier.height(32.dp))
+
+    // Liquid Glass & Mirage Support
+    Text(
+      text = "Liquid Glass & Mirage Support",
+      style = DocsTheme.typography.h2,
+      color = DocsTheme.colors.onBackground,
+    )
+
+    Spacer(modifier = Modifier.height(16.dp))
+
+    Text(
+      text = "Both effects run on a RuntimeShader, so they share the same Android floor as " +
+        "progressive blur: full effect at API 33+, with a shader-free fallback below it.",
+      style = DocsTheme.typography.body,
+      color = DocsTheme.colors.onSurfaceVariant,
+    )
+
+    Spacer(modifier = Modifier.height(16.dp))
+
+    ShaderEffectSupportTable()
 
     Spacer(modifier = Modifier.height(48.dp))
   }
@@ -147,8 +172,7 @@ private fun PlatformTable() {
     }
 
     // Rows
-    TableRow("Android 33+", "AGSL RuntimeShader")
-    TableRow("Android 31-32", "RenderEffect (GPU)")
+    TableRow("Android 31+", "RenderEffect (GPU)")
     TableRow("Android 23-30", "Native C++ (CPU)")
     TableRow("iOS", "Skia")
     TableRow("macOS", "Skia")
@@ -185,6 +209,55 @@ private fun ProgressiveBlurTable() {
     ProgressiveRow("Android 31-32", "Uniform only", "Falls back with warning")
     ProgressiveRow("Android 23-30", "Uniform only", "CPU blur limitation")
     ProgressiveRow("iOS/macOS/Desktop/WASM", "Full", "Skia shader support")
+  }
+}
+
+@Composable
+private fun ShaderEffectSupportTable() {
+  val shape = RoundedCornerShape(8.dp)
+
+  Column(
+    modifier = Modifier
+      .fillMaxWidth()
+      .clip(shape)
+      .border(1.dp, DocsTheme.colors.divider, shape),
+  ) {
+    // Header
+    Row(
+      modifier = Modifier
+        .fillMaxWidth()
+        .background(DocsTheme.colors.surfaceVariant)
+        .padding(12.dp),
+      horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+      TableCell("Platform", weight = 1f, isHeader = true)
+      TableCell("Liquid Glass", weight = 1f, isHeader = true)
+      TableCell("Mirage", weight = 1.5f, isHeader = true)
+    }
+
+    // Rows
+    ShaderEffectRow("Android 33+", "Full effect", "Full effect")
+    ShaderEffectRow(
+      "Android 23-32",
+      "Fallback (tint + edge, no refraction)",
+      "Content passes through unchanged",
+    )
+    ShaderEffectRow("iOS/macOS/Desktop/WASM", "Full effect", "Full effect")
+  }
+}
+
+@Composable
+private fun ShaderEffectRow(platform: String, liquidGlass: String, mirage: String) {
+  Row(
+    modifier = Modifier
+      .fillMaxWidth()
+      .background(DocsTheme.colors.surface)
+      .padding(12.dp),
+    horizontalArrangement = Arrangement.SpaceBetween,
+  ) {
+    TableCell(platform, weight = 1f)
+    TableCell(liquidGlass, weight = 1f)
+    TableCell(mirage, weight = 1.5f)
   }
 }
 

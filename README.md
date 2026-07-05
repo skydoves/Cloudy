@@ -14,11 +14,11 @@
 </p><br>
 
 <p align="center">
-Kotlin Multiplatform blur and liquid glass effect library for Compose, with GPU-accelerated rendering and CPU fallback for older devices. See <a href="https://skydoves.github.io/Cloudy/">documentation</a> for more details.
+Kotlin Multiplatform surface effects library for Compose — blur, liquid glass, and shader-driven looks — with GPU-accelerated rendering and CPU fallback for older devices. See <a href="https://skydoves.github.io/Cloudy/">documentation</a> for more details.
 </p><br>
 
-> <p align="center">The `blur` modifier supports only Android 12 and higher, and `RenderScript` APIs are deprecated starting in Android 12.
-> Cloudy is the backport of the blur effect for Jetpack Compose with cross-platform support.</p>
+> <p align="center">Cloudy started as a backport of the blur effect for Jetpack Compose with cross-platform support, and has grown to cover liquid glass and open shader effects as well.
+> The `Modifier.cloudy(radius = …)` blur path supports only Android 12 and higher without the deprecated `RenderScript` APIs; see <a href="#platform-support-self-blur">Platform Support</a> for the CPU fallback on older devices.</p>
 
 <p align="center">
 <img src="preview/gif0.gif" width="268"/>
@@ -26,18 +26,29 @@ Kotlin Multiplatform blur and liquid glass effect library for Compose, with GPU-
 <img src="preview/img2.png" width="268"/>
 </p>
 
-### Supported Platforms (Blur Effect)
+Cloudy ships four independent effects you can mix and match on any composable — pick the ones you need:
 
-| Platform | Implementation | Performance | State Type |
-|----------|----------------|-------------|------------|
-| Android 31+ | RenderEffect (GPU) | GPU-accelerated | `Success.Applied` |
-| Android 30- | Native C++ (CPU) | NEON/SIMD optimized | `Success.Captured` |
-| iOS | Skia BlurEffect (Metal GPU) | GPU-accelerated | `Success.Applied` |
-| macOS | Skia BlurEffect (Metal GPU) | GPU-accelerated | `Success.Applied` |
-| Desktop (JVM) | Skia BlurEffect (GPU) | GPU-accelerated | `Success.Applied` |
-| WASM (Browser) | Skia BlurEffect (WebGL) | GPU-accelerated | `Success.Applied` |
+| Effect | Modifier | What it does |
+|--------|----------|---------------|
+| [Self blur](#self-blur) | `Modifier.cloudy(radius = …)` | Blurs a composable's **own** content |
+| [Backdrop blur](#backdrop-blur) | `Modifier.cloudy(sky = …)` | Blurs the content **behind** a composable (glassmorphism) |
+| [Liquid Glass](#liquid-glass) | `Modifier.liquidGlass(…)` | A realistic glass lens with refraction and chromatic dispersion |
+| [Mirage](#mirage) | `Modifier.mirage { }` | An open shader-effect plan — thin-film / specular presets, or your own |
 
-> See [Liquid Glass Effect](#liquid-glass-effect) for liquid glass platform support.
+**Table of contents**
+
+- [Download](#download)
+- **Part I — Effects**
+  - [Self blur](#self-blur)
+  - [Backdrop blur](#backdrop-blur)
+  - [Liquid Glass](#liquid-glass)
+  - [Mirage](#mirage)
+- **Part II — Going further**
+  - [Motion-driven light sources](#motion-driven-light-sources)
+  - [Authoring your own Mirage optic](#authoring-your-own-mirage-optic)
+  - [Blur effect with network images](#blur-effect-with-network-images)
+- [Acknowledgements](#acknowledgements)
+- [License](#license)
 
 ## Download
 
@@ -79,9 +90,13 @@ sourceSets {
 }
 ```
 
-## Usage
+# Part I — Effects
 
-Cloudy offers two blur modes: `Modifier.cloudy(radius = …)` blurs a composable's **own** content (covered below), while [Background Blur](#background-blur-backdrop-blur) blurs the content *behind* a composable for glassmorphism surfaces.
+## Self blur
+
+Cloudy offers two blur modes: `Modifier.cloudy(radius = …)` blurs a composable's **own** content (covered here), while [Backdrop blur](#backdrop-blur) blurs the content *behind* a composable for glassmorphism surfaces.
+
+### Basic Usage
 
 You can implement blur effect with `Modifier.cloudy()` composable function as seen below:
 
@@ -123,7 +138,7 @@ Column(
 }
 ```
 
-## Observing Blurring Status
+### Observing Blurring Status
 
 You can monitor the status of the blurring effect by using the `onStateChanged` parameter, which provides `CloudyState`. This allows you to observe and respond to changes in the blurring effect's state effectively.
 
@@ -160,7 +175,7 @@ GlideImage(
 )
 ```
 
-### CloudyState Types
+`CloudyState` has the following types:
 
 | State | Description | Bitmap Available |
 |-------|-------------|------------------|
@@ -171,7 +186,7 @@ GlideImage(
 | `Error` | Blur operation failed | No |
 | `Nothing` | Initial state | No |
 
-## Maintaining Blurring Effect on Responsive Composable
+### Maintaining Blurring Effect on Responsive Composable
 
 The `Modifier.cloudy` captures the bitmap of the composable node under the hood.
 
@@ -200,7 +215,20 @@ private fun HomePoster(poster: Poster) {
           ..
 ```
 
-## Background Blur (Backdrop Blur)
+### Platform Support (Self Blur)
+
+| Platform | Implementation | Performance | State Type |
+|----------|----------------|-------------|------------|
+| Android 31+ | RenderEffect (GPU) | GPU-accelerated | `Success.Applied` |
+| Android 30- | Native C++ (CPU) | NEON/SIMD optimized | `Success.Captured` |
+| iOS | Skia BlurEffect (Metal GPU) | GPU-accelerated | `Success.Applied` |
+| macOS | Skia BlurEffect (Metal GPU) | GPU-accelerated | `Success.Applied` |
+| Desktop (JVM) | Skia BlurEffect (GPU) | GPU-accelerated | `Success.Applied` |
+| WASM (Browser) | Skia BlurEffect (WebGL) | GPU-accelerated | `Success.Applied` |
+
+> See [Backdrop blur](#platform-behavior-background-blur) and [Liquid Glass](#platform-support-liquid-glass) for their own platform support tables.
+
+## Backdrop blur
 
 Background blur — also called **backdrop blur** — blurs the content that sits *behind* a composable, producing a glassmorphism / frosted-glass surface such as a translucent app bar, bottom navigation, or card. Unlike `Modifier.cloudy(radius = …)`, which blurs a composable's **own** content, the backdrop API samples a shared snapshot of the background and renders it blurred *underneath* your overlay.
 
@@ -332,28 +360,13 @@ LaunchedEffect(selectedTab) {
 
 > On Android 30 and below, CPU blur is disabled by default and a semi-transparent scrim (`CloudyState.Success.Scrim`) is shown instead, following a performance-first approach. Set `cpuBlurEnabled = true` to force CPU blur on those devices.
 
-## Blur Effect with Network Images
-
-You can easily implement blur effect with [Landscapist](https://github.com/skydoves/landscapist), which is a Jetpack Compose image loading library that fetches and displays network images with Glide, Coil, and Fresco. For more information, see the [Transformation](https://github.com/skydoves/landscapist#transformation) section.
-
-## Liquid Glass Effect
+## Liquid Glass
 
 ![image](screenshots/liquidglass.gif)
 
 Cloudy provides a `Modifier.liquidGlass()` that creates a realistic glass lens effect with SDF-based crisp edges, normal-based refraction, and chromatic dispersion.
 
 **Note:** For blur effects, use `Modifier.cloudy()` separately. The two modifiers are designed to work independently, giving you full control over each effect.
-
-### Platform Support (Liquid Glass)
-
-| Platform | Implementation | Features |
-|----------|----------------|----------|
-| Android 33+ | RuntimeShader (AGSL) | Full effect |
-| Android 32- | Fallback | Tint + edge + shape (no lens refraction) |
-| iOS | Skia RuntimeEffect | Full effect |
-| macOS | Skia RuntimeEffect | Full effect |
-| Desktop (JVM) | Skia RuntimeEffect | Full effect |
-| WASM | Skia RuntimeEffect | Full effect |
 
 ### Basic Usage
 
@@ -430,65 +443,26 @@ You can customize the liquid glass effect with various parameters:
 | `contrast` | 1.0f | Light/dark contrast (1.0 = normal) | Approximation |
 | `tint` | Transparent | Optional color tint overlay | Yes |
 | `edge` | 0.2f | Edge lighting width (0 = none) | Yes (as stroke) |
-| `light` | Fixed | Specular light source (see Motion-driven specular) | No (requires API 33+) |
+| `light` | Fixed | Specular light source (see [Motion-driven light sources](#motion-driven-light-sources)) | No (requires API 33+) |
 | `glow` | `LiquidGlassDefaults.Glow` | Perceptual glint tuning: brightness (`intensity`) and focus (`sharpness`). Use `LiquidGlassDefaults.NoGlow` to remove the glint | No (requires API 33+) |
 | `enabled` | true | Enable/disable the effect | Yes |
 
 > **Note:** On Android 32 and below, the lens refraction effect is not available since it requires `RuntimeShader` (API 33+). The fallback draws a visible lens shape with tint, edge lighting, and color adjustments. For blur effects, use `Modifier.cloudy()` separately.
 
-### Motion-driven specular (experimental)
+### Platform Support (Liquid Glass)
 
-By default the rim highlight uses a fixed light direction that reproduces the *direction* of the old fixed light. The specular itself is a new multi-term model (a moving focal pool, body sheen, a Blinn rim, and a back-rim, screen-blended), so the highlight looks different from pre-release versions — an intended upgrade, not a bit-for-bit match. Opt in to **gyro-driven specular** to make the highlight sweep across the glass as the device tilts (à la iOS 26 "lights move in space"):
+| Platform | Implementation | Features |
+|----------|----------------|----------|
+| Android 33+ | RuntimeShader (AGSL) | Full effect |
+| Android 32- | Fallback | Tint + edge + shape (no lens refraction) |
+| iOS | Skia RuntimeEffect | Full effect |
+| macOS | Skia RuntimeEffect | Full effect |
+| Desktop (JVM) | Skia RuntimeEffect | Full effect |
+| WASM | Skia RuntimeEffect | Full effect |
 
-```kotlin
-@OptIn(ExperimentalLiquidGlassMotion::class)
-@Composable
-fun GlassCard() {
-  // Hoist once and share across items in a list — one call registers one sensor.
-  val light = rememberGyroLightSource(enabled = true)
+> Liquid Glass also supports an optional, opt-in motion-driven light source — see [Motion-driven light sources](#motion-driven-light-sources) in Part II.
 
-  Box(
-    modifier = Modifier.liquidGlass(
-      lensCenter = lensCenter,
-      light = light,
-    ),
-  ) { /* ... */ }
-}
-```
-
-- **Opt-in & accessible:** the default is a fixed light *direction*; motion is opt-in. Enabling gyro only changes where the light *direction* comes from — the specular model itself is the same whether the light is fixed or motion-driven. When **Reduce Motion** is enabled (Android animator scale `0`, iOS `isReduceMotionEnabled`), the light is frozen and no sensors are registered — observed live.
-- **Platform support:** Android **API 33+** (the fallback path has no shader → no-op), iOS, and any device with a motion sensor. Desktop/Web and sensorless devices keep a static light.
-- **Lists:** call `rememberGyroLightSource()` **once** above the list and pass the result to each item, so a single sensor listener is shared.
-
-> **iOS:** the consuming app's `Info.plist` **must** declare `NSMotionUsageDescription`, or recent iOS terminates the app on the first device-motion read. iOS v1 uses a portrait-oriented projection; landscape is not yet remapped.
-
-#### Transform-driven light (no sensor)
-
-`rememberTransformLightSource` is the sibling of `rememberGyroLightSource`. Instead of the device gyro, it drives the highlight from a composable's **own** `rotationX` / `rotationY` — the same values you apply through `Modifier.graphicsLayer`. It needs no sensor, no platform code, and works on every target including Desktop and Web:
-
-```kotlin
-@OptIn(ExperimentalLiquidGlassMotion::class)
-@Composable
-fun TiltCard() {
-  var rx by remember { mutableFloatStateOf(0f) }
-  var ry by remember { mutableFloatStateOf(0f) }
-  val light = rememberTransformLightSource(rotationX = { rx }, rotationY = { ry })
-
-  Box(
-    modifier = Modifier
-      .graphicsLayer { rotationX = rx; rotationY = ry; cameraDistance = 12f * density }
-      .liquidGlass(lensCenter = lensCenter, light = light),
-  ) { /* ... */ }
-}
-```
-
-The rotations are read as lambdas (deferred reads) so per-frame updates invalidate the draw without recomposing the modifier, matching the gyro source's behavior.
-
-#### Glint tuning
-
-The `glow` parameter tunes the specular glint with two perceptual knobs: `intensity` (brightness) and `sharpness` (focus). Build one with the `LiquidGlassGlow(intensity = …, sharpness = …)` factory, or use `LiquidGlassDefaults.NoGlow` to switch the glint off. The full set of shader tunables — `glowRimMix` and `glowWidthPx`, alongside `glowIntensity` / `glowSharpness` — lives on the experimental `Modifier.liquidGlassTuned` overload, intended for live experimentation rather than the committed API surface.
-
-## Mirage (open shader effect)
+## Mirage
 
 `Modifier.mirage { }` applies an **open shader-effect plan** to any composable: one modifier runs a plan of typed `Optic`s — either the bundled looks or optics you author yourself — against the content it wraps. It ships a family of thin-film / specular presets, and because an optic is just a kernel plus a typed uniform schema, consumers can add new effects without any library change.
 
@@ -499,14 +473,6 @@ Mirage is behind an experimental opt-in and is excluded from the stable ABI whil
 @Composable
 fun Poster() { /* ... */ }
 ```
-
-### Platform Support (Mirage)
-
-| Platform | Implementation | Behavior |
-|----------|----------------|----------|
-| Android 33+ | RuntimeShader (AGSL) | Full effect |
-| Android 32- | — | Each stage is skipped; content passes through unchanged |
-| iOS / macOS / Desktop (JVM) / WASM | Skia RuntimeEffect (SKSL) | Full effect |
 
 ### Basic Usage
 
@@ -566,7 +532,77 @@ Modifier.mirage {
 }
 ```
 
-### Authoring your own optic
+### Platform Support (Mirage)
+
+| Platform | Implementation | Behavior |
+|----------|----------------|----------|
+| Android 33+ | RuntimeShader (AGSL) | Full effect |
+| Android 32- | — | Each stage is skipped; content passes through unchanged |
+| iOS / macOS / Desktop (JVM) / WASM | Skia RuntimeEffect (SKSL) | Full effect |
+
+> Want to write your own preset instead of using the bundled ones? See [Authoring your own Mirage optic](#authoring-your-own-mirage-optic) in Part II.
+
+# Part II — Going further
+
+The topics below extend an effect from Part I — an opt-in motion source for Liquid Glass, writing a custom Mirage optic, and using Cloudy with a network image loader. Read these once the basics above are working.
+
+## Motion-driven light sources
+
+*Extends: [Liquid Glass](#liquid-glass)*
+
+By default the rim highlight uses a fixed light direction that reproduces the *direction* of the old fixed light. The specular itself is a new multi-term model (a moving focal pool, body sheen, a Blinn rim, and a back-rim, screen-blended), so the highlight looks different from pre-release versions — an intended upgrade, not a bit-for-bit match. Opt in to **gyro-driven specular** to make the highlight sweep across the glass as the device tilts (à la iOS 26 "lights move in space"):
+
+```kotlin
+@OptIn(ExperimentalLiquidGlassMotion::class)
+@Composable
+fun GlassCard() {
+  // Hoist once and share across items in a list — one call registers one sensor.
+  val light = rememberGyroLightSource(enabled = true)
+
+  Box(
+    modifier = Modifier.liquidGlass(
+      lensCenter = lensCenter,
+      light = light,
+    ),
+  ) { /* ... */ }
+}
+```
+
+- **Opt-in & accessible:** the default is a fixed light *direction*; motion is opt-in. Enabling gyro only changes where the light *direction* comes from — the specular model itself is the same whether the light is fixed or motion-driven. When **Reduce Motion** is enabled (Android animator scale `0`, iOS `isReduceMotionEnabled`), the light is frozen and no sensors are registered — observed live.
+- **Platform support:** Android **API 33+** (the fallback path has no shader → no-op), iOS, and any device with a motion sensor. Desktop/Web and sensorless devices keep a static light.
+- **Lists:** call `rememberGyroLightSource()` **once** above the list and pass the result to each item, so a single sensor listener is shared.
+
+> **iOS:** the consuming app's `Info.plist` **must** declare `NSMotionUsageDescription`, or recent iOS terminates the app on the first device-motion read. iOS v1 uses a portrait-oriented projection; landscape is not yet remapped.
+
+### Transform-driven light (no sensor)
+
+`rememberTransformLightSource` is the sibling of `rememberGyroLightSource`. Instead of the device gyro, it drives the highlight from a composable's **own** `rotationX` / `rotationY` — the same values you apply through `Modifier.graphicsLayer`. It needs no sensor, no platform code, and works on every target including Desktop and Web:
+
+```kotlin
+@OptIn(ExperimentalLiquidGlassMotion::class)
+@Composable
+fun TiltCard() {
+  var rx by remember { mutableFloatStateOf(0f) }
+  var ry by remember { mutableFloatStateOf(0f) }
+  val light = rememberTransformLightSource(rotationX = { rx }, rotationY = { ry })
+
+  Box(
+    modifier = Modifier
+      .graphicsLayer { rotationX = rx; rotationY = ry; cameraDistance = 12f * density }
+      .liquidGlass(lensCenter = lensCenter, light = light),
+  ) { /* ... */ }
+}
+```
+
+The rotations are read as lambdas (deferred reads) so per-frame updates invalidate the draw without recomposing the modifier, matching the gyro source's behavior.
+
+### Glint tuning
+
+The `glow` parameter tunes the specular glint with two perceptual knobs: `intensity` (brightness) and `sharpness` (focus). Build one with the `LiquidGlassGlow(intensity = …, sharpness = …)` factory, or use `LiquidGlassDefaults.NoGlow` to switch the glint off. The full set of shader tunables — `glowRimMix` and `glowWidthPx`, alongside `glowIntensity` / `glowSharpness` — lives on the experimental `Modifier.liquidGlassTuned` overload, intended for live experimentation rather than the committed API surface.
+
+## Authoring your own Mirage optic
+
+*Extends: [Mirage](#mirage)*
 
 An optic is a kernel plus a `MirageParams` subclass whose property names are the shader uniform identifiers. A `composite` optic authors a full `half4 main(float2 xy)` and samples the content through the compiler-provided `content` shader:
 
@@ -597,6 +633,14 @@ Apply it exactly like a preset: `Modifier.mirage { filter(Vignette) { strength(0
 
 The other factories are `Optic.colorize` (a point-wise `half4 kernel(float2 p, half4 src)` that never reaches `content` directly), `Optic.generate` (a content-free overlay), and `Optic.raw` (an escape hatch that emits your source verbatim). The compiler declares the standard uniforms (`mirageResolution` / `mirageTime` / `mirageDensity`) only when the kernel references them, and rejects kernels that use derivative builtins, preprocessor directives, or the raw fragment-coord builtin (none of which compile as a runtime shader).
 
+## Blur effect with network images
+
+*Extends: [Self blur](#self-blur)*
+
+You can easily implement blur effect with [Landscapist](https://github.com/skydoves/landscapist), which is a Jetpack Compose image loading library that fetches and displays network images with Glide, Coil, and Fresco. For more information, see the [Transformation](https://github.com/skydoves/landscapist#transformation) section.
+
+---
+
 ## Find this repository useful? :heart:
 Support it by joining __[stargazers](https://github.com/skydoves/cloudy/stargazers)__ for this repository. :star: <br>
 Also, __[follow me](https://github.com/skydoves)__ on GitHub for my next creations! 🤩
@@ -605,7 +649,7 @@ Also, __[follow me](https://github.com/skydoves)__ on GitHub for my next creatio
 
 The liquid glass shader implementation was inspired by [FletchMcKee/liquid](https://github.com/FletchMcKee/liquid).
 
-# License
+## License
 ```xml
 Designed and developed by 2022 skydoves (Jaewoong Eum)
 

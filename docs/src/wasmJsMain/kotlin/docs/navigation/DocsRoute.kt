@@ -21,9 +21,9 @@ sealed class DocsRoute(val path: String, val title: String) {
   data object Installation : DocsRoute("/guide/installation", "Installation")
   data object PlatformSupport : DocsRoute("/guide/platforms", "Platform Support")
   data object ApiCloudy : DocsRoute("/api/cloudy", "Modifier.cloudy()")
-  data object ApiSky : DocsRoute("/api/sky", "Background Blur")
-  data object ApiProgressive : DocsRoute("/api/progressive", "CloudyProgressive")
   data object ApiState : DocsRoute("/api/state", "CloudyState")
+  data object ApiSky : DocsRoute("/api/sky", "Backdrop Blur")
+  data object ApiProgressive : DocsRoute("/api/progressive", "CloudyProgressive")
   data object ApiLiquidGlass : DocsRoute("/api/liquid-glass", "Liquid Glass")
   data object ApiMotionLight : DocsRoute("/api/motion-light", "Motion Light")
   data object ApiMirage : DocsRoute("/api/mirage", "Mirage")
@@ -31,12 +31,14 @@ sealed class DocsRoute(val path: String, val title: String) {
 
   companion object {
     val guideRoutes = listOf(GettingStarted, Installation, PlatformSupport)
+
+    // Grouped to mirror README's Part I: Self blur -> Backdrop blur -> Liquid Glass -> Mirage.
     val apiRoutes =
       listOf(
         ApiCloudy,
+        ApiState,
         ApiSky,
         ApiProgressive,
-        ApiState,
         ApiLiquidGlass,
         ApiMotionLight,
         ApiMirage,

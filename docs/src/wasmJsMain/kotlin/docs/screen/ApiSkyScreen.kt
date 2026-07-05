@@ -46,7 +46,7 @@ fun ApiSkyScreen() {
       .padding(32.dp),
   ) {
     Text(
-      text = "Background Blur (Glassmorphism)",
+      text = "Backdrop Blur (Glassmorphism)",
       style = DocsTheme.typography.h1,
       color = DocsTheme.colors.onBackground,
     )

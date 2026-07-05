@@ -46,8 +46,10 @@ fun GettingStartedScreen() {
     Spacer(modifier = Modifier.height(16.dp))
 
     Text(
-      text = "Cloudy is a Jetpack Compose blur library for Kotlin Multiplatform. " +
-        "It provides a simple Modifier.cloudy() API to apply blur effects to any composable.",
+      text = "Cloudy is a Compose Multiplatform surface effects library. It ships four " +
+        "modifiers you can mix and match: Modifier.cloudy() for blur (your own content, " +
+        "or the content behind you), Modifier.liquidGlass() for a refractive glass lens, " +
+        "and Modifier.mirage { } for an open shader-effect plan.",
       style = DocsTheme.typography.body,
       color = DocsTheme.colors.onSurfaceVariant,
     )
@@ -176,6 +178,99 @@ fun GettingStartedScreen() {
           }
         )
       """,
+    )
+
+    Spacer(modifier = Modifier.height(32.dp))
+
+    // Liquid Glass
+    Text(
+      text = "Liquid Glass",
+      style = DocsTheme.typography.h2,
+      color = DocsTheme.colors.onBackground,
+    )
+
+    Spacer(modifier = Modifier.height(16.dp))
+
+    Text(
+      text = "Add a realistic glass lens with refraction and chromatic dispersion. " +
+        "It is independent of Modifier.cloudy() — combine both for a blurred backdrop " +
+        "seen through a glass lens:",
+      style = DocsTheme.typography.body,
+      color = DocsTheme.colors.onSurfaceVariant,
+    )
+
+    Spacer(modifier = Modifier.height(12.dp))
+
+    CodeBlock(
+      code = """
+        var lensCenter by remember { mutableStateOf(Offset(100f, 100f)) }
+
+        Box(
+          modifier = Modifier
+            .cloudy(radius = 15) // Optional: combine with Cloudy blur
+            .liquidGlass(lensCenter = lensCenter)
+        ) {
+          Image(painter = painterResource("photo.png"), contentDescription = null)
+        }
+      """,
+    )
+
+    Spacer(modifier = Modifier.height(12.dp))
+
+    Text(
+      text = "See the Modifier.liquidGlass() reference for the full parameter set and " +
+        "motion-driven light sources.",
+      style = DocsTheme.typography.bodySmall,
+      color = DocsTheme.colors.onSurfaceVariant,
+    )
+
+    Spacer(modifier = Modifier.height(32.dp))
+
+    // Mirage
+    Text(
+      text = "Mirage",
+      style = DocsTheme.typography.h2,
+      color = DocsTheme.colors.onBackground,
+    )
+
+    Spacer(modifier = Modifier.height(16.dp))
+
+    Text(
+      text = "Apply an open shader-effect plan through Modifier.mirage { }. It ships thin-film " +
+        "and specular presets, and consumers can author their own optics with no library " +
+        "change. Mirage is experimental — opt in with @OptIn(ExperimentalMirage::class):",
+      style = DocsTheme.typography.body,
+      color = DocsTheme.colors.onSurfaceVariant,
+    )
+
+    Spacer(modifier = Modifier.height(12.dp))
+
+    CodeBlock(
+      code = """
+        @OptIn(ExperimentalMirage::class)
+        @Composable
+        fun Poster() {
+          Box(
+            modifier = Modifier.mirage {
+              filter(MirageOptics.Chromatic) {
+                lensCenter(Offset(260f, 260f))
+                lensSize(Size(520f, 520f))
+              }
+            },
+          ) {
+            Image(painter = painterResource("photo.png"), contentDescription = null)
+          }
+        }
+      """,
+    )
+
+    Spacer(modifier = Modifier.height(12.dp))
+
+    Text(
+      text = "See the Mirage reference for the full preset gallery and how to author " +
+        "your own optic.",
+      style = DocsTheme.typography.bodySmall,
+      color = DocsTheme.colors.onSurfaceVariant,
     )
 
     Spacer(modifier = Modifier.height(48.dp))
