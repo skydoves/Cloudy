@@ -64,6 +64,11 @@ half4 kernel(float2 p, half4 src) {
  * inline as well would be a duplicate-uniform compile error.
  */
 internal const val SPECULAR_KERNEL_AGSL: String = """
+// Superellipse power for the bevel field (see the highlight block): its |q|^4 iso-contours are
+// smooth rounded rects with no diagonal ridge, unlike the box SDF depth whose ridges lie on the
+// diagonals and stack into a corner-to-corner X at high strength/full-bleed.
+const float SPEC_SE_POW = 4.0;
+
 half4 main(float2 xy) {
     float2 halfDim = lensSize * 0.5;
     float r = min(cornerRadius, min(halfDim.x, halfDim.y));
@@ -117,28 +122,26 @@ half4 main(float2 xy) {
     if (edge > 0.0 && specStrength > 0.0) {
         float2 lightVec = normalize(iLight);
 
-        // --- seam-free in-plane direction (specular only; the 'normal' the refraction reads is unchanged) ---
-        // The refraction path (above) keeps using the hard-pick 'normal' (no regression, G1).
-        // Only here do we build a separate continuous direction that removes the d.x==d.y diagonal crease.
-        // A rounded rect interior is an L-inf field, so the true gradient breaks on the diagonal -> blend over
-        // SEAM_BLEND_PX: a soft-min direction, wide enough (measured) that the turn no longer reads as an X.
-        float2 d2 = abs(p) - halfDim + float2(r);                 // same basis as boxRoundedSDF
-        float2 s2 = float2(p.x >= 0.0 ? 1.0 : -1.0, p.y >= 0.0 ? 1.0 : -1.0);
-        float2 specDir2;
-        if (max(d2.x, d2.y) > 0.0) {
-            specDir2 = s2 * normalize(max(d2, 0.0));              // outside/corner: analytic
-        } else {
-            // interior: w->1 x-dominant, ->0 y-dominant, =0.5 diagonal seam. +1e-4 = dead-center normalize singularity guard.
-            float w  = clamp(0.5 + 0.5 * (d2.x - d2.y) / SEAM_BLEND_PX, 0.0, 1.0);
-            float2 v = float2(s2.x * w, s2.y * (1.0 - w)) + float2(0.0, 1.0e-4);
-            specDir2 = normalize(v);
-        }
-
-        // --- fake-3D surface normal from the rounded-rect bevel ---
+        // --- superellipse in-plane direction (specular only; the refraction 'normal' is unchanged) ---
+        // The refraction path (above) keeps using the hard-pick 'normal' (no regression, G1). Only here
+        // do we build a separate continuous direction. The box SDF depth field ridges on the diagonals,
+        // so its bevel rings stack into a corner-to-corner X at high strength/full-bleed; a superellipse
+        // (power-4) normalized distance has smooth rounded-rect iso-contours with no diagonal ridge, and
+        // its gradient is the bevel direction. Power 4 on |q|<=~1.4 is fp-safe; the 1e-4 bias keeps
+        // normalize() finite at the exact (sub-pixel, invisible) center where the gradient vanishes.
         float minHalf = min(halfDim.x, halfDim.y);
-        float bevelPx = max(minHalf * specDomeFrac, 1.0);
-        float depthIn = max(-sdf, 0.0);
-        float t       = clamp(depthIn / bevelPx, 0.0, 1.0);
+        float2 q  = abs(p) / max(halfDim, float2(1.0));
+        float2 s2 = float2(p.x >= 0.0 ? 1.0 : -1.0, p.y >= 0.0 ? 1.0 : -1.0);
+        float seF = pow(pow(q.x, SPEC_SE_POW) + pow(q.y, SPEC_SE_POW), 1.0 / SPEC_SE_POW);
+        float2 specDir2 = normalize(
+            s2 * float2(SPEC_SE_POW * pow(q.x, SPEC_SE_POW - 1.0) / max(halfDim.x, 1.0),
+                        SPEC_SE_POW * pow(q.y, SPEC_SE_POW - 1.0) / max(halfDim.y, 1.0))
+            + float2(1.0e-4, 1.0e-4));
+
+        // --- fake-3D surface normal from the superellipse bevel ---
+        // specDomeFrac scales the bevel band: t reaches 1 (flat, in-plane) at fraction specDomeFrac of
+        // the way to the rim, matching the box construction's `depthIn / (minHalf*specDomeFrac)` slope.
+        float t       = clamp(seF / max(specDomeFrac, 1.0e-2), 0.0, 1.0);
         float n_cos   = 1.0 - t;                                  // in-plane magnitude
         float n_sin   = sqrt(max(1.0 - n_cos * n_cos, 0.0));      // float: catastrophic cancellation near n_cos~1
         float3 N      = normalize(float3(specDir2 * n_cos, n_sin + 1.0e-3));
@@ -197,6 +200,11 @@ half4 main(float2 xy) {
 
 /** SKSL Composite `main` body for the specular optic — byte-identical to [SPECULAR_KERNEL_AGSL]. */
 internal const val SPECULAR_KERNEL_SKSL: String = """
+// Superellipse power for the bevel field (see the highlight block): its |q|^4 iso-contours are
+// smooth rounded rects with no diagonal ridge, unlike the box SDF depth whose ridges lie on the
+// diagonals and stack into a corner-to-corner X at high strength/full-bleed.
+const float SPEC_SE_POW = 4.0;
+
 half4 main(float2 xy) {
     float2 halfDim = lensSize * 0.5;
     float r = min(cornerRadius, min(halfDim.x, halfDim.y));
@@ -250,28 +258,26 @@ half4 main(float2 xy) {
     if (edge > 0.0 && specStrength > 0.0) {
         float2 lightVec = normalize(iLight);
 
-        // --- seam-free in-plane direction (specular only; the 'normal' the refraction reads is unchanged) ---
-        // The refraction path (above) keeps using the hard-pick 'normal' (no regression, G1).
-        // Only here do we build a separate continuous direction that removes the d.x==d.y diagonal crease.
-        // A rounded rect interior is an L-inf field, so the true gradient breaks on the diagonal -> blend over
-        // SEAM_BLEND_PX: a soft-min direction, wide enough (measured) that the turn no longer reads as an X.
-        float2 d2 = abs(p) - halfDim + float2(r);                 // same basis as boxRoundedSDF
-        float2 s2 = float2(p.x >= 0.0 ? 1.0 : -1.0, p.y >= 0.0 ? 1.0 : -1.0);
-        float2 specDir2;
-        if (max(d2.x, d2.y) > 0.0) {
-            specDir2 = s2 * normalize(max(d2, 0.0));              // outside/corner: analytic
-        } else {
-            // interior: w->1 x-dominant, ->0 y-dominant, =0.5 diagonal seam. +1e-4 = dead-center normalize singularity guard.
-            float w  = clamp(0.5 + 0.5 * (d2.x - d2.y) / SEAM_BLEND_PX, 0.0, 1.0);
-            float2 v = float2(s2.x * w, s2.y * (1.0 - w)) + float2(0.0, 1.0e-4);
-            specDir2 = normalize(v);
-        }
-
-        // --- fake-3D surface normal from the rounded-rect bevel ---
+        // --- superellipse in-plane direction (specular only; the refraction 'normal' is unchanged) ---
+        // The refraction path (above) keeps using the hard-pick 'normal' (no regression, G1). Only here
+        // do we build a separate continuous direction. The box SDF depth field ridges on the diagonals,
+        // so its bevel rings stack into a corner-to-corner X at high strength/full-bleed; a superellipse
+        // (power-4) normalized distance has smooth rounded-rect iso-contours with no diagonal ridge, and
+        // its gradient is the bevel direction. Power 4 on |q|<=~1.4 is fp-safe; the 1e-4 bias keeps
+        // normalize() finite at the exact (sub-pixel, invisible) center where the gradient vanishes.
         float minHalf = min(halfDim.x, halfDim.y);
-        float bevelPx = max(minHalf * specDomeFrac, 1.0);
-        float depthIn = max(-sdf, 0.0);
-        float t       = clamp(depthIn / bevelPx, 0.0, 1.0);
+        float2 q  = abs(p) / max(halfDim, float2(1.0));
+        float2 s2 = float2(p.x >= 0.0 ? 1.0 : -1.0, p.y >= 0.0 ? 1.0 : -1.0);
+        float seF = pow(pow(q.x, SPEC_SE_POW) + pow(q.y, SPEC_SE_POW), 1.0 / SPEC_SE_POW);
+        float2 specDir2 = normalize(
+            s2 * float2(SPEC_SE_POW * pow(q.x, SPEC_SE_POW - 1.0) / max(halfDim.x, 1.0),
+                        SPEC_SE_POW * pow(q.y, SPEC_SE_POW - 1.0) / max(halfDim.y, 1.0))
+            + float2(1.0e-4, 1.0e-4));
+
+        // --- fake-3D surface normal from the superellipse bevel ---
+        // specDomeFrac scales the bevel band: t reaches 1 (flat, in-plane) at fraction specDomeFrac of
+        // the way to the rim, matching the box construction's `depthIn / (minHalf*specDomeFrac)` slope.
+        float t       = clamp(seF / max(specDomeFrac, 1.0e-2), 0.0, 1.0);
         float n_cos   = 1.0 - t;                                  // in-plane magnitude
         float n_sin   = sqrt(max(1.0 - n_cos * n_cos, 0.0));      // float: catastrophic cancellation near n_cos~1
         float3 N      = normalize(float3(specDir2 * n_cos, n_sin + 1.0e-3));
@@ -340,6 +346,12 @@ internal const val CHROMATIC_KERNEL_AGSL: String = """
 const float CHROMA_OPD_BASE  = 0.10;
 const float CHROMA_THICK_MIX = 0.55;
 const float CHROMA_RIM_POW   = 3.0;
+// Bevel depth is driven by a superellipse (power-4) normalized distance, NOT the box SDF: the box
+// SDF depth (= distance to the nearest edge) has ridge lines exactly on the diagonals, so its rings
+// stack into a corner-to-corner X at high gain/full-bleed. |q|^4 iso-contours are smooth rounded
+// rectangles with no diagonal ridge, and their gradient is the bevel direction. The box SDF still
+// owns the lens MASK (early-out + alpha) so the cut shape is unchanged. Power 4 on |q|<=~1.4 is fp-safe.
+const float CHROMA_SE_POW    = 4.0;
 
 half4 main(float2 xy) {
     float2 halfDim = lensSize * 0.5;
@@ -354,20 +366,21 @@ half4 main(float2 xy) {
 
     half4 pixel = content.eval(xy);
 
-    // --- bevel normal (same fake-3D construction the specular body uses) for a thickness term ---
+    // --- bevel field from a superellipse (smooth, no diagonal ridge); mask stays box-SDF ---
     float minHalf = min(halfDim.x, halfDim.y);
     float2 cLightVec = normalize(iLight);
-    float2 d2 = abs(p) - halfDim + float2(r);
+    // f: superellipse normalized distance (0 at center, 1 at the axis rim); its iso-contours are the
+    // rounded-rect thin-film rings. cDir: normalized gradient of f = the outward bevel direction. The
+    // gradient vanishes only at the exact center; the 1e-4 bias keeps normalize() finite there (a
+    // sub-pixel point, invisible). s2 restores the sign the abs() folded away.
+    float2 q  = abs(p) / max(halfDim, float2(1.0));
     float2 s2 = float2(p.x >= 0.0 ? 1.0 : -1.0, p.y >= 0.0 ? 1.0 : -1.0);
-    float2 cDir;
-    if (max(d2.x, d2.y) > 0.0) {
-        cDir = s2 * normalize(max(d2, 0.0));
-    } else {
-        float w = clamp(0.5 + 0.5 * (d2.x - d2.y) / SEAM_BLEND_PX, 0.0, 1.0);
-        cDir = normalize(float2(s2.x * w, s2.y * (1.0 - w)) + float2(0.0, 1.0e-4));
-    }
-    float depthIn = max(-sdf, 0.0);
-    float t       = clamp(depthIn / max(minHalf, 1.0), 0.0, 1.0);
+    float f  = pow(pow(q.x, CHROMA_SE_POW) + pow(q.y, CHROMA_SE_POW), 1.0 / CHROMA_SE_POW);
+    float2 cDir = normalize(
+        s2 * float2(CHROMA_SE_POW * pow(q.x, CHROMA_SE_POW - 1.0) / max(halfDim.x, 1.0),
+                    CHROMA_SE_POW * pow(q.y, CHROMA_SE_POW - 1.0) / max(halfDim.y, 1.0))
+        + float2(1.0e-4, 1.0e-4));
+    float t       = clamp(f, 0.0, 1.0);
     float n_cos   = 1.0 - t;
     float n_sin   = sqrt(max(1.0 - n_cos * n_cos, 0.0));         // float: catastrophic cancel near 1
     float3 cN     = normalize(float3(cDir * n_cos, n_sin + 1.0e-3));
@@ -418,6 +431,12 @@ internal const val CHROMATIC_KERNEL_SKSL: String = """
 const float CHROMA_OPD_BASE  = 0.10;
 const float CHROMA_THICK_MIX = 0.55;
 const float CHROMA_RIM_POW   = 3.0;
+// Bevel depth is driven by a superellipse (power-4) normalized distance, NOT the box SDF: the box
+// SDF depth (= distance to the nearest edge) has ridge lines exactly on the diagonals, so its rings
+// stack into a corner-to-corner X at high gain/full-bleed. |q|^4 iso-contours are smooth rounded
+// rectangles with no diagonal ridge, and their gradient is the bevel direction. The box SDF still
+// owns the lens MASK (early-out + alpha) so the cut shape is unchanged. Power 4 on |q|<=~1.4 is fp-safe.
+const float CHROMA_SE_POW    = 4.0;
 
 half4 main(float2 xy) {
     float2 halfDim = lensSize * 0.5;
@@ -432,20 +451,21 @@ half4 main(float2 xy) {
 
     half4 pixel = content.eval(xy);
 
-    // --- bevel normal (same fake-3D construction the specular body uses) for a thickness term ---
+    // --- bevel field from a superellipse (smooth, no diagonal ridge); mask stays box-SDF ---
     float minHalf = min(halfDim.x, halfDim.y);
     float2 cLightVec = normalize(iLight);
-    float2 d2 = abs(p) - halfDim + float2(r);
+    // f: superellipse normalized distance (0 at center, 1 at the axis rim); its iso-contours are the
+    // rounded-rect thin-film rings. cDir: normalized gradient of f = the outward bevel direction. The
+    // gradient vanishes only at the exact center; the 1e-4 bias keeps normalize() finite there (a
+    // sub-pixel point, invisible). s2 restores the sign the abs() folded away.
+    float2 q  = abs(p) / max(halfDim, float2(1.0));
     float2 s2 = float2(p.x >= 0.0 ? 1.0 : -1.0, p.y >= 0.0 ? 1.0 : -1.0);
-    float2 cDir;
-    if (max(d2.x, d2.y) > 0.0) {
-        cDir = s2 * normalize(max(d2, 0.0));
-    } else {
-        float w = clamp(0.5 + 0.5 * (d2.x - d2.y) / SEAM_BLEND_PX, 0.0, 1.0);
-        cDir = normalize(float2(s2.x * w, s2.y * (1.0 - w)) + float2(0.0, 1.0e-4));
-    }
-    float depthIn = max(-sdf, 0.0);
-    float t       = clamp(depthIn / max(minHalf, 1.0), 0.0, 1.0);
+    float f  = pow(pow(q.x, CHROMA_SE_POW) + pow(q.y, CHROMA_SE_POW), 1.0 / CHROMA_SE_POW);
+    float2 cDir = normalize(
+        s2 * float2(CHROMA_SE_POW * pow(q.x, CHROMA_SE_POW - 1.0) / max(halfDim.x, 1.0),
+                    CHROMA_SE_POW * pow(q.y, CHROMA_SE_POW - 1.0) / max(halfDim.y, 1.0))
+        + float2(1.0e-4, 1.0e-4));
+    float t       = clamp(f, 0.0, 1.0);
     float n_cos   = 1.0 - t;
     float n_sin   = sqrt(max(1.0 - n_cos * n_cos, 0.0));         // float: catastrophic cancel near 1
     float3 cN     = normalize(float3(cDir * n_cos, n_sin + 1.0e-3));
