@@ -17,6 +17,7 @@ package com.skydoves.cloudy
 
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.BlendMode
+import com.skydoves.cloudy.internal.MirageBackdropElement
 
 /**
  * Time-driving policy for the standard `mirageTime` uniform. Plan-level — the plan (not each stage)
@@ -115,3 +116,39 @@ public expect fun Modifier.mirage(
   enabled: Boolean = true,
   plan: MirageScope.() -> Unit,
 ): Modifier
+
+/**
+ * Applies a mirage effect [plan] to the [sky] **backdrop** behind the modified node, instead of to the
+ * node's own content. Use it to grade, tint, or overlay the captured background — e.g.
+ * `Modifier.mirage(sky = sky) { filter(MirageOptics.Duotone) }` renders a duotone "material" from the
+ * backdrop, the mirage counterpart of `Modifier.cloudy(sky = sky)`'s blur.
+ *
+ * The node samples the region of [sky]'s captured backdrop directly behind it (tracked via its layout
+ * position, like [Modifier.cloudy]), feeds those pixels through the plan's filter stages, and draws the
+ * result. The modified node's own content is drawn on top, so this is typically applied to an otherwise
+ * empty surface.
+ *
+ * Backdrop capture requires a `Modifier.sky(sky)` ancestor to record the background. While that
+ * backdrop scrolls, the effect refreshes automatically. Single commonMain implementation: the same
+ * node runs on Android (AGSL) and every skiko target (SKSL). Below API 33 (no `RuntimeShader`) the
+ * filters are skipped and the raw backdrop region is drawn, mirroring the radius-0 backdrop blur.
+ *
+ * This is a distinct overload from the content [mirage] above: `mirage { … }` filters the content,
+ * `mirage(sky = …) { … }` filters the backdrop. Otherwise it behaves identically — [plan] is evaluated
+ * once to fix the stages, each stage's `params` block is re-evaluated per draw (no recomposition), and
+ * programs are shared through the same process-wide cache.
+ *
+ * @param sky the backdrop state holder captured by a `Modifier.sky` ancestor; the source of the pixels
+ *   the plan grades. Identity-stable via `rememberSky`, so it participates in the node's key cheaply.
+ * @param clock time-driving policy for the standard `mirageTime` uniform. Default: [MirageClock.Auto].
+ * @param enabled when `false`, the plan is bypassed and the node's content passes through unmodified.
+ * @param plan the stage declaration block; see [MirageScope].
+ * @return a [Modifier] that applies the plan to the [sky] backdrop.
+ */
+@ExperimentalMirage
+public fun Modifier.mirage(
+  sky: Sky,
+  clock: MirageClock = MirageClock.Auto,
+  enabled: Boolean = true,
+  plan: MirageScope.() -> Unit,
+): Modifier = this.then(MirageBackdropElement(sky, clock, enabled, plan))
