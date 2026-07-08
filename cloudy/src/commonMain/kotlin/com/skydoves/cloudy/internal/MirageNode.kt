@@ -19,14 +19,9 @@ package com.skydoves.cloudy.internal
 
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.layer.GraphicsLayer
-import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.node.CompositionLocalConsumerModifierNode
 import androidx.compose.ui.node.DrawModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
@@ -42,32 +37,14 @@ import com.skydoves.cloudy.MirageClock
 import com.skydoves.cloudy.MirageParams
 import com.skydoves.cloudy.MirageScope
 import com.skydoves.cloudy.Optic
-import com.skydoves.cloudy.UColor
-import com.skydoves.cloudy.UFloat
-import com.skydoves.cloudy.UFloatArray
-import com.skydoves.cloudy.UInt1
-import com.skydoves.cloudy.UOffset
-import com.skydoves.cloudy.USize
-import com.skydoves.cloudy.UTexture
-import com.skydoves.cloudy.UVec3
-import com.skydoves.cloudy.UVec4
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /** The shading language the current platform runs (Android = AGSL, every skiko target = SKSL). */
 internal expect fun currentDialect(): Dialect
 
-/**
- * Standard uniform names the compiler emits on demand. The node binds each one only when the compiled
- * program declared it: Android's RuntimeShader throws IllegalArgumentException on a write to an
- * undeclared uniform (skiko tolerates it), so the CompiledProgram.uses* flags gate every bind.
- */
-private const val STD_RESOLUTION = "mirageResolution"
-private const val STD_TIME = "mirageTime"
-private const val STD_DENSITY = "mirageDensity"
-
 /** mirageTime wraps here so a long session never grows the argument enough to decay float32 sin(). */
-private const val TIME_WRAP_SECONDS = 3600f
+internal const val TIME_WRAP_SECONDS = 3600f
 
 /**
  * One declared stage of a mirage plan. Sealed so the draw loop branches exhaustively over the two
@@ -154,11 +131,8 @@ internal class MirageNode(var clock: MirageClock, var enabled: Boolean, stages: 
   var stages: List<Stage> = stages
     private set
 
-  /**
-   * Reusable filter layers, one per filter stage, indexed by stage order. Rebuilt lazily on first
-   * draw and released on detach; never allocated inside the steady-state draw.
-   */
-  private var filterLayers: Array<GraphicsLayer?> = arrayOfNulls(0)
+  /** Owns the filter-layer pool and the stage-chaining draw; the node keeps only clock + binding. */
+  private val chain = MirageFilterChain()
 
   /**
    * mirageTime, in seconds. Auto advances it from the frame loop; Fixed writes a constant; Paused
@@ -198,9 +172,10 @@ internal class MirageNode(var clock: MirageClock, var enabled: Boolean, stages: 
       return
     }
 
-    releaseLayers()
-    filterLayers = arrayOfNulls(0)
+    // Structural change: the filter count may differ, so drop the pooled layers. The chain re-sizes
+    // itself lazily on the next draw. (When detached there are no pooled layers to release.)
     if (isAttached) {
+      chain.release(requireGraphicsContext())
       warmAndSchedule()
       invalidateDraw()
     }
@@ -264,7 +239,8 @@ internal class MirageNode(var clock: MirageClock, var enabled: Boolean, stages: 
   /**
    * Filters: record the running content into a per-stage layer, bind that stage's program, apply it
    * as the layer's content-bound render effect, then draw the layer - feeding the next stage. A stage
-   * whose program is unavailable (API < 33) is skipped, leaving the running content untouched.
+   * whose program is unavailable (API < 33) is skipped, leaving the running content untouched. The
+   * layer chaining lives in [MirageFilterChain]; here stage 0 records this node's own content.
    */
   private fun ContentDrawScope.drawFilteredContent(
     filters: List<Stage.Filter>,
@@ -279,36 +255,16 @@ internal class MirageNode(var clock: MirageClock, var enabled: Boolean, stages: 
       stage to cached
     }
 
-    if (applicable.isEmpty()) {
-      // No filter ran (none declared, or all unsupported): draw the content as-is.
-      drawContent()
-      return
+    with(chain) {
+      draw(
+        context = requireGraphicsContext(),
+        applicable = applicable,
+        bind = { stage, cached ->
+          bindUniforms(cached, stage.params, stage.paramsBlock, width, height, density, time)
+        },
+        recordSource = { this@drawFilteredContent.drawContent() },
+      )
     }
-
-    ensureFilterLayers(applicable.size)
-    val context = requireGraphicsContext()
-
-    for ((index, entry) in applicable.withIndex()) {
-      val (stage, cached) = entry
-      val layer = filterLayers[index]
-        ?: context.createGraphicsLayer().also { filterLayers[index] = it }
-
-      // Record the previous stage's output (or the original content for the first stage) into this
-      // stage's layer, so the render effect below transforms exactly that.
-      layer.record {
-        if (index == 0) {
-          this@drawFilteredContent.drawContent()
-        } else {
-          drawLayer(filterLayers[index - 1]!!)
-        }
-      }
-
-      bindUniforms(cached, stage.params, stage.paramsBlock, width, height, density, time)
-      layer.renderEffect = cached.backend.asContentRenderEffect()
-    }
-
-    // The last applicable filter's layer holds the fully chained result.
-    drawLayer(filterLayers[applicable.lastIndex]!!)
   }
 
   /**
@@ -330,76 +286,14 @@ internal class MirageNode(var clock: MirageClock, var enabled: Boolean, stages: 
     }
   }
 
-  /**
-   * Resets each handle to its declared default, runs the caller's per-draw block, then pushes the
-   * standard uniforms + every schema slot through the sink in declaration order.
-   */
-  private fun bindUniforms(
-    cached: CachedProgram,
-    params: MirageParams,
-    paramsBlock: (MirageParams.() -> Unit)?,
-    width: Float,
-    height: Float,
-    density: Float,
-    time: Float,
-  ) {
-    // Reset to defaults so a value written on a previous draw does not leak when this draw's block
-    // leaves it unset — the schema's declared default is the single source of truth per draw.
-    resetToDefaults(params, cached.compiled.schema)
-    paramsBlock?.invoke(params)
-
-    val sink = cached.backend.uniformSink()
-
-    // Standard uniforms first, each gated on whether the compiled kernel declared it: Android's
-    // RuntimeShader throws on a write to an undeclared uniform name.
-    val compiled = cached.compiled
-    if (compiled.usesResolution) sink.float2(STD_RESOLUTION, width, height)
-    if (compiled.usesTime) sink.float(STD_TIME, time)
-    if (compiled.usesDensity) sink.float(STD_DENSITY, density)
-
-    // Schema uniforms in declaration (= bind) order: the params' live handles and the compiled
-    // schema entries share the same slot index, so entries[handle.slot] names each write.
-    val entries = cached.compiled.schema.entries
-    for (handle in params.handles) {
-      val name = entries[handle.slot].name
-      when (handle) {
-        is UFloat -> sink.float(name, handle.value)
-        is UOffset -> sink.float2(name, handle.value.x, handle.value.y)
-        is USize -> sink.float2(name, handle.value.width, handle.value.height)
-        is UInt1 -> sink.int(name, handle.value)
-        is UVec3 -> sink.floatArray(name, handle.value)
-        is UVec4 -> sink.floatArray(name, handle.value)
-        is UFloatArray -> sink.floatArray(name, handle.value)
-        is UColor -> sink.color(name, handle.value)
-        is UTexture -> sink.texture(name, handle.value, handle.tileMode)
-      }
-    }
-  }
-
-  private fun ensureFilterLayers(count: Int) {
-    if (filterLayers.size != count) {
-      releaseLayers()
-      filterLayers = arrayOfNulls(count)
-    }
-  }
-
   private fun timeFor(clock: MirageClock): Float = when (clock) {
     is MirageClock.Auto -> if (planUsesTime) timeSeconds else 0f
     is MirageClock.Paused -> timeSeconds
     is MirageClock.Fixed -> clock.seconds
   }
 
-  private fun releaseLayers() {
-    if (filterLayers.isEmpty()) return
-    val context = requireGraphicsContext()
-    for (i in filterLayers.indices) {
-      filterLayers[i]?.let { context.releaseGraphicsLayer(it) }
-      filterLayers[i] = null
-    }
-  }
-
   override fun onDetach() {
-    releaseLayers()
+    chain.release(requireGraphicsContext())
   }
 }
 
@@ -411,7 +305,7 @@ internal class MirageNode(var clock: MirageClock, var enabled: Boolean, stages: 
  * runs the identical comparison to decide element equality.
  */
 @OptIn(ExperimentalMirage::class)
-private fun sameStructure(a: List<Stage>, b: List<Stage>): Boolean {
+internal fun sameStructure(a: List<Stage>, b: List<Stage>): Boolean {
   if (a.size != b.size) return false
   for (i in a.indices) {
     val x = a[i]
@@ -483,38 +377,5 @@ internal class MirageElement(
       result = 31 * result + (stage.paramsBlock?.hashCode() ?: 0)
     }
     return result
-  }
-}
-
-/**
- * Resets each handle on [params] back to the declared default from its schema entry, so an unset
- * uniform this draw re-uses its default rather than a stale prior-draw value.
- */
-@OptIn(ExperimentalMirage::class)
-private fun resetToDefaults(params: MirageParams, schema: UniformSchema) {
-  for (handle in params.handles) {
-    val default = schema.entries[handle.slot].default
-    when (handle) {
-      is UFloat -> handle.value = default as Float
-
-      is UOffset -> handle.value = default as Offset
-
-      is USize -> handle.value = default as Size
-
-      is UInt1 -> handle.value = default as Int
-
-      is UVec3 -> handle.value = (default as FloatArray).copyOf()
-
-      is UVec4 -> handle.value = (default as FloatArray).copyOf()
-
-      is UFloatArray -> handle.value = (default as FloatArray).copyOf()
-
-      is UColor -> handle.value = default as Color
-
-      is UTexture -> {
-        @Suppress("UNCHECKED_CAST")
-        handle.value = default as ImageBitmap?
-      }
-    }
   }
 }
