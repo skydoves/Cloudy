@@ -48,6 +48,10 @@ public:
     }
 
     ~ByteArrayGuard() {
+        // Get*ArrayElements can fail; passing its null result to a Release call is UB (CheckJNI aborts).
+        if (data == nullptr) {
+            return;
+        }
 #ifdef USE_CRITICAL
         env->ReleasePrimitiveArrayCritical(array, data, 0);
 #else
@@ -56,6 +60,9 @@ public:
     }
 
     uint8_t *get() { return reinterpret_cast<uint8_t *>(data); }
+
+    // Get*ArrayElements returns null on failure; the kernel would deref it.
+    bool isValid() const { return data != nullptr; }
 };
 
 class IntArrayGuard {
@@ -152,9 +159,12 @@ public:
     }
 
     uint8_t *get() const {
+        // assert() is a no-op under NDEBUG (release), so callers must gate on isValid().
         assert(valid);
         return reinterpret_cast<uint8_t *>(bytes);
     }
+
+    bool isValid() const { return valid; }
 
     int width() const { return info.width; }
 
@@ -219,6 +229,10 @@ Java_com_skydoves_cloudy_internals_render_RenderScriptToolkit_nativeBlur(
     RestrictionParameter restrict{env, restriction};
     ByteArrayGuard input{env, input_array};
     ByteArrayGuard output{env, output_array};
+    if (!input.isValid() || !output.isValid()) {
+        ALOGE("nativeBlur: failed to access input/output byte array");
+        return;
+    }
 
     toolkit->blur(input.get(), output.get(), size_x, size_y, vectorSize, radius, restrict.get());
 }
@@ -231,6 +245,10 @@ Java_com_skydoves_cloudy_internals_render_RenderScriptToolkit_nativeBlurBitmap(
     RestrictionParameter restrict{env, restriction};
     BitmapGuard input{env, input_bitmap};
     BitmapGuard output{env, output_bitmap};
+    if (!input.isValid() || !output.isValid()) {
+        ALOGE("nativeBlurBitmap: invalid input/output bitmap");
+        return;
+    }
 
     toolkit->blur(input.get(), output.get(), input.width(), input.height(), input.vectorSize(),
                   radius, restrict.get());
@@ -246,6 +264,13 @@ Java_com_skydoves_cloudy_internals_render_RenderScriptToolkit_nativeBackgroundBl
     RenderScriptToolkit *toolkit = reinterpret_cast<RenderScriptToolkit *>(native_handle);
     BitmapGuard src{env, src_bitmap};
     BitmapGuard dst{env, dst_bitmap};
+
+    // Must precede vectorSize(): on an invalid guard bytesPerPixel is
+    // uninitialized, so reading vectorSize() first would be UB.
+    if (!src.isValid() || !dst.isValid()) {
+        ALOGE("nativeBackgroundBlur: invalid src/dst bitmap");
+        return JNI_FALSE;
+    }
 
     if (src.vectorSize() != 4 || dst.vectorSize() != 4) {
         ALOGE("backgroundBlur requires ARGB_8888 bitmaps");
