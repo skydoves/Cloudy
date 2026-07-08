@@ -20,6 +20,7 @@ package com.skydoves.cloudy
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.node.ModifierNodeElement
+import com.skydoves.cloudy.internal.MirageBackdropElement
 import com.skydoves.cloudy.internal.MirageElement
 import com.skydoves.cloudy.internal.MiragePlanBuilder
 import com.skydoves.cloudy.internal.Stage
@@ -125,8 +126,63 @@ internal class MiragePlanModifierTest {
     assertNotEquals(auto, fixed)
   }
 
+  @Test
+  fun `mirage with sky attaches a MirageBackdropElement`() {
+    val sky = Sky()
+    val modifier = Modifier.mirage(sky = sky) { filter(tintFilter) }
+    assertTrue(
+      "Modifier.mirage(sky) should attach a MirageBackdropElement",
+      modifier.firstElementOrNull() is MirageBackdropElement,
+    )
+  }
+
+  @Test
+  fun `backdrop elements with the same sky and plan and shared block are equal`() {
+    val sky = Sky()
+    val block: MirageParams.() -> Unit = { }
+    val a = backdropElementOf(Modifier.mirage(sky = sky) { filter(tintFilter, block) })
+    val b = backdropElementOf(Modifier.mirage(sky = sky) { filter(tintFilter, block) })
+    assertEquals(a, b)
+    assertEquals(a.hashCode(), b.hashCode())
+  }
+
+  @Test
+  fun `backdrop elements with different sky instances are unequal`() {
+    // Sky is part of the reconciliation key: a different backdrop must re-create the node's plumbing.
+    val block: MirageParams.() -> Unit = { }
+    val a = backdropElementOf(Modifier.mirage(sky = Sky()) { filter(tintFilter, block) })
+    val b = backdropElementOf(Modifier.mirage(sky = Sky()) { filter(tintFilter, block) })
+    assertNotEquals(a, b)
+  }
+
+  @Test
+  fun `re-creating the params block makes an otherwise-identical backdrop element unequal`() {
+    // Two distinct lambda instances (as a recomposition produces) over the same sky + optic: unequal,
+    // so Compose runs update() and the node adopts the fresh block (no frozen uniforms).
+    val sky = Sky()
+    val a = backdropElementOf(Modifier.mirage(sky = sky) { filter(tintFilter) { } })
+    val b = backdropElementOf(Modifier.mirage(sky = sky) { filter(tintFilter) { } })
+    assertNotEquals(a, b)
+  }
+
+  @Test
+  fun `a shared params block keeps its identity through the backdrop plan`() {
+    // The plan captures the exact block instance the caller passed (=== preserved), so an unchanged
+    // block reconciles equal rather than forcing a needless update.
+    val sky = Sky()
+    val block: MirageParams.() -> Unit = { }
+    val stages = MiragePlanBuilder().apply { filter(tintFilter, block) }.stages
+    assertTrue(
+      "the plan must keep the caller's exact block instance",
+      stages[0].paramsBlock === block,
+    )
+  }
+
   private fun elementOf(modifier: Modifier): MirageElement =
     modifier.firstElementOrNull() as MirageElement
+
+  private fun backdropElementOf(modifier: Modifier): MirageBackdropElement =
+    modifier.firstElementOrNull() as MirageBackdropElement
 
   /** foldIn returns the first ModifierNodeElement in the chain (there is exactly one here). */
   private fun Modifier.firstElementOrNull(): ModifierNodeElement<*>? =

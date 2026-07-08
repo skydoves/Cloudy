@@ -60,6 +60,7 @@ fun MenuHomeScreen(
   onTransformLightClick: () -> Unit,
   onBlurLightClick: () -> Unit,
   onMirageClick: () -> Unit,
+  onMirageSkyClick: () -> Unit,
 ) {
   val posters = remember { MockUtil.getMockPosters() }
 
@@ -156,6 +157,14 @@ fun MenuHomeScreen(
             description = "Apply an open optic plan in one modifier block — specular vs chromatic",
             poster = posters[5],
             onClick = onMirageClick,
+          )
+        }
+        item {
+          MenuCard(
+            title = "Mirage Backdrop",
+            description = "Grade the sky backdrop behind a card — a duotone material over a list",
+            poster = posters[6],
+            onClick = onMirageSkyClick,
           )
         }
       }
