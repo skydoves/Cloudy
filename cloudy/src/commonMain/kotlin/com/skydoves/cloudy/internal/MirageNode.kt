@@ -37,6 +37,7 @@ import com.skydoves.cloudy.MirageClock
 import com.skydoves.cloudy.MirageParams
 import com.skydoves.cloudy.MirageScope
 import com.skydoves.cloudy.Optic
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
@@ -150,6 +151,10 @@ internal class MirageNode(var clock: MirageClock, var enabled: Boolean, stages: 
    */
   private var planUsesTime: Boolean = false
 
+  // The running Auto-clock frame loop, if any. Cancelled before a re-warm launches a new one so a
+  // structural update never leaves two loops advancing timeSeconds and invalidating in parallel.
+  private var frameLoopJob: Job? = null
+
   fun update(clock: MirageClock, enabled: Boolean, stages: List<Stage>) {
     // A recomposition re-creates the params blocks every time (they are lambdas), so the element is
     // unequal — and thus update() runs — on every recomposition even when only the blocks changed. If
@@ -199,7 +204,10 @@ internal class MirageNode(var clock: MirageClock, var enabled: Boolean, stages: 
     planUsesTime = usesTime
     startNanos = -1L
 
-    if (clock is MirageClock.Auto && usesTime) {
+    // Cancel a prior loop before starting a new one: a re-warm on structural update would otherwise
+    // stack loops that all advance timeSeconds and invalidate.
+    frameLoopJob?.cancel()
+    frameLoopJob = if (clock is MirageClock.Auto && usesTime) {
       coroutineScope.launch {
         while (isActive) {
           withFrameNanos { now ->
@@ -209,6 +217,8 @@ internal class MirageNode(var clock: MirageClock, var enabled: Boolean, stages: 
           }
         }
       }
+    } else {
+      null
     }
   }
 
@@ -293,6 +303,9 @@ internal class MirageNode(var clock: MirageClock, var enabled: Boolean, stages: 
   }
 
   override fun onDetach() {
+    // coroutineScope is cancelled on detach anyway; null the handle so a re-attach starts clean.
+    frameLoopJob?.cancel()
+    frameLoopJob = null
     chain.release(requireGraphicsContext())
   }
 }

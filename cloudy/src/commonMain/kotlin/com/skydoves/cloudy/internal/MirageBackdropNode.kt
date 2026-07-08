@@ -34,6 +34,7 @@ import androidx.compose.ui.platform.LocalDensity
 import com.skydoves.cloudy.ExperimentalMirage
 import com.skydoves.cloudy.MirageClock
 import com.skydoves.cloudy.Sky
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
@@ -72,6 +73,10 @@ internal class MirageBackdropNode(
   private var timeSeconds: Float = 0f
   private var startNanos: Long = -1L
   private var planUsesTime: Boolean = false
+
+  // The running Auto-clock frame loop, if any. Cancelled before a re-warm launches a new one so a
+  // structural update never leaves two loops advancing timeSeconds and invalidating in parallel.
+  private var frameLoopJob: Job? = null
 
   // Stable re-blur invalidator (a field, not a fresh lambda) so the frame driver can identity-match it
   // in addOverlay/removeOverlay — a new lambda each attach would never unregister.
@@ -113,7 +118,13 @@ internal class MirageBackdropNode(
   }
 
   override fun onGloballyPositioned(coordinates: LayoutCoordinates) {
-    positionInRoot = coordinates.positionInRoot()
+    val newPosition = coordinates.positionInRoot()
+    if (newPosition != positionInRoot) {
+      // The backdrop sample offset is derived from this position, so a move must redraw or the node
+      // keeps sampling the region it used to sit over.
+      positionInRoot = newPosition
+      if (isAttached) invalidateDraw()
+    }
   }
 
   /**
@@ -130,7 +141,10 @@ internal class MirageBackdropNode(
     planUsesTime = usesTime
     startNanos = -1L
 
-    if (clock is MirageClock.Auto && usesTime) {
+    // Cancel a prior loop before starting a new one: a re-warm on structural update would otherwise
+    // stack loops that all advance timeSeconds and invalidate.
+    frameLoopJob?.cancel()
+    frameLoopJob = if (clock is MirageClock.Auto && usesTime) {
       coroutineScope.launch {
         while (isActive) {
           withFrameNanos { now ->
@@ -140,6 +154,8 @@ internal class MirageBackdropNode(
           }
         }
       }
+    } else {
+      null
     }
   }
 
@@ -239,6 +255,9 @@ internal class MirageBackdropNode(
 
   override fun onDetach() {
     sky.frameDriver.removeOverlay(reblur)
+    // coroutineScope is cancelled on detach anyway; null the handle so a re-attach starts clean.
+    frameLoopJob?.cancel()
+    frameLoopJob = null
     chain.release(requireGraphicsContext())
   }
 }
