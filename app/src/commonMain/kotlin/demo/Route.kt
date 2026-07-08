@@ -107,4 +107,11 @@ sealed interface Route {
    */
   @Serializable
   data object Mirage : Route
+
+  /**
+   * The backdrop mirage test screen — a card grades the `Sky` backdrop behind it via
+   * `Modifier.mirage(sky = …) { filter(…) }`, the mirage counterpart of `Modifier.cloudy(sky)`.
+   */
+  @Serializable
+  data object MirageSky : Route
 }
