@@ -199,6 +199,9 @@ public:
          */
         jclass restrictionClass = env->FindClass("com/skydoves/cloudy/internals/render/Range2d");
         if (restrictionClass == nullptr) {
+            // FindClass left a ClassNotFoundException/NoClassDefFoundError pending; it must be
+            // cleared before any further JNI call on this thread or that call is undefined.
+            env->ExceptionClear();
             ALOGE("RenderScriptToolit. Internal error. Could not find the Kotlin Range2d class.");
             isNull = true;
             return;
@@ -207,10 +210,20 @@ public:
         jfieldID startYId = env->GetFieldID(restrictionClass, "startY", "I");
         jfieldID endXId = env->GetFieldID(restrictionClass, "endX", "I");
         jfieldID endYId = env->GetFieldID(restrictionClass, "endY", "I");
+        // A single missing field (e.g. after R8 renaming) leaves a NoSuchFieldError pending and a
+        // null id; calling GetIntField with either is UB. Degrade to "no restriction" instead.
+        if (startXId == nullptr || startYId == nullptr || endXId == nullptr || endYId == nullptr) {
+            env->ExceptionClear();
+            env->DeleteLocalRef(restrictionClass);
+            ALOGE("RenderScriptToolit. Internal error. Could not find a Range2d field.");
+            isNull = true;
+            return;
+        }
         restriction.startX = env->GetIntField(jRestriction, startXId);
         restriction.startY = env->GetIntField(jRestriction, startYId);
         restriction.endX = env->GetIntField(jRestriction, endXId);
         restriction.endY = env->GetIntField(jRestriction, endYId);
+        env->DeleteLocalRef(restrictionClass);
     }
 
     Restriction *get() { return isNull ? nullptr : &restriction; }
