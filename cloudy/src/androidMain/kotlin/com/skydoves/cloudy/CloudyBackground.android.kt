@@ -64,6 +64,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.toSize
+import androidx.tracing.trace
 import com.skydoves.cloudy.internals.SkySnapshot
 import com.skydoves.cloudy.internals.render.RenderScriptToolkit
 import kotlinx.coroutines.Dispatchers
@@ -721,19 +722,24 @@ private class CloudyBackgroundModifierNode(
             RenderScriptToolkit.ProgressiveDirection.NONE
         }
 
-        // Run native background blur pipeline (crop -> scale down -> blur -> mask -> scale up)
+        // Run native background blur pipeline (crop -> scale down -> blur -> mask -> scale up).
+        // This is the blur staleness axis: how long it takes the blur to catch up to a scrolled
+        // background. It runs off the main thread, so it never shows up in FrameTiming/jankstats;
+        // trace() surfaces it to Perfetto/TraceSectionMetric instead.
         val success = withContext(Dispatchers.Default) {
-          RenderScriptToolkit.backgroundBlur(
-            srcBitmap = softwareBitmap,
-            dstBitmap = outputBitmap,
-            cropX = capturedSnapshot.offsetX.toInt().coerceAtLeast(0),
-            cropY = capturedSnapshot.offsetY.toInt().coerceAtLeast(0),
-            radius = capturedSnapshot.radius.coerceIn(1, 25),
-            scale = 0.25f,
-            progressiveDirection = progressiveDir,
-            fadeStart = capturedSnapshot.fadeStart,
-            fadeEnd = capturedSnapshot.fadeEnd,
-          )
+          trace("Cloudy.backgroundBlur") {
+            RenderScriptToolkit.backgroundBlur(
+              srcBitmap = softwareBitmap,
+              dstBitmap = outputBitmap,
+              cropX = capturedSnapshot.offsetX.toInt().coerceAtLeast(0),
+              cropY = capturedSnapshot.offsetY.toInt().coerceAtLeast(0),
+              radius = capturedSnapshot.radius.coerceIn(1, 25),
+              scale = 0.25f,
+              progressiveDirection = progressiveDir,
+              fadeStart = capturedSnapshot.fadeStart,
+              fadeEnd = capturedSnapshot.fadeEnd,
+            )
+          }
         }
 
         if (!success) {
