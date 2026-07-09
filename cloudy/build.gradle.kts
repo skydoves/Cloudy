@@ -177,6 +177,7 @@ kotlin {
       implementation(libs.androidx.compose.runtime)
       implementation(libs.androidx.lifecycle.runtime.compose)
       implementation(libs.kotlinx.coroutines.android)
+      implementation(libs.androidx.tracing.ktx)
     }
 
     commonMain.dependencies {
