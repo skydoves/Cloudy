@@ -23,6 +23,7 @@
 namespace renderscript {
 
 class TaskProcessor;
+struct BackgroundBlurBuffers;
 
 /**
  * Define a range of data to process.
@@ -73,6 +74,13 @@ class RenderScriptToolkit {
      * tiles the tasks and schedule them over the pool threads.
      */
     std::unique_ptr<TaskProcessor> processor;
+
+    /** Scratch buffers for backgroundBlur, owned by the toolkit so they are released when it is
+     * destroyed (destroyNative) instead of leaking one set per worker thread for the app's life.
+     * Defined in BackgroundBlurBuffers.h; accessed under its own lock because backgroundBlur may
+     * run concurrently on Dispatchers.Default workers and, unlike the tiled blur kernel, is not
+     * serialized by TaskProcessor's task mutex. */
+    std::unique_ptr<BackgroundBlurBuffers> backgroundBlurBuffers;
 
 public:
     /**

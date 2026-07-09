@@ -16,6 +16,7 @@
 
 #include "RenderScriptToolkit.h"
 
+#include "BackgroundBlurBuffers.h"
 #include "TaskProcessor.h"
 
 #define LOG_TAG "renderscript.toolkit.RenderScriptToolkit"
@@ -26,11 +27,13 @@ namespace renderscript {
 // named source file. E.g. RenderScriptToolkit::blur() is found in Blur.cpp.
 
 RenderScriptToolkit::RenderScriptToolkit(int numberOfThreads)
-    : processor{new TaskProcessor(numberOfThreads)} {}
+    : processor{new TaskProcessor(numberOfThreads)},
+      backgroundBlurBuffers{new BackgroundBlurBuffers()} {}
 
 RenderScriptToolkit::~RenderScriptToolkit() {
-    // By defining the destructor here, we don't need to include TaskProcessor.h
-    // in RenderScriptToolkit.h.
+    // By defining the destructor here, we don't need to include TaskProcessor.h or
+    // BackgroundBlurBuffers.h in RenderScriptToolkit.h. Destroying the toolkit frees the
+    // backgroundBlur scratch buffers.
 }
 
 }  // namespace renderscript
