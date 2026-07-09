@@ -51,7 +51,17 @@ if(CMAKE_SYSTEM_PROCESSOR STREQUAL aarch64)
             Blur_advsimd.S
             )
 endif()
-# TODO add also for x86
+
+# SSSE3 is part of the Android x86 and x86_64 ABI baseline, so -mssse3 is safe on
+# every device for these ABIs. Function entry is still runtime-gated by
+# cpuSupportsSimd() (see Utils.cpp / TaskProcessor.cpp) as a second guard.
+if(CMAKE_SYSTEM_PROCESSOR STREQUAL i686 OR CMAKE_SYSTEM_PROCESSOR STREQUAL x86_64)
+    add_definitions(-DARCH_X86_HAVE_SSSE3)
+    add_compile_options(-mssse3)
+    set(X86_SOURCES
+            x86.cpp
+            )
+endif()
 
 # Creates and names a library, sets it as either STATIC
 # or SHARED, and provides the relative paths to its source code.
@@ -69,7 +79,8 @@ add_library(# Sets the name of the library.
             RenderScriptToolkit.cpp
         TaskProcessor.cpp
             Utils.cpp
-            ${ASM_SOURCES})
+            ${ASM_SOURCES}
+            ${X86_SOURCES})
 
 # Searches for a specified prebuilt library and stores the path as a
 # variable. Because CMake includes system libraries in the search path by
