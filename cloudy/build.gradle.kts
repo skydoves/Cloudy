@@ -150,7 +150,12 @@ kotlin {
     }
 
     withDeviceTest {
-      instrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+      // androidx.benchmark's runner (a superset of AndroidJUnitRunner) is required by BenchmarkRule;
+      // BackgroundBlurBenchmark throws at runtime under the plain runner. The @Ignore'd screenshot
+      // specs in this source set still run fine under it. suppressErrors (EMULATOR/UNLOCKED/etc.) is
+      // passed per-run from the CLI via -Pandroid.testInstrumentationRunnerArguments.* so CI/device
+      // runs stay strict by default.
+      instrumentationRunner = "androidx.benchmark.junit4.AndroidBenchmarkRunner"
     }
   }
 
@@ -227,6 +232,9 @@ kotlin {
       implementation(libs.androidx.test.runner)
       implementation(libs.androidx.test.junit)
       implementation(libs.junit4)
+      // Microbenchmark for the native backgroundBlur hot path (BackgroundBlurBenchmark). Uses
+      // implementation (not androidTestImplementation) so the benchmark manifest merges in.
+      implementation(libs.androidx.benchmark.junit4)
     }
 
     iosTest.dependencies {
@@ -244,6 +252,26 @@ tasks.withType<Test>().configureEach {
 
 tasks.named<Test>("desktopTest") {
   useJUnitPlatform()
+}
+
+// The Compose plugin creates this resource-copy task for the androidDeviceTest variant but never
+// sets its outputDirectory (the KMP-library device-test component has no `assets` source to wire
+// it to), so it fails config-time validation. This source set has no composeResources/, so give
+// the task a throwaway output dir to make it a valid no-op. See compose-gradle-plugin
+// AndroidResources.kt.
+tasks.matching { it.name == "copyAndroidDeviceTestComposeResourcesToAndroidAssets" }.configureEach {
+  // The task type is internal to the Compose plugin, so set outputDirectory reflectively. Guard the
+  // lookup: if a plugin bump renames/relocates the getter this becomes a no-op instead of failing
+  // config-time for every device-test build (at worst the original validation error resurfaces,
+  // signalling the workaround needs revisiting).
+  val outputDir = layout.buildDirectory.dir("composeResources/androidDeviceTestAssets")
+  runCatching {
+    javaClass.getMethod("getOutputDirectory").invoke(this) as org.gradle.api.file.DirectoryProperty
+  }.onSuccess { prop ->
+    prop.convention(outputDir)
+  }.onFailure { e ->
+    logger.warn("Could not set outputDirectory on ${name} reflectively; Compose plugin API may have changed", e)
+  }
 }
 
 // Kotest's runner is JVM-only, so the shared commonTest sources compile for the Kotlin/Native
