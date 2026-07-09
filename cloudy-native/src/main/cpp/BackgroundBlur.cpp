@@ -18,8 +18,10 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <mutex>
 #include <vector>
 
+#include "BackgroundBlurBuffers.h"
 #include "RenderScriptToolkit.h"
 #include "TaskProcessor.h"
 #include "Utils.h"
@@ -69,28 +71,6 @@ public:
 
 // Global LUT instance (constructed once)
 static const GammaLUT gGammaLUT;
-
-/**
- * Internal buffer manager for background blur operations.
- * Reuses buffers across calls to minimize allocations.
- */
-class BackgroundBlurBuffers {
-public:
-    std::vector<uint8_t> scaledInput;
-    std::vector<uint8_t> blurOutput;
-
-    void ensureCapacity(size_t scaledSize, size_t blurSize) {
-        if (scaledInput.size() < scaledSize) {
-            scaledInput.resize(scaledSize);
-        }
-        if (blurOutput.size() < blurSize) {
-            blurOutput.resize(blurSize);
-        }
-    }
-};
-
-// Global buffer instance for reuse
-static thread_local BackgroundBlurBuffers gBuffers;
 
 /**
  * Crops and scales down a region from the source image.
@@ -338,14 +318,20 @@ bool RenderScriptToolkit::backgroundBlur(
     const size_t scaledHeight = std::max(static_cast<size_t>(cropHeight * scale), size_t(1));
     const size_t scaledSize = scaledWidth * scaledHeight * 4;
 
+    // Serialize access to the shared scratch buffers: backgroundBlur can run on multiple
+    // Dispatchers.Default workers at once and its crop/scale steps are not covered by the tiled
+    // blur kernel's task mutex, so the buffers would otherwise race.
+    BackgroundBlurBuffers& buffers = *backgroundBlurBuffers;
+    std::lock_guard<std::mutex> bufferLock(buffers.mutex);
+
     // Ensure buffers have sufficient capacity
-    gBuffers.ensureCapacity(scaledSize, scaledSize);
+    buffers.ensureCapacity(scaledSize, scaledSize);
 
     // Step 1: Crop and scale down
     cropAndScaleDown(
         src, srcWidth, srcHeight,
         cropX, cropY, cropWidth, cropHeight,
-        gBuffers.scaledInput.data(), scaledWidth, scaledHeight
+        buffers.scaledInput.data(), scaledWidth, scaledHeight
     );
 
     // Step 2: Apply blur
@@ -354,8 +340,8 @@ bool RenderScriptToolkit::backgroundBlur(
     scaledRadius = std::min(scaledRadius, 25);
 
     blur(
-        gBuffers.scaledInput.data(),
-        gBuffers.blurOutput.data(),
+        buffers.scaledInput.data(),
+        buffers.blurOutput.data(),
         scaledWidth, scaledHeight,
         4,  // RGBA
         scaledRadius,
@@ -365,7 +351,7 @@ bool RenderScriptToolkit::backgroundBlur(
     // Step 3: Scale up to output FIRST
     // This prevents alpha gradient interpolation artifacts
     scaleUp(
-        gBuffers.blurOutput.data(), scaledWidth, scaledHeight,
+        buffers.blurOutput.data(), scaledWidth, scaledHeight,
         dst, cropWidth, cropHeight
     );
 
