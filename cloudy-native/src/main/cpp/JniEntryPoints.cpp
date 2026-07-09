@@ -16,6 +16,7 @@
 
 #include <android/bitmap.h>
 #include <cassert>
+#include <cstdint>
 #include <jni.h>
 
 #include "RenderScriptToolkit.h"
@@ -24,6 +25,13 @@
 #define LOG_TAG "renderscript.toolkit.JniEntryPoints"
 
 using namespace renderscript;
+
+namespace {
+// Constraints inherited from ScriptIntrinsicBlur, mirrored by the toolkit's own checks in Blur.cpp.
+constexpr int kMaxBlurRadius = 25;         // ScriptIntrinsicBlur caps the radius at 25.
+constexpr jint kVectorSizeA8 = 1;          // single-channel alpha (A_8).
+constexpr jint kVectorSizeRgba8888 = 4;    // four-channel color (RGBA_8888).
+}  // namespace
 
 /**
  * I compared using env->GetPrimitiveArrayCritical vs. env->GetByteArrayElements to get access
@@ -226,6 +234,41 @@ Java_com_skydoves_cloudy_internals_render_RenderScriptToolkit_nativeBlur(
         JNIEnv *env, jobject /*thiz*/, jlong native_handle, jbyteArray input_array, jint vectorSize,
         jint size_x, jint size_y, jint radius, jbyteArray output_array, jobject restriction) {
     RenderScriptToolkit *toolkit = reinterpret_cast<RenderScriptToolkit *>(native_handle);
+
+    // Validate arguments before touching the buffers: the kernels index in and out purely from
+    // size_x/size_y/vectorSize, so bogus values (or arrays too small for those dimensions) would
+    // read past the array bounds and crash. This path has no in-tree caller, so it must defend
+    // itself against arbitrary external input.
+    const bool hasValidDimensions = size_x > 0 && size_y > 0;
+    const bool hasValidVectorSize =
+            vectorSize == kVectorSizeA8 || vectorSize == kVectorSizeRgba8888;
+    const bool hasValidRadius = radius > 0 && radius <= kMaxBlurRadius;
+    if (!hasValidDimensions || !hasValidVectorSize || !hasValidRadius) {
+        ALOGE("nativeBlur: invalid arguments (size_x=%d size_y=%d vectorSize=%d radius=%d)", size_x,
+              size_y, vectorSize, radius);
+        return;
+    }
+
+    // GetArrayLength returns jsize (int32_t), so no array can hold more than INT32_MAX bytes.
+    // Reject any dimensions whose required byte count would exceed that before the final multiply,
+    // which also keeps requiredBytes from overflowing int64_t (size_x*size_y alone can approach
+    // 2^62, and the extra *vectorSize would push it past INT64_MAX into signed-overflow UB).
+    const int64_t pixelCount = static_cast<int64_t>(size_x) * static_cast<int64_t>(size_y);
+    if (pixelCount > INT32_MAX / vectorSize) {
+        ALOGE("nativeBlur: dimensions too large (size_x=%d size_y=%d vectorSize=%d)", size_x, size_y,
+              vectorSize);
+        return;
+    }
+    const int64_t requiredBytes = pixelCount * vectorSize;
+    const int64_t inputLength = env->GetArrayLength(input_array);
+    const int64_t outputLength = env->GetArrayLength(output_array);
+    if (inputLength < requiredBytes || outputLength < requiredBytes) {
+        ALOGE("nativeBlur: array too small for dimensions (need %lld, input=%lld, output=%lld)",
+              static_cast<long long>(requiredBytes), static_cast<long long>(inputLength),
+              static_cast<long long>(outputLength));
+        return;
+    }
+
     RestrictionParameter restrict{env, restriction};
     ByteArrayGuard input{env, input_array};
     ByteArrayGuard output{env, output_array};
