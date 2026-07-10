@@ -16,8 +16,8 @@
 package com.skydoves.cloudy
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.geometry.Offset
 
 /** macOS has no device-tilt sensor: the light stays fixed at [base]. */
@@ -29,5 +29,5 @@ internal actual fun rememberTiltSource(
   tiltGain: Float,
   out: MutableState<Offset>,
 ) {
-  SideEffect { out.value = base }
+  LaunchedEffect(base) { out.value = base }
 }
