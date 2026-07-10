@@ -29,16 +29,64 @@ import org.jetbrains.skia.Image
 import org.jetbrains.skia.ImageFilter
 import org.jetbrains.skia.RuntimeEffect
 import org.jetbrains.skia.RuntimeShaderBuilder
+import org.jetbrains.skia.Shader as SkShader
 
 /**
  * Skiko backend program — wraps a [RuntimeShaderBuilder] (its uniforms are the live per-draw state).
  * The source [RuntimeEffect] is retained too: it is the compiled artifact the builder was made from,
  * and keeping a reference keeps the compiled effect reachable for the builder's lifetime.
+ *
+ * It also holds the per-draw skia peers that [asShaderBrush]/`texture` must rebuild (skia bakes
+ * uniforms/children into a `Shader` at build time). Each is closed when replaced so their native
+ * resource is freed eagerly instead of piling up until GC runs the finalizer — matching the Android
+ * backend, which reuses one persistent `RuntimeShader` and allocates nothing per draw. This program
+ * is itself long-lived (one per kernel source, held by the unbounded [MirageProgramCache]), so the
+ * final peer stays until process exit; only the per-frame churn is eliminated.
  */
 internal actual class MirageBackendProgram(
   val builder: RuntimeShaderBuilder,
   @Suppress("unused") private val effect: RuntimeEffect,
-)
+) {
+
+  /**
+   * Overlay shader from the previous [asShaderBrush] call. It is closed one call late, not at the end
+   * of the call that made it: the compose `Paint` refs the native shader (sk_sp) synchronously during
+   * the draw that consumes this brush, so by the time the *next* draw rebuilds, the prior draw has
+   * flushed and releasing its peer cannot use-after-free.
+   */
+  private var overlayShader: SkShader? = null
+
+  /** Last texture child + the (bitmap identity, tileMode) it was built for, to skip rebuilds. */
+  private var textureImage: Image? = null
+  private var textureShader: SkShader? = null
+  private var textureKey: TextureKey? = null
+
+  fun swapOverlayShader(next: SkShader): SkShader {
+    overlayShader?.close()
+    overlayShader = next
+    return next
+  }
+
+  /** Returns the child shader for [img]/[tileMode], reusing the last one when the key is unchanged. */
+  fun textureChild(img: ImageBitmap, tileMode: TileMode): SkShader {
+    val bitmap = img.asSkiaBitmap()
+    // Key on generationId, not just identity: the same ImageBitmap mutated in place bumps the
+    // generationId, so a stale Image/shader is not reused.
+    val key = TextureKey(img, bitmap.generationId, tileMode)
+    textureShader?.let { if (key == textureKey) return it }
+    val tile = tileMode.toSkiaFilterTileMode()
+    val image = Image.makeFromBitmap(bitmap)
+    val shader = image.makeShader(tile, tile, null)
+    textureShader?.close()
+    textureImage?.close()
+    textureShader = shader
+    textureImage = image
+    textureKey = key
+    return shader
+  }
+}
+
+private data class TextureKey(val image: ImageBitmap, val generationId: Int, val tileMode: TileMode)
 
 /**
  * Compiles [compiled] into a skiko [RuntimeEffect] + [RuntimeShaderBuilder]. Skia is always present,
@@ -50,7 +98,7 @@ internal actual fun createBackendProgram(compiled: CompiledProgram): MirageBacke
   return MirageBackendProgram(RuntimeShaderBuilder(effect), effect)
 }
 
-internal actual fun MirageBackendProgram.uniformSink(): UniformSink = SkikoUniformSink(builder)
+internal actual fun MirageBackendProgram.uniformSink(): UniformSink = SkikoUniformSink(this)
 
 /**
  * makeRuntimeShader with input = null feeds the layer's own content as the `content` child, matching
@@ -66,12 +114,15 @@ internal actual fun MirageBackendProgram.asContentRenderEffect(): RenderEffect =
 
 /**
  * Skia bakes uniforms into the Shader at makeShader() time, so this rebuilds from the builder's
- * current uniforms each call - the node calls it after writing the per-draw values.
+ * current uniforms each call - the node calls it after writing the per-draw values. [asComposeShader]
+ * only wraps the same skia peer (no ref/copy), so the program owns and closes it (one call late).
  */
 internal actual fun MirageBackendProgram.asShaderBrush(): ShaderBrush =
-  ShaderBrush(builder.makeShader().asComposeShader())
+  ShaderBrush(swapOverlayShader(builder.makeShader()).asComposeShader())
 
-private class SkikoUniformSink(private val builder: RuntimeShaderBuilder) : UniformSink {
+private class SkikoUniformSink(private val program: MirageBackendProgram) : UniformSink {
+
+  private val builder: RuntimeShaderBuilder get() = program.builder
 
   override fun float(name: String, v: Float): Unit = builder.uniform(name, v)
 
@@ -102,14 +153,13 @@ private class SkikoUniformSink(private val builder: RuntimeShaderBuilder) : Unif
   }
 
   /**
-   * Bind an image as a child shader. The compose->skia bitmap bridge is public (asSkiaBitmap); the
-   * Compose->skia TileMode map is not exported from compose-ui, so it is inlined below.
+   * Bind an image as a child shader, reusing the last-built child when the same bitmap/tiling is
+   * re-bound instead of decoding a fresh `Image`+`Shader` every draw. The compose->skia bitmap bridge
+   * is public (asSkiaBitmap); the Compose->skia TileMode map is not exported from compose-ui.
    */
   override fun texture(name: String, img: ImageBitmap?, tileMode: TileMode) {
     if (img == null) return
-    val tile = tileMode.toSkiaFilterTileMode()
-    val shader = Image.makeFromBitmap(img.asSkiaBitmap()).makeShader(tile, tile, null)
-    builder.child(name, shader)
+    builder.child(name, program.textureChild(img, tileMode))
   }
 }
 
