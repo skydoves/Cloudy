@@ -20,10 +20,9 @@ package com.skydoves.cloudy
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.node.ModifierNodeElement
-import com.skydoves.cloudy.internal.MirageBackdropElement
-import com.skydoves.cloudy.internal.MirageElement
 import com.skydoves.cloudy.internal.MiragePlanBuilder
 import com.skydoves.cloudy.internal.Stage
+import com.skydoves.cloudy.internal.WeatherElement
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
@@ -35,8 +34,8 @@ import org.robolectric.RobolectricTestRunner
  * Smoke tests for the plan-based [Modifier.mirage] and the node it attaches.
  *
  * These exercise the parts checkable without a live Compose tree: that the factory attaches a
- * [MirageElement] (the node instantiates), that the plan block builds the right ordered stage list,
- * and that the element's reconciliation key (clock / enabled / stages) behaves. The per-draw uniform
+ * [WeatherElement] (the node instantiates), that the plan block builds the right ordered stage list,
+ * and that the element's reconciliation key (sky / clock / enabled / stages) behaves. The per-draw uniform
  * binding and the RenderEffect / ShaderBrush application run on a real graphics layer and are covered
  * by the platform screenshot/instrumented tests.
  */
@@ -61,11 +60,11 @@ internal class MiragePlanModifierTest {
   private class EmptyParams : MirageParams()
 
   @Test
-  fun `mirage attaches a MirageElement`() {
+  fun `mirage attaches a WeatherElement`() {
     val modifier = Modifier.mirage { filter(tintFilter) }
     assertTrue(
-      "Modifier.mirage should attach a MirageElement",
-      modifier.firstElementOrNull() is MirageElement,
+      "Modifier.mirage should attach a WeatherElement",
+      modifier.firstElementOrNull() is WeatherElement,
     )
   }
 
@@ -74,7 +73,7 @@ internal class MiragePlanModifierTest {
     // enabled = false is a node-level no-op (the program cache stays warm), not a modifier
     // short-circuit, so the element is still present.
     val modifier = Modifier.mirage(enabled = false) {}
-    assertTrue(modifier.firstElementOrNull() is MirageElement)
+    assertTrue(modifier.firstElementOrNull() is WeatherElement)
   }
 
   @Test
@@ -127,12 +126,12 @@ internal class MiragePlanModifierTest {
   }
 
   @Test
-  fun `mirage with sky attaches a MirageBackdropElement`() {
+  fun `mirage with sky attaches a WeatherElement`() {
     val sky = Sky()
     val modifier = Modifier.mirage(sky = sky) { filter(tintFilter) }
     assertTrue(
-      "Modifier.mirage(sky) should attach a MirageBackdropElement",
-      modifier.firstElementOrNull() is MirageBackdropElement,
+      "Modifier.mirage(sky) should attach a WeatherElement",
+      modifier.firstElementOrNull() is WeatherElement,
     )
   }
 
@@ -178,11 +177,11 @@ internal class MiragePlanModifierTest {
     )
   }
 
-  private fun elementOf(modifier: Modifier): MirageElement =
-    modifier.firstElementOrNull() as MirageElement
+  private fun elementOf(modifier: Modifier): WeatherElement =
+    modifier.firstElementOrNull() as WeatherElement
 
-  private fun backdropElementOf(modifier: Modifier): MirageBackdropElement =
-    modifier.firstElementOrNull() as MirageBackdropElement
+  private fun backdropElementOf(modifier: Modifier): WeatherElement =
+    modifier.firstElementOrNull() as WeatherElement
 
   /** foldIn returns the first ModifierNodeElement in the chain (there is exactly one here). */
   private fun Modifier.firstElementOrNull(): ModifierNodeElement<*>? =

@@ -26,10 +26,10 @@ import com.skydoves.cloudy.ExperimentalMirage
 
 /**
  * Owns and runs the layer-chaining draw for a mirage filter plan, decoupled from *what* stage 0
- * samples. A [MirageNode] records its own content into stage 0; a backdrop node records the Sky
- * region instead — the chaining, per-stage render-effect binding, and layer pooling are identical, so
- * they are extracted here rather than duplicated (Pure Fabrication: the algorithm is neither the
- * self-content node nor the backdrop node, it is the shared stage-chain machinery).
+ * samples. A self-lit [WeatherNode] records its own content into stage 0; a backdrop one records the
+ * Sky region instead — the chaining, per-stage render-effect binding, and layer pooling are identical,
+ * so they are extracted here rather than duplicated (Pure Fabrication: the algorithm is neither source,
+ * it is the shared stage-chain machinery).
  *
  * It holds no clock, no Sky, and no params ownership: the caller supplies the already-resolved
  * [Stage.Filter] → [CachedProgram] pairs, the per-stage uniform [bind], and the stage-0 source. This

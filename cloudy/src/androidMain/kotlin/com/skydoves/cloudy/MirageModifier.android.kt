@@ -20,11 +20,11 @@ import androidx.compose.ui.Modifier
 /**
  * Android implementation of the plan-based [Modifier.mirage].
  *
- * Attaches a `MirageNode` that orchestrates the plan. A stage whose backend cannot be built on this
- * band is skipped at draw time by the node (its `MirageProgramCache.obtain` returns `null`): above
- * API 33 every stage runs as AGSL; on API 23-32 an unsupported stage is a pass-through. When the whole
- * plan renders nothing and a [MirageFallback.Content] was supplied, the shared body swaps in that
- * fallback instead. The `MirageNode` reads its params blocks in the draw phase, so a plan never forces
+ * Attaches a self-lit `WeatherNode` that orchestrates the plan. A stage whose backend cannot be built
+ * on this band is skipped at draw time by the node (its `MirageProgramCache.obtain` returns `null`):
+ * above API 33 every stage runs as AGSL; on API 23-32 an unsupported stage is a pass-through. When the
+ * whole plan renders nothing and a [MirageFallback.Content] was supplied, the shared body swaps in that
+ * fallback instead. The node reads its params blocks in the draw phase, so a plan never forces
  * recomposition.
  */
 @ExperimentalMirage

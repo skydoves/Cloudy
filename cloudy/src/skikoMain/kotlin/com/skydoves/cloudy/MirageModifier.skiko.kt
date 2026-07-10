@@ -19,9 +19,9 @@ import androidx.compose.ui.Modifier
 
 /**
  * Skiko implementation of the plan-based [Modifier.mirage] — shared across iOS, macOS, Desktop, and
- * Wasm. Attaches a `MirageNode` that orchestrates the plan. Skia is always present, so every stage's
- * program compiles and the plan always renders — the [MirageFallback] therefore never triggers here.
- * The node reads its params blocks in the draw phase, so a plan never forces recomposition.
+ * Wasm. Attaches a self-lit `WeatherNode` that orchestrates the plan. Skia is always present, so every
+ * stage's program compiles and the plan always renders — the [MirageFallback] therefore never triggers
+ * here. The node reads its params blocks in the draw phase, so a plan never forces recomposition.
  */
 @ExperimentalMirage
 public actual fun Modifier.mirage(
