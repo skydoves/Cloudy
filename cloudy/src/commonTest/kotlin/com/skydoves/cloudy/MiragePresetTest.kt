@@ -35,17 +35,19 @@ import io.kotest.matchers.shouldBe
 internal class MiragePresetTest :
   FunSpec({
 
-    context("shared lens framing defaults (built-in liquid-glass framing)") {
-      // Every lens-shaped preset starts from the same lens framing, so callers can apply it with no
-      // params block and match the built-in look.
+    context("shared lens framing defaults (auto: node-framed at bind time)") {
+      // Every lens-shaped preset starts unframed: Unspecified lens geometry resolves to the node's
+      // center / full size when bound (see bindUniforms), so a bare preset covers the node it is
+      // attached to. A fixed default would pin the lens at the origin and leave the rest of the node
+      // as kernel passthrough. cornerRadius / iLight keep the built-in liquid-glass values.
       fun assertLensDefaults(params: MirageLensParams) {
-        params.lensCenter.value.shouldBe(Offset.Zero)
-        params.lensSize.value.shouldBe(Size(350f, 350f))
+        params.lensCenter.value.shouldBe(Offset.Unspecified)
+        params.lensSize.value.shouldBe(Size.Unspecified)
         params.cornerRadius.value.shouldBe(50f)
         params.iLight.value.shouldBe(Offset(-1f, -1f))
       }
 
-      test("Specular / Chromatic / Foil share the liquid-glass lens defaults") {
+      test("Specular / Chromatic / Foil share the auto lens framing defaults") {
         assertLensDefaults(MirageOptics.Specular.paramsFactory())
         assertLensDefaults(MirageOptics.Chromatic.paramsFactory())
         assertLensDefaults(MirageOptics.Foil.paramsFactory())
@@ -88,6 +90,8 @@ internal class MiragePresetTest :
         params.chromaticWashout.value.shouldBe(washout)
         params.chromaticModulate.value.shouldBe(modulate)
         params.chromaticRimBoost.value.shouldBe(rimBoost)
+        // Not a per-look factory argument: every look shares the specular pool framing (0.7).
+        params.chromaticPoolFrac.value.shouldBe(0.7f)
       }
 
       test("Chromatic equals the factory defaults (no regression)") {

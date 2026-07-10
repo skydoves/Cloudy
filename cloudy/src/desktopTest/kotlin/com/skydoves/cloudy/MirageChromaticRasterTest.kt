@@ -26,6 +26,7 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.doubles.shouldBeGreaterThan
 import io.kotest.matchers.doubles.shouldBeLessThan
 import io.kotest.matchers.nulls.shouldNotBeNull
+import io.kotest.matchers.shouldBe
 import org.jetbrains.skia.Bitmap
 import org.jetbrains.skia.Canvas
 import org.jetbrains.skia.ColorAlphaType
@@ -38,6 +39,7 @@ import org.jetbrains.skia.Shader
 import org.jetbrains.skia.Surface
 import kotlin.math.abs
 import kotlin.math.hypot
+import com.skydoves.cloudy.internal.bindUniforms as bindLibraryUniforms
 
 private const val RASTER = 64
 
@@ -67,6 +69,43 @@ internal class MirageChromaticRasterTest :
       meanAbsDiff(oil, baseline).shouldBeGreaterThan(1.0)
       meanAbsDiff(pearl, baseline).shouldBeGreaterThan(1.0)
       meanAbsDiff(oil, pearl).shouldBeGreaterThan(1.0)
+    }
+
+    // Regression for the origin-pinned lens default. MirageLensParams used to default lensCenter to
+    // Offset.Zero with a fixed 350x350 lensSize, so a bare `filter(Chromatic)` on any node larger than
+    // the lens graded only the origin quadrant and passed the rest through — on a backdrop card the
+    // rainbow showed only in the corner, reading as "chromatic draws behind the content". These renders
+    // go through the REAL library binder (bindUniforms), the exact path both mirage nodes take.
+    test("unset lens framing auto-binds as the full node frame, not an origin-pinned lens") {
+      val size = 512
+      val auto = renderThroughLibraryBinder(MirageOptics.Chromatic, size)
+      val explicitFullBleed = renderThroughLibraryBinder(MirageOptics.Chromatic, size) {
+        lensCenter(Offset(size / 2f, size / 2f))
+        lensSize(Size(size.toFloat(), size.toFloat()))
+      }
+      val originPinned = renderThroughLibraryBinder(MirageOptics.Chromatic, size) {
+        lensCenter(Offset.Zero)
+        lensSize(Size(350f, 350f))
+      }
+
+      // The substitution contract: an unset frame IS the explicit node frame, bit-for-bit.
+      meanAbsDiff(auto, explicitFullBleed).shouldBe(0.0)
+      // And it is no longer the old fixed default that graded only the origin quadrant.
+      meanAbsDiff(auto, originPinned).shouldBeGreaterThan(1.0)
+    }
+
+    // chromaticPoolFrac regression: OilSlick-vs-Pearl distinctness above doesn't exercise it (the
+    // chromatic effect differs regardless of pool radius), so this pins that the uniform actually
+    // reaches the shader through the real binder. Chromatic's default modulate is 1, so the pool
+    // fraction shapes the rainbow — a widened pool must change the render.
+    test("chromaticPoolFrac changes the render when the pool modulates the effect") {
+      val size = 512
+      val defaultPool = renderThroughLibraryBinder(MirageOptics.Chromatic, size)
+      val widePool = renderThroughLibraryBinder(MirageOptics.Chromatic, size) {
+        chromaticPoolFrac(1.5f)
+      }
+
+      meanAbsDiff(defaultPool, widePool).shouldBeGreaterThan(1.0)
     }
 
     // Full-bleed / max-intensity X guard. At cornerRadius 0 + whole-pane lens + chromaticIntensity
@@ -162,6 +201,34 @@ private fun renderChromatic(optic: CompositeOptic<ChromaticParams>): ByteArray {
   builder.child("content", contentShader())
 
   return rasterize(builder.makeShader())
+}
+
+/**
+ * Renders [optic] over the gradient content through the REAL library binder — reset-to-defaults, the
+ * per-draw [frame] block, then the auto lens-frame substitution — exactly as [com.skydoves.cloudy.
+ * internal.MirageNode] and the backdrop node bind each draw. [frame] left `null` exercises the bare
+ * preset (the auto framing path).
+ */
+@OptIn(ExperimentalMirage::class)
+private fun renderThroughLibraryBinder(
+  optic: CompositeOptic<ChromaticParams>,
+  size: Int,
+  frame: (ChromaticParams.() -> Unit)? = null,
+): ByteArray {
+  val cached = MirageProgramCache.obtain(optic, Dialect.Sksl).shouldNotBeNull()
+  val params = optic.paramsFactory()
+  bindLibraryUniforms(
+    cached = cached,
+    params = params,
+    paramsBlock = frame?.let { block -> { (this as ChromaticParams).block() } },
+    width = size.toFloat(),
+    height = size.toFloat(),
+    density = 1f,
+    time = 0f,
+  )
+  val builder = cached.backend.builder
+  builder.child("content", contentShaderAt(size))
+  return rasterize(builder.makeShader(), size)
 }
 
 /**

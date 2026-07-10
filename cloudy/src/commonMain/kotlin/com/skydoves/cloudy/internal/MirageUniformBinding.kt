@@ -19,9 +19,11 @@ package com.skydoves.cloudy.internal
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.isUnspecified
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import com.skydoves.cloudy.ExperimentalMirage
+import com.skydoves.cloudy.MirageLensParams
 import com.skydoves.cloudy.MirageParams
 import com.skydoves.cloudy.UColor
 import com.skydoves.cloudy.UFloat
@@ -50,6 +52,11 @@ internal const val STD_DENSITY = "mirageDensity"
  * the standard uniforms + every schema slot through the sink in declaration order. A pure function of
  * (cached, params, block, w, h, density, time) — no clock, no lifecycle — so both mirage nodes share
  * it as the `bind` closure they hand to [MirageFilterChain].
+ *
+ * The shared [MirageLensParams] framing auto-resolves here: a `lensCenter` / `lensSize` still
+ * unspecified after [paramsBlock] binds as the node's center / full size (the only place both the
+ * final values and the canvas size are in scope). Only those two handles get the substitution — every
+ * other Offset/Size uniform must be specified.
  */
 internal fun bindUniforms(
   cached: CachedProgram,
@@ -74,6 +81,10 @@ internal fun bindUniforms(
   if (compiled.usesTime) sink.float(STD_TIME, time)
   if (compiled.usesDensity) sink.float(STD_DENSITY, density)
 
+  // Non-null only for lens-shaped optics; identity-compared below against this specific instance's
+  // lensCenter/lensSize handles.
+  val lensParams = params as? MirageLensParams
+
   // Schema uniforms in declaration (= bind) order: the params' live handles and the compiled schema
   // entries share the same slot index, so entries[handle.slot] names each write.
   val entries = cached.compiled.schema.entries
@@ -81,13 +92,37 @@ internal fun bindUniforms(
     val name = entries[handle.slot].name
     when (handle) {
       is UFloat -> sink.float(name, handle.value)
-      is UOffset -> sink.float2(name, handle.value.x, handle.value.y)
-      is USize -> sink.float2(name, handle.value.width, handle.value.height)
+
+      is UOffset -> {
+        // Identity (not type) match: an unrelated Offset uniform on a custom optic must never fall
+        // into the auto-frame substitution just because it happens to be left Unspecified too.
+        val value = handle.value
+        if (value.isUnspecified && handle === lensParams?.lensCenter) {
+          sink.float2(name, width * 0.5f, height * 0.5f)
+        } else {
+          sink.float2(name, value.x, value.y)
+        }
+      }
+
+      is USize -> {
+        val value = handle.value
+        if (value.isUnspecified && handle === lensParams?.lensSize) {
+          sink.float2(name, width, height)
+        } else {
+          sink.float2(name, value.width, value.height)
+        }
+      }
+
       is UInt1 -> sink.int(name, handle.value)
+
       is UVec3 -> sink.floatArray(name, handle.value)
+
       is UVec4 -> sink.floatArray(name, handle.value)
+
       is UFloatArray -> sink.floatArray(name, handle.value)
+
       is UColor -> sink.color(name, handle.value)
+
       is UTexture -> sink.texture(name, handle.value, handle.tileMode)
     }
   }
