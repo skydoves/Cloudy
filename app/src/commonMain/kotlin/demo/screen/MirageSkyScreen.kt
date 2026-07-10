@@ -91,10 +91,14 @@ fun MirageSkyScreen(onBackClick: () -> Unit) {
   var effectEnabled by remember { mutableStateOf(true) }
   var duotone: DuotonePreset by remember { mutableStateOf(DuotonePreset.Indigo) }
   var amount by remember { mutableStateOf(1f) }
+  var chromatic by remember { mutableStateOf(ChromaticControls()) }
+  var specular by remember { mutableStateOf(SpecularControls()) }
 
   val toneShadow = duotone.shadow
   val toneHighlight = duotone.highlight
   val toneAmount = amount
+  val chromaticControls = chromatic
+  val specularControls = specular
 
   CollapsingAppBarScaffold(
     title = "Mirage (sky backdrop)",
@@ -123,7 +127,15 @@ fun MirageSkyScreen(onBackClick: () -> Unit) {
               .height(180.dp)
               .clip(RoundedCornerShape(Dimens.cardCornerRadius))
               .mirage(sky = sky, enabled = effectEnabled) {
-                with(pick) { declare(toneShadow, toneHighlight, toneAmount) }
+                with(pick) {
+                  declare(
+                    toneShadow,
+                    toneHighlight,
+                    toneAmount,
+                    chromaticControls,
+                    specularControls,
+                  )
+                }
               }
               .border(
                 width = 2.dp,
@@ -154,6 +166,10 @@ fun MirageSkyScreen(onBackClick: () -> Unit) {
           onDuotoneChange = { duotone = it },
           amount = amount,
           onAmountChange = { amount = it },
+          chromatic = chromatic,
+          onChromaticChange = { chromatic = it },
+          specular = specular,
+          onSpecularChange = { specular = it },
         )
       }
     }
@@ -163,19 +179,58 @@ fun MirageSkyScreen(onBackClick: () -> Unit) {
 private const val BACKDROP_ITEM_COUNT = 40
 
 /**
+ * Per-draw values the Chromatic pick feeds its uniforms, snapshotted outside the modifier lambda like
+ * the tone controls. Defaults match [MirageOptics.Chromatic]'s own defaults, so the sliders start at
+ * the preset look. `poolFrac` scales the light pool off the lens' half-min dimension — on a wide card
+ * the default 0.7 reads as a small patch, so the slider range goes well past it.
+ */
+private data class ChromaticControls(
+  val intensity: Float = 0.6f,
+  val modulate: Float = 1f,
+  val poolFrac: Float = 0.7f,
+)
+
+/**
+ * Per-draw values the Specular pick feeds its uniforms; defaults match [MirageOptics.Specular]'s
+ * GlowTuning schema. The glass model keeps refraction at the rim by design (a flat interior bends
+ * nothing), so these drive the *face* terms: `rimMix` crossfades body pool (0) vs rim glint (1) and
+ * `poolFrac` spreads the moving hotspot the same way the chromatic pool slider does.
+ */
+private data class SpecularControls(
+  val strength: Float = 0.7f,
+  val rimMix: Float = 0.4f,
+  val poolFrac: Float = 0.7f,
+)
+
+/**
  * A backdrop look the card can apply. Each keeps a typed optic so its `declare` sets that optic's own
  * uniforms with no cast, mirroring the self-content [MirageScreen]'s pick model.
  */
 private sealed interface BackdropPick {
   val label: String
 
-  /** Declares this pick's filter stage into the plan; only [Duotone] reads the tone/amount controls. */
-  fun MirageScope.declare(shadow: Color, highlight: Color, amount: Float)
+  /**
+   * Declares this pick's filter stage into the plan; [Duotone] reads the tone/amount controls,
+   * [Chromatic] the chromatic sliders, and [Specular] the specular sliders.
+   */
+  fun MirageScope.declare(
+    shadow: Color,
+    highlight: Color,
+    amount: Float,
+    chromatic: ChromaticControls,
+    specular: SpecularControls,
+  )
 
   /** The headline colorize material: maps backdrop luminance onto a shadow -> highlight duotone. */
   data object Duotone : BackdropPick {
     override val label = "Duotone"
-    override fun MirageScope.declare(shadow: Color, highlight: Color, amount: Float) {
+    override fun MirageScope.declare(
+      shadow: Color,
+      highlight: Color,
+      amount: Float,
+      chromatic: ChromaticControls,
+      specular: SpecularControls,
+    ) {
       filter(MirageOptics.Duotone) {
         shadow(shadow)
         highlight(highlight)
@@ -187,16 +242,36 @@ private sealed interface BackdropPick {
   /** A content-sampling thin-film look, proving the overload carries any filter optic over a backdrop. */
   data object Chromatic : BackdropPick {
     override val label = "Chromatic"
-    override fun MirageScope.declare(shadow: Color, highlight: Color, amount: Float) {
-      filter(MirageOptics.Chromatic)
+    override fun MirageScope.declare(
+      shadow: Color,
+      highlight: Color,
+      amount: Float,
+      chromatic: ChromaticControls,
+      specular: SpecularControls,
+    ) {
+      filter(MirageOptics.Chromatic) {
+        chromaticIntensity(chromatic.intensity)
+        chromaticModulate(chromatic.modulate)
+        chromaticPoolFrac(chromatic.poolFrac)
+      }
     }
   }
 
   /** The liquid-glass specular glint, also content-sampling, over the backdrop. */
   data object Specular : BackdropPick {
     override val label = "Specular"
-    override fun MirageScope.declare(shadow: Color, highlight: Color, amount: Float) {
-      filter(MirageOptics.Specular)
+    override fun MirageScope.declare(
+      shadow: Color,
+      highlight: Color,
+      amount: Float,
+      chromatic: ChromaticControls,
+      specular: SpecularControls,
+    ) {
+      filter(MirageOptics.Specular) {
+        specStrength(specular.strength)
+        specRimMix(specular.rimMix)
+        specPoolFrac(specular.poolFrac)
+      }
     }
   }
 }
@@ -222,6 +297,10 @@ private fun ControlsCard(
   onDuotoneChange: (DuotonePreset) -> Unit,
   amount: Float,
   onAmountChange: (Float) -> Unit,
+  chromatic: ChromaticControls,
+  onChromaticChange: (ChromaticControls) -> Unit,
+  specular: SpecularControls,
+  onSpecularChange: (SpecularControls) -> Unit,
 ) {
   Card(
     modifier = modifier.fillMaxWidth(),
@@ -268,6 +347,61 @@ private fun ControlsCard(
         Slider(value = amount, onValueChange = onAmountChange, valueRange = 0f..1f)
       }
 
+      if (pick == BackdropPick.Chromatic) {
+        Spacer(modifier = Modifier.height(12.dp))
+        SectionLabel("Intensity ${chromatic.intensity.asLabel()}")
+        Slider(
+          value = chromatic.intensity,
+          onValueChange = { onChromaticChange(chromatic.copy(intensity = it)) },
+          valueRange = 0f..1f,
+        )
+
+        // 0 = uniform film over the whole card, 1 = rainbow confined to the light pool.
+        SectionLabel("Pool follow ${chromatic.modulate.asLabel()}")
+        Slider(
+          value = chromatic.modulate,
+          onValueChange = { onChromaticChange(chromatic.copy(modulate = it)) },
+          valueRange = 0f..1f,
+        )
+
+        // Pool radius as a fraction of the lens' half-min dimension; past ~1.5 the pool spans a
+        // wide card whose short side would otherwise confine it to a small patch.
+        SectionLabel("Pool size ${chromatic.poolFrac.asLabel()}")
+        Slider(
+          value = chromatic.poolFrac,
+          onValueChange = { onChromaticChange(chromatic.copy(poolFrac = it)) },
+          valueRange = 0.3f..2.5f,
+        )
+      }
+
+      if (pick == BackdropPick.Specular) {
+        Spacer(modifier = Modifier.height(12.dp))
+        SectionLabel("Strength ${specular.strength.asLabel()}")
+        Slider(
+          value = specular.strength,
+          onValueChange = { onSpecularChange(specular.copy(strength = it)) },
+          valueRange = 0f..1f,
+        )
+
+        // 0 = face terms only (moving pool + body sheen), 1 = the thin rim glint only — isolates
+        // which term is on screen when judging the effect.
+        SectionLabel("Rim mix ${specular.rimMix.asLabel()}")
+        Slider(
+          value = specular.rimMix,
+          onValueChange = { onSpecularChange(specular.copy(rimMix = it)) },
+          valueRange = 0f..1f,
+        )
+
+        // Pool radius as a fraction of the lens' half-min dimension; past ~1.5 the pool spans a
+        // wide card whose short side would otherwise confine it to a small patch.
+        SectionLabel("Pool size ${specular.poolFrac.asLabel()}")
+        Slider(
+          value = specular.poolFrac,
+          onValueChange = { onSpecularChange(specular.copy(poolFrac = it)) },
+          valueRange = 0.3f..2.5f,
+        )
+      }
+
       Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(
           text = "Effect enabled",
@@ -280,6 +414,9 @@ private fun ControlsCard(
     }
   }
 }
+
+/** Two-decimal slider value label; KMP-safe (no JVM String.format in commonMain). */
+private fun Float.asLabel(): String = ((this * 100).toInt() / 100f).toString()
 
 @Composable
 private fun SectionLabel(text: String) {
