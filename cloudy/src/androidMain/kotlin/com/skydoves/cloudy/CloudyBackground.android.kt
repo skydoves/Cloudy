@@ -722,6 +722,13 @@ private class CloudyBackgroundModifierNode(
             RenderScriptToolkit.ProgressiveDirection.NONE
         }
 
+        // Clamp so cropX+outputWidth (and Y) stay within the source; otherwise an edge child or a
+        // subpixel overshoot fails backgroundBlur's require() and strands the blur in Error.
+        val cropX = capturedSnapshot.offsetX.toInt()
+          .coerceIn(0, (softwareBitmap.width - outputWidth).coerceAtLeast(0))
+        val cropY = capturedSnapshot.offsetY.toInt()
+          .coerceIn(0, (softwareBitmap.height - outputHeight).coerceAtLeast(0))
+
         // Run native background blur pipeline (crop -> scale down -> blur -> mask -> scale up).
         // This is the blur staleness axis: how long it takes the blur to catch up to a scrolled
         // background. It runs off the main thread, so it never shows up in FrameTiming/jankstats;
@@ -731,8 +738,8 @@ private class CloudyBackgroundModifierNode(
             RenderScriptToolkit.backgroundBlur(
               srcBitmap = softwareBitmap,
               dstBitmap = outputBitmap,
-              cropX = capturedSnapshot.offsetX.toInt().coerceAtLeast(0),
-              cropY = capturedSnapshot.offsetY.toInt().coerceAtLeast(0),
+              cropX = cropX,
+              cropY = cropY,
               radius = capturedSnapshot.radius.coerceIn(1, 25),
               scale = 0.25f,
               progressiveDirection = progressiveDir,
