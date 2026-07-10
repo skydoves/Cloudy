@@ -142,6 +142,10 @@ private fun Modifier.liquidGlassImpl(
   }
 
   // Cache the RuntimeEffect + RuntimeShaderBuilder across recompositions.
+  // Contract: a shader that fails to compile degrades gracefully (glass silently absent) rather
+  // than crashing the host — the shipped SKSL is known-good so this never fires in practice.
+  // Note: this is the inverse of MirageBackendProgram.skiko, which lets makeForShader throw
+  // (fail-fast) since a Mirage program is user-authored and a compile error is a caller bug.
   val shaderBuilder = remember {
     try {
       val effect = RuntimeEffect.makeForShader(LiquidGlassShaderSource.SKSL)
@@ -189,6 +193,10 @@ private fun Modifier.liquidGlassImpl(
       shaderBuilder.uniform("specPoolGain", tuning.poolGain)
 
       // "content" binds to the underlying content (null input = source content).
+      // A fresh ImageFilter per draw is inherent to skiko's RenderEffect model: the layer's
+      // renderEffect setter neither reuses nor closes the prior filter, so we cannot close ours
+      // (the layer draws it after this block). skiko reclaims the orphaned native filter via its
+      // phantom-reference cleaner thread — a cost of the model, not a leak.
       val imageFilter = ImageFilter.makeRuntimeShader(
         runtimeShaderBuilder = shaderBuilder,
         shaderName = "content",
