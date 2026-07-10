@@ -18,10 +18,16 @@ package com.skydoves.cloudydemo
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import demo.CloudyDemoApp
 
 class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
+    // Draw behind the transparent system bars so the full-bleed sky background reaches the screen
+    // edges; inner content is inset by WindowInsets.safeDrawing in CollapsingAppBarScaffold. Default
+    // SystemBarStyle.auto flips bar-icon contrast with the system light/dark theme, matching
+    // PosterTheme's isSystemInDarkTheme() palette.
+    enableEdgeToEdge()
     super.onCreate(savedInstanceState)
 
     setContent { CloudyDemoApp() }
