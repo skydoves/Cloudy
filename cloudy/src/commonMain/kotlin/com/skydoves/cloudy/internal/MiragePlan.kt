@@ -18,6 +18,7 @@
 package com.skydoves.cloudy.internal
 
 import androidx.compose.ui.graphics.BlendMode
+import com.skydoves.cloudy.CloudyProgressive
 import com.skydoves.cloudy.ExperimentalMirage
 import com.skydoves.cloudy.FilterOptic
 import com.skydoves.cloudy.GenerateOptic
@@ -32,30 +33,37 @@ internal expect fun currentDialect(): Dialect
 internal const val TIME_WRAP_SECONDS = 3600f
 
 /**
- * One declared stage of a mirage plan. Sealed so the draw loop branches exhaustively over the two
- * application shapes. [params] is the single params instance the node mints once and reuses every
- * draw (no per-draw allocation); [paramsBlock] is the caller's per-draw uniform block, re-run each
- * draw against [params].
+ * One declared stage of a plan. Sealed so the draw loop branches exhaustively over the application
+ * shapes: a program stage ([ProgramFilter]/[Overlay]) carried by [MirageWeather], or a
+ * platform-blur stage ([PlatformFilter]) carried by BlurWeather.
  */
-internal sealed class Stage(
-  val optic: Optic<*>,
-  val params: MirageParams,
-  val paramsBlock: (MirageParams.() -> Unit)?,
-) {
-  /** A content-transforming filter — applied as a content-bound render effect. */
-  class Filter(
-    optic: FilterOptic<*>,
-    params: MirageParams,
-    paramsBlock: (MirageParams.() -> Unit)?,
-  ) : Stage(optic, params, paramsBlock)
+internal sealed class Stage {
+
+  /**
+   * A content-transforming shader filter — applied as a content-bound render effect. [params] is the
+   * single params instance the node mints once and reuses every draw (no per-draw allocation);
+   * [paramsBlock] is the caller's per-draw uniform block, re-run each draw against [params].
+   */
+  class ProgramFilter(
+    val optic: FilterOptic<*>,
+    val params: MirageParams,
+    val paramsBlock: (MirageParams.() -> Unit)?,
+  ) : Stage()
 
   /** A content-free overlay generator — drawn over the content with [blendMode]. */
   class Overlay(
-    optic: GenerateOptic<*>,
-    params: MirageParams,
-    paramsBlock: (MirageParams.() -> Unit)?,
+    val optic: GenerateOptic<*>,
+    val params: MirageParams,
+    val paramsBlock: (MirageParams.() -> Unit)?,
     val blendMode: BlendMode,
-  ) : Stage(optic, params, paramsBlock)
+  ) : Stage()
+
+  /**
+   * The platform blur stage. [radius]/[progressive] are draw-time cache keys, **not** structural
+   * (see [sameStructure]): every blur code path treats a radius change as a draw-time re-key of the
+   * cached effect, so a slider animation re-keys the effect without re-warming layers.
+   */
+  class PlatformFilter(val radius: Int, val progressive: CloudyProgressive) : Stage()
 }
 
 /**
@@ -72,7 +80,8 @@ internal class MiragePlanBuilder : MirageScope {
   override fun <P : MirageParams> filter(optic: FilterOptic<P>, params: (P.() -> Unit)?) {
     // paramsFactory mints a P; the block is P.() -> Unit. Both are erased to MirageParams for storage
     // and re-cast at the (type-safe by construction) call site — the instance came from this optic.
-    stages += Stage.Filter(optic, optic.paramsFactory(), params as (MirageParams.() -> Unit)?)
+    stages +=
+      Stage.ProgramFilter(optic, optic.paramsFactory(), params as (MirageParams.() -> Unit)?)
   }
 
   @Suppress("UNCHECKED_CAST")
@@ -91,11 +100,44 @@ internal class MiragePlanBuilder : MirageScope {
 }
 
 /**
+ * Builds the [WeatherElement] for a `Modifier.mirage` plan: runs [plan] once to fix the stages and
+ * wires the stateless [MirageWeather] with an empty [PostProcess] (mirage clips/tints nothing — it
+ * grades in-shader). The weather key is [Unit] because [MirageWeather] is a stateless object.
+ */
+@OptIn(ExperimentalMirage::class)
+internal fun mirageElement(
+  skylight: Skylight,
+  clock: com.skydoves.cloudy.MirageClock,
+  enabled: Boolean,
+  plan: MirageScope.() -> Unit,
+): WeatherElement {
+  val stages = MiragePlanBuilder().apply(plan).stages
+  return WeatherElement(
+    weather = MirageWeather,
+    skylight = skylight,
+    clock = clock,
+    enabled = enabled,
+    stages = stages,
+    postProcess = PostProcess(
+      androidx.compose.ui.graphics.RectangleShape,
+      androidx.compose.ui.graphics.Color.Transparent,
+      null,
+    ),
+    weatherKey = Unit,
+    onStateChanged = null,
+  )
+}
+
+/**
  * True when two stage lists describe the same plan structure: same length and, in order, the same
  * stage kind, optic, and (for overlays) blend mode. The per-draw params blocks are deliberately not
  * compared — this is the "would the same programs and layer stack be built?" test that decides whether
  * [WeatherNode.update] can take the cheap blocks-only path. Kept beside [WeatherElement.equals], which
  * runs the identical comparison to decide element equality.
+ *
+ * [Stage.PlatformFilter] matches by kind only: its radius/progressive are draw-time cache keys (a
+ * blur re-keys the cached effect at draw time without a re-warm), so they must not force a structural
+ * update or a slider animation would tear down and rebuild the blur layer on every frame.
  */
 @OptIn(ExperimentalMirage::class)
 internal fun sameStructure(a: List<Stage>, b: List<Stage>): Boolean {
@@ -104,8 +146,15 @@ internal fun sameStructure(a: List<Stage>, b: List<Stage>): Boolean {
     val x = a[i]
     val y = b[i]
     if (x::class != y::class) return false
-    if (x.optic != y.optic) return false
-    if (x is Stage.Overlay && y is Stage.Overlay && x.blendMode != y.blendMode) return false
+    when {
+      x is Stage.ProgramFilter && y is Stage.ProgramFilter ->
+        if (x.optic != y.optic) return false
+
+      x is Stage.Overlay && y is Stage.Overlay ->
+        if (x.optic != y.optic || x.blendMode != y.blendMode) return false
+
+      // PlatformFilter: kind match suffices — radius/progressive are draw-time keys.
+    }
   }
   return true
 }

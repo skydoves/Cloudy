@@ -84,10 +84,10 @@ internal class MiragePlanModifierTest {
     }.stages
 
     assertEquals(2, stages.size)
-    assertTrue(stages[0] is Stage.Filter)
+    assertTrue(stages[0] is Stage.ProgramFilter)
     assertTrue(stages[1] is Stage.Overlay)
     assertEquals(BlendMode.Plus, (stages[1] as Stage.Overlay).blendMode)
-    assertEquals("test-tint", stages[0].optic.name)
+    assertEquals("test-tint", (stages[0] as Stage.ProgramFilter).optic.name)
   }
 
   @Test
@@ -98,8 +98,8 @@ internal class MiragePlanModifierTest {
     }.stages
     assertNotEquals(
       "Two filter stages of the same optic must not share one params instance",
-      stages[0].params,
-      stages[1].params,
+      (stages[0] as Stage.ProgramFilter).params,
+      (stages[1] as Stage.ProgramFilter).params,
     )
   }
 
@@ -173,7 +173,7 @@ internal class MiragePlanModifierTest {
     val stages = MiragePlanBuilder().apply { filter(tintFilter, block) }.stages
     assertTrue(
       "the plan must keep the caller's exact block instance",
-      stages[0].paramsBlock === block,
+      (stages[0] as Stage.ProgramFilter).paramsBlock === block,
     )
   }
 

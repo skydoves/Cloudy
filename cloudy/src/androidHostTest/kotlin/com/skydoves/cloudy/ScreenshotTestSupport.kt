@@ -110,8 +110,7 @@ internal fun BlurSquareFixture(radius: Int, enabled: Boolean = true) {
  * `createComposeRule()` path needs that activity registered, which this module does not ship.
  *
  * Determinism contract: no `Thread.sleep`; the compose overload drives the host frame clock to
- * idle (flushing the `LaunchedEffect(radius)` that `CloudyRenderEffectStrategy` uses) before it
- * rasterizes.
+ * idle (flushing any `LaunchedEffect` the blur facade uses) before it rasterizes.
  *
  * @param goldenName File name (without directory) of the golden, e.g. `"smoke_radius0.png"`.
  * @param content The composable to render inside a [ScreenshotSurface] and capture.

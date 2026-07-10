@@ -17,11 +17,13 @@ package com.skydoves.cloudy.internal
 
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import com.skydoves.cloudy.CloudyState
 
 /**
  * The effect that a [WeatherNode] applies to its stage-0 pixels. [WeatherNode] owns the plan, clock,
- * layer pool, and positioning; a [Weather] owns *the draw* — how the resolved source pixels become the
- * final look. [MirageWeather] is the only implementation today (the mirage filter/overlay pipeline).
+ * layer pool, positioning, and post-processing; a [Weather] owns *the draw* — how the resolved source
+ * pixels become the final look. [MirageWeather] runs the shader filter/overlay pipeline; BlurWeather
+ * runs the platform blur (GPU render effect, or the CPU legacy / scrim fallback below API 31).
  *
  * It is handed the [WeatherNode] directly rather than through a narrower "atmosphere" seam because the
  * draw needs the node's `stages` / `chain` / resolved time, and Compose's `invalidateDraw()` /
@@ -35,4 +37,19 @@ internal interface Weather {
    * plan against it.
    */
   fun ContentDrawScope.draw(node: WeatherNode, recordSource: DrawScope.() -> Unit)
+
+  /** Releases weather-owned caches (blur layer/effect, legacy bitmap machines). Called on detach and structural update. */
+  fun detach(node: WeatherNode) {}
+
+  /**
+   * Overcast pre-check: when true, the node draws [drawScrim] then its own content behind, instead of
+   * running [draw]. Only the API < 31 scrim fallback returns true.
+   */
+  fun shouldDrawContentBehind(node: WeatherNode): Boolean = false
+
+  /** Draws the Overcast scrim over the [recordSource] region. Only called when [shouldDrawContentBehind] is true. */
+  fun ContentDrawScope.drawScrim(node: WeatherNode, recordSource: DrawScope.() -> Unit) {}
+
+  /** The [CloudyState] this weather is in after the last draw, relayed by the node (deduped). Null = no state to report. */
+  fun currentState(node: WeatherNode): CloudyState? = null
 }

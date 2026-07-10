@@ -39,13 +39,10 @@ import io.kotest.matchers.shouldBe
 internal class MirageElementEqualityTest :
   FunSpec({
 
-    fun element(block: (MirageParams.() -> Unit)?): WeatherElement = WeatherElement(
-      weather = MirageWeather,
-      skylight = Skylight.SelfLit,
-      clock = MirageClock.Auto,
-      enabled = true,
-      plan = { filter(MirageOptics.OilSlick, block) },
-    )
+    fun element(block: (MirageParams.() -> Unit)?): WeatherElement =
+      mirageElement(Skylight.SelfLit, MirageClock.Auto, enabled = true) {
+        filter(MirageOptics.OilSlick, block)
+      }
 
     test("same optic but different block instances are unequal (update runs on recomposition)") {
       // Two distinct lambda instances, as a recomposition would produce, over the same optic. The body
@@ -77,20 +74,12 @@ internal class MirageElementEqualityTest :
       // elements ARE equal here. The look difference between them lives in the schema defaults reached
       // at draw time, not in element identity.
       val block: MirageParams.() -> Unit = { }
-      val oil = WeatherElement(
-        MirageWeather,
-        Skylight.SelfLit,
-        MirageClock.Auto,
-        true,
-        plan = { filter(MirageOptics.OilSlick, block) },
-      )
-      val pearl = WeatherElement(
-        MirageWeather,
-        Skylight.SelfLit,
-        MirageClock.Auto,
-        true,
-        plan = { filter(MirageOptics.Pearl, block) },
-      )
+      val oil = mirageElement(Skylight.SelfLit, MirageClock.Auto, enabled = true) {
+        filter(MirageOptics.OilSlick, block)
+      }
+      val pearl = mirageElement(Skylight.SelfLit, MirageClock.Auto, enabled = true) {
+        filter(MirageOptics.Pearl, block)
+      }
 
       (oil == pearl).shouldBe(true)
     }
@@ -101,10 +90,8 @@ internal class MirageElementEqualityTest :
       // source. Backdrop carries a Sky, self-lit carries none, so their keys differ.
       val block: MirageParams.() -> Unit = { }
       val plan: MirageScope.() -> Unit = { filter(MirageOptics.OilSlick, block) }
-      val selfLit =
-        WeatherElement(MirageWeather, Skylight.SelfLit, MirageClock.Auto, true, plan)
-      val backdrop =
-        WeatherElement(MirageWeather, Skylight.Backdrop(Sky()), MirageClock.Auto, true, plan)
+      val selfLit = mirageElement(Skylight.SelfLit, MirageClock.Auto, enabled = true, plan)
+      val backdrop = mirageElement(Skylight.Backdrop(Sky()), MirageClock.Auto, enabled = true, plan)
 
       (selfLit == backdrop).shouldBe(false)
     }

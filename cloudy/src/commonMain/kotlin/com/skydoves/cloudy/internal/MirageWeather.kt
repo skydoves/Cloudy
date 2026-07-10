@@ -45,7 +45,7 @@ internal object MirageWeather : Weather {
     val density = node.density()
     val time = node.resolveTime()
 
-    val filters = node.stages.filterIsInstance<Stage.Filter>()
+    val filters = node.stages.filterIsInstance<Stage.ProgramFilter>()
     val overlays = node.stages.filterIsInstance<Stage.Overlay>()
 
     // Filters: record the running content (stage 0 = recordSource) into a per-stage layer, bind that

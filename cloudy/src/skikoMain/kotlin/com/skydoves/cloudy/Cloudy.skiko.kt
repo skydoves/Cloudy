@@ -13,19 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@file:OptIn(ExperimentalMirage::class)
+
 package com.skydoves.cloudy
 
 import androidx.annotation.IntRange
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.BlurEffect
-import androidx.compose.ui.graphics.TileMode
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import com.skydoves.cloudy.internal.BlurWeather
+import com.skydoves.cloudy.internal.PostProcess
+import com.skydoves.cloudy.internal.Skylight
+import com.skydoves.cloudy.internal.Stage
+import com.skydoves.cloudy.internal.WeatherElement
 
 /**
- * Skiko implementation using GPU-accelerated BlurEffect.
- * This implementation is shared across iOS, macOS, JVM Desktop, and WASM platforms.
+ * Skiko implementation of the foreground [Modifier.cloudy], shared across iOS, macOS, JVM Desktop, and
+ * WASM. Runs the self-lit blur through the unified [WeatherElement] spine: Skia's `BlurEffect` is
+ * always available, so this is always the Clear path.
  */
 @Composable
 public actual fun Modifier.cloudy(
@@ -39,30 +46,17 @@ public actual fun Modifier.cloudy(
     return this
   }
 
-  // Notify state change only when radius changes to avoid infinite recomposition loops
-  LaunchedEffect(radius) {
-    if (radius > 0) {
-      onStateChanged(CloudyState.Success.Applied)
-    }
-  }
-
-  if (radius == 0) {
-    return this
-  }
-
-  // BlurEffect's radiusX/radiusY are blur *radii* in pixels, not Gaussian sigmas.
-  // Compose's Skiko backend converts the radius to a sigma internally (using the same
-  // sigma = 0.57735 * radius + 0.5 as HWUI) before handing it to Skia, so pass the
-  // user-supplied radius through directly to match Modifier.blur and the Android path.
-  val blurRadius = radius.toFloat()
-
-  // Apply GPU-accelerated blur using Skia's BlurEffect
-  // Skia handles large radius values internally via progressive downsampling
-  return this.graphicsLayer {
-    renderEffect = BlurEffect(
-      radiusX = blurRadius,
-      radiusY = blurRadius,
-      edgeTreatment = TileMode.Clamp,
-    )
-  }
+  val weather = remember { BlurWeather() }
+  return this.then(
+    WeatherElement(
+      weather = weather,
+      skylight = Skylight.SelfLit,
+      clock = MirageClock.Paused,
+      enabled = true,
+      stages = listOf(Stage.PlatformFilter(radius, CloudyProgressive.None)),
+      postProcess = PostProcess(RectangleShape, Color.Transparent, null),
+      weatherKey = Unit,
+      onStateChanged = onStateChanged,
+    ),
+  )
 }

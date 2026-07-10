@@ -34,6 +34,7 @@ import androidx.compose.ui.node.invalidateDraw
 import androidx.compose.ui.node.requireGraphicsContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntSize
+import com.skydoves.cloudy.CloudyState
 import com.skydoves.cloudy.ExperimentalMirage
 import com.skydoves.cloudy.MirageClock
 import kotlinx.coroutines.Job
@@ -41,15 +42,20 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /**
- * Orchestrates a mirage plan against a [Skylight] source: [Skylight.SelfLit] runs it over the node's
- * own content, [Skylight.Backdrop] over the offset [Sky][com.skydoves.cloudy.Sky] region behind it.
- * The node owns the ordered [stages], the [MirageClock] frame loop, the layer-pool [chain], and (for a
- * backdrop) the positioning + frame-driver lifecycle; the [Weather] owns the actual draw. It never
- * compiles a shader or owns cache state — compilation/caching live in [MirageProgramCache].
+ * Orchestrates a plan against a [Skylight] source: [Skylight.SelfLit] runs it over the node's own
+ * content, [Skylight.Backdrop] over the offset [Sky][com.skydoves.cloudy.Sky] region behind it. The
+ * node owns the ordered [stages], the [MirageClock] frame loop, the layer-pool [chain], the
+ * [PostProcess] (clip/tint/highlight) around the effect, and (for a backdrop) the positioning +
+ * frame-driver lifecycle; the [Weather] owns the actual draw. It never compiles a shader or owns
+ * effect-cache state — that lives in the [Weather] (blur layer/effect, legacy bitmaps) or
+ * [MirageProgramCache] (programs).
  *
- * This merges the former self-content and backdrop nodes, which were ~90% identical; the only
- * differences were the stage-0 source and the backdrop's positioning/frame-driver/#112 concerns, all
- * of which are now guarded on [skylight].
+ * ## Weather adoption on config change
+ * [update] swaps [stages]/[postProcess]/[onStateChanged] on the cheap path, but a change to a
+ * *weather-config* value (blur's `cpuBlurEnabled` / scrim tint) can't be swapped into the existing
+ * weather — those are constructor state of the [Weather]. The element carries a [weatherKey] value:
+ * when it differs, [update] treats it as a structural change and adopts the fresh [weather] instance
+ * (releasing the old one's caches first). [weather] is therefore a `var`.
  *
  * ## #112 cyclic RenderNode guard
  * A backdrop node is a descendant of the Sky recorder, so the capture pass re-enters its draw. Drawing
@@ -59,65 +65,74 @@ import kotlinx.coroutines.launch
  */
 @OptIn(ExperimentalMirage::class)
 internal class WeatherNode(
-  private val weather: Weather,
+  weather: Weather,
   var skylight: Skylight,
   var clock: MirageClock,
   var enabled: Boolean,
   stages: List<Stage>,
+  var postProcess: PostProcess,
+  private var weatherKey: Any?,
+  var onStateChanged: ((CloudyState) -> Unit)?,
 ) : Modifier.Node(),
   DrawModifierNode,
   GlobalPositionAwareModifierNode,
   CompositionLocalConsumerModifierNode {
 
+  var weather: Weather = weather
+    private set
+
   var stages: List<Stage> = stages
     private set
 
-  /** Owns the filter-layer pool and the stage-chaining draw; the node keeps only clock + binding. */
+  /** Owns the filter-layer pool and the stage-chaining draw for program stages; blur bypasses it. */
   val chain = MirageFilterChain()
+
+  /** Reusable clip-path / highlight-brush caches for [applyPostProcess]; released on detach. */
+  val postProcessCache = PostProcessCache()
 
   // Samples the sky backdrop through a rasterized snapshot instead of a live drawLayer(backgroundLayer).
   // The backdrop node is a descendant of the sky recorder, so backgroundLayer's displaylist embeds this
   // node; recording drawLayer(backgroundLayer) into a filter layer closes a skyLayer->thisNode->skyLayer
   // RenderNode cycle that overflows the render thread under captureToImage/PixelCopy (issue #112). Drawing
-  // bitmap pixels has no back-edge. Backdrop-only; unused for a self-lit source.
+  // bitmap pixels has no back-edge. Backdrop-only; the blur Weather self-samples and ignores this source.
   private val backdropSnapshot = MirageBackdropSnapshot()
 
-  // Async GLES backdrop runner (API 29-32 band, where a filter is a Blit, not a RenderEffect). Lazily
-  // used only when an applicable filter reports FilterApplication.Blit; null-cost otherwise. Backdrop-only.
+  // Async GLES backdrop runner (API 29-32 band, where a mirage filter is a Blit, not a RenderEffect).
+  // Lazily used only when an applicable filter reports FilterApplication.Blit; null-cost otherwise.
   private val glesBackdrop = MirageGlesBackdrop()
 
   /** Backdrop-only: this node's root position, from which the backdrop sample offset is derived. */
   private var positionInRoot: Offset = Offset.Zero
 
-  /**
-   * mirageTime, in seconds. Auto advances it from the frame loop; Fixed writes a constant; Paused
-   * freezes the last value. Plain field (not snapshot state): the clock loop invalidateDraw()s
-   * explicitly, and Fixed/Paused change only when the node is re-created on a new key.
-   */
+  /** mirageTime, in seconds. Plain field (not snapshot state); the clock loop invalidateDraw()s. */
   private var timeSeconds: Float = 0f
 
   /** Wall-clock nanos of the first Auto frame, so timeSeconds is measured from attach. */
   private var startNanos: Long = -1L
 
-  /**
-   * True if any stage's compiled kernel references mirageTime - computed once at attach from the
-   * (already-warmed) cache, so the draw loop never re-queries it.
-   */
+  /** True if any program stage's compiled kernel references mirageTime (computed at warm time). */
   private var planUsesTime: Boolean = false
 
-  // The running Auto-clock frame loop, if any. Cancelled before a re-warm launches a new one so a
-  // structural update never leaves two loops advancing timeSeconds and invalidating in parallel.
+  // The running Auto-clock frame loop, if any. Cancelled before a re-warm launches a new one.
   private var frameLoopJob: Job? = null
 
-  // Stable re-blur invalidator (a field, not a fresh lambda) so the frame driver can identity-match it
-  // in addOverlay/removeOverlay — a new lambda each attach would never unregister. Backdrop-only.
+  // Stable re-blur invalidator (a field, not a fresh lambda) so the frame driver can identity-match it.
   private val reblur: () -> Unit = { if (isAttached) invalidateDraw() }
 
-  fun update(skylight: Skylight, clock: MirageClock, enabled: Boolean, stages: List<Stage>) {
-    // Re-register the scroll-refresh overlay on the new sky before adopting it: a sky swap must move
-    // the frame-driver registration or the old sky keeps pumping this node while the new one never
-    // does. Only meaningful when both sides are backdrops (the facade never swaps SelfLit <-> Backdrop
-    // on one node — that is a distinct element, so update() is not called across the split).
+  // Last state relayed to onStateChanged, so a steady-state frame does not re-notify the same state.
+  private var lastNotifiedState: CloudyState? = null
+
+  fun update(
+    weather: Weather,
+    skylight: Skylight,
+    clock: MirageClock,
+    enabled: Boolean,
+    stages: List<Stage>,
+    postProcess: PostProcess,
+    weatherKey: Any?,
+    onStateChanged: ((CloudyState) -> Unit)?,
+  ) {
+    // Re-register the scroll-refresh overlay on the new sky before adopting it.
     val current = skylight
     val previous = this.skylight
     if (current is Skylight.Backdrop && previous is Skylight.Backdrop &&
@@ -131,29 +146,31 @@ internal class WeatherNode(
       glesBackdrop.release()
     }
 
-    // A recomposition re-creates the params blocks every time (they are lambdas), so the element is
-    // unequal — and thus update() runs — on every recomposition even when only the blocks changed. If
-    // the structural plan (skylight, clock, enabled, and the ordered stage optics/kinds/blend modes) is
-    // unchanged, only the per-draw blocks moved: swap the stage list and redraw without tearing down
-    // the layers or re-warming the cache. sameStructure is exactly the structural half of
-    // WeatherElement.equals (which additionally requires the blocks to match), so an unequal element
-    // with an unchanged structure lands here.
-    val structuralChange = skylight != this.skylight || clock != this.clock ||
+    // A weather-config change (blur cpuBlurEnabled / scrim tint) can't be swapped into the live
+    // weather instance, so a differing weatherKey is a structural change that adopts the new one.
+    val weatherChanged = weatherKey != this.weatherKey
+    val structuralChange = weatherChanged || skylight != this.skylight || clock != this.clock ||
       enabled != this.enabled || !sameStructure(this.stages, stages)
 
+    if (structuralChange && isAttached) {
+      // Release the old weather's caches before adopting the new one / a new plan structure.
+      this.weather.detach(this)
+    }
+
+    this.weather = weather
     this.skylight = skylight
     this.clock = clock
     this.enabled = enabled
     this.stages = stages
+    this.postProcess = postProcess
+    this.weatherKey = weatherKey
+    this.onStateChanged = onStateChanged
 
     if (!structuralChange) {
-      // Blocks-only change: the layers still match the (unchanged) filter count, so keep them.
       if (isAttached) invalidateDraw()
       return
     }
 
-    // Structural change: the filter count may differ, so drop the pooled layers. The chain re-sizes
-    // itself lazily on the next draw. (When detached there are no pooled layers to release.)
     if (isAttached) {
       chain.release(requireGraphicsContext())
       warmAndSchedule()
@@ -168,33 +185,35 @@ internal class WeatherNode(
   }
 
   override fun onGloballyPositioned(coordinates: LayoutCoordinates) {
-    // Only the backdrop sample offset is derived from this position, so a self-lit node has nothing to
-    // track here.
     if (skylight !is Skylight.Backdrop) return
     val newPosition = coordinates.positionInRoot()
     if (newPosition != positionInRoot) {
-      // A move must redraw or the node keeps sampling the region it used to sit over.
       positionInRoot = newPosition
       if (isAttached) invalidateDraw()
     }
   }
 
   /**
-   * Warm the cache for every stage (so usesTime is known and the draw loop enters with programs
-   * ready), then start the frame loop when the clock is Auto and some stage is time-driven.
+   * Warm the cache for every program stage (so usesTime is known and the draw loop enters with
+   * programs ready), then start the frame loop when the clock is Auto and some stage is time-driven.
+   * Only [Stage.ProgramFilter]/[Stage.Overlay] touch [MirageProgramCache]; [Stage.PlatformFilter]
+   * (blur) has no program to warm.
    */
   private fun warmAndSchedule() {
     val dialect = currentDialect()
     var usesTime = false
     for (stage in stages) {
-      val cached = MirageProgramCache.obtain(stage.optic, dialect) ?: continue
+      val optic = when (stage) {
+        is Stage.ProgramFilter -> stage.optic
+        is Stage.Overlay -> stage.optic
+        is Stage.PlatformFilter -> continue
+      }
+      val cached = MirageProgramCache.obtain(optic, dialect) ?: continue
       if (cached.compiled.usesTime) usesTime = true
     }
     planUsesTime = usesTime
     startNanos = -1L
 
-    // Cancel a prior loop before starting a new one: a re-warm on structural update would otherwise
-    // stack loops that all advance timeSeconds and invalidate.
     frameLoopJob?.cancel()
     frameLoopJob = if (clock is MirageClock.Auto && usesTime) {
       coroutineScope.launch {
@@ -212,9 +231,7 @@ internal class WeatherNode(
   }
 
   override fun ContentDrawScope.draw() {
-    // Draw nothing while this sky is recording: keeping this node out of the blur/grade source avoids
-    // the cyclic RenderNode graph that crashes the render thread (issues/112). Must be the first
-    // statement. See [Sky.isCapturing].
+    // #112: draw nothing while this sky is recording. Must be the first statement.
     val skylight = skylight
     if (skylight is Skylight.Backdrop && skylight.sky.isCapturing) {
       return
@@ -232,117 +249,155 @@ internal class WeatherNode(
       return
     }
 
-    val contentScope = this
+    // For a backdrop, the offset-shifted Sky region is sampled through a rasterized snapshot rather than
+    // a live drawLayer(backgroundLayer): the live layer closes the issue-112 RenderNode cycle under
+    // captureToImage/PixelCopy when a Weather records it into a layer (the mirage chain does; the blur
+    // Weather self-samples and ignores this source). Kept fresh async, coalesced on contentVersion.
+    val recordSource: DrawScope.() -> Unit
+    val backdropOffset: Offset
     when (skylight) {
       is Skylight.SelfLit -> {
-        // Stage 0 records the node's own content (no sky layer, no #112 cycle).
-        with(weather) { draw(this@WeatherNode, recordSource = { contentScope.drawContent() }) }
-        // A self-lit plan's filters replace the content, so the chain already drew it — nothing more.
+        backdropOffset = Offset.Zero
+        recordSource = { this@draw.drawContent() }
       }
 
       is Skylight.Backdrop -> {
         val backgroundLayer = skylight.sky.backgroundLayer
         if (backgroundLayer == null) {
-          // No captured backdrop yet: nothing to sample, so just draw this node's own content.
+          // No captured backdrop yet: draw this node's own content and relay any state.
           drawContent()
+          relayState()
           return
         }
-        drawBackdrop(skylight.sky, backgroundLayer, width, height)
-        // A backdrop grades the region *behind* the node, so the node's own content is drawn on top.
-        drawContent()
+        val skyBounds = skylight.sky.sourceBounds
+        backdropOffset = Offset(positionInRoot.x - skyBounds.left, positionInRoot.y - skyBounds.top)
+
+        backdropSnapshot.requestIfStale(
+          coroutineScope = coroutineScope,
+          layer = backgroundLayer,
+          contentVersion = skylight.sky.contentVersion,
+          invalidate = { if (isAttached) invalidateDraw() },
+        )
+        recordSource = {
+          with(backdropSnapshot) {
+            drawSampledRegion(backdropOffset, IntSize(width.toInt(), height.toInt()))
+          }
+        }
+
+        // API 29-32 GLES band: a mirage filter is a Blit (async FBO capture) the synchronous chain
+        // cannot run, so it is routed to the async GLES runner here — before the generic Weather path,
+        // which cannot express a suspend blit. Returns true if it handled this frame. Backdrop-only and
+        // mirage-only (blur is never a Blit); every other band falls through to the generic path.
+        if (drawBackdropGles(skylight.sky, backgroundLayer, backdropOffset, width, height)) {
+          drawContent()
+          relayState()
+          return
+        }
       }
     }
+
+    val intSize = IntSize(width.toInt(), height.toInt())
+
+    // Overcast (API < 31 scrim): draw the scrim over the backdrop region, then this node's content
+    // behind, without running the effect. The scrim carries the tint itself (no PostProcess tint or
+    // highlight), so only the shape clip applies.
+    if (weather.shouldDrawContentBehind(this@WeatherNode)) {
+      val contentScope = this
+      clipToShape(postProcess.shape, intSize, postProcessCache) {
+        with(weather) { contentScope.drawScrim(this@WeatherNode, recordSource) }
+      }
+      if (skylight is Skylight.Backdrop) drawContent()
+      relayState()
+      return
+    }
+
+    applyPostProcess(postProcess, intSize, postProcessCache) {
+      with(weather) { draw(this@WeatherNode, recordSource) }
+    }
+
+    // A self-lit plan's filters replace the content, so the chain already drew it. A backdrop grades
+    // the region behind the node, so the node's own content is drawn on top.
+    if (skylight is Skylight.Backdrop) drawContent()
+    relayState()
   }
 
   /**
-   * Draws the mirage backdrop for this frame. Two draw paths that must both stay acyclic under
-   * captureToImage/PixelCopy (#112):
+   * API 29-32 GLES mirage backdrop: if the first applicable filter is a [FilterApplication.Blit] (async
+   * FBO capture the sync chain cannot run), route it to the [glesBackdrop] runner and return `true`.
+   * Returns `false` for every other case (self-lit is filtered upstream; blur is never a Blit; AGSL /
+   * skiko / API < 33 apply through the generic chain path), leaving the caller to run the normal path.
    *
-   *  - **AGSL / skiko** (and API < 33 pass-through): the chain records the backdrop region and applies
-   *    each stage's content-bound `RenderEffect`. Stage 0 samples a rasterized [backdropSnapshot], never
-   *    a live `drawLayer(backgroundLayer)`, so no `skyLayer -> thisNode -> skyLayer` cycle forms.
-   *  - **GLES** (API 29-32): the first applicable filter is a [FilterApplication.Blit] (async FBO
-   *    capture) the synchronous chain cannot run. The snapshot region is the on-screen placeholder while
-   *    an async capture + blit runs; the blit INPUT is captured off-screen from a live `drawLayer` and
-   *    released within the runner, never reachable from the on-screen tree, so it does not cycle either.
+   * The blit INPUT is captured off-screen from a live `drawLayer` and released within the runner, never
+   * reachable from the on-screen tree, so it does not cycle under PixelCopy — and staying live keeps the
+   * version-keyed blit from caching a not-yet-ready snapshot. The on-screen placeholder is the acyclic
+   * snapshot ([recordRaw]).
    */
-  private fun ContentDrawScope.drawBackdrop(
+  private fun ContentDrawScope.drawBackdropGles(
     sky: com.skydoves.cloudy.Sky,
     backgroundLayer: androidx.compose.ui.graphics.layer.GraphicsLayer,
+    offset: Offset,
     width: Float,
     height: Float,
-  ) {
-    // Backdrop-relative offset — this node's root position minus the sky origin.
-    val skyBounds = sky.sourceBounds
-    val offsetX = positionInRoot.x - skyBounds.left
-    val offsetY = positionInRoot.y - skyBounds.top
-
-    // Keep the acyclic snapshot fresh (async, coalesced on contentVersion); the previously cached bitmap
-    // keeps drawing until the new capture lands.
-    backdropSnapshot.requestIfStale(
-      coroutineScope = coroutineScope,
-      layer = backgroundLayer,
-      contentVersion = sky.contentVersion,
-      invalidate = { if (isAttached) invalidateDraw() },
-    )
-
-    // On-screen backdrop region, sampled from the rasterized snapshot rather than a live
-    // drawLayer(backgroundLayer): the live layer closes the issue-112 RenderNode cycle under
-    // captureToImage/PixelCopy. Everything drawn into the on-screen tree uses this.
-    val recordSnapshot: DrawScope.() -> Unit = {
-      with(backdropSnapshot) {
-        drawSampledRegion(Offset(offsetX, offsetY), IntSize(width.toInt(), height.toInt()))
-      }
-    }
-
-    // Live backdrop region for the GLES blit INPUT only: that layer is captured to a bitmap and released
-    // off-screen within the runner, never reachable from the on-screen tree, so it does not cycle under
-    // PixelCopy — and staying live keeps the version-keyed blit from caching a not-yet-ready snapshot.
-    val recordLive: DrawScope.() -> Unit = {
-      drawContext.canvas.save()
-      drawContext.canvas.translate(-offsetX, -offsetY)
-      drawLayer(backgroundLayer)
-      drawContext.canvas.restore()
-    }
-
-    // API 29-32 GLES band: the first applicable filter is a Blit (async FBO capture) the sync chain
-    // cannot run. prepareGlesBlit binds this draw's uniforms into a fresh per-draw list and returns the
-    // transform; the async runner captures the region and applies it. Other bands' filters (Effect/
-    // ColorFilter) go through the chain as before. Single-stage on this band by scope.
+  ): Boolean {
     val dialect = currentDialect()
     val density = density()
     val time = resolveTime()
-    val glesFilter = stages.filterIsInstance<Stage.Filter>().firstNotNullOfOrNull { stage ->
-      val cached = MirageProgramCache.obtain(stage.optic, dialect) ?: return@firstNotNullOfOrNull null
-      if (cached.backend.filterApplication() is FilterApplication.Blit) stage to cached else null
+
+    // First applicable filter that reports a Blit (the async GLES FBO path); single-stage on this band.
+    var stage: Stage.ProgramFilter? = null
+    var cached: CachedProgram? = null
+    for (candidate in stages) {
+      if (candidate !is Stage.ProgramFilter) continue
+      val program = MirageProgramCache.obtain(candidate.optic, dialect) ?: continue
+      if (program.backend.filterApplication() is FilterApplication.Blit) {
+        stage = candidate
+        cached = program
+        break
+      }
     }
-    val glesBlit = glesFilter?.let { (stage, cached) ->
-      cached.backend.prepareGlesBlit(
-        cached,
-        stage.params,
-        stage.paramsBlock,
-        width,
-        height,
-        density,
-        time,
+    val blitStage = stage ?: return false
+    val blitProgram = cached ?: return false
+
+    val glesBlit = blitProgram.backend.prepareGlesBlit(
+      blitProgram,
+      blitStage.params,
+      blitStage.paramsBlock,
+      width,
+      height,
+      density,
+      time,
+    ) ?: return false
+
+    val recordRaw: DrawScope.() -> Unit = {
+      with(backdropSnapshot) {
+        drawSampledRegion(offset, IntSize(width.toInt(), height.toInt()))
+      }
+    }
+    val recordInput: DrawScope.() -> Unit = {
+      drawContext.canvas.save()
+      drawContext.canvas.translate(-offset.x, -offset.y)
+      drawLayer(backgroundLayer)
+      drawContext.canvas.restore()
+    }
+    with(glesBackdrop) {
+      draw(
+        context = graphicsContext(),
+        scope = coroutineScope,
+        blit = glesBlit,
+        contentVersion = sky.contentVersion,
+        recordRaw = recordRaw,
+        recordInput = recordInput,
+        invalidate = { if (isAttached) invalidateDraw() },
       )
     }
+    return true
+  }
 
-    if (glesBlit != null) {
-      with(glesBackdrop) {
-        draw(
-          context = graphicsContext(),
-          scope = coroutineScope,
-          blit = glesBlit,
-          contentVersion = sky.contentVersion,
-          recordRaw = recordSnapshot,
-          recordInput = recordLive,
-          invalidate = { if (isAttached) invalidateDraw() },
-        )
-      }
-    } else {
-      // AGSL / skiko / API < 33 pass-through: the chain grades the acyclic snapshot region.
-      with(weather) { draw(this@WeatherNode, recordSnapshot) }
+  private fun relayState() {
+    val s = weather.currentState(this) ?: return
+    if (s != lastNotifiedState) {
+      lastNotifiedState = s
+      onStateChanged?.invoke(s)
     }
   }
 
@@ -353,19 +408,35 @@ internal class WeatherNode(
     is MirageClock.Fixed -> clock.seconds
   }
 
-  // Node-scoped accessors for the [Weather]: requireGraphicsContext / currentValueOf are extension
-  // functions on the node's receiver, unreachable from a Weather instance, so the node exposes them.
+  // Node-scoped accessors for the [Weather]: these are extension functions on the node's receiver,
+  // unreachable from a Weather instance, so the node exposes them.
   fun graphicsContext(): GraphicsContext = requireGraphicsContext()
 
+  /** Node-scoped `invalidateDraw()` for the [Weather] (an extension unreachable from a plain instance). */
+  fun invalidate() {
+    if (isAttached) invalidateDraw()
+  }
+
   fun density(): Float = currentValueOf(LocalDensity).density
+
+  /** Backdrop-relative sample offset for this draw; Zero for self-lit. Read by the legacy blur machines. */
+  fun sampleOffset(): Offset = when (val skylight = skylight) {
+    is Skylight.SelfLit -> Offset.Zero
+
+    is Skylight.Backdrop -> {
+      val skyBounds = skylight.sky.sourceBounds
+      Offset(positionInRoot.x - skyBounds.left, positionInRoot.y - skyBounds.top)
+    }
+  }
 
   override fun onDetach() {
     val skylight = skylight
     if (skylight is Skylight.Backdrop) skylight.sky.frameDriver.removeOverlay(reblur)
-    // coroutineScope is cancelled on detach anyway; null the handle so a re-attach starts clean.
     frameLoopJob?.cancel()
     frameLoopJob = null
+    weather.detach(this)
     chain.release(requireGraphicsContext())
+    postProcessCache.clear()
     backdropSnapshot.dispose()
     glesBackdrop.release()
   }

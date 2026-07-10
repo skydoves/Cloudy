@@ -32,7 +32,7 @@ import com.skydoves.cloudy.ExperimentalMirage
  * it is the shared stage-chain machinery).
  *
  * It holds no clock, no Sky, and no params ownership: the caller supplies the already-resolved
- * [Stage.Filter] → [CachedProgram] pairs, the per-stage uniform [bind], and the stage-0 source. This
+ * [Stage.ProgramFilter] → [CachedProgram] pairs, the per-stage uniform [bind], and the stage-0 source. This
  * keeps the chain lifecycle-free — its only state is the reusable layer pool, released on detach.
  *
  * ## Draw model (no fusion)
@@ -67,8 +67,8 @@ internal class MirageFilterChain {
    */
   fun ContentDrawScope.draw(
     context: GraphicsContext,
-    applicable: List<Pair<Stage.Filter, CachedProgram>>,
-    bind: (Stage.Filter, CachedProgram) -> Unit,
+    applicable: List<Pair<Stage.ProgramFilter, CachedProgram>>,
+    bind: (Stage.ProgramFilter, CachedProgram) -> Unit,
     recordSource: DrawScope.() -> Unit,
   ) {
     if (applicable.isEmpty()) {

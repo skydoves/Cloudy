@@ -118,7 +118,16 @@ internal object MirageProgramCache {
  */
 @OptIn(ExperimentalMirage::class)
 internal fun planRenders(stages: List<Stage>, dialect: Dialect): Boolean =
-  stages.any { rendersInPlace(MirageProgramCache.obtain(it.optic, dialect)) }
+  stages.any { stage ->
+    // Only program stages have an optic to compile; a blur PlatformFilter renders on its own path and
+    // is never gated by a MirageFallback, so it does not participate in this check.
+    val optic = when (stage) {
+      is Stage.ProgramFilter -> stage.optic
+      is Stage.Overlay -> stage.optic
+      is Stage.PlatformFilter -> return@any false
+    }
+    rendersInPlace(MirageProgramCache.obtain(optic, dialect))
+  }
 
 /**
  * Whether [cached]'s program renders on a self-lit content node (drawn in place synchronously). Null
