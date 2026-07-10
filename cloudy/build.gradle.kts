@@ -256,17 +256,15 @@ tasks.named<Test>("desktopTest") {
 }
 
 // The Compose plugin creates this resource-copy task for the androidDeviceTest variant but never
-// sets its outputDirectory (the KMP-library device-test component has no `assets` source to wire
-// it to), so it fails config-time validation. This source set has no composeResources/, so give
-// the task a throwaway output dir to make it a valid no-op. See compose-gradle-plugin
-// AndroidResources.kt.
+// wires its @OutputDirectory (CopyResourcesToAndroidAssetsTask.outputDirectory): the KMP-library
+// device-test component has no `assets` source, so the plugin's
+// `componentSources.assets?.addGeneratedSourceDirectory(...)` short-circuits and the property stays
+// unset, failing config-time validation. This source set has no composeResources/ to copy, so the
+// task is a no-op with nothing to produce -- disable it. Skipped tasks are exempt from output
+// validation, and its only downstream (packageAndroidDeviceTestResources dependsOn) tolerates the
+// skip. See compose-gradle-plugin 1.11.1 AndroidResources.kt.
 tasks.matching { it.name == "copyAndroidDeviceTestComposeResourcesToAndroidAssets" }.configureEach {
-  // The task type is internal to the Compose plugin, so set outputDirectory reflectively.
-  val outputDir = layout.buildDirectory.dir("composeResources/androidDeviceTestAssets")
-  @Suppress("UNCHECKED_CAST")
-  val prop = javaClass.getMethod("getOutputDirectory")
-    .invoke(this) as org.gradle.api.file.DirectoryProperty
-  prop.convention(outputDir)
+  enabled = false
 }
 
 // Kotest's runner is JVM-only, so the shared commonTest sources compile for the Kotlin/Native
