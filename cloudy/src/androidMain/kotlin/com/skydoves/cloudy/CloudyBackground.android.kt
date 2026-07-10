@@ -586,6 +586,25 @@ private class CloudyBackgroundModifierNode(
     }
   }
 
+  /** Draws the cached blur bitmap clipped to the shape, then the tint and specular highlight overlays. */
+  private fun ContentDrawScope.drawCachedWithOverlays(
+    cached: PlatformBitmap,
+    snapshot: SkySnapshot,
+  ) {
+    clipToShape {
+      drawImage(
+        image = cached.bitmap.asImageBitmap(),
+        dstSize = IntSize(size.width.toInt(), size.height.toInt()),
+      )
+      if (snapshot.tintColor != Color.Transparent) {
+        drawRect(color = snapshot.tintColor, blendMode = BlendMode.SrcOver)
+      }
+
+      // Experimental specular highlight (no-op when light == null).
+      if (light != null) drawHighlight()
+    }
+  }
+
   private fun ContentDrawScope.drawWithBitmap(layer: GraphicsLayer, snapshot: SkySnapshot) {
     val currentVersion = sky.contentVersion
     val cached = blurredBitmap
@@ -595,36 +614,14 @@ private class CloudyBackgroundModifierNode(
 
     // Draw cached blur if valid
     if (cacheValid) {
-      clipToShape {
-        drawImage(
-          image = cached.bitmap.asImageBitmap(),
-          dstSize = androidx.compose.ui.unit.IntSize(size.width.toInt(), size.height.toInt()),
-        )
-        if (snapshot.tintColor != Color.Transparent) {
-          drawRect(color = snapshot.tintColor, blendMode = BlendMode.SrcOver)
-        }
-
-        // Experimental specular highlight (no-op when light == null).
-        if (light != null) drawHighlight()
-      }
+      drawCachedWithOverlays(cached, snapshot)
       onStateChanged(CloudyState.Success.Captured(cached))
       return
     }
 
     // Show cached blur while processing new one
     if (cached != null && !cached.bitmap.isRecycled) {
-      clipToShape {
-        drawImage(
-          image = cached.bitmap.asImageBitmap(),
-          dstSize = androidx.compose.ui.unit.IntSize(size.width.toInt(), size.height.toInt()),
-        )
-        if (snapshot.tintColor != Color.Transparent) {
-          drawRect(color = snapshot.tintColor, blendMode = BlendMode.SrcOver)
-        }
-
-        // Experimental specular highlight (no-op when light == null).
-        if (light != null) drawHighlight()
-      }
+      drawCachedWithOverlays(cached, snapshot)
     }
     // No cache: draw nothing (transparent) - blur will appear when ready
 
