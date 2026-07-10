@@ -38,11 +38,14 @@ import com.skydoves.cloudy.internal.SPECULAR_KERNEL_SKSL
  *
  * Each value is a process-wide singleton, so applying one in a plan never reallocates the optic.
  *
- * Shared lens geometry ([MirageLensParams.lensCenter] / [lensSize][MirageLensParams.lensSize] /
- * [cornerRadius][MirageLensParams.cornerRadius]) and the specular light ([MirageLensParams.iLight])
- * default to the built-in liquid-glass framing, so a preset applied with no `params` block reproduces
- * that built-in look. Override them per draw from a `filter { … }` / `overlay { … }` block (e.g.
- * feed `iLight` a `rememberGyroLightSource` direction for motion lighting).
+ * Shared lens geometry ([MirageLensParams.lensCenter] / [lensSize][MirageLensParams.lensSize])
+ * defaults to **auto framing**: left unspecified, it resolves at bind time to the node's center and
+ * full size, so a preset applied with no `params` block covers the node it decorates — content or
+ * backdrop — instead of pinning a fixed lens at the origin. [cornerRadius]
+ * [MirageLensParams.cornerRadius] and the specular light ([MirageLensParams.iLight]) keep the built-in
+ * liquid-glass values. Override any of them per draw from a `filter { … }` / `overlay { … }` block
+ * (e.g. a pointer-tracked `lensCenter` with a fixed `lensSize` for an interactive lens, or feed
+ * `iLight` a `rememberGyroLightSource` direction for motion lighting).
  */
 @ExperimentalMirage
 public object MirageOptics {
@@ -174,18 +177,25 @@ public object MirageOptics {
 /**
  * Lens-geometry + specular-light uniforms shared by the lens-shaped presets ([MirageOptics.Specular],
  * the thin-film family, [MirageOptics.Foil]). The property names *are* the uniform identifiers the
- * kernels read; defaults mirror the built-in liquid-glass framing.
+ * kernels read.
  *
- * @property lensCenter the lens center in local px. Default [Offset.Zero] (the content origin — an
- *   interactive lens should feed a pointer-tracked value).
- * @property lensSize the lens size in px. Default `350 x 350` (the liquid-glass default).
+ * Lens framing defaults to **auto**: an [Offset.Unspecified] [lensCenter] / [Size.Unspecified]
+ * [lensSize] resolves at bind time to the node's center / full size, so a bare preset frames the node
+ * it is attached to. A fixed default would instead pin the lens at the content origin, leaving
+ * everything outside it as the kernels' `content.eval(xy)` passthrough — on a backdrop card that reads
+ * as "the effect draws behind the content".
+ *
+ * @property lensCenter the lens center in local px. Default [Offset.Unspecified] (auto: the node
+ *   center at draw time — an interactive lens should feed a pointer-tracked value).
+ * @property lensSize the lens size in px. Default [Size.Unspecified] (auto: the node size, so the
+ *   lens covers the node full-bleed).
  * @property cornerRadius the lens corner radius in px. Default `50`.
  * @property iLight the specular light direction (unnormalized). Default `(-1, -1)`.
  */
 @ExperimentalMirage
 public abstract class MirageLensParams : MirageParams() {
-  public val lensCenter: UOffset by uniform(Offset.Zero)
-  public val lensSize: USize by uniform(Size(350f, 350f))
+  public val lensCenter: UOffset by uniform(Offset.Unspecified)
+  public val lensSize: USize by uniform(Size.Unspecified)
   public val cornerRadius: UFloat by uniform(50f)
   public val iLight: UOffset by uniform(Offset(-1f, -1f))
 }
