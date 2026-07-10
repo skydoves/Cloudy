@@ -40,7 +40,6 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
-import org.junit.Assume
 import org.junit.Rule
 import org.junit.Test
 import kotlin.math.abs
@@ -63,22 +62,19 @@ import kotlin.math.abs
  * The card sits over a high-frequency striped backdrop. Each capture reads the composed pixels of the
  * card region; assertions compare captures against each other, not against a stored image:
  *  - radius-0 == raw backdrop (passthrough), and deterministic.
- *  - radius-20 differs from radius-0 — but ONLY on API < 31 (the scrim fallback); see the product
- *    finding below for why the API 31+ GPU blur cannot be captured here.
+ *  - radius-20 softens the backdrop (less stripe contrast than radius-0) and is deterministic.
  *  - tint at radius 0 changes the composed result.
  *
- * The API 31+ GPU-blur *pixel effect* (radius 20 actually softens the backdrop) is asserted on the
- * skiko backend instead, by `SkyBackdropRasterTest` in desktopTest.
+ * ## Capture safety (formerly a crash)
  *
- * ## Product finding — captureToImage crashes on the radius > 0 backdrop (API 31+)
- *
- * `captureToImage()` of a radius > 0 `Modifier.cloudy(sky)` node SIGSEGVs the RenderThread with an
- * unbounded `prepareTreeImpl` recursion (verified on emulator API 34 and real Galaxy S25 API 36).
- * The card's blur `GraphicsLayer` records `drawLayer(sky.backgroundLayer)` under a blur `RenderEffect`;
- * the synchronous window PixelCopy that `captureToImage` performs recurses through that cross-layer
- * reference without the frame-time `Sky.isCapturing` guard breaking the cycle. On-screen rendering of
- * the same tree is fine (`Issue112RegressionTest` proves it), so this is a capture/PixelCopy-path
- * limitation, not an on-screen regression. See `backdrop_uniform_differsFromSharp` for the gate.
+ * `captureToImage()` of a radius > 0 (or tinted / scrimmed) `Modifier.cloudy(sky)` node used to SIGSEGV
+ * the RenderThread with an unbounded `prepareTreeImpl` recursion — the backdrop's blur `GraphicsLayer`
+ * recorded `drawLayer(sky.backgroundLayer)`, and since the node is a descendant of the sky recorder,
+ * that formed a cyclic `RenderNode` graph (`sky → card → blurLayer → sky`) with no cycle guard. The
+ * backdrop now samples a rasterized SNAPSHOT of the sky region (`drawImage`, no `drawLayer` back-edge —
+ * the acyclic structure the API < 31 CPU path always used), so the blur/tint pixel effects are asserted
+ * here directly. `BackdropCaptureCrashRegressionTest` guards the does-not-crash property; the skiko GPU
+ * blur pixel effect is additionally asserted by `SkyBackdropRasterTest` in desktopTest.
  */
 internal class SkyBackdropScreenshotTest {
 
@@ -154,6 +150,13 @@ internal class SkyBackdropScreenshotTest {
     radiusState = radius
     tintState = tint
     composeTestRule.waitForIdle()
+    // The API 31+ backdrop samples the sky through an async rasterized snapshot (drawImage, no
+    // drawLayer(sky.backgroundLayer) — the acyclic capture-safe path, see BackdropClearBlurMachine),
+    // so the first frame after a state change is a cold-start transparent until the snapshot lands.
+    // Settle a couple of frames so the captured region reflects the sampled backdrop, not the cold gap.
+    composeTestRule.mainClock.autoAdvance = true
+    Thread.sleep(600)
+    composeTestRule.waitForIdle()
     val map = composeTestRule.onNodeWithTag(ROOT_TAG).captureToImage().toPixelMap()
 
     // Crop the centered card region. The card is centered in a square surface, so the pixel scale is
@@ -202,28 +205,60 @@ internal class SkyBackdropScreenshotTest {
   }
 
   @Test
-  fun backdrop_blurAndTintCapture_crashesRenderThread_documented() {
-    // PRODUCT FINDING — captureToImage() of a backdrop node that draws a COMPOSITING layer over the
-    // sampled sky GraphicsLayer SIGSEGVs the RenderThread with an unbounded prepareTreeImpl recursion.
-    //
-    // Triggers (all verified to crash — emulator API 34, emulator API 27, real Galaxy S25 API 36):
-    //   * radius > 0 (API 31+): drawWithRenderEffect records drawLayer(sky.backgroundLayer) under a blur
-    //     RenderEffect.
-    //   * radius > 0 (API <31, cpuBlurEnabled=false): drawScrimFallback overlays a scrim rect.
-    //   * radius 0 + non-transparent tint: drawBackgroundRegion overlays a SrcOver tint rect.
-    // Only radius 0 + transparent tint (a plain drawLayer with no over-draw) captures safely.
-    //
-    // The over-draw promotes the node to composite into its own layer; the synchronous window PixelCopy
-    // that captureToImage performs then recurses through that layer's reference back to the sky layer
-    // without the frame-time Sky.isCapturing guard (issue #112) breaking the cycle. ON-SCREEN rendering
-    // of the same trees is fine — Issue112RegressionTest renders radius-20 cloudy + mirage without
-    // crashing — so this is a capture/PixelCopy limitation, not an on-screen regression. The blur/tint
-    // *pixel effects* are asserted on the skiko backend instead (SkyBackdropRasterTest, desktopTest).
-    //
-    // This test documents the finding without triggering the crash (a crash kills the whole
-    // instrumentation process, failing every sibling test). If a future change makes the capture safe,
-    // fold the blur/tint pixel assertions back in here and delete this note.
-    Assume.assumeTrue("documentation-only; see KDoc for the capture-crash finding", true)
+  fun backdrop_blur_softensBackdrop_andIsDeterministic() {
+    // radius 20 blurs the striped backdrop, so the card region has strictly LESS high-frequency
+    // contrast than the radius-0 passthrough. captureToImage of a blurred backdrop used to SIGSEGV the
+    // RenderThread (cyclic RenderNode graph, issue #112); it is now capture-safe because the backdrop
+    // samples a rasterized snapshot (drawImage) instead of drawLayer(sky.backgroundLayer). See
+    // BackdropClearBlurMachine and BackdropCaptureCrashRegressionTest.
+    val sharp = captureCard(radius = 0, tint = Color.Transparent)
+    val blurred = captureCard(radius = 20, tint = Color.Transparent)
+    assertTrue("blur must actually change the composed card", meanAbsDiff(sharp, blurred) > 1.0)
+    // Blur is a low-pass filter: it reduces the high-frequency vertical stripe energy. Measure that
+    // energy (mean luma difference between vertically adjacent pixels) in the card interior — robust to
+    // the transparent rounded corners that a raw min/max contrast range would be dominated by.
+    assertTrue(
+      "blur must reduce vertical high-frequency energy (softer than sharp)",
+      verticalEnergy(blurred) < verticalEnergy(sharp),
+    )
+    val blurredAgain = captureCard(radius = 20, tint = Color.Transparent)
+    assertEquals("blur capture must be deterministic", 0.0, meanAbsDiff(blurred, blurredAgain), 0.0)
+  }
+
+  @Test
+  fun backdrop_tint_changesComposedResult() {
+    // A non-transparent tint at radius 0 blends over the sampled backdrop, so the composed card differs
+    // from the untinted passthrough. This capture also used to crash (tint over-draw) and is now safe.
+    val untinted = captureCard(radius = 0, tint = Color.Transparent)
+    val tinted = captureCard(radius = 0, tint = Color(0x66FFFFFF))
+    assertTrue("tint must change the composed card", meanAbsDiff(untinted, tinted) > 1.0)
+  }
+
+  /**
+   * Mean absolute luma difference between vertically adjacent pixels, over the card interior (a 50%
+   * centered box, avoiding the transparent rounded corners). High for sharp horizontal stripes, lower
+   * once a blur softens the vertical transitions — a direct measure of high-frequency energy.
+   */
+  private fun verticalEnergy(capture: Capture): Double {
+    val w = capture.width
+    val h = capture.height
+    val x0 = w / 4
+    val x1 = w - w / 4
+    val y0 = h / 4
+    val y1 = h - h / 4
+    var sum = 0L
+    var count = 0L
+    for (y in y0 until y1 - 1) {
+      for (x in x0 until x1) {
+        val a = capture.pixels[y * w + x]
+        val b = capture.pixels[(y + 1) * w + x]
+        val la = ((a ushr 16 and 0xFF) + (a ushr 8 and 0xFF) + (a and 0xFF)) / 3
+        val lb = ((b ushr 16 and 0xFF) + (b ushr 8 and 0xFF) + (b and 0xFF)) / 3
+        sum += abs(la - lb)
+        count++
+      }
+    }
+    return if (count == 0L) 0.0 else sum.toDouble() / count
   }
 
   /** True if the capture has real per-channel variation (the backdrop stripes), not a flat fill. */

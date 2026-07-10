@@ -63,6 +63,7 @@ internal class BlurWeather(private val cpuBlurEnabled: Boolean, private val tint
 
   private val legacyForeground = LegacyForegroundBlurMachine()
   private val legacyBackdrop = LegacyBackdropBlurMachine()
+  private val backdropClear = BackdropClearBlurMachine()
 
   private var lastState: CloudyState = CloudyState.Nothing
 
@@ -83,17 +84,38 @@ internal class BlurWeather(private val cpuBlurEnabled: Boolean, private val tint
     stage: Stage.PlatformFilter,
     recordSource: DrawScope.() -> Unit,
   ) {
+    // A BACKDROP samples the sky's captured layer. Drawing `drawLayer(sky.backgroundLayer)` (directly,
+    // or under a blur RenderEffect) forms a cyclic RenderNode graph — this node's draw sits inside the
+    // sky layer it references back — that crashes captureToImage/PixelCopy with an unbounded
+    // prepareTreeImpl recursion (issues/112). So the backdrop always samples a rasterized SNAPSHOT of
+    // the sky region (drawImage, no drawLayer back-edge), the acyclic structure the API < 31 CPU path
+    // uses. This covers radius 0 too: the inline `drawLayer(sky.backgroundLayer)` (passthrough / tint /
+    // scrim over-draw) is the same back-edge and also crashes. The foreground self-lit path samples its
+    // OWN content (no sky layer, no cycle), so it keeps the direct inline / render-effect path below.
+    val backdrop = node.skylight as? Skylight.Backdrop
+    if (backdrop != null) {
+      val layer = backdrop.sky.backgroundLayer
+      if (layer == null) {
+        lastState = CloudyState.Error(RuntimeException("Background layer not available"))
+        return
+      }
+      // Progressive blur is unsupported on API 31-32 (RenderEffect); warn once per session.
+      if (stage.radius > 0 && stage.progressive != com.skydoves.cloudy.CloudyProgressive.None &&
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
+      ) {
+        logProgressiveBlurWarningOnce()
+      }
+      with(backdropClear) {
+        draw(node, layer, stage.radius, node.sampleOffset(), backdrop.sky.contentVersion)
+      }
+      lastState = backdropClear.lastState
+      return
+    }
+
     if (stage.radius <= 0) {
       recordSource()
       lastState = CloudyState.Success.Applied
       return
-    }
-
-    // Progressive blur is unsupported on API 31-32 (RenderEffect); warn once per session.
-    if (stage.progressive != com.skydoves.cloudy.CloudyProgressive.None &&
-      Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
-    ) {
-      logProgressiveBlurWarningOnce()
     }
 
     // createBlurEffect takes a radius in pixels (HWUI converts to sigma internally).
@@ -162,7 +184,26 @@ internal class BlurWeather(private val cpuBlurEnabled: Boolean, private val tint
   override fun ContentDrawScope.drawScrim(node: WeatherNode, recordSource: DrawScope.() -> Unit) {
     // Overcast is backdrop-only. The scrim carries the tint (or the default scrim when transparent).
     val scrim = if (tint == Color.Transparent) CloudyDefaults.DefaultScrimColor else tint
-    recordSource()
+    // Draw the sampled backdrop region as a rasterized SNAPSHOT (drawImage), not `drawLayer(sky
+    // .backgroundLayer)`: the direct layer reference would form the cyclic RenderNode graph that
+    // crashes captureToImage (issues/112). The bitmap draw is acyclic (same as the Clear path). Fall
+    // back to the direct recordSource only when the backdrop layer is unexpectedly missing.
+    val backdrop = node.skylight as? Skylight.Backdrop
+    val layer = backdrop?.sky?.backgroundLayer
+    if (backdrop != null && layer != null) {
+      with(backdropClear) {
+        // radius 0 = passthrough draw of the snapshot region; the scrim is layered on top below.
+        draw(
+          node,
+          layer,
+          radius = 0,
+          offset = node.sampleOffset(),
+          contentVersion = backdrop.sky.contentVersion,
+        )
+      }
+    } else {
+      recordSource()
+    }
     drawRect(color = scrim, blendMode = BlendMode.SrcOver)
     lastState = CloudyState.Success.Scrim
   }
@@ -184,6 +225,7 @@ internal class BlurWeather(private val cpuBlurEnabled: Boolean, private val tint
     cachedBlurRadius = -1f
     legacyForeground.dispose()
     legacyBackdrop.dispose()
+    backdropClear.dispose(node)
   }
 
   private fun logProgressiveBlurWarningOnce() {
