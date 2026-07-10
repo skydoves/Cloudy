@@ -94,6 +94,20 @@ internal class MirageChromaticRasterTest :
       meanAbsDiff(auto, originPinned).shouldBeGreaterThan(1.0)
     }
 
+    // chromaticPoolFrac regression: OilSlick-vs-Pearl distinctness above doesn't exercise it (the
+    // chromatic effect differs regardless of pool radius), so this pins that the uniform actually
+    // reaches the shader through the real binder. Chromatic's default modulate is 1, so the pool
+    // fraction shapes the rainbow — a widened pool must change the render.
+    test("chromaticPoolFrac changes the render when the pool modulates the effect") {
+      val size = 512
+      val defaultPool = renderThroughLibraryBinder(MirageOptics.Chromatic, size)
+      val widePool = renderThroughLibraryBinder(MirageOptics.Chromatic, size) {
+        chromaticPoolFrac(1.5f)
+      }
+
+      meanAbsDiff(defaultPool, widePool).shouldBeGreaterThan(1.0)
+    }
+
     // Full-bleed / max-intensity X guard. At cornerRadius 0 + whole-pane lens + chromaticIntensity
     // 1.0, the dominant diagonal structure is the box depth field: `depthIn = -sdf` of a rounded box
     // is the distance to the nearest edge, whose ridge lines lie exactly on the diagonals, so the

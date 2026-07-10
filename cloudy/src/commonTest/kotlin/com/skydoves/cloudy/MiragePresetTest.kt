@@ -90,6 +90,8 @@ internal class MiragePresetTest :
         params.chromaticWashout.value.shouldBe(washout)
         params.chromaticModulate.value.shouldBe(modulate)
         params.chromaticRimBoost.value.shouldBe(rimBoost)
+        // Not a per-look factory argument: every look shares the specular pool framing (0.7).
+        params.chromaticPoolFrac.value.shouldBe(0.7f)
       }
 
       test("Chromatic equals the factory defaults (no regression)") {

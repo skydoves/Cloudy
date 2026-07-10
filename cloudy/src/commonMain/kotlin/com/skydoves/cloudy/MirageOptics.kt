@@ -227,6 +227,13 @@ public class SpecularParams : MirageLensParams() {
  *
  * `chromaticKRGB` is declared `float4` because the shader reads `.xyz` and the backends require a
  * write arity that matches the declared size; the `.w` component is unused.
+ *
+ * `chromaticPoolFrac` scales the light focal pool radius as a fraction of the lens' half-min
+ * dimension (the same basis as [SpecularParams.specPoolFrac]). The default `0.7` matches the
+ * specular pool; raise it (e.g. `1.5`–`2`) so the pool spans a wide lens whose short side would
+ * otherwise confine the rainbow to a small patch. It shapes the pool that
+ * [chromaticModulate][ChromaticParams.chromaticModulate] blends in, so it has no effect at
+ * `modulate = 0`.
  */
 @ExperimentalMirage
 public class ChromaticParams internal constructor(
@@ -245,6 +252,7 @@ public class ChromaticParams internal constructor(
   public val chromaticWashout: UFloat by uniform(washout)
   public val chromaticModulate: UFloat by uniform(modulate)
   public val chromaticRimBoost: UFloat by uniform(rimBoost)
+  public val chromaticPoolFrac: UFloat by uniform(0.7f)
 }
 
 /** Params for [MirageOptics.Foil] — the 5 foil/sparkle uniforms plus the shared lens framing. */

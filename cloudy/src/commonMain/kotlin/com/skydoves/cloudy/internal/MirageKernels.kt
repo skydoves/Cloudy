@@ -403,7 +403,7 @@ half4 main(float2 xy) {
 
     // --- focal-pool modulation: drive rainbow strength by the raw pool^2 (mirrors specular) ---
     float2 cFocal  = cLightVec * (minHalf * 0.55);              // specFocalK default
-    float  cPoolR  = max(minHalf * 0.7, 1.0);                   // specPoolFrac default; zero-width guard
+    float  cPoolR  = max(minHalf * chromaticPoolFrac, 1.0);     // pool radius scale; zero-width guard
     float  cPool   = 1.0 - smoothstep(0.0, cPoolR, length(p - cFocal)); // edge0<edge1
     float  poolNorm = clamp(cPool * cPool, 0.0, 1.0);
     float  chroma  = chromaticIntensity * mix(1.0, poolNorm, clamp(chromaticModulate, 0.0, 1.0));
@@ -488,7 +488,7 @@ half4 main(float2 xy) {
 
     // --- focal-pool modulation: drive rainbow strength by the raw pool^2 (mirrors specular) ---
     float2 cFocal  = cLightVec * (minHalf * 0.55);              // specFocalK default
-    float  cPoolR  = max(minHalf * 0.7, 1.0);                   // specPoolFrac default; zero-width guard
+    float  cPoolR  = max(minHalf * chromaticPoolFrac, 1.0);     // pool radius scale; zero-width guard
     float  cPool   = 1.0 - smoothstep(0.0, cPoolR, length(p - cFocal)); // edge0<edge1
     float  poolNorm = clamp(cPool * cPool, 0.0, 1.0);
     float  chroma  = chromaticIntensity * mix(1.0, poolNorm, clamp(chromaticModulate, 0.0, 1.0));
