@@ -132,59 +132,82 @@ static void cropAndScaleDown(
 
 /**
  * Scales up an image using gamma-correct bilinear interpolation.
+ *
+ * A Task so this pass can be tiled across the thread pool: it writes the full-resolution output
+ * (the pipeline's dominant cost) and each output pixel samples the source read-only, so tiling is
+ * safe and byte-identical to a single-threaded pass.
  */
-static void scaleUp(
-    const uint8_t* src, size_t srcWidth, size_t srcHeight,
-    uint8_t* dst, size_t dstWidth, size_t dstHeight
-) {
-    const float scaleX = static_cast<float>(srcWidth) / dstWidth;
-    const float scaleY = static_cast<float>(srcHeight) / dstHeight;
+class ScaleUpTask : public Task {
+    const uint8_t* mSrc;
+    uint8_t* mDst;
+    const size_t mSrcWidth;
+    const size_t mSrcHeight;
+    const float mScaleX;
+    const float mScaleY;
 
-    for (size_t y = 0; y < dstHeight; y++) {
-        const float srcYf = y * scaleY;
-        const size_t srcY0 = std::min(static_cast<size_t>(srcYf), srcHeight - 1);
-        const size_t srcY1 = std::min(srcY0 + 1, srcHeight - 1);
-        const float yFrac = srcYf - srcY0;
+    void processData(int /*threadIndex*/, size_t startX, size_t startY, size_t endX,
+                     size_t endY) override {
+        // Tile bounds are output-pixel coordinates; mSizeX is the output (dst) width.
+        for (size_t y = startY; y < endY; y++) {
+            const float srcYf = y * mScaleY;
+            const size_t srcY0 = std::min(static_cast<size_t>(srcYf), mSrcHeight - 1);
+            const size_t srcY1 = std::min(srcY0 + 1, mSrcHeight - 1);
+            const float yFrac = srcYf - srcY0;
 
-        for (size_t x = 0; x < dstWidth; x++) {
-            const float srcXf = x * scaleX;
-            const size_t srcX0 = std::min(static_cast<size_t>(srcXf), srcWidth - 1);
-            const size_t srcX1 = std::min(srcX0 + 1, srcWidth - 1);
-            const float xFrac = srcXf - srcX0;
+            for (size_t x = startX; x < endX; x++) {
+                const float srcXf = x * mScaleX;
+                const size_t srcX0 = std::min(static_cast<size_t>(srcXf), mSrcWidth - 1);
+                const size_t srcX1 = std::min(srcX0 + 1, mSrcWidth - 1);
+                const float xFrac = srcXf - srcX0;
 
-            // Gamma-correct bilinear interpolation for RGB channels
-            for (int c = 0; c < 3; c++) {
-                // Convert sRGB to linear
-                const float p00 = gGammaLUT.srgbToLinear[src[(srcY0 * srcWidth + srcX0) * 4 + c]];
-                const float p10 = gGammaLUT.srgbToLinear[src[(srcY0 * srcWidth + srcX1) * 4 + c]];
-                const float p01 = gGammaLUT.srgbToLinear[src[(srcY1 * srcWidth + srcX0) * 4 + c]];
-                const float p11 = gGammaLUT.srgbToLinear[src[(srcY1 * srcWidth + srcX1) * 4 + c]];
+                // Gamma-correct bilinear interpolation for RGB channels
+                for (int c = 0; c < 3; c++) {
+                    // Convert sRGB to linear
+                    const float p00 = gGammaLUT.srgbToLinear[mSrc[(srcY0 * mSrcWidth + srcX0) * 4 + c]];
+                    const float p10 = gGammaLUT.srgbToLinear[mSrc[(srcY0 * mSrcWidth + srcX1) * 4 + c]];
+                    const float p01 = gGammaLUT.srgbToLinear[mSrc[(srcY1 * mSrcWidth + srcX0) * 4 + c]];
+                    const float p11 = gGammaLUT.srgbToLinear[mSrc[(srcY1 * mSrcWidth + srcX1) * 4 + c]];
 
-                // Bilinear interpolation in linear space
-                const float top = p00 + (p10 - p00) * xFrac;
-                const float bottom = p01 + (p11 - p01) * xFrac;
-                const float linear = top + (bottom - top) * yFrac;
+                    // Bilinear interpolation in linear space
+                    const float top = p00 + (p10 - p00) * xFrac;
+                    const float bottom = p01 + (p11 - p01) * xFrac;
+                    const float linear = top + (bottom - top) * yFrac;
 
-                // Convert back to sRGB
-                dst[(y * dstWidth + x) * 4 + c] = gGammaLUT.toSrgb(linear);
-            }
+                    // Convert back to sRGB
+                    mDst[(y * mSizeX + x) * 4 + c] = gGammaLUT.toSrgb(linear);
+                }
 
-            // Alpha channel: linear interpolation (no gamma)
-            {
-                const float p00 = src[(srcY0 * srcWidth + srcX0) * 4 + 3];
-                const float p10 = src[(srcY0 * srcWidth + srcX1) * 4 + 3];
-                const float p01 = src[(srcY1 * srcWidth + srcX0) * 4 + 3];
-                const float p11 = src[(srcY1 * srcWidth + srcX1) * 4 + 3];
+                // Alpha channel: linear interpolation (no gamma)
+                {
+                    const float p00 = mSrc[(srcY0 * mSrcWidth + srcX0) * 4 + 3];
+                    const float p10 = mSrc[(srcY0 * mSrcWidth + srcX1) * 4 + 3];
+                    const float p01 = mSrc[(srcY1 * mSrcWidth + srcX0) * 4 + 3];
+                    const float p11 = mSrc[(srcY1 * mSrcWidth + srcX1) * 4 + 3];
 
-                const float top = p00 + (p10 - p00) * xFrac;
-                const float bottom = p01 + (p11 - p01) * xFrac;
-                const float value = top + (bottom - top) * yFrac;
+                    const float top = p00 + (p10 - p00) * xFrac;
+                    const float bottom = p01 + (p11 - p01) * xFrac;
+                    const float value = top + (bottom - top) * yFrac;
 
-                dst[(y * dstWidth + x) * 4 + 3] = static_cast<uint8_t>(std::clamp(value, 0.0f, 255.0f));
+                    mDst[(y * mSizeX + x) * 4 + 3] = static_cast<uint8_t>(std::clamp(value, 0.0f, 255.0f));
+                }
             }
         }
     }
-}
+
+   public:
+    ScaleUpTask(const uint8_t* src, size_t srcWidth, size_t srcHeight,
+                uint8_t* dst, size_t dstWidth, size_t dstHeight)
+        // prefersDataAsOneRow is false: each output pixel maps to a distinct 2D source location
+        // (srcXf=x*scaleX, srcYf=y*scaleY), so rows must not be flattened into one as blend/histogram do.
+        : Task{dstWidth, dstHeight, /*vectorSize=*/4, /*prefersDataAsOneRow=*/false,
+               /*restriction=*/nullptr},
+          mSrc{src},
+          mDst{dst},
+          mSrcWidth{srcWidth},
+          mSrcHeight{srcHeight},
+          mScaleX{static_cast<float>(srcWidth) / dstWidth},
+          mScaleY{static_cast<float>(srcHeight) / dstHeight} {}
+};
 
 /**
  * Applies a progressive alpha mask to create fade effect.
@@ -349,11 +372,14 @@ bool RenderScriptToolkit::backgroundBlur(
     );
 
     // Step 3: Scale up to output FIRST
-    // This prevents alpha gradient interpolation artifacts
-    scaleUp(
+    // This prevents alpha gradient interpolation artifacts.
+    // doTask runs under buffers.mutex (as blur() above does) and takes mTaskMutex internally, so the
+    // lock order is always buffers.mutex -> mTaskMutex and never inverts.
+    ScaleUpTask scaleUpTask(
         buffers.blurOutput.data(), scaledWidth, scaledHeight,
         dst, cropWidth, cropHeight
     );
+    processor->doTask(&scaleUpTask);
 
     // Step 4: Apply progressive mask on FINAL full-resolution output
     // This ensures crisp alpha gradients without interpolation artifacts
