@@ -306,14 +306,8 @@ private class CloudyBackgroundModifierNode(
   private var blurJob: Job? = null
   private var pendingContentVersion: Long = -1L
 
-  // Throttling state to prevent blur job cancellation cascade
-  private var lastBlurStartTime: Long = 0L
+  // Latest version queued while a blur is in flight (single-slot, last-write-wins).
   private var queuedVersion: Long = -1L
-
-  companion object {
-    // Minimum time between blur starts (ms) - prevents rapid cancellation
-    private const val MIN_BLUR_INTERVAL_MS = 50L
-  }
 
   fun update(
     sky: Sky,
@@ -349,9 +343,8 @@ private class CloudyBackgroundModifierNode(
 
     if (needsRedraw) {
       // DON'T cancel blurJob - let it complete to avoid flickering
-      // Reset throttle state and version tracking
+      // Reset queue and version tracking
       queuedVersion = -1L
-      lastBlurStartTime = 0L
       cachedContentVersion = -1L
       pendingContentVersion = -1L
       // DON'T clear blurredBitmap - keep showing stale blur to prevent flickering
@@ -625,18 +618,11 @@ private class CloudyBackgroundModifierNode(
     }
     // No cache: draw nothing (transparent) - blur will appear when ready
 
-    // Completion-based throttling: DON'T cancel running jobs
-    // Instead, queue the request and let the current job complete
+    // Coalescing is completion-based: never cancel a running blur, queue the latest version and let
+    // the current job re-run once on completion (see below). No wall-clock throttle is needed on top —
+    // sky.frameDriver already pumps this overlay's invalidation at most once per frame via
+    // withFrameNanos, and a native blur outlasts a frame, so this gate is what bounds blur starts.
     if (isProcessing) {
-      // Job in progress - queue this version for later processing
-      queuedVersion = currentVersion
-      return
-    }
-
-    // Throttle blur requests to prevent rapid job restarts
-    val now = System.currentTimeMillis()
-    if (now - lastBlurStartTime < MIN_BLUR_INTERVAL_MS) {
-      // Too soon since last blur - queue for later
       queuedVersion = currentVersion
       return
     }
@@ -647,7 +633,6 @@ private class CloudyBackgroundModifierNode(
     }
 
     // Start async blur processing
-    lastBlurStartTime = now
     isProcessing = true
     pendingContentVersion = currentVersion
     onStateChanged(CloudyState.Loading)
@@ -807,6 +792,5 @@ private class CloudyBackgroundModifierNode(
     cachedContentVersion = -1L
     pendingContentVersion = -1L
     queuedVersion = -1L
-    lastBlurStartTime = 0L
   }
 }
