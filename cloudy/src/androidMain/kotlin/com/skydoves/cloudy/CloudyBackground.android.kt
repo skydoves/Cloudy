@@ -757,7 +757,17 @@ private class CloudyBackgroundModifierNode(
 
         Log.d(TAG, "Blur complete: ${outputBitmap.width}x${outputBitmap.height}")
 
+        // Free the consumed capture; softwareBitmap IS capturedBitmap unless a HARDWARE copy was made.
+        if (!softwareBitmap.isRecycled) softwareBitmap.recycle()
+        if (softwareBitmap !== capturedBitmap &&
+          !capturedBitmap.isRecycled
+        ) {
+          capturedBitmap.recycle()
+        }
+
         if (node.isAttached) {
+          // Recycle the superseded blur before replacing it (draw and replace both run on Main).
+          blurredBitmap?.dispose()
           blurredBitmap = PlatformBitmap(outputBitmap)
           cachedContentVersion = processingVersion
           onStateChanged(CloudyState.Success.Captured(blurredBitmap!!))
@@ -794,6 +804,7 @@ private class CloudyBackgroundModifierNode(
     cachedRadius = -1f
     blurJob?.cancel()
     blurJob = null
+    blurredBitmap?.dispose()
     blurredBitmap = null
     isProcessing = false
     cachedContentVersion = -1L
