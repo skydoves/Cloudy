@@ -206,7 +206,7 @@ private fun renderChromatic(optic: CompositeOptic<ChromaticParams>): ByteArray {
 /**
  * Renders [optic] over the gradient content through the REAL library binder — reset-to-defaults, the
  * per-draw [frame] block, then the auto lens-frame substitution — exactly as [com.skydoves.cloudy.
- * internal.MirageWeather] binds each draw. [frame] left `null` exercises the bare preset (the auto
+ * internal.MirageEffect] binds each draw. [frame] left `null` exercises the bare preset (the auto
  * framing path).
  */
 @OptIn(ExperimentalMirage::class)

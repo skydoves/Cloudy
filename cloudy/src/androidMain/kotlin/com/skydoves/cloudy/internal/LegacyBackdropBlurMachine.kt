@@ -41,12 +41,12 @@ import kotlin.coroutines.cancellation.CancellationException
 private const val TAG = "LegacyBackdropBlur"
 
 /**
- * The API < 31 CPU blur machine for the backdrop ([Skylight.Backdrop]) path — the former
+ * The API < 31 CPU blur machine for the backdrop (non-null sky) path — the former
  * `CloudyBackgroundModifierNode.drawWithBitmap` region, extracted intact (crop -> scale -> native
  * background blur -> mask -> scale up, completion-based coalescing with a single-slot queue, never
  * cancel an in-flight blur). Algorithm, thresholds, coroutine structure, bitmap lifecycle, and
  * invalidate patterns are 1-byte unchanged; only the seams changed: graphics/scope/invalidate come
- * through the [WeatherNode], and it reports state via [lastState] (relayed by the owning BlurWeather).
+ * through the [EffectNode], and it reports state via [lastState] (relayed by the owning BlurStrategy).
  *
  * It draws only the blurred bitmap; clip/tint/highlight are applied by the node's [PostProcess] around
  * this draw (they used to be `drawCachedWithOverlays`). Capture reads the backdrop [GraphicsLayer] the
@@ -69,7 +69,7 @@ internal class LegacyBackdropBlurMachine {
    * [snapshot] carries radius/offset/progressive; [contentVersion] is the sky's current version.
    */
   fun ContentDrawScope.draw(
-    node: WeatherNode,
+    node: EffectNode,
     layer: GraphicsLayer,
     snapshot: SkySnapshot,
     contentVersion: Long,

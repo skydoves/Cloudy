@@ -34,8 +34,8 @@ internal const val TIME_WRAP_SECONDS = 3600f
 
 /**
  * One declared stage of a plan. Sealed so the draw loop branches exhaustively over the application
- * shapes: a program stage ([ProgramFilter]/[Overlay]) carried by [MirageWeather], or a
- * platform-blur stage ([PlatformFilter]) carried by BlurWeather.
+ * shapes: a program stage ([ProgramFilter]/[Overlay]) carried by [MirageEffect], or a
+ * platform-blur stage ([PlatformFilter]) carried by BlurStrategy.
  */
 internal sealed class Stage {
 
@@ -100,21 +100,21 @@ internal class MiragePlanBuilder : MirageScope {
 }
 
 /**
- * Builds the [WeatherElement] for a `Modifier.mirage` plan: runs [plan] once to fix the stages and
- * wires the stateless [MirageWeather] with an empty [PostProcess] (mirage clips/tints nothing — it
- * grades in-shader). The weather key is [Unit] because [MirageWeather] is a stateless object.
+ * Builds the [EffectElement] for a `Modifier.mirage` plan: runs [plan] once to fix the stages and
+ * wires the stateless [MirageEffect] with an empty [PostProcess] (mirage clips/tints nothing — it
+ * grades in-shader). The effect key is [Unit] because [MirageEffect] is a stateless object.
  */
 @OptIn(ExperimentalMirage::class)
 internal fun mirageElement(
-  skylight: Skylight,
+  sky: com.skydoves.cloudy.Sky?,
   clock: com.skydoves.cloudy.MirageClock,
   enabled: Boolean,
   plan: MirageScope.() -> Unit,
-): WeatherElement {
+): EffectElement {
   val stages = MiragePlanBuilder().apply(plan).stages
-  return WeatherElement(
-    weather = MirageWeather,
-    skylight = skylight,
+  return EffectElement(
+    effect = MirageEffect,
+    sky = sky,
     clock = clock,
     enabled = enabled,
     stages = stages,
@@ -123,7 +123,7 @@ internal fun mirageElement(
       androidx.compose.ui.graphics.Color.Transparent,
       null,
     ),
-    weatherKey = Unit,
+    effectKey = Unit,
     onStateChanged = null,
   )
 }
@@ -132,7 +132,7 @@ internal fun mirageElement(
  * True when two stage lists describe the same plan structure: same length and, in order, the same
  * stage kind, optic, and (for overlays) blend mode. The per-draw params blocks are deliberately not
  * compared — this is the "would the same programs and layer stack be built?" test that decides whether
- * [WeatherNode.update] can take the cheap blocks-only path. Kept beside [WeatherElement.equals], which
+ * [EffectNode.update] can take the cheap blocks-only path. Kept beside [EffectElement.equals], which
  * runs the identical comparison to decide element equality.
  *
  * [Stage.PlatformFilter] matches by kind only: its radius/progressive are draw-time cache keys (a

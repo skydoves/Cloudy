@@ -23,16 +23,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
-import com.skydoves.cloudy.internal.BlurWeather
+import com.skydoves.cloudy.internal.BlurStrategy
+import com.skydoves.cloudy.internal.EffectElement
 import com.skydoves.cloudy.internal.PostProcess
-import com.skydoves.cloudy.internal.Skylight
 import com.skydoves.cloudy.internal.Stage
-import com.skydoves.cloudy.internal.WeatherElement
 
 /**
  * Skiko implementation of the foreground [Modifier.cloudy], shared across iOS, macOS, JVM Desktop, and
- * WASM. Runs the self-lit blur through the unified [WeatherElement] spine: Skia's `BlurEffect` is
- * always available, so this is always the Clear path.
+ * WASM. Runs the content-source blur through the unified [EffectElement] spine: Skia's `BlurEffect` is
+ * always available, so this is always the Gpu path.
  */
 @Composable
 public actual fun Modifier.cloudy(
@@ -46,16 +45,16 @@ public actual fun Modifier.cloudy(
     return this
   }
 
-  val weather = remember { BlurWeather() }
+  val effect = remember { BlurStrategy() }
   return this.then(
-    WeatherElement(
-      weather = weather,
-      skylight = Skylight.SelfLit,
+    EffectElement(
+      effect = effect,
+      sky = null,
       clock = MirageClock.Paused,
       enabled = true,
       stages = listOf(Stage.PlatformFilter(radius, CloudyProgressive.None)),
       postProcess = PostProcess(RectangleShape, Color.Transparent, null),
-      weatherKey = Unit,
+      effectKey = Unit,
       onStateChanged = onStateChanged,
     ),
   )

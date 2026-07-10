@@ -37,25 +37,26 @@ import androidx.compose.ui.unit.IntSize
 import com.skydoves.cloudy.CloudyState
 import com.skydoves.cloudy.ExperimentalMirage
 import com.skydoves.cloudy.MirageClock
+import com.skydoves.cloudy.Sky
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /**
- * Orchestrates a plan against a [Skylight] source: [Skylight.SelfLit] runs it over the node's own
- * content, [Skylight.Backdrop] over the offset [Sky][com.skydoves.cloudy.Sky] region behind it. The
+ * Orchestrates a plan against a stage-0 source: a null [sky] runs it over the node's own content, a
+ * non-null [sky] over the offset [Sky][com.skydoves.cloudy.Sky] region behind it. The
  * node owns the ordered [stages], the [MirageClock] frame loop, the layer-pool [chain], the
  * [PostProcess] (clip/tint/highlight) around the effect, and (for a backdrop) the positioning +
- * frame-driver lifecycle; the [Weather] owns the actual draw. It never compiles a shader or owns
- * effect-cache state — that lives in the [Weather] (blur layer/effect, legacy bitmaps) or
+ * frame-driver lifecycle; the [Effect] owns the actual draw. It never compiles a shader or owns
+ * effect-cache state — that lives in the [Effect] (blur layer/effect, legacy bitmaps) or
  * [MirageProgramCache] (programs).
  *
- * ## Weather adoption on config change
- * [update] swaps [stages]/[postProcess]/[onStateChanged] on the cheap path, but a change to a
- * *weather-config* value (blur's `cpuBlurEnabled` / scrim tint) can't be swapped into the existing
- * weather — those are constructor state of the [Weather]. The element carries a [weatherKey] value:
- * when it differs, [update] treats it as a structural change and adopts the fresh [weather] instance
- * (releasing the old one's caches first). [weather] is therefore a `var`.
+ * ## Effect adoption on config change
+ * [update] swaps [stages]/[postProcess]/[onStateChanged] on the cheap path, but a change to an
+ * *effect-config* value (blur's `cpuBlurEnabled` / scrim tint) can't be swapped into the existing
+ * effect — those are constructor state of the [Effect]. The element carries an [effectKey] value:
+ * when it differs, [update] treats it as a structural change and adopts the fresh [effect] instance
+ * (releasing the old one's caches first). [effect] is therefore a `var`.
  *
  * ## #112 cyclic RenderNode guard
  * A backdrop node is a descendant of the Sky recorder, so the capture pass re-enters its draw. Drawing
@@ -64,21 +65,21 @@ import kotlinx.coroutines.launch
  * first line while the sky is capturing.
  */
 @OptIn(ExperimentalMirage::class)
-internal class WeatherNode(
-  weather: Weather,
-  var skylight: Skylight,
+internal class EffectNode(
+  effect: Effect,
+  var sky: Sky?,
   var clock: MirageClock,
   var enabled: Boolean,
   stages: List<Stage>,
   var postProcess: PostProcess,
-  private var weatherKey: Any?,
+  private var effectKey: Any?,
   var onStateChanged: ((CloudyState) -> Unit)?,
 ) : Modifier.Node(),
   DrawModifierNode,
   GlobalPositionAwareModifierNode,
   CompositionLocalConsumerModifierNode {
 
-  var weather: Weather = weather
+  var effect: Effect = effect
     private set
 
   var stages: List<Stage> = stages
@@ -123,47 +124,44 @@ internal class WeatherNode(
   private var lastNotifiedState: CloudyState? = null
 
   fun update(
-    weather: Weather,
-    skylight: Skylight,
+    effect: Effect,
+    sky: Sky?,
     clock: MirageClock,
     enabled: Boolean,
     stages: List<Stage>,
     postProcess: PostProcess,
-    weatherKey: Any?,
+    effectKey: Any?,
     onStateChanged: ((CloudyState) -> Unit)?,
   ) {
     // Re-register the scroll-refresh overlay on the new sky before adopting it.
-    val current = skylight
-    val previous = this.skylight
-    if (current is Skylight.Backdrop && previous is Skylight.Backdrop &&
-      previous.sky != current.sky && isAttached
-    ) {
-      previous.sky.frameDriver.removeOverlay(reblur)
-      current.sky.frameDriver.addOverlay(reblur)
+    val previous = this.sky
+    if (sky != null && previous != null && previous != sky && isAttached) {
+      previous.frameDriver.removeOverlay(reblur)
+      sky.frameDriver.addOverlay(reblur)
       // The cached snapshot / GLES blit came from the old sky's layer and key on contentVersion + size;
       // a new sky reusing the old version/size would wrongly hit the stale bitmap, so drop both.
       backdropSnapshot.dispose()
       glesBackdrop.release()
     }
 
-    // A weather-config change (blur cpuBlurEnabled / scrim tint) can't be swapped into the live
-    // weather instance, so a differing weatherKey is a structural change that adopts the new one.
-    val weatherChanged = weatherKey != this.weatherKey
-    val structuralChange = weatherChanged || skylight != this.skylight || clock != this.clock ||
+    // An effect-config change (blur cpuBlurEnabled / scrim tint) can't be swapped into the live
+    // effect instance, so a differing effectKey is a structural change that adopts the new one.
+    val effectChanged = effectKey != this.effectKey
+    val structuralChange = effectChanged || sky != this.sky || clock != this.clock ||
       enabled != this.enabled || !sameStructure(this.stages, stages)
 
     if (structuralChange && isAttached) {
-      // Release the old weather's caches before adopting the new one / a new plan structure.
-      this.weather.detach(this)
+      // Release the old effect's caches before adopting the new one / a new plan structure.
+      this.effect.detach(this)
     }
 
-    this.weather = weather
-    this.skylight = skylight
+    this.effect = effect
+    this.sky = sky
     this.clock = clock
     this.enabled = enabled
     this.stages = stages
     this.postProcess = postProcess
-    this.weatherKey = weatherKey
+    this.effectKey = effectKey
     this.onStateChanged = onStateChanged
 
     if (!structuralChange) {
@@ -180,12 +178,11 @@ internal class WeatherNode(
 
   override fun onAttach() {
     warmAndSchedule()
-    val skylight = skylight
-    if (skylight is Skylight.Backdrop) skylight.sky.frameDriver.addOverlay(reblur)
+    sky?.frameDriver?.addOverlay(reblur)
   }
 
   override fun onGloballyPositioned(coordinates: LayoutCoordinates) {
-    if (skylight !is Skylight.Backdrop) return
+    if (sky == null) return
     val newPosition = coordinates.positionInRoot()
     if (newPosition != positionInRoot) {
       positionInRoot = newPosition
@@ -232,8 +229,8 @@ internal class WeatherNode(
 
   override fun ContentDrawScope.draw() {
     // #112: draw nothing while this sky is recording. Must be the first statement.
-    val skylight = skylight
-    if (skylight is Skylight.Backdrop && skylight.sky.isCapturing) {
+    val sky = sky
+    if (sky != null && sky.isCapturing) {
       return
     }
 
@@ -254,70 +251,68 @@ internal class WeatherNode(
     // captureToImage/PixelCopy when a Weather records it into a layer (the mirage chain does; the blur
     // Weather self-samples and ignores this source). Kept fresh async, coalesced on contentVersion.
     val recordSource: DrawScope.() -> Unit
-    val backdropOffset: Offset
-    when (skylight) {
-      is Skylight.SelfLit -> {
-        backdropOffset = Offset.Zero
-        recordSource = { this@draw.drawContent() }
+    if (sky == null) {
+      recordSource = { this@draw.drawContent() }
+    } else {
+      val backgroundLayer = sky.backgroundLayer
+      if (backgroundLayer == null) {
+        // No captured backdrop yet: draw this node's own content and relay any state.
+        drawContent()
+        relayState()
+        return
+      }
+      val skyBounds = sky.sourceBounds
+      val backdropOffset = Offset(positionInRoot.x - skyBounds.left, positionInRoot.y - skyBounds.top)
+
+      // Sample the offset-shifted Sky region through a rasterized snapshot rather than a live
+      // drawLayer(backgroundLayer): the live layer closes the issue-112 RenderNode cycle under
+      // captureToImage/PixelCopy when an Effect records it into a filter layer (the mirage chain does;
+      // the blur Effect self-samples and ignores this source). Kept fresh async, coalesced on contentVersion.
+      backdropSnapshot.requestIfStale(
+        coroutineScope = coroutineScope,
+        layer = backgroundLayer,
+        contentVersion = sky.contentVersion,
+        invalidate = { if (isAttached) invalidateDraw() },
+      )
+      recordSource = {
+        with(backdropSnapshot) {
+          drawSampledRegion(backdropOffset, IntSize(width.toInt(), height.toInt()))
+        }
       }
 
-      is Skylight.Backdrop -> {
-        val backgroundLayer = skylight.sky.backgroundLayer
-        if (backgroundLayer == null) {
-          // No captured backdrop yet: draw this node's own content and relay any state.
-          drawContent()
-          relayState()
-          return
-        }
-        val skyBounds = skylight.sky.sourceBounds
-        backdropOffset = Offset(positionInRoot.x - skyBounds.left, positionInRoot.y - skyBounds.top)
-
-        backdropSnapshot.requestIfStale(
-          coroutineScope = coroutineScope,
-          layer = backgroundLayer,
-          contentVersion = skylight.sky.contentVersion,
-          invalidate = { if (isAttached) invalidateDraw() },
-        )
-        recordSource = {
-          with(backdropSnapshot) {
-            drawSampledRegion(backdropOffset, IntSize(width.toInt(), height.toInt()))
-          }
-        }
-
-        // API 29-32 GLES band: a mirage filter is a Blit (async FBO capture) the synchronous chain
-        // cannot run, so it is routed to the async GLES runner here — before the generic Weather path,
-        // which cannot express a suspend blit. Returns true if it handled this frame. Backdrop-only and
-        // mirage-only (blur is never a Blit); every other band falls through to the generic path.
-        if (drawBackdropGles(skylight.sky, backgroundLayer, backdropOffset, width, height)) {
-          drawContent()
-          relayState()
-          return
-        }
+      // API 29-32 GLES band: a mirage filter is a Blit (async FBO capture) the synchronous chain cannot
+      // run, so it is routed to the async GLES runner here — before the generic Effect path, which
+      // cannot express a suspend blit. Returns true if it handled this frame. Backdrop-only and mirage-
+      // only (blur is never a Blit); every other band falls through to the generic path below.
+      if (drawBackdropGles(sky, backgroundLayer, backdropOffset, width, height)) {
+        drawContent()
+        relayState()
+        return
       }
     }
 
     val intSize = IntSize(width.toInt(), height.toInt())
 
-    // Overcast (API < 31 scrim): draw the scrim over the backdrop region, then this node's content
+    // Scrim tier (API < 31 scrim): draw the scrim over the backdrop region, then this node's content
     // behind, without running the effect. The scrim carries the tint itself (no PostProcess tint or
     // highlight), so only the shape clip applies.
-    if (weather.shouldDrawContentBehind(this@WeatherNode)) {
+    if (effect.shouldDrawContentBehind(this@EffectNode)) {
       val contentScope = this
       clipToShape(postProcess.shape, intSize, postProcessCache) {
-        with(weather) { contentScope.drawScrim(this@WeatherNode, recordSource) }
+        with(effect) { contentScope.drawScrim(this@EffectNode, recordSource) }
       }
-      if (skylight is Skylight.Backdrop) drawContent()
+      if (sky != null) drawContent()
       relayState()
       return
     }
 
     applyPostProcess(postProcess, intSize, postProcessCache) {
-      with(weather) { draw(this@WeatherNode, recordSource) }
+      with(effect) { draw(this@EffectNode, recordSource) }
     }
 
-    // A self-lit plan's filters replace the content, so the chain already drew it. A backdrop grades
-    // the region behind the node, so the node's own content is drawn on top.
-    if (skylight is Skylight.Backdrop) drawContent()
+    // A content-source plan's filters replace the content, so the chain already drew it. A backdrop
+    // grades the region behind the node, so the node's own content is drawn on top.
+    if (sky != null) drawContent()
     relayState()
   }
 
@@ -394,47 +389,43 @@ internal class WeatherNode(
   }
 
   private fun relayState() {
-    val s = weather.currentState(this) ?: return
+    val s = effect.currentState(this) ?: return
     if (s != lastNotifiedState) {
       lastNotifiedState = s
       onStateChanged?.invoke(s)
     }
   }
 
-  /** Resolves the current mirageTime for this draw; called by the [Weather] when binding uniforms. */
+  /** Resolves the current mirageTime for this draw; called by the [Effect] when binding uniforms. */
   fun resolveTime(): Float = when (val clock = clock) {
     is MirageClock.Auto -> if (planUsesTime) timeSeconds else 0f
     is MirageClock.Paused -> timeSeconds
     is MirageClock.Fixed -> clock.seconds
   }
 
-  // Node-scoped accessors for the [Weather]: these are extension functions on the node's receiver,
-  // unreachable from a Weather instance, so the node exposes them.
+  // Node-scoped accessors for the [Effect]: these are extension functions on the node's receiver,
+  // unreachable from an Effect instance, so the node exposes them.
   fun graphicsContext(): GraphicsContext = requireGraphicsContext()
 
-  /** Node-scoped `invalidateDraw()` for the [Weather] (an extension unreachable from a plain instance). */
+  /** Node-scoped `invalidateDraw()` for the [Effect] (an extension unreachable from a plain instance). */
   fun invalidate() {
     if (isAttached) invalidateDraw()
   }
 
   fun density(): Float = currentValueOf(LocalDensity).density
 
-  /** Backdrop-relative sample offset for this draw; Zero for self-lit. Read by the legacy blur machines. */
-  fun sampleOffset(): Offset = when (val skylight = skylight) {
-    is Skylight.SelfLit -> Offset.Zero
-
-    is Skylight.Backdrop -> {
-      val skyBounds = skylight.sky.sourceBounds
-      Offset(positionInRoot.x - skyBounds.left, positionInRoot.y - skyBounds.top)
-    }
+  /** Backdrop-relative sample offset for this draw; Zero for a content source. Read by the legacy blur machines. */
+  fun sampleOffset(): Offset {
+    val sky = sky ?: return Offset.Zero
+    val skyBounds = sky.sourceBounds
+    return Offset(positionInRoot.x - skyBounds.left, positionInRoot.y - skyBounds.top)
   }
 
   override fun onDetach() {
-    val skylight = skylight
-    if (skylight is Skylight.Backdrop) skylight.sky.frameDriver.removeOverlay(reblur)
+    sky?.frameDriver?.removeOverlay(reblur)
     frameLoopJob?.cancel()
     frameLoopJob = null
-    weather.detach(this)
+    effect.detach(this)
     chain.release(requireGraphicsContext())
     postProcessCache.clear()
     backdropSnapshot.dispose()

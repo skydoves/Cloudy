@@ -37,25 +37,25 @@ import androidx.compose.ui.graphics.RenderEffect as ComposeRenderEffect
 private const val TAG = "CloudyBackground"
 
 /**
- * Android blur weather for both the self-lit foreground and the backdrop. Resolves a [Visibility]
- * ladder each draw:
+ * Android blur strategy for both the content-source foreground and the backdrop. Resolves a [BlurTier]
+ * each draw:
  *
- *  - [Visibility.Clear] (API 31+): a single reusable [GraphicsLayer] + a [RenderEffect] cached on the
+ *  - [BlurTier.Gpu] (API 31+): a single reusable [GraphicsLayer] + a [RenderEffect] cached on the
  *    radius — the former `drawWithRenderEffect` (bg) and `CloudyRenderEffectStrategy` (fg), unified.
- *  - [Visibility.Hazy] (API < 31 + [cpuBlurEnabled]): delegates to the extracted legacy CPU machines,
+ *  - [BlurTier.Cpu] (API < 31 + [cpuBlurEnabled]): delegates to the extracted legacy CPU machines,
  *    which self-capture and run asynchronously; the spine's layer pool is bypassed.
- *  - [Visibility.Overcast] (API < 31, no cpuBlurEnabled, backdrop only): a scrim, via
+ *  - [BlurTier.Scrim] (API < 31, no cpuBlurEnabled, backdrop only): a scrim, via
  *    [shouldDrawContentBehind] + [drawScrim].
  *
  * Radius/progressive are read from the node's [Stage.PlatformFilter] at draw time so a radius change
- * re-keys the cached effect on the cheap update path. [tint] is the scrim color for the Overcast path
- * only (the Clear/Hazy tint is the node's [PostProcess]); [cpuBlurEnabled] is fixed `true` for the
- * foreground (fg has no Overcast — it always has a CPU path below API 31).
+ * re-keys the cached effect on the cheap update path. [tint] is the scrim color for the Scrim path
+ * only (the Gpu/Cpu tint is the node's [PostProcess]); [cpuBlurEnabled] is fixed `true` for the
+ * foreground (fg has no Scrim tier — it always has a CPU path below API 31).
  */
-internal class BlurWeather(private val cpuBlurEnabled: Boolean, private val tint: Color) :
-  Weather {
+internal class BlurStrategy(private val cpuBlurEnabled: Boolean, private val tint: Color) :
+  Effect {
 
-  // Clear cache (draw-time radius key).
+  // Gpu cache (draw-time radius key).
   private var blurLayer: GraphicsLayer? = null
   private var cachedBlurEffect: ComposeRenderEffect? = null
   private var cachedBlurRadius: Float = -1f
@@ -67,20 +67,20 @@ internal class BlurWeather(private val cpuBlurEnabled: Boolean, private val tint
 
   private var lastState: CloudyState = CloudyState.Nothing
 
-  private fun stageOf(node: WeatherNode): Stage.PlatformFilter? =
+  private fun stageOf(node: EffectNode): Stage.PlatformFilter? =
     node.stages.firstOrNull { it is Stage.PlatformFilter } as? Stage.PlatformFilter
 
-  override fun ContentDrawScope.draw(node: WeatherNode, recordSource: DrawScope.() -> Unit) {
+  override fun ContentDrawScope.draw(node: EffectNode, recordSource: DrawScope.() -> Unit) {
     val stage = stageOf(node) ?: return
-    when (Visibility.resolve(Build.VERSION.SDK_INT >= Build.VERSION_CODES.S, cpuBlurEnabled)) {
-      Visibility.Clear -> drawClear(node, stage, recordSource)
-      Visibility.Hazy -> drawHazy(node, stage, recordSource)
-      Visibility.Overcast -> Unit // handled by the node via shouldDrawContentBehind + drawScrim
+    when (BlurTier.resolve(Build.VERSION.SDK_INT >= Build.VERSION_CODES.S, cpuBlurEnabled)) {
+      BlurTier.Gpu -> drawGpu(node, stage, recordSource)
+      BlurTier.Cpu -> drawCpu(node, stage, recordSource)
+      BlurTier.Scrim -> Unit // handled by the node via shouldDrawContentBehind + drawScrim
     }
   }
 
-  private fun ContentDrawScope.drawClear(
-    node: WeatherNode,
+  private fun ContentDrawScope.drawGpu(
+    node: EffectNode,
     stage: Stage.PlatformFilter,
     recordSource: DrawScope.() -> Unit,
   ) {
@@ -90,11 +90,11 @@ internal class BlurWeather(private val cpuBlurEnabled: Boolean, private val tint
     // prepareTreeImpl recursion (issues/112). So the backdrop always samples a rasterized SNAPSHOT of
     // the sky region (drawImage, no drawLayer back-edge), the acyclic structure the API < 31 CPU path
     // uses. This covers radius 0 too: the inline `drawLayer(sky.backgroundLayer)` (passthrough / tint /
-    // scrim over-draw) is the same back-edge and also crashes. The foreground self-lit path samples its
-    // OWN content (no sky layer, no cycle), so it keeps the direct inline / render-effect path below.
-    val backdrop = node.skylight as? Skylight.Backdrop
-    if (backdrop != null) {
-      val layer = backdrop.sky.backgroundLayer
+    // scrim over-draw) is the same back-edge and also crashes. The foreground content-source path samples
+    // its OWN content (no sky layer, no cycle), so it keeps the direct inline / render-effect path below.
+    val sky = node.sky
+    if (sky != null) {
+      val layer = sky.backgroundLayer
       if (layer == null) {
         lastState = CloudyState.Error(RuntimeException("Background layer not available"))
         return
@@ -106,7 +106,7 @@ internal class BlurWeather(private val cpuBlurEnabled: Boolean, private val tint
         logProgressiveBlurWarningOnce()
       }
       with(backdropClear) {
-        draw(node, layer, stage.radius, node.sampleOffset(), backdrop.sky.contentVersion)
+        draw(node, layer, stage.radius, node.sampleOffset(), sky.contentVersion)
       }
       lastState = backdropClear.lastState
       return
@@ -144,18 +144,18 @@ internal class BlurWeather(private val cpuBlurEnabled: Boolean, private val tint
     lastState = CloudyState.Success.Applied
   }
 
-  private fun ContentDrawScope.drawHazy(
-    node: WeatherNode,
+  private fun ContentDrawScope.drawCpu(
+    node: EffectNode,
     stage: Stage.PlatformFilter,
     recordSource: DrawScope.() -> Unit,
   ) {
-    val backdrop = node.skylight as? Skylight.Backdrop
-    lastState = if (backdrop == null) {
-      // Foreground self-lit CPU blur: the machine self-captures the node's own content.
+    val sky = node.sky
+    lastState = if (sky == null) {
+      // Foreground content-source CPU blur: the machine self-captures the node's own content.
       with(legacyForeground) { draw(node, stage.radius, recordSource) }
       legacyForeground.lastState
     } else {
-      val layer = backdrop.sky.backgroundLayer
+      val layer = sky.backgroundLayer
       if (layer == null) {
         // Should not happen: the node returns before draw() when the backdrop layer is null. Kept as
         // a defensive echo of the old node's Error state.
@@ -171,26 +171,26 @@ internal class BlurWeather(private val cpuBlurEnabled: Boolean, private val tint
           progressive = stage.progressive,
           tintColor = tint,
         )
-        with(legacyBackdrop) { draw(node, layer, snapshot, backdrop.sky.contentVersion) }
+        with(legacyBackdrop) { draw(node, layer, snapshot, sky.contentVersion) }
         legacyBackdrop.lastState
       }
     }
   }
 
-  override fun shouldDrawContentBehind(node: WeatherNode): Boolean =
-    Visibility.resolve(Build.VERSION.SDK_INT >= Build.VERSION_CODES.S, cpuBlurEnabled) ==
-      Visibility.Overcast
+  override fun shouldDrawContentBehind(node: EffectNode): Boolean =
+    BlurTier.resolve(Build.VERSION.SDK_INT >= Build.VERSION_CODES.S, cpuBlurEnabled) ==
+      BlurTier.Scrim
 
-  override fun ContentDrawScope.drawScrim(node: WeatherNode, recordSource: DrawScope.() -> Unit) {
-    // Overcast is backdrop-only. The scrim carries the tint (or the default scrim when transparent).
+  override fun ContentDrawScope.drawScrim(node: EffectNode, recordSource: DrawScope.() -> Unit) {
+    // The Scrim tier is backdrop-only. The scrim carries the tint (or the default scrim when transparent).
     val scrim = if (tint == Color.Transparent) CloudyDefaults.DefaultScrimColor else tint
     // Draw the sampled backdrop region as a rasterized SNAPSHOT (drawImage), not `drawLayer(sky
     // .backgroundLayer)`: the direct layer reference would form the cyclic RenderNode graph that
-    // crashes captureToImage (issues/112). The bitmap draw is acyclic (same as the Clear path). Fall
+    // crashes captureToImage (issues/112). The bitmap draw is acyclic (same as the Gpu path). Fall
     // back to the direct recordSource only when the backdrop layer is unexpectedly missing.
-    val backdrop = node.skylight as? Skylight.Backdrop
-    val layer = backdrop?.sky?.backgroundLayer
-    if (backdrop != null && layer != null) {
+    val sky = node.sky
+    val layer = sky?.backgroundLayer
+    if (sky != null && layer != null) {
       with(backdropClear) {
         // radius 0 = passthrough draw of the snapshot region; the scrim is layered on top below.
         draw(
@@ -198,7 +198,7 @@ internal class BlurWeather(private val cpuBlurEnabled: Boolean, private val tint
           layer,
           radius = 0,
           offset = node.sampleOffset(),
-          contentVersion = backdrop.sky.contentVersion,
+          contentVersion = sky.contentVersion,
         )
       }
     } else {
@@ -208,17 +208,17 @@ internal class BlurWeather(private val cpuBlurEnabled: Boolean, private val tint
     lastState = CloudyState.Success.Scrim
   }
 
-  override fun currentState(node: WeatherNode): CloudyState {
+  override fun currentState(node: EffectNode): CloudyState {
     // The node returns before draw() when a backdrop's captured layer is not ready; echo the old
     // node's cold-start Error state there, matching the former CloudyBackgroundModifierNode.
-    val backdrop = node.skylight as? Skylight.Backdrop
-    if (backdrop != null && backdrop.sky.backgroundLayer == null) {
+    val sky = node.sky
+    if (sky != null && sky.backgroundLayer == null) {
       return CloudyState.Error(RuntimeException("Background layer not available"))
     }
     return lastState
   }
 
-  override fun detach(node: WeatherNode) {
+  override fun detach(node: EffectNode) {
     blurLayer?.let { node.graphicsContext().releaseGraphicsLayer(it) }
     blurLayer = null
     cachedBlurEffect = null

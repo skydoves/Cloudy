@@ -18,7 +18,6 @@ package com.skydoves.cloudy
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.BlendMode
 import com.skydoves.cloudy.internal.MiragePlanBuilder
-import com.skydoves.cloudy.internal.Skylight
 import com.skydoves.cloudy.internal.currentDialect
 import com.skydoves.cloudy.internal.mirageElement
 import com.skydoves.cloudy.internal.planRenders
@@ -169,7 +168,7 @@ internal fun Modifier.mirageOrFallback(
       return this.then(fallback.modifier)
     }
   }
-  return this.then(mirageElement(Skylight.SelfLit, clock, enabled, plan))
+  return this.then(mirageElement(sky = null, clock, enabled, plan))
 }
 
 /**
@@ -206,4 +205,4 @@ public fun Modifier.mirage(
   clock: MirageClock = MirageClock.Auto,
   enabled: Boolean = true,
   plan: MirageScope.() -> Unit,
-): Modifier = this.then(mirageElement(Skylight.Backdrop(sky), clock, enabled, plan))
+): Modifier = this.then(mirageElement(sky, clock, enabled, plan))

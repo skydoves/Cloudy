@@ -25,16 +25,16 @@ import com.skydoves.cloudy.MirageClock
 import com.skydoves.cloudy.Sky
 
 /**
- * Element that reconciles a [WeatherNode]. Equatable on the [Skylight] source (the [Sky] for a
- * backdrop, nothing for self-lit), [clock], [enabled], the plan's ordered stage structure, the
- * per-program-stage params-block identities, the [postProcess] (by value), and the [weatherKey].
+ * Element that reconciles an [EffectNode]. Equatable on the stage-0 [sky] (the backdrop's [Sky], or
+ * null for a content source), [clock], [enabled], the plan's ordered stage structure, the
+ * per-program-stage params-block identities, the [postProcess] (by value), and the [effectKey].
  *
- * ## weatherKey
- * The [weather] instance is not compared directly (a fresh `MirageWeather`/`BlurWeather` each
- * recomposition would make every element unequal). Instead a [weatherKey] value captures whatever
- * weather-construction state matters — `Unit` for the stateless [MirageWeather] object, or the blur's
+ * ## effectKey
+ * The [effect] instance is not compared directly (a fresh `MirageEffect`/`BlurStrategy` each
+ * recomposition would make every element unequal). Instead an [effectKey] value captures whatever
+ * effect-construction state matters — `Unit` for the stateless [MirageEffect] object, or the blur's
  * `(cpuBlurEnabled, scrimTint)` — so a real config change makes the element unequal *and* recreates
- * the node's weather via [WeatherNode.update]'s structural path.
+ * the node's effect via [EffectNode.update]'s structural path.
  *
  * ## params-block identity
  * Program stages' params blocks are compared by reference (`===`), like Compose's own
@@ -44,25 +44,22 @@ import com.skydoves.cloudy.Sky
  * params block, so it contributes nothing to this loop.
  */
 @OptIn(ExperimentalMirage::class)
-internal class WeatherElement(
-  private val weather: Weather,
-  private val skylight: Skylight,
+internal class EffectElement(
+  private val effect: Effect,
+  private val sky: Sky?,
   private val clock: MirageClock,
   private val enabled: Boolean,
   private val stages: List<Stage>,
   private val postProcess: PostProcess,
-  private val weatherKey: Any?,
+  private val effectKey: Any?,
   private val onStateChanged: ((CloudyState) -> Unit)?,
-) : ModifierNodeElement<WeatherNode>() {
+) : ModifierNodeElement<EffectNode>() {
 
-  /** The backdrop's Sky when this is a backdrop element, else null — the equality/inspector key. */
-  private val sky: Sky? = (skylight as? Skylight.Backdrop)?.sky
+  override fun create(): EffectNode =
+    EffectNode(effect, sky, clock, enabled, stages, postProcess, effectKey, onStateChanged)
 
-  override fun create(): WeatherNode =
-    WeatherNode(weather, skylight, clock, enabled, stages, postProcess, weatherKey, onStateChanged)
-
-  override fun update(node: WeatherNode) {
-    node.update(weather, skylight, clock, enabled, stages, postProcess, weatherKey, onStateChanged)
+  override fun update(node: EffectNode) {
+    node.update(effect, sky, clock, enabled, stages, postProcess, effectKey, onStateChanged)
   }
 
   override fun InspectorInfo.inspectableProperties() {
@@ -75,10 +72,10 @@ internal class WeatherElement(
 
   override fun equals(other: Any?): Boolean {
     if (this === other) return true
-    if (other !is WeatherElement) return false
+    if (other !is EffectElement) return false
     if (sky != other.sky) return false
     if (clock != other.clock || enabled != other.enabled) return false
-    if (weatherKey != other.weatherKey) return false
+    if (effectKey != other.effectKey) return false
     if (!postProcessEquals(postProcess, other.postProcess)) return false
     if (!sameStructure(stages, other.stages)) return false
     for (i in stages.indices) {
@@ -95,7 +92,7 @@ internal class WeatherElement(
     var result = sky?.hashCode() ?: 0
     result = 31 * result + clock.hashCode()
     result = 31 * result + enabled.hashCode()
-    result = 31 * result + (weatherKey?.hashCode() ?: 0)
+    result = 31 * result + (effectKey?.hashCode() ?: 0)
     result = 31 * result + postProcess.shape.hashCode()
     result = 31 * result + postProcess.tint.hashCode()
     result = 31 * result + (postProcess.light?.hashCode() ?: 0)

@@ -17,24 +17,24 @@ package com.skydoves.cloudy.internal
 
 /**
  * How a blur renders on Android, resolved per draw. Replaces the old when-3-branch/strategy-factory
- * dispatch (API 31+ RenderEffect, API < 31 CPU legacy, else scrim). Skiko has no ladder — it is always
- * the RenderEffect (Clear) path.
+ * dispatch (API 31+ RenderEffect, API < 31 CPU legacy, else scrim). Skiko has no tier — it is always
+ * the RenderEffect (Gpu) path.
  *
- *  - [Clear]:    GPU RenderEffect (API 31+).
- *  - [Hazy]:     CPU legacy blur (API < 31 with cpuBlurEnabled).
- *  - [Overcast]: scrim fallback (API < 31 without cpuBlurEnabled).
+ *  - [Gpu]:   GPU RenderEffect (API 31+).
+ *  - [Cpu]:   CPU legacy blur (API < 31 with cpuBlurEnabled).
+ *  - [Scrim]: scrim fallback (API < 31 without cpuBlurEnabled).
  */
-internal enum class Visibility {
-  Clear,
-  Hazy,
-  Overcast,
+internal enum class BlurTier {
+  Gpu,
+  Cpu,
+  Scrim,
   ;
 
   companion object {
-    fun resolve(isApi31Plus: Boolean, cpuBlurEnabled: Boolean): Visibility = when {
-      isApi31Plus -> Clear
-      cpuBlurEnabled -> Hazy
-      else -> Overcast
+    fun resolve(isApi31Plus: Boolean, cpuBlurEnabled: Boolean): BlurTier = when {
+      isApi31Plus -> Gpu
+      cpuBlurEnabled -> Cpu
+      else -> Scrim
     }
   }
 }

@@ -37,8 +37,8 @@ import com.skydoves.cloudy.highlightPoolCenter
 import com.skydoves.cloudy.highlightPoolRadius
 
 /**
- * Node-level presentation applied around a [Weather] draw: clip the result to [shape], blend a [tint]
- * over it (on the GPU/Clear paths — the scrim path carries the tint itself), and draw a moving
+ * Node-level presentation applied around an [Effect] draw: clip the result to [shape], blend a [tint]
+ * over it (on the GPU/CPU paths — the scrim path carries the tint itself), and draw a moving
  * specular highlight for [light]. Split out of the two backdrop nodes, where the clip/tint/highlight
  * code was byte-for-byte duplicated between androidMain and skikoMain.
  */
@@ -47,7 +47,7 @@ internal class PostProcess(val shape: Shape, val tint: Color, val light: LiquidG
 /**
  * Mutable per-node caches the [PostProcess] runner reuses so a steady-state frame allocates nothing:
  * the shape-clip [Path] (rebuilt only when the outline changes) and the highlight [Brush] (rebuilt
- * only when the pool center/radius change). Owned by [WeatherNode] and released on detach.
+ * only when the pool center/radius change). Owned by [EffectNode] and released on detach.
  */
 internal class PostProcessCache {
   var clipPath: Path? = null
@@ -67,7 +67,7 @@ internal class PostProcessCache {
  * Runs [content] clipped to [post].shape, then blends the tint and draws the specular highlight over
  * it — the shared clip/tint/highlight order the two backdrop nodes had after `drawLayer`. [size] is
  * the node's measured size; [cache] holds the reusable path/brush. [content] receives the outer
- * [ContentDrawScope] (not the clip's inner [DrawScope]) so it can invoke a [Weather]'s
+ * [ContentDrawScope] (not the clip's inner [DrawScope]) so it can invoke an [Effect]'s
  * `ContentDrawScope` draw; the clip transform is still in effect on it inside the block.
  */
 internal fun ContentDrawScope.applyPostProcess(

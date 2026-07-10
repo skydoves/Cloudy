@@ -93,7 +93,7 @@ internal class BackdropClearBlurMachine {
    * snapshot into the blur layer and applies the blur effect. Size is the node size.
    */
   fun ContentDrawScope.draw(
-    node: WeatherNode,
+    node: EffectNode,
     layer: GraphicsLayer,
     radius: Int,
     offset: Offset,
@@ -170,7 +170,7 @@ internal class BackdropClearBlurMachine {
     lastState = CloudyState.Success.Applied
   }
 
-  private fun requestCapture(node: WeatherNode, layer: GraphicsLayer, contentVersion: Long) {
+  private fun requestCapture(node: EffectNode, layer: GraphicsLayer, contentVersion: Long) {
     if (isCapturing) {
       queuedVersion = contentVersion
       return
@@ -202,7 +202,7 @@ internal class BackdropClearBlurMachine {
     }
   }
 
-  fun dispose(node: WeatherNode) {
+  fun dispose(node: EffectNode) {
     captureJob?.cancel()
     captureJob = null
     isCapturing = false

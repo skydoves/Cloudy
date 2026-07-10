@@ -27,21 +27,21 @@ import com.skydoves.cloudy.CloudyState
 import com.skydoves.cloudy.ExperimentalMirage
 
 /**
- * Skiko blur weather (iOS, macOS, Desktop, Wasm): always the Clear path — Skia's [BlurEffect] is
- * always available, so there is no Hazy/Overcast fallback. Ports the former skiko backdrop node's
+ * Skiko blur strategy (iOS, macOS, Desktop, Wasm): always the Gpu path — Skia's [BlurEffect] is
+ * always available, so there is no Cpu/Scrim fallback. Ports the former skiko backdrop node's
  * `drawWithBlurEffect`: a single reusable [GraphicsLayer] plus a [BlurEffect] cached on the radius.
  * Radius/progressive are read from the node's [Stage.PlatformFilter] at draw time so a radius change
  * re-keys the effect on the cheap update path. PostProcess (clip/tint/highlight) is applied by the
  * node around this draw; a radius of 0 is a passthrough of the source region.
  */
-internal class BlurWeather : Weather {
+internal class BlurStrategy : Effect {
 
   private var blurLayer: GraphicsLayer? = null
   private var cachedBlurEffect: BlurEffect? = null
   private var cachedBlurRadius: Float = -1f
   private var lastState: CloudyState = CloudyState.Nothing
 
-  override fun ContentDrawScope.draw(node: WeatherNode, recordSource: DrawScope.() -> Unit) {
+  override fun ContentDrawScope.draw(node: EffectNode, recordSource: DrawScope.() -> Unit) {
     val stage = node.stages.firstOrNull { it is Stage.PlatformFilter } as? Stage.PlatformFilter
     val radius = stage?.radius ?: 0
     if (radius <= 0) {
@@ -79,9 +79,9 @@ internal class BlurWeather : Weather {
     lastState = CloudyState.Success.Applied
   }
 
-  override fun currentState(node: WeatherNode): CloudyState = lastState
+  override fun currentState(node: EffectNode): CloudyState = lastState
 
-  override fun detach(node: WeatherNode) {
+  override fun detach(node: EffectNode) {
     blurLayer?.let { node.graphicsContext().releaseGraphicsLayer(it) }
     blurLayer = null
     cachedBlurEffect = null

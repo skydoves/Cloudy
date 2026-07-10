@@ -32,7 +32,7 @@ import org.robolectric.RobolectricTestRunner
 /**
  * Host-side unit tests for [MirageFilterChain]'s source-injection contract — the seam that makes the
  * chain reusable across stage-0 sources (the self content and the backdrop region), which
- * [com.skydoves.cloudy.internal.MirageWeather] supplies as its `recordSource`.
+ * [com.skydoves.cloudy.internal.MirageEffect] supplies as its `recordSource`.
  *
  * The empty-applicable path is the cleanly testable slice: it draws the caller's `recordSource`
  * straight to the screen and never touches a real GPU layer, so it runs on the Robolectric host with a

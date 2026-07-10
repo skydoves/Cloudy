@@ -40,8 +40,8 @@ import com.skydoves.cloudy.UVec4
  * program declared it: Android's RuntimeShader throws IllegalArgumentException on a write to an
  * undeclared uniform (skiko tolerates it), so the CompiledProgram.uses* flags gate every bind.
  *
- * Shared by every [Weather] draw regardless of stage-0 source (self content vs. backdrop bind
- * identically), so they live here rather than in the weather.
+ * Shared by every [Effect] draw regardless of stage-0 source (self content vs. backdrop bind
+ * identically), so they live here rather than in the effect.
  */
 internal const val STD_RESOLUTION = "mirageResolution"
 internal const val STD_TIME = "mirageTime"

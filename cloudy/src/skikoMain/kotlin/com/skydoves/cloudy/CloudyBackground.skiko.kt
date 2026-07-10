@@ -41,11 +41,10 @@ import androidx.compose.ui.node.requireGraphicsContext
 import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.toSize
-import com.skydoves.cloudy.internal.BlurWeather
+import com.skydoves.cloudy.internal.BlurStrategy
+import com.skydoves.cloudy.internal.EffectElement
 import com.skydoves.cloudy.internal.PostProcess
-import com.skydoves.cloudy.internal.Skylight
 import com.skydoves.cloudy.internal.Stage
-import com.skydoves.cloudy.internal.WeatherElement
 
 /**
  * Skiko implementation of [Modifier.sky].
@@ -57,8 +56,8 @@ import com.skydoves.cloudy.internal.WeatherElement
 public actual fun Modifier.sky(sky: Sky): Modifier = this.then(SkyModifierElement(sky = sky))
 
 /**
- * Skiko implementation of [Modifier.cloudy] for background blur, on the unified [WeatherElement]
- * spine. Skia's `BlurEffect` is always available, so this is always the Clear path; [cpuBlurEnabled]
+ * Skiko implementation of [Modifier.cloudy] for background blur, on the unified [EffectElement]
+ * spine. Skia's `BlurEffect` is always available, so this is always the Gpu path; [cpuBlurEnabled]
  * is ignored (kept for API parity with Android). This implementation is shared across iOS, macOS, JVM
  * Desktop, and WASM platforms.
  */
@@ -80,17 +79,16 @@ public actual fun Modifier.cloudy(
     return this
   }
 
-  val skylight = remember(sky) { Skylight.Backdrop(sky) }
-  val weather = remember { BlurWeather() }
+  val effect = remember { BlurStrategy() }
   return this.then(
-    WeatherElement(
-      weather = weather,
-      skylight = skylight,
+    EffectElement(
+      effect = effect,
+      sky = sky,
       clock = MirageClock.Paused,
       enabled = true,
       stages = listOf(Stage.PlatformFilter(radius, progressive)),
       postProcess = PostProcess(shape, tint, light),
-      weatherKey = Unit,
+      effectKey = Unit,
       onStateChanged = onStateChanged,
     ),
   )

@@ -44,11 +44,10 @@ import androidx.compose.ui.node.requireGraphicsContext
 import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.toSize
-import com.skydoves.cloudy.internal.BlurWeather
+import com.skydoves.cloudy.internal.BlurStrategy
+import com.skydoves.cloudy.internal.EffectElement
 import com.skydoves.cloudy.internal.PostProcess
-import com.skydoves.cloudy.internal.Skylight
 import com.skydoves.cloudy.internal.Stage
-import com.skydoves.cloudy.internal.WeatherElement
 
 private const val TAG = "CloudyBackground"
 
@@ -61,10 +60,10 @@ private const val TAG = "CloudyBackground"
 public actual fun Modifier.sky(sky: Sky): Modifier = this.then(SkyModifierElement(sky = sky))
 
 /**
- * Android implementation of [Modifier.cloudy] for background blur, on the unified [WeatherElement]
+ * Android implementation of [Modifier.cloudy] for background blur, on the unified [EffectElement]
  * spine. API 31+ runs a GPU RenderEffect; API < 31 with [cpuBlurEnabled] runs the CPU legacy blur;
- * otherwise a scrim — all routed through BlurWeather's
- * [Visibility][com.skydoves.cloudy.internal.Visibility] ladder.
+ * otherwise a scrim — all routed through BlurStrategy's
+ * [BlurTier][com.skydoves.cloudy.internal.BlurTier].
  */
 @Composable
 public actual fun Modifier.cloudy(
@@ -94,27 +93,26 @@ public actual fun Modifier.cloudy(
     }
   }
 
-  val skylight = remember(sky) { Skylight.Backdrop(sky) }
-  // A cpuBlurEnabled / scrim-tint change must recreate the weather (they are its constructor state);
-  // the weatherKey below makes such a change an element-inequality that adopts a fresh weather.
-  val weather =
-    remember(cpuBlurEnabled, tint) { BlurWeather(cpuBlurEnabled = cpuBlurEnabled, tint = tint) }
+  // A cpuBlurEnabled / scrim-tint change must recreate the effect (they are its constructor state);
+  // the effectKey below makes such a change an element-inequality that adopts a fresh effect.
+  val effect =
+    remember(cpuBlurEnabled, tint) { BlurStrategy(cpuBlurEnabled = cpuBlurEnabled, tint = tint) }
   return this.then(
-    WeatherElement(
-      weather = weather,
-      skylight = skylight,
+    EffectElement(
+      effect = effect,
+      sky = sky,
       clock = MirageClock.Paused,
       enabled = true,
       stages = listOf(Stage.PlatformFilter(radius, progressive)),
       postProcess = PostProcess(shape, tint, light),
-      weatherKey = BlurWeatherKey(cpuBlurEnabled, tint),
+      effectKey = BlurStrategyKey(cpuBlurEnabled, tint),
       onStateChanged = onStateChanged,
     ),
   )
 }
 
-/** Value key for the backdrop [BlurWeather]: a change here recreates the weather via the element. */
-private data class BlurWeatherKey(val cpuBlurEnabled: Boolean, val tint: Color)
+/** Value key for the backdrop [BlurStrategy]: a change here recreates the effect via the element. */
+private data class BlurStrategyKey(val cpuBlurEnabled: Boolean, val tint: Color)
 
 private data class SkyModifierElement(val sky: Sky) : ModifierNodeElement<SkyModifierNode>() {
 

@@ -36,9 +36,9 @@ import com.skydoves.cloudy.ExperimentalMirage
  * every stage returns `null`, so [MirageFilterChain] draws the raw `recordSource` (pass-through).
  */
 @OptIn(ExperimentalMirage::class)
-internal object MirageWeather : Weather {
+internal object MirageEffect : Effect {
 
-  override fun ContentDrawScope.draw(node: WeatherNode, recordSource: DrawScope.() -> Unit) {
+  override fun ContentDrawScope.draw(node: EffectNode, recordSource: DrawScope.() -> Unit) {
     val width = size.width
     val height = size.height
     val dialect = currentDialect()

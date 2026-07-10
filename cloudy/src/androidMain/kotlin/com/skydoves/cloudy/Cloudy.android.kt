@@ -26,17 +26,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.unit.dp
-import com.skydoves.cloudy.internal.BlurWeather
+import com.skydoves.cloudy.internal.BlurStrategy
+import com.skydoves.cloudy.internal.EffectElement
 import com.skydoves.cloudy.internal.PostProcess
-import com.skydoves.cloudy.internal.Skylight
 import com.skydoves.cloudy.internal.Stage
-import com.skydoves.cloudy.internal.WeatherElement
 
 /**
- * Android implementation of the foreground [Modifier.cloudy] on the unified [WeatherElement] spine.
+ * Android implementation of the foreground [Modifier.cloudy] on the unified [EffectElement] spine.
  * API 31+ runs a GPU RenderEffect; API < 31 always runs the CPU legacy blur (the foreground has no
- * scrim fallback), both routed through BlurWeather's [Visibility][com.skydoves.cloudy.internal.Visibility]
- * ladder. The inspection-preview fallback (Compose's `Modifier.blur`) is unchanged.
+ * scrim fallback), both routed through BlurStrategy's [BlurTier][com.skydoves.cloudy.internal.BlurTier].
+ * The inspection-preview fallback (Compose's `Modifier.blur`) is unchanged.
  */
 @Composable
 public actual fun Modifier.cloudy(
@@ -54,18 +53,18 @@ public actual fun Modifier.cloudy(
     return this.blur(radius = radius.dp)
   }
 
-  // Foreground always has a CPU path below API 31, so cpuBlurEnabled is fixed true (no Overcast). The
-  // weather carries no config that varies, so it is stable across radius changes (radius rides stages).
-  val weather = remember { BlurWeather(cpuBlurEnabled = true, tint = Color.Transparent) }
+  // Foreground always has a CPU path below API 31, so cpuBlurEnabled is fixed true (no scrim tier). The
+  // effect carries no config that varies, so it is stable across radius changes (radius rides stages).
+  val effect = remember { BlurStrategy(cpuBlurEnabled = true, tint = Color.Transparent) }
   return this.then(
-    WeatherElement(
-      weather = weather,
-      skylight = Skylight.SelfLit,
+    EffectElement(
+      effect = effect,
+      sky = null,
       clock = MirageClock.Paused,
       enabled = true,
       stages = listOf(Stage.PlatformFilter(radius, CloudyProgressive.None)),
       postProcess = PostProcess(RectangleShape, Color.Transparent, null),
-      weatherKey = Unit,
+      effectKey = Unit,
       onStateChanged = onStateChanged,
     ),
   )

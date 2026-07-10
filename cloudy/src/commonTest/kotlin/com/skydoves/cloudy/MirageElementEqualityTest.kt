@@ -27,20 +27,20 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 
 /**
- * [WeatherElement] equality must include the per-stage params-block identity, so a recomposition that
+ * [EffectElement] equality must include the per-stage params-block identity, so a recomposition that
  * re-creates the block (e.g. to feed a freshly measured lens center or an animated uniform) produces
  * an *unequal* element and Compose calls `update()` to adopt it. If equality excluded the blocks, the
  * node would freeze on whatever block it first captured and never see a later-seeded lens center.
  *
  * This tests the equality contract directly (pure logic, no GraphicsContext); the "cheap update()
- * path when only blocks changed" lives in [WeatherNode.update] and is covered by the desktop raster /
+ * path when only blocks changed" lives in [EffectNode.update] and is covered by the desktop raster /
  * cache tests plus the on-device screenshot specs.
  */
 internal class MirageElementEqualityTest :
   FunSpec({
 
-    fun element(block: (MirageParams.() -> Unit)?): WeatherElement =
-      mirageElement(Skylight.SelfLit, MirageClock.Auto, enabled = true) {
+    fun element(block: (MirageParams.() -> Unit)?): EffectElement =
+      mirageElement(sky = null, MirageClock.Auto, enabled = true) {
         filter(MirageOptics.OilSlick, block)
       }
 
@@ -74,25 +74,25 @@ internal class MirageElementEqualityTest :
       // elements ARE equal here. The look difference between them lives in the schema defaults reached
       // at draw time, not in element identity.
       val block: MirageParams.() -> Unit = { }
-      val oil = mirageElement(Skylight.SelfLit, MirageClock.Auto, enabled = true) {
+      val oil = mirageElement(sky = null, MirageClock.Auto, enabled = true) {
         filter(MirageOptics.OilSlick, block)
       }
-      val pearl = mirageElement(Skylight.SelfLit, MirageClock.Auto, enabled = true) {
+      val pearl = mirageElement(sky = null, MirageClock.Auto, enabled = true) {
         filter(MirageOptics.Pearl, block)
       }
 
       (oil == pearl).shouldBe(true)
     }
 
-    test("a self-lit element is never equal to a backdrop element of the same plan") {
-      // The merged node carries its stage-0 source in the equality key: a self-lit plan (null sky) must
-      // reconcile distinctly from an otherwise-identical backdrop plan, or Compose would keep the wrong
-      // source. Backdrop carries a Sky, self-lit carries none, so their keys differ.
+    test("a content-source element is never equal to a backdrop element of the same plan") {
+      // The merged node carries its stage-0 source in the equality key: a content-source plan (null sky)
+      // must reconcile distinctly from an otherwise-identical backdrop plan, or Compose would keep the
+      // wrong source. Backdrop carries a Sky, a content source carries none, so their keys differ.
       val block: MirageParams.() -> Unit = { }
       val plan: MirageScope.() -> Unit = { filter(MirageOptics.OilSlick, block) }
-      val selfLit = mirageElement(Skylight.SelfLit, MirageClock.Auto, enabled = true, plan)
-      val backdrop = mirageElement(Skylight.Backdrop(Sky()), MirageClock.Auto, enabled = true, plan)
+      val contentSource = mirageElement(sky = null, MirageClock.Auto, enabled = true, plan)
+      val backdrop = mirageElement(Sky(), MirageClock.Auto, enabled = true, plan)
 
-      (selfLit == backdrop).shouldBe(false)
+      (contentSource == backdrop).shouldBe(false)
     }
   })

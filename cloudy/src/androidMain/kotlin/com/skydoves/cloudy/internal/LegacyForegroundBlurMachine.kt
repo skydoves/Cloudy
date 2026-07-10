@@ -66,12 +66,12 @@ internal fun blurScaleForRadius(radius: Int): Float = when {
 }
 
 /**
- * The API < 31 CPU blur machine for the self-lit ([Skylight.SelfLit]) foreground path — the former
+ * The API < 31 CPU blur machine for the content-source (null sky) foreground path — the former
  * `CloudyModifierNode` body, extracted intact (record-at-scale PATH A capture, in-flight gate,
  * trailing debounce, empty-capture retry). Algorithm, thresholds, coroutine structure, bitmap
  * lifecycle, and invalidate patterns are 1-byte unchanged; only the seams changed: it reads the
- * graphics context / coroutine scope / invalidate through the [WeatherNode] handed to [draw], and it
- * reports its [CloudyState] via [lastState] (relayed by the owning BlurWeather) instead of the old
+ * graphics context / coroutine scope / invalidate through the [EffectNode] handed to [draw], and it
+ * reports its [CloudyState] via [lastState] (relayed by the owning BlurStrategy) instead of the old
  * `onStateChanged` callback.
  *
  * Capture is self-owned (it records the node's own content at scale via [recordSource]); it does not
@@ -101,11 +101,11 @@ internal class LegacyForegroundBlurMachine {
 
   /**
    * Draws the blurred (or interim) content. [recordSource] is the node's own content (the spine's
-   * self-lit source); this machine records it at the capture scale itself. Detects a radius change
+   * content source); this machine records it at the capture scale itself. Detects a radius change
    * and schedules a coalesced capture, exactly as the former node's `updateRadius` did.
    */
   fun ContentDrawScope.draw(
-    node: WeatherNode,
+    node: EffectNode,
     radius: Int,
     recordSource: androidx.compose.ui.graphics.drawscope.DrawScope.() -> Unit,
   ) {
@@ -255,7 +255,7 @@ internal class LegacyForegroundBlurMachine {
     }
   }
 
-  private fun scheduleCapture(node: WeatherNode) {
+  private fun scheduleCapture(node: EffectNode) {
     val wasIdle = idle
     idle = false
     if (wasIdle) {
@@ -270,7 +270,7 @@ internal class LegacyForegroundBlurMachine {
     }
   }
 
-  private fun requestCapture(node: WeatherNode) {
+  private fun requestCapture(node: EffectNode) {
     if (isProcessing) {
       queuedRadius = lastSeenRadius
       queuedContentDirty = contentMayHaveChanged
