@@ -76,7 +76,7 @@ internal class EffectElement(
     if (sky != other.sky) return false
     if (clock != other.clock || enabled != other.enabled) return false
     if (effectKey != other.effectKey) return false
-    if (!postProcessEquals(postProcess, other.postProcess)) return false
+    if (postProcess != other.postProcess) return false
     if (!sameStructure(stages, other.stages)) return false
     for (i in stages.indices) {
       if (paramsBlockOf(stages[i]) !== paramsBlockOf(other.stages[i])) return false
@@ -93,9 +93,7 @@ internal class EffectElement(
     result = 31 * result + clock.hashCode()
     result = 31 * result + enabled.hashCode()
     result = 31 * result + (effectKey?.hashCode() ?: 0)
-    result = 31 * result + postProcess.shape.hashCode()
-    result = 31 * result + postProcess.tint.hashCode()
-    result = 31 * result + (postProcess.light?.hashCode() ?: 0)
+    result = 31 * result + postProcess.hashCode()
     for (stage in stages) {
       result = 31 * result + stage::class.hashCode()
       when (stage) {
@@ -126,6 +124,3 @@ private fun drawKeyOf(stage: Stage): Any? = when (stage) {
   is Stage.PlatformFilter -> stage.radius to stage.progressive
   else -> null
 }
-
-private fun postProcessEquals(a: PostProcess, b: PostProcess): Boolean =
-  a.shape == b.shape && a.tint == b.tint && a.light == b.light

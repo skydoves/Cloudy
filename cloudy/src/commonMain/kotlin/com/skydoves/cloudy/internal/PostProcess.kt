@@ -42,7 +42,7 @@ import com.skydoves.cloudy.highlightPoolRadius
  * specular highlight for [light]. Split out of the two backdrop nodes, where the clip/tint/highlight
  * code was byte-for-byte duplicated between androidMain and skikoMain.
  */
-internal class PostProcess(val shape: Shape, val tint: Color, val light: LiquidGlassLight?)
+internal data class PostProcess(val shape: Shape, val tint: Color, val light: LiquidGlassLight?)
 
 /**
  * Mutable per-node caches the [PostProcess] runner reuses so a steady-state frame allocates nothing:

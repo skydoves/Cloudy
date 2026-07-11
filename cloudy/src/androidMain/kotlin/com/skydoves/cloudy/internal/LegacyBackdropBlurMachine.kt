@@ -58,7 +58,6 @@ internal class LegacyBackdropBlurMachine {
   private var cachedContentVersion: Long = -1L
   private var isProcessing: Boolean = false
   private var blurJob: Job? = null
-  private var pendingContentVersion: Long = -1L
   private var queuedVersion: Long = -1L
 
   var lastState: CloudyState = CloudyState.Nothing
@@ -81,13 +80,13 @@ internal class LegacyBackdropBlurMachine {
       cachedContentVersion == currentVersion
 
     if (cacheValid) {
-      drawCached(cached, snapshot)
+      drawCached(cached)
       lastState = CloudyState.Success.Captured(cached)
       return
     }
 
     if (cached != null && !cached.bitmap.isRecycled) {
-      drawCached(cached, snapshot)
+      drawCached(cached)
     }
     // No cache: draw nothing (transparent) - blur will appear when ready
 
@@ -101,7 +100,6 @@ internal class LegacyBackdropBlurMachine {
     }
 
     isProcessing = true
-    pendingContentVersion = currentVersion
     lastState = CloudyState.Loading
     node.invalidate()
 
@@ -228,18 +226,11 @@ internal class LegacyBackdropBlurMachine {
   }
 
   /** Draws the cached blurred bitmap scaled to the node size; clip/tint/highlight are the node's PostProcess. */
-  private fun ContentDrawScope.drawCached(cached: PlatformBitmap, snapshot: SkySnapshot) {
+  private fun ContentDrawScope.drawCached(cached: PlatformBitmap) {
     drawImage(
       image = cached.bitmap.asImageBitmap(),
       dstSize = IntSize(size.width.toInt(), size.height.toInt()),
     )
-  }
-
-  /** A config change resets version tracking; never clears the stale bitmap (keeps showing it, no flicker). */
-  fun onConfigChanged() {
-    queuedVersion = -1L
-    cachedContentVersion = -1L
-    pendingContentVersion = -1L
   }
 
   fun dispose() {
@@ -249,7 +240,6 @@ internal class LegacyBackdropBlurMachine {
     blurredBitmap = null
     isProcessing = false
     cachedContentVersion = -1L
-    pendingContentVersion = -1L
     queuedVersion = -1L
   }
 }
