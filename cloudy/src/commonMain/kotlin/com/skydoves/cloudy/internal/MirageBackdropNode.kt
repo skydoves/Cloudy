@@ -107,6 +107,9 @@ internal class MirageBackdropNode(
       // The cached snapshot came from the old sky's layer; a new sky's contentVersion could collide with
       // the cached one and wrongly hit, so drop it (mirrors the cloudy backdrop node's sky swap).
       backdropSnapshot.dispose()
+      // Same reason for the GLES blit cache: it keys on contentVersion + size, so a new sky reusing the
+      // old version/size would hit the old sky's stale bitmap.
+      glesBackdrop.release()
     }
 
     val structuralChange = sky != this.sky || clock != this.clock || enabled != this.enabled ||
