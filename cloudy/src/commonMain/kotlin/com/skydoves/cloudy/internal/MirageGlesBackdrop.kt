@@ -46,12 +46,21 @@ internal class MirageGlesBackdrop {
   private var job: Job? = null
 
   /**
-   * Draws the blit-filtered backdrop for this frame: the fresh cache if present, otherwise the raw
-   * [recordSource] region while an async capture + blit runs (single-slot gate, latest key wins).
+   * Draws the blit-filtered backdrop for this frame: the fresh cache if present, otherwise the
+   * [recordRaw] placeholder region while an async capture + blit runs (single-slot gate, latest key
+   * wins).
+   *
+   * Two sources by design: [recordRaw] is drawn on-screen, so it must be acyclic (a snapshot bitmap, not
+   * a live `drawLayer` of the sky) or `captureToImage`/`PixelCopy` cycles the RenderNode graph (issue
+   * #112). [recordInput] is recorded into an offscreen layer that is captured to a bitmap and released
+   * within this call — never reachable from the on-screen tree, so it stays a live `drawLayer` to keep
+   * the blit input the freshest possible backdrop pixels (a version-keyed cache must not blit a stale or
+   * not-yet-ready snapshot, which would stick until the next content change).
    *
    * @param blit the GLES filter transform (`ImageBitmap -> ImageBitmap`), uniforms already recorded.
    * @param contentVersion the backdrop's discrete-change counter; a new value invalidates the cache.
-   * @param recordSource records the offset backdrop region (same block the sync chain uses).
+   * @param recordRaw records the offset backdrop region for the on-screen placeholder (acyclic).
+   * @param recordInput records the offset backdrop region for the offscreen blit input (may be live).
    * @param invalidate schedules a redraw when a capture completes.
    */
   fun ContentDrawScope.draw(
@@ -59,7 +68,8 @@ internal class MirageGlesBackdrop {
     scope: CoroutineScope,
     blit: suspend (ImageBitmap) -> ImageBitmap,
     contentVersion: Long,
-    recordSource: DrawScope.() -> Unit,
+    recordRaw: DrawScope.() -> Unit,
+    recordInput: DrawScope.() -> Unit,
     invalidate: () -> Unit,
   ) {
     val w = size.width.roundToInt().coerceAtLeast(1)
@@ -80,11 +90,11 @@ internal class MirageGlesBackdrop {
     }
 
     // No fresh cache: show the raw region so the node is never blank, then launch a capture if idle.
-    recordSource()
+    recordRaw()
     if (inFlight) return
 
     val layer = context.createGraphicsLayer()
-    layer.record(size = IntSize(w, h)) { recordSource() }
+    layer.record(size = IntSize(w, h)) { recordInput() }
 
     inFlight = true
     // toImageBitmap() runs on the node's (main) scope; blit is suspend and pins its GL round-trip to
