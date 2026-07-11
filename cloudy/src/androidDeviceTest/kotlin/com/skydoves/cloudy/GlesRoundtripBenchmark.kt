@@ -45,7 +45,7 @@ import org.junit.runners.Parameterized
  * bind mirrors GlProgramMatchTest's (schema defaults through the recording sink).
  *
  * ## Representativeness (read before trusting the numbers)
- * These are the **lower bound** on the measuring device. On an S25 (Adreno 840, LPDDR5X flagship) the
+ * These are the **lower bound** on the measuring device. On a flagship device the
  * roundtrip's dominant costs — the full-resolution ARGB_8888 readback copy and the `glFinish` stall —
  * are memory-bandwidth and GPU-throughput bound, and the actual band targets (API 29-32 devices, ~2016
  * to 2019 midrange GPUs with roughly 3-5x lower system-memory bandwidth) can be several times slower.

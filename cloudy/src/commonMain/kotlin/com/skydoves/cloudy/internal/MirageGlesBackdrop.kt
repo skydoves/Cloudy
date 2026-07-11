@@ -35,7 +35,7 @@ import kotlin.math.roundToInt
  * every type here is common Compose; the platform GL work lives entirely inside the [Blit] closure.
  *
  * ## Scope: backdrop only, single stage
- * Keyed on the backdrop's discrete [contentVersion]; a self-lit node has no such key (spike #4), so it
+ * Keyed on the backdrop's discrete [contentVersion]; a self-lit node has no such key, so it
  * stays a no-op. One stage renders (the common backdrop-material case); extra Blit stages are ignored.
  *
  * Held by the backdrop node, released on detach ([release]).

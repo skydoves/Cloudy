@@ -21,7 +21,7 @@ package com.skydoves.cloudy.internal
  * already; the divergences are mechanical:
  *
  * - `half`/`halfN` are not GLSL types -> `float`/`vecN` (AGSL runs everything at fp16 for the shader's
- *   convenience; GLES gets highp float. Precision divergence vs 33+ fp16 is spike #3, measured later).
+ *   convenience; GLES gets highp float, so results can diverge slightly from the 33+ fp16 path).
  * - `floatN` -> `vecN`, `float2/3/4` etc. (AGSL spells vectors `floatN`; GLSL spells them `vecN`).
  * - `uniform shader content;` -> `uniform sampler2D content;` plus a `sampleContent()` helper, because
  *   AGSL's `content.eval(px)` samples in *pixel* space while a GLSL `texture()` samples in 0..1 UV.
@@ -160,7 +160,7 @@ internal object MirageGlslEs {
    * `return foo(a; ...)`-like case—which shader syntax never produces—still would not misfire), and
    * rewrites it. Comments were already stripped from the analysis copy upstream, but the emitted source
    * keeps comments; a `return` inside a comment is not expected in these kernels and the kernels here
-   * have none, so a scan over live text is sufficient (spike-scoped, not a general C parser).
+   * have none, so a scan over live text is sufficient (not a general C parser).
    */
   private fun rewriteReturns(body: String): String = buildString {
     var i = 0

@@ -91,8 +91,8 @@ internal expect fun MirageBackendProgram.uniformSink(): UniformSink
  * - [Blit] : the backend reads the stage's recorded pixels as an [ImageBitmap], transforms them off
  *   the layer render-effect path, and returns the result. Used by the Android GLES band, whose FBO
  *   round-trip cannot be a `RenderEffect`. The readback itself is not synchronous in draw (Compose's
- *   `GraphicsLayer.toImageBitmap()` is `suspend`), so the concrete GLES capture pipeline lands in M3;
- *   the seam is here so the chain branches on it now.
+ *   `GraphicsLayer.toImageBitmap()` is `suspend`), so the capture runs off the draw pass and the chain
+ *   branches on this shape to feed the GLES pipeline.
  */
 internal sealed interface FilterApplication {
   @JvmInline

@@ -44,7 +44,7 @@ internal actual class MirageBackendProgram(val backend: AndroidBackend)
  * One backend leaf per [MirageBackendBand]:
  * - [Agsl] wraps a [RuntimeShader] (API 33+); the original content-bound `RenderEffect` path.
  * - [Gles] runs a translated GLSL ES program on an offscreen FBO (API 29-32); applied by blitting a
- *   read-back [ImageBitmap] rather than a `RenderEffect`. Fleshed out in M3.
+ *   read-back [ImageBitmap] rather than a `RenderEffect`.
  * - [ColorGrade] reproduces a Colorize optic with an affine grade (API 23-28); applied by blitting the
  *   source through a `ColorMatrixColorFilter` (RenderEffect is API 31+, unavailable in this band).
  */
@@ -78,8 +78,10 @@ internal sealed interface AndroidBackend {
  * Compiles [compiled] into the backend program for the running band.
  *
  * - [MirageBackendBand.Agsl] : a [RuntimeShader] from the AGSL source.
- * - [MirageBackendBand.Gles] / [MirageBackendBand.ColorGrade] : not yet built (M2/M3) — returns
- *   `null` so the caller no-ops exactly as it did below API 33 before.
+ * - [MirageBackendBand.Gles] : a translated GLSL ES [GlProgram]; `null` for optics this band can't
+ *   reproduce (raw / time-driven / Generate), which then no-op.
+ * - [MirageBackendBand.ColorGrade] : a [android.graphics.ColorMatrix] for a reproducible Colorize;
+ *   `null` for any other optic, which then no-ops.
  *
  * A source that fails to compile on 33+ throws from the `RuntimeShader` constructor (surfaced, not
  * swallowed).

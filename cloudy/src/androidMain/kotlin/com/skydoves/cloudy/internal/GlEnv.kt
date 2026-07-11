@@ -37,11 +37,11 @@ import java.util.concurrent.TimeUnit
  * (an EGL context is single-thread-affine), so callers hand work in via [run] which blocks until the
  * GL thread finishes.
  *
- * Why a thread of its own (spike #2): `GraphicsLayer.toImageBitmap()` is `suspend` — the capture can't
+ * Why a thread of its own: `GraphicsLayer.toImageBitmap()` is `suspend` — the capture can't
  * happen inside `ContentDrawScope.draw`, so the whole GLES path is already off the draw thread. A
  * dedicated GL thread keeps the EGL context stable across those async captures.
  *
- * ## Zero-copy readback (spike B-1, confirmed on API 30)
+ * ## Zero-copy readback (confirmed on API 30)
  * The context renders into an `ImageReader.getSurface()` window surface; `eglSwapBuffers` pushes the
  * frame into the reader, whose [ImageReader.OnImageAvailableListener] then yields a `HardwareBuffer`
  * that `Bitmap.wrapHardwareBuffer` wraps with no CPU copy. `acquireLatestImage()` polled without the
@@ -125,7 +125,7 @@ internal object GlEnv {
 
     GLES30.glViewport(0, 0, width, height)
     block()
-    GLES30.glFinish() // spike B-1: glFinish before swap is the sync that makes the frame readable.
+    GLES30.glFinish() // glFinish before swap is the sync that makes the frame readable.
     check(EGL14.eglSwapBuffers(display, t.surface)) {
       "eglSwapBuffers failed: 0x${Integer.toHexString(EGL14.eglGetError())}"
     }

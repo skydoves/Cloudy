@@ -46,11 +46,11 @@ import org.junit.runner.RunWith
 import kotlin.math.abs
 
 /**
- * On-device validation of the GLES M3 pipeline (translator + [GlProgram] + GlEnv roundtrip) on the API
+ * On-device validation of the GLES pipeline (translator + [GlProgram] + GlEnv roundtrip) on the API
  * 29-32 band. Runs real optics through the GL program and checks the output:
  *
- * - **Duotone (Colorize)** must match the affine `ColorMatrix` reference (the M2 path, proven exact on
- *   desktop) within a modest tolerance — this catches translation, Y-flip, and sampler bugs, since a
+ * - **Duotone (Colorize)** must match the affine `ColorMatrix` reference (the affine-grade path, proven
+ *   exact on desktop) within a modest tolerance — this catches translation, Y-flip, and sampler bugs, since a
  *   flipped or mis-sampled content would diverge hugely from the per-pixel matrix result.
  * - **Chromatic (Composite, lens preamble)** must actually alter the content (non-passthrough) — the
  *   lens kernel compiled and ran through GL.
@@ -105,7 +105,7 @@ public class GlProgramMatchTest {
   /**
    * The lens kernel translated to GLSL ES ([GlProgram], the 29-32 band) must match the same optic run
    * natively as an AGSL [RuntimeShader] (the 33+ band) — proving the translator, not just that "the GL
-   * program did *something*". A vendor GPU (real Adreno on 33+) runs both in one process, so this is the
+   * program did *something*". A vendor GPU on 33+ runs both in one process, so this is the
    * cross-check the emulator's SwiftShader can't give.
    *
    * The lens is framed over the whole 64x64 raster (center 32,32 / size 64,64 / cornerRadius 0) so every
@@ -113,9 +113,9 @@ public class GlProgramMatchTest {
    * schema defaults from the *same* [CompiledProgram] (no hand-copied values), then override the lens
    * frame identically, so any divergence is a translation bug, not a setup drift.
    *
-   * The tolerance starts as a **report** (TOL below), not a real bound: the assert message always prints
-   * the measured MAD so a first S25 run yields the number to lock the TOL to. Bilinear content.eval vs a
-   * GL bilinear texture fetch on refracted (sub-pixel) coords is where any real divergence shows up.
+   * The tolerance is a bound the assert message always prints the measured MAD against, so a device run
+   * still reports the number even when it passes. Bilinear content.eval vs a GL bilinear texture fetch
+   * on refracted (sub-pixel) coords is where any real divergence shows up.
    */
   @Test
   public fun chromaticGlMatchesAgslReference() {
@@ -128,9 +128,10 @@ public class GlProgramMatchTest {
   }
 }
 
-// Measured on a real Adreno 840 (S25, API 36): Chromatic MAD 0.017, Specular 0.20 — the GLSL-ES
-// translation is pixel-tight against 33+ AGSL. 1.0 leaves headroom over the worst optic while still
-// catching a real regression (a Y-flip or coordinate bug blows the MAD up by orders of magnitude).
+// Measured on a vendor GPU: the lens optics stay well under 1.0 (Chromatic ~0.017, Specular ~0.20)
+// against the 33+ AGSL reference, so the GLSL-ES translation is pixel-tight. 1.0 leaves headroom over
+// the worst optic while still catching a real regression (a Y-flip or coordinate bug blows the MAD up
+// by orders of magnitude).
 private const val GL_AGSL_MATCH_TOL = 1.0
 
 /** The full-raster lens frame both paths share, so a divergence is a translation bug, not a setup skew. */
@@ -138,7 +139,7 @@ private const val LENS_FRAME = 64f
 
 /**
  * Renders [optic] through both backends at 64x64 and asserts the GLES output matches the AGSL reference.
- * The MAD is always in the failure message so a passing-or-failing S25 run still reports the number.
+ * The MAD is always in the failure message so a passing-or-failing device run still reports the number.
  */
 @OptIn(ExperimentalMirage::class)
 private fun assertLensOpticMatches(optic: Optic<*>) {
@@ -176,7 +177,7 @@ private fun assertLensOpticMatches(optic: Optic<*>) {
  * feature: a plain `Canvas(Bitmap)` is a software canvas and throws
  * `"Software rendering doesn't support RuntimeShader"`, so this drives a [RenderNode] through a
  * [HardwareRenderer] into an [ImageReader] surface and reads the frame back exactly like `GlEnv` does
- * (the readback path already proven on real Adreno by the duotone/chromatic GLES tests) —
+ * (the readback path the duotone/chromatic GLES tests already exercise on a vendor GPU) —
  * `HardwareBuffer` -> `wrapHardwareBuffer` -> `copy(ARGB_8888)`.
  *
  * Binds [content] as the `content` child sampler (CLAMP, matching the GL texture wrap). The RenderNode
