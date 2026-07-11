@@ -21,6 +21,8 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import androidx.benchmark.junit4.BenchmarkRule
 import androidx.benchmark.junit4.measureRepeated
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import com.skydoves.cloudy.internal.CompiledProgram
 import com.skydoves.cloudy.internal.Dialect
 import com.skydoves.cloudy.internal.GlProgram
@@ -32,6 +34,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
+import androidx.compose.ui.graphics.Color as ComposeColor
 
 /**
  * Microbenchmark for one GLES mirage backdrop roundtrip on the API 29-32 band: the whole
@@ -128,10 +131,10 @@ private fun gradientContent(w: Int, h: Int): Bitmap {
 private fun bindSchemaDefaults(sink: UniformSink, compiled: CompiledProgram) {
   for (entry in compiled.schema.entries) {
     when (val d = entry.default) {
-      is androidx.compose.ui.graphics.Color -> sink.color(entry.name, d)
+      is ComposeColor -> sink.color(entry.name, d)
       is Float -> sink.float(entry.name, d)
-      is androidx.compose.ui.geometry.Offset -> sink.float2(entry.name, d.x, d.y)
-      is androidx.compose.ui.geometry.Size -> sink.float2(entry.name, d.width, d.height)
+      is Offset -> sink.float2(entry.name, d.x, d.y)
+      is Size -> sink.float2(entry.name, d.width, d.height)
       is FloatArray -> sink.floatArray(entry.name, d)
       is Int -> sink.int(entry.name, d)
       else -> {} // textures / null: unused by these optics

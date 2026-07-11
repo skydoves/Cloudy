@@ -19,6 +19,9 @@ package com.skydoves.cloudy.internal
 
 import androidx.compose.ui.graphics.Color
 import com.skydoves.cloudy.ExperimentalMirage
+import com.skydoves.cloudy.MirageParams
+import com.skydoves.cloudy.UColor
+import com.skydoves.cloudy.UFloat
 
 /*
  * Below API 33 there is no `RuntimeShader`, so a lens optic cannot run. The one built-in Colorize
@@ -73,19 +76,16 @@ internal fun isColorGradeReproducible(compiled: CompiledProgram): Boolean {
  * override is honored, matching 33+/skiko). Falls back to the schema default for any value the draw's
  * block left unset — the params were reset to defaults before the block ran.
  */
-internal fun colorGradeMatrixOf(
-  compiled: CompiledProgram,
-  params: com.skydoves.cloudy.MirageParams,
-): FloatArray {
+internal fun colorGradeMatrixOf(compiled: CompiledProgram, params: MirageParams): FloatArray {
   val entries = compiled.schema.entries
   var shadow = Color(0f, 0f, 0f)
   var highlight = Color(1f, 1f, 1f)
   var amount = 1f
   for (handle in params.handles) {
     when (entries[handle.slot].name) {
-      NAME_SHADOW -> (handle as? com.skydoves.cloudy.UColor)?.let { shadow = it.value }
-      NAME_HIGHLIGHT -> (handle as? com.skydoves.cloudy.UColor)?.let { highlight = it.value }
-      NAME_AMOUNT -> (handle as? com.skydoves.cloudy.UFloat)?.let { amount = it.value }
+      NAME_SHADOW -> (handle as? UColor)?.let { shadow = it.value }
+      NAME_HIGHLIGHT -> (handle as? UColor)?.let { highlight = it.value }
+      NAME_AMOUNT -> (handle as? UFloat)?.let { amount = it.value }
     }
   }
   return duotoneMatrix(shadow, highlight, amount)

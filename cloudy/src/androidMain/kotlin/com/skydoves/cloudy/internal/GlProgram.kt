@@ -19,6 +19,10 @@ import android.graphics.Bitmap
 import android.opengl.GLES20
 import android.opengl.GLES30
 import android.opengl.GLUtils
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.colorspace.ColorSpaces
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
@@ -216,16 +220,12 @@ private class GlRecordingSink(private val out: MutableList<(Int) -> Unit>) : Uni
   }
 
   /** GLES has no color-aware setter; the translator made this a plain vec4, so write sRGB float4. */
-  override fun color(name: String, c: androidx.compose.ui.graphics.Color) {
-    val s = c.convert(androidx.compose.ui.graphics.colorspace.ColorSpaces.Srgb)
+  override fun color(name: String, c: Color) {
+    val s = c.convert(ColorSpaces.Srgb)
     out += { p ->
       GLES30.glUniform4f(GLES30.glGetUniformLocation(p, name), s.red, s.green, s.blue, s.alpha)
     }
   }
 
-  override fun texture(
-    name: String,
-    img: androidx.compose.ui.graphics.ImageBitmap?,
-    tileMode: androidx.compose.ui.graphics.TileMode,
-  ) = Unit
+  override fun texture(name: String, img: ImageBitmap?, tileMode: TileMode) = Unit
 }

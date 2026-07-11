@@ -17,6 +17,7 @@ package com.skydoves.cloudy.internal
 
 import android.graphics.Bitmap
 import android.graphics.ColorSpace
+import android.graphics.PixelFormat
 import android.hardware.HardwareBuffer
 import android.media.ImageReader
 import android.opengl.EGL14
@@ -83,7 +84,7 @@ internal object GlEnv {
     val reader: ImageReader = ImageReader.newInstance(
       width,
       height,
-      android.graphics.PixelFormat.RGBA_8888,
+      PixelFormat.RGBA_8888,
       2,
       HardwareBuffer.USAGE_GPU_COLOR_OUTPUT or
         HardwareBuffer.USAGE_GPU_SAMPLED_IMAGE or

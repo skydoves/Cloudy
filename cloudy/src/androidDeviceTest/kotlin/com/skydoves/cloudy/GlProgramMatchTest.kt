@@ -30,6 +30,8 @@ import android.graphics.Shader
 import android.hardware.HardwareBuffer
 import android.media.ImageReader
 import android.util.Log
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.toArgb
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.skydoves.cloudy.internal.CompiledProgram
@@ -39,12 +41,14 @@ import com.skydoves.cloudy.internal.MirageCompiler
 import com.skydoves.cloudy.internal.MirageGlslEs
 import com.skydoves.cloudy.internal.UniformSink
 import com.skydoves.cloudy.internal.colorGradeMatrixOf
+import com.skydoves.cloudy.internal.resetToDefaults
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import kotlin.math.abs
+import androidx.compose.ui.graphics.Color as ComposeColor
 
 /**
  * On-device validation of the GLES pipeline (translator + [GlProgram] + GlEnv roundtrip) on the API
@@ -240,9 +244,9 @@ private fun renderAgslToBitmap(shader: RuntimeShader, content: Bitmap): Bitmap {
 
 /** A params instance reset to [compiled]'s schema defaults — what colorGradeMatrixOf reads per draw. */
 @OptIn(ExperimentalMirage::class)
-private fun defaultParams(compiled: com.skydoves.cloudy.internal.CompiledProgram): MirageParams {
+private fun defaultParams(compiled: CompiledProgram): MirageParams {
   val params = MirageOptics.Duotone.paramsFactory()
-  com.skydoves.cloudy.internal.resetToDefaults(params, compiled.schema)
+  resetToDefaults(params, compiled.schema)
   return params
 }
 
@@ -260,17 +264,14 @@ private fun gradientContent(w: Int, h: Int): Bitmap {
 }
 
 @OptIn(ExperimentalMirage::class)
-private fun bindSchemaDefaults(
-  sink: UniformSink,
-  compiled: com.skydoves.cloudy.internal.CompiledProgram,
-) {
+private fun bindSchemaDefaults(sink: UniformSink, compiled: CompiledProgram) {
   if (compiled.usesResolution) sink.float2("mirageResolution", 64f, 64f)
   for (entry in compiled.schema.entries) {
     when (val d = entry.default) {
-      is androidx.compose.ui.graphics.Color -> sink.color(entry.name, d)
+      is ComposeColor -> sink.color(entry.name, d)
       is Float -> sink.float(entry.name, d)
-      is androidx.compose.ui.geometry.Offset -> sink.float2(entry.name, d.x, d.y)
-      is androidx.compose.ui.geometry.Size -> sink.float2(entry.name, d.width, d.height)
+      is Offset -> sink.float2(entry.name, d.x, d.y)
+      is Size -> sink.float2(entry.name, d.width, d.height)
       is FloatArray -> sink.floatArray(entry.name, d)
       is Int -> sink.int(entry.name, d)
       else -> {} // textures / null: unused by these optics
@@ -289,14 +290,14 @@ private fun bindAgslDefaults(shader: RuntimeShader, compiled: CompiledProgram) {
   for (entry in compiled.schema.entries) {
     val d = entry.default
     when {
-      entry.isColor && d is androidx.compose.ui.graphics.Color ->
+      entry.isColor && d is ComposeColor ->
         shader.setColorUniform(entry.name, d.toArgb())
 
       d is Float -> shader.setFloatUniform(entry.name, d)
 
-      d is androidx.compose.ui.geometry.Offset -> shader.setFloatUniform(entry.name, d.x, d.y)
+      d is Offset -> shader.setFloatUniform(entry.name, d.x, d.y)
 
-      d is androidx.compose.ui.geometry.Size -> shader.setFloatUniform(
+      d is Size -> shader.setFloatUniform(
         entry.name,
         d.width,
         d.height,

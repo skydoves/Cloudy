@@ -20,6 +20,7 @@ package com.skydoves.cloudy
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.os.Build
+import android.util.Log
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -35,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.captureToImage
@@ -97,7 +99,7 @@ internal class MirageBandScreenshotTest {
     ) {
       Box(
         modifier = Modifier.fillMaxSize().background(
-          androidx.compose.ui.graphics.Brush.verticalGradient(
+          Brush.verticalGradient(
             listOf(ComposeColor(0xFF222244), ComposeColor(0xFFEEAA33)),
           ),
         ),
@@ -245,7 +247,7 @@ internal class MirageBandScreenshotTest {
     val sharpNormalized = horizontalContrast(sharp) / meanLuminance(sharp)
     val blurredNormalized = horizontalContrast(blurred) / meanLuminance(blurred)
     // Always report the ratio (asserts print only on failure) so a passing band still surfaces it.
-    android.util.Log.i(
+    Log.i(
       "MirageBandBlur",
       "api${Build.VERSION.SDK_INT} normalized sharp=$sharpNormalized blurred=$blurredNormalized " +
         "ratio=${blurredNormalized / sharpNormalized}",

@@ -16,6 +16,8 @@
 package com.skydoves.cloudy.internal
 
 import android.graphics.BitmapShader
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
 import android.graphics.RuntimeShader
 import android.graphics.Shader
 import android.os.Build
@@ -30,6 +32,7 @@ import androidx.compose.ui.graphics.asComposeColorFilter
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.toArgb
+import com.skydoves.cloudy.MirageParams
 import android.graphics.RenderEffect as AndroidRenderEffect
 
 /**
@@ -66,7 +69,7 @@ internal sealed interface AndroidBackend {
    * so no two draws interleave a write with a read.
    */
   class ColorGrade(initial: FloatArray) : AndroidBackend {
-    val matrix: android.graphics.ColorMatrix = android.graphics.ColorMatrix(initial)
+    val matrix: ColorMatrix = ColorMatrix(initial)
 
     fun update(values: FloatArray) {
       matrix.set(values)
@@ -163,7 +166,7 @@ internal actual fun MirageBackendProgram.filterApplication(): FilterApplication 
     is AndroidBackend.ColorGrade ->
       FilterApplication.ColorFilter(
         // A fresh ColorMatrixColorFilter over the matrix the sink just rebuilt for this draw.
-        android.graphics.ColorMatrixColorFilter(b.matrix).asComposeColorFilter(),
+        ColorMatrixColorFilter(b.matrix).asComposeColorFilter(),
       )
 
     is AndroidBackend.Gles -> FilterApplication.Blit { it }
@@ -176,8 +179,8 @@ internal actual fun MirageBackendProgram.filterApplication(): FilterApplication 
  */
 internal actual fun MirageBackendProgram.prepareGlesBlit(
   cached: CachedProgram,
-  params: com.skydoves.cloudy.MirageParams,
-  paramsBlock: (com.skydoves.cloudy.MirageParams.() -> Unit)?,
+  params: MirageParams,
+  paramsBlock: (MirageParams.() -> Unit)?,
   width: Float,
   height: Float,
   density: Float,

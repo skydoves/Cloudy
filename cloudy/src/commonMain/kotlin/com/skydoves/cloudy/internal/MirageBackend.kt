@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.RenderEffect
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.TileMode
+import com.skydoves.cloudy.MirageParams
 import kotlin.jvm.JvmInline
 import androidx.compose.ui.graphics.ColorFilter as ComposeColorFilter
 
@@ -126,8 +127,8 @@ internal expect fun MirageBackendProgram.filterApplication(): FilterApplication
  */
 internal expect fun MirageBackendProgram.prepareGlesBlit(
   cached: CachedProgram,
-  params: com.skydoves.cloudy.MirageParams,
-  paramsBlock: (com.skydoves.cloudy.MirageParams.() -> Unit)?,
+  params: MirageParams,
+  paramsBlock: (MirageParams.() -> Unit)?,
   width: Float,
   height: Float,
   density: Float,

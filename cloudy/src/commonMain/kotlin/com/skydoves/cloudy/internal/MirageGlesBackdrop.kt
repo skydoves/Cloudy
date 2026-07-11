@@ -15,6 +15,7 @@
  */
 package com.skydoves.cloudy.internal
 
+import androidx.compose.ui.graphics.GraphicsContext
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -64,7 +65,7 @@ internal class MirageGlesBackdrop {
    * @param invalidate schedules a redraw when a capture completes.
    */
   fun ContentDrawScope.draw(
-    context: androidx.compose.ui.graphics.GraphicsContext,
+    context: GraphicsContext,
     scope: CoroutineScope,
     blit: suspend (ImageBitmap) -> ImageBitmap,
     contentVersion: Long,
