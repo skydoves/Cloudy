@@ -26,12 +26,14 @@ internal enum class OpticCategory {
 }
 
 /**
- * The platform shading language a program is emitted in. Android runs AGSL; every skiko target
- * (iOS / macOS / Desktop / Wasm) runs SKSL.
+ * The platform shading language a program is emitted in. Android API 33+ runs AGSL; every skiko
+ * target (iOS / macOS / Desktop / Wasm) runs SKSL; Android API 29-32 runs [GlslEs] (GLES 3.0), where
+ * the AGSL kernel is translated to `#version 300 es` GLSL and run through an offscreen FBO.
  */
 internal enum class Dialect {
   Agsl,
   Sksl,
+  GlslEs,
 }
 
 /**
@@ -74,6 +76,9 @@ internal class UniformSchema(val entries: List<UniformEntry>) {
  * @property usesTime Whether the kernel references the mirage clock (drives redraw scheduling).
  * @property usesDensity Whether the kernel references the density standard uniform.
  * @property category The codegen category this program was emitted from.
+ * @property isRaw Whether the optic is a raw escape-hatch ([com.skydoves.cloudy.Optic.raw]) whose
+ *   source is authored verbatim. The GLSL ES backend cannot mechanically translate a raw AGSL body
+ *   (it has no known assembled structure), so a raw optic is declined on that band.
  */
 internal class CompiledProgram(
   val source: String,
@@ -83,4 +88,5 @@ internal class CompiledProgram(
   val usesTime: Boolean,
   val usesDensity: Boolean,
   val category: OpticCategory,
+  val isRaw: Boolean = false,
 )
