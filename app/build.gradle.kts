@@ -92,7 +92,7 @@ kotlin {
     }
   }
 
-  androidLibrary {
+  android {
     // Must differ from :app-android's com.skydoves.cloudydemo; two modules cannot share a namespace.
     namespace = "com.skydoves.cloudydemo.shared"
     compileSdk = Configuration.compileSdk
@@ -103,7 +103,7 @@ kotlin {
   }
 
   sourceSets {
-    val desktopMain by getting {
+    getByName("desktopMain") {
       dependencies {
         implementation(compose.desktop.currentOs)
         implementation(libs.slf4j.simple)
@@ -111,13 +111,13 @@ kotlin {
       }
     }
 
-    val wasmJsMain by getting {
+    getByName("wasmJsMain") {
       dependencies {
         implementation(libs.ktor.client.js)
       }
     }
 
-    val macosMain by getting {
+    getByName("macosMain") {
       dependencies {
         implementation(libs.ktor.client.darwin)
       }
@@ -131,14 +131,14 @@ kotlin {
     commonMain.dependencies {
       implementation(project(":cloudy"))
 
-      implementation(compose.runtime)
-      implementation(compose.foundation)
-      implementation(compose.ui)
-      implementation(compose.components.uiToolingPreview)
+      implementation(libs.compose.runtime)
+      implementation(libs.compose.foundation)
+      implementation(libs.compose.ui)
+      implementation(libs.compose.ui.tooling.preview)
       implementation(libs.compose.resources)
-      implementation(compose.material)
-      implementation(compose.material3)
-      implementation(compose.materialIconsExtended)
+      implementation(libs.compose.material)
+      implementation(libs.compose.material3)
+      implementation(libs.compose.material.icons.extended)
 
       implementation(libs.landscapist.coil)
       implementation(libs.coil)
