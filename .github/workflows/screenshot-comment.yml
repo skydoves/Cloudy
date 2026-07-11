@@ -84,45 +84,77 @@ jobs:
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ github.token }}
 
-      # --- Are there any valid *_compare.png diff images? ---
+      # Instrumented render captures from the device-screenshots matrix (screenshot-test.yml). One
+      # artifact per API band; `pattern` + `merge-multiple` folds both into ./device-screenshots.
+      # continue-on-error: the emulator job may not have run (older producer) or a band may have
+      # produced nothing -- a missing/empty artifact must NOT fail this job. The device gallery step
+      # below simply renders no rows when the dir is empty.
+      - name: Download device screenshot artifacts
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          pattern: device-screenshots-api*
+          merge-multiple: true
+          path: device-screenshots
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      # --- Is there anything to push to the companion branch? ---
+      # `diff`  = valid *_compare.png Roborazzi diff images exist (a regression).
+      # `device` = instrumented render captures exist (present on every emulator run, not just diffs).
+      # `any`   = either -- the push + companion branch run when EITHER is true.
       - id: check
-        name: Check for diff images
+        name: Check for images to publish
         shell: bash
         run: |
-          mapfile -t files < <(find . -type f -name "*_compare.png")
-          exist="false"
-          for f in "${files[@]}"; do
+          # Roborazzi diff images (only exist on a mismatch).
+          diff="false"
+          while IFS= read -r f; do
             # Reject any path with characters outside the safe set before we touch git / build URLs.
-            if [[ "$f" =~ ^[a-zA-Z0-9_./-]+$ ]]; then
-              exist="true"
-              break
-            fi
-          done
-          echo "exist=$exist" >> "$GITHUB_OUTPUT"
+            [[ "$f" =~ ^[a-zA-Z0-9_./-]+$ ]] && { diff="true"; break; }
+          done < <(find . -type f -name "*_compare.png")
 
-      # --- Push diff images to an orphan companion branch (only when there are diffs) ---
+          # Device render captures (band_api<SDK>_<case>_{actual,expected}.png) under device-screenshots/.
+          device="false"
+          if [[ -d device-screenshots ]]; then
+            while IFS= read -r f; do
+              [[ "$f" =~ ^[a-zA-Z0-9_./-]+$ ]] && { device="true"; break; }
+            done < <(find device-screenshots -type f -name "*.png")
+          fi
+
+          any="false"
+          [[ "$diff" == "true" || "$device" == "true" ]] && any="true"
+          {
+            echo "diff=$diff"
+            echo "device=$device"
+            echo "any=$any"
+          } >> "$GITHUB_OUTPUT"
+
+      # --- Push images to an orphan companion branch (diff images and/or device captures) ---
       - id: push
-        name: Push diffs to companion branch
-        if: steps.check.outputs.exist == 'true'
+        name: Push images to companion branch
+        if: steps.check.outputs.any == 'true'
         shell: bash
         env:
           # Keyed by PR number (integer-guarded above), not head_branch -- two fork PRs can share a
           # branch name and would otherwise overwrite each other's companion branch / gallery.
           BRANCH_NAME: companion_pr-${{ steps.pr.outputs.number }}
         run: |
-          # Orphan branch: no history, just the diff images for this PR head.
+          # Orphan branch: no history, just the images for this PR head.
           git branch -D "$BRANCH_NAME" || true
           git checkout --orphan "$BRANCH_NAME"
           git rm -rf . > /dev/null
 
-          for f in $(find . -type f -name "*_compare.png"); do
+          # Roborazzi diff images (roborazzi/...) + device render captures (device-screenshots/...).
+          # Same safe-set path filter as everywhere else before staging fork-run-produced files.
+          while IFS= read -r f; do
             if [[ "$f" =~ ^[a-zA-Z0-9_./-]+$ ]]; then
               git add "$f"
             fi
-          done
+          done < <(find . -type f \( -name "*_compare.png" -o -path "./device-screenshots/*.png" \))
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "Add screenshot diff for PR #${{ steps.pr.outputs.number }}"
+          git commit -m "Add screenshots for PR #${{ steps.pr.outputs.number }}"
           git push origin "HEAD:$BRANCH_NAME" -f
 
       # --- Summary report (ALWAYS): parse results-summary.json into a counts table + verdict line ---
@@ -194,7 +226,7 @@ jobs:
       # comment shows BOTH the counts AND the images in one sticky comment.
       - id: gallery
         name: Generate diff gallery
-        if: steps.check.outputs.exist == 'true'
+        if: steps.check.outputs.diff == 'true'
         shell: bash
         env:
           # Must match the push step's branch key (PR number, not head_branch).
@@ -222,6 +254,77 @@ jobs:
           done
           echo "${delimiter}" >> "$GITHUB_OUTPUT"
 
+      # --- Device render gallery (ALWAYS, whenever captures exist): the actual pixels each API band
+      # drew on the emulator. This is NOT a regression diff -- it is render evidence, so it shows on
+      # every run that produced captures, independent of the Roborazzi diff above. One row per (band,
+      # case): actual, and expected beside it if the spec wrote one. Filenames are
+      # band_api<SDK>_<case>_{actual,expected}.png (see MirageBandScreenshotTest); they arrive from a
+      # fork-triggered run's artifact, so parse them as UNTRUSTED -- same ^[a-zA-Z0-9_./-]+$ safe-set
+      # filter as the diff gallery, and pull SDK/case/kind out with pure bash (no eval).
+      - id: device_gallery
+        name: Generate device render gallery
+        if: steps.check.outputs.device == 'true'
+        shell: bash
+        env:
+          # Must match the push step's branch key (PR number, not head_branch).
+          BRANCH_NAME: companion_pr-${{ steps.pr.outputs.number }}
+        run: |
+          delimiter="$(openssl rand -hex 8)"
+          {
+            echo "body<<${delimiter}"
+            echo ""
+            echo "### Device rendering"
+            echo ""
+            echo "Actual pixels captured on the emulator per API band (API 30 = GLES mirage + legacy blur, API 34 = AGSL + RenderEffect). Render evidence, not a golden diff."
+            echo ""
+            echo "| Band | Case | Actual | Expected |"
+            echo "|------|------|--------|----------|"
+          } >> "$GITHUB_OUTPUT"
+
+          # Collect one logical row per api+case, then emit actual|expected columns for each.
+          # Assoc arrays keyed by "<api>|<case>"; value is the safe repo-relative path to that PNG.
+          declare -A actual expected
+          declare -A seen
+          while IFS= read -r f; do
+            # Safe-set gate FIRST (path is fork-run-produced). Skip anything with odd chars.
+            [[ "$f" =~ ^[a-zA-Z0-9_./-]+$ ]] || continue
+            bn=$(basename "$f" .png)
+            # Expect band_api<SDK>_<case>_<kind>. Enforce the shape with a regex; ignore non-matching.
+            [[ "$bn" =~ ^band_api([0-9]+)_(.+)_(actual|expected)$ ]] || continue
+            api="${BASH_REMATCH[1]}"
+            case="${BASH_REMATCH[2]}"
+            kind="${BASH_REMATCH[3]}"
+            key="${api}|${case}"
+            seen["$key"]=1
+            if [[ "$kind" == "actual" ]]; then
+              actual["$key"]="$f"
+            else
+              expected["$key"]="$f"
+            fi
+          done < <(find device-screenshots -type f -name "*.png")
+
+          # Stable order: sort the composite keys (api numeric-ish then case).
+          for key in $(printf '%s\n' "${!seen[@]}" | sort); do
+            api="${key%%|*}"
+            case="${key#*|}"
+            a="${actual[$key]:-}"
+            e="${expected[$key]:-}"
+            if [[ -n "$a" ]]; then
+              aurl="https://github.com/${{ github.repository }}/blob/$BRANCH_NAME/$a?raw=true"
+              acell="![]($aurl)"
+            else
+              acell="_(none)_"
+            fi
+            if [[ -n "$e" ]]; then
+              eurl="https://github.com/${{ github.repository }}/blob/$BRANCH_NAME/$e?raw=true"
+              ecell="![]($eurl)"
+            else
+              ecell="_(none)_"
+            fi
+            echo "| API ${api} | \`${case}\` | ${acell} | ${ecell} |" >> "$GITHUB_OUTPUT"
+          done
+          echo "${delimiter}" >> "$GITHUB_OUTPUT"
+
       # --- Sticky comment: find the bot's previous comment (if any) by marker text ---
       - name: Find existing comment
         uses: peter-evans/find-comment@v3
@@ -231,9 +334,10 @@ jobs:
           comment-author: 'github-actions[bot]'
           body-includes: '<!-- roborazzi-screenshot-diff -->'
 
-      # --- Single sticky comment, ALWAYS posted on pull_request runs: summary + optional gallery.
-      # steps.gallery.outputs.body is empty on clean runs (the step was skipped), so the comment is
-      # just the summary; on a regression it appends the inline image gallery.
+      # --- Single sticky comment, ALWAYS posted on pull_request runs: summary + optional galleries.
+      # Both gallery outputs are empty when their step was skipped (steps.gallery on a clean Roborazzi
+      # pass, steps.device_gallery when no emulator captures), so the comment degrades to just the
+      # summary; each gallery is appended only when it has content.
       - name: Comment screenshot report
         uses: peter-evans/create-or-update-comment@v4
         with:
@@ -244,6 +348,7 @@ jobs:
             <!-- roborazzi-screenshot-diff -->
             ${{ steps.summary.outputs.body }}
             ${{ steps.gallery.outputs.body }}
+            ${{ steps.device_gallery.outputs.body }}
 
       # --- Housekeeping: prune companion_* branches older than 30 days so they don't pile up ---
       - name: Cleanup outdated companion branches
