@@ -30,13 +30,14 @@ import kotlinx.coroutines.launch
 
 /**
  * Samples the sky's captured [GraphicsLayer] through a rasterized snapshot instead of a live
- * `drawLayer(sky.backgroundLayer)`.
+ * `drawLayer(sky.backgroundLayer)`. Shared by every backdrop node that samples the sky — the cloudy blur
+ * backdrop and the mirage backdrop.
  *
  * ## Why a snapshot (the captureToImage / PixelCopy crash)
  * The backdrop node is a DESCENDANT of the sky recorder, so `sky.backgroundLayer`'s displaylist embeds
  * this node's own RenderNode by pointer. If this node's draw records `drawLayer(sky.backgroundLayer)` —
- * directly for the radius-0/scrim paths, or into a blur layer for the RenderEffect path — that closes a
- * cyclic RenderNode graph: `skyLayer -> (this node's layer) -> skyLayer`.
+ * directly for the radius-0/scrim/raw paths, or into an effect layer for the RenderEffect/blur path —
+ * that closes a cyclic RenderNode graph: `skyLayer -> (this node's layer) -> skyLayer`.
  *
  * On-screen HWUI walks `prepareTreeImpl` damage-scoped and survives the cycle, but `captureToImage()` /
  * `PixelCopy` forces a full-tree re-walk with no cycle guard, overflowing the RenderThread stack

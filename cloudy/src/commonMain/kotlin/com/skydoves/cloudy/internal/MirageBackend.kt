@@ -20,6 +20,9 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.RenderEffect
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.TileMode
+import com.skydoves.cloudy.MirageParams
+import kotlin.jvm.JvmInline
+import androidx.compose.ui.graphics.ColorFilter as ComposeColorFilter
 
 /**
  * Opaque per-platform compiled program handle. Wraps whatever the platform runtime shader object is
@@ -76,6 +79,61 @@ internal interface UniformSink {
 
 /** Returns a [UniformSink] bound to this backend program's live uniforms. */
 internal expect fun MirageBackendProgram.uniformSink(): UniformSink
+
+/**
+ * How a filter backend transforms a stage's recorded content into its output. Sealed so the chain's
+ * draw loop branches exhaustively over the application shapes a band can take.
+ *
+ * - [Effect] : the backend is a content-bound [RenderEffect] set on the stage's layer, the GPU running
+ *   it as the layer draws. The only shape skiko and Android API 33+ AGSL ever use.
+ * - [ColorFilter] : the backend is a per-pixel [ComposeColorFilter] set on the stage's layer (applied
+ *   in the layer paint on API 23+, so it needs no `RenderEffect`, which is API 31+). Used by the
+ *   Android ColorGrade band to reproduce a Colorize optic as an affine grade.
+ * - [Blit] : the backend reads the stage's recorded pixels as an [ImageBitmap], transforms them off
+ *   the layer render-effect path, and returns the result. Used by the Android GLES band, whose FBO
+ *   round-trip cannot be a `RenderEffect`. The readback itself is not synchronous in draw (Compose's
+ *   `GraphicsLayer.toImageBitmap()` is `suspend`), so the capture runs off the draw pass and the chain
+ *   branches on this shape to feed the GLES pipeline.
+ */
+internal sealed interface FilterApplication {
+  @JvmInline
+  value class Effect(val renderEffect: RenderEffect) : FilterApplication
+
+  @JvmInline
+  value class ColorFilter(val colorFilter: ComposeColorFilter) : FilterApplication
+
+  @JvmInline
+  value class Blit(val apply: (ImageBitmap) -> ImageBitmap) : FilterApplication
+}
+
+/**
+ * Returns how this backend applies to a stage's content. skiko is always [FilterApplication.Effect];
+ * Android returns [FilterApplication.Blit] for the GLES / ColorGrade leaves and [Effect] for AGSL.
+ *
+ * Call *after* the per-draw [uniformSink] writes, since an [Effect] captures the program's current
+ * uniforms (same ordering contract as [asContentRenderEffect]).
+ */
+internal expect fun MirageBackendProgram.filterApplication(): FilterApplication
+
+/**
+ * Prepares an [FilterApplication.Blit]-style transform for the GLES backend with this draw's uniforms
+ * bound into a **fresh** per-draw recording (no shared mutable state — the process-wide GLES program is
+ * used by many nodes / overlapping frames, so a shared record would race). Returns `null` for any
+ * backend that is not GLES (skiko always; Android AGSL/ColorGrade), i.e. those that apply via
+ * [filterApplication] instead.
+ *
+ * The returned closure suspends on the GL thread's dispatcher (see [GlEnv][MirageGlesBackdrop]); the
+ * backdrop node owns the async capture around it.
+ */
+internal expect fun MirageBackendProgram.prepareGlesBlit(
+  cached: CachedProgram,
+  params: MirageParams,
+  paramsBlock: (MirageParams.() -> Unit)?,
+  width: Float,
+  height: Float,
+  density: Float,
+  time: Float,
+): (suspend (ImageBitmap) -> ImageBitmap)?
 
 /**
  * Builds a [RenderEffect] that runs this program over the layer's content, binding the content as the

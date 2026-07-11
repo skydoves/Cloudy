@@ -113,8 +113,12 @@ half3 processColor(half3 src, float vibrancy, float intensity, float4 overlay) {
 }
 """
 
-/** Returns the lens-helper preamble for [dialect]. */
+/**
+ * Returns the lens-helper preamble for [dialect]. [Dialect.GlslEs] uses the AGSL helper text as its
+ * input — the GLSL ES translation (half->float token rewrite, `#version 300 es` header) is applied by
+ * the compiler over the whole assembled source, so the preamble is carried in its AGSL form here.
+ */
 internal fun miragePreambleHelpers(dialect: Dialect): String = when (dialect) {
-  Dialect.Agsl -> MIRAGE_PREAMBLE_HELPERS_AGSL
   Dialect.Sksl -> MIRAGE_PREAMBLE_HELPERS_SKSL
+  Dialect.Agsl, Dialect.GlslEs -> MIRAGE_PREAMBLE_HELPERS_AGSL
 }

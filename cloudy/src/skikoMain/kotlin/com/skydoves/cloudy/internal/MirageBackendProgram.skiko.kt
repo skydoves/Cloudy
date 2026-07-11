@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.asComposeShader
 import androidx.compose.ui.graphics.asSkiaBitmap
 import androidx.compose.ui.graphics.colorspace.ColorSpaces
+import com.skydoves.cloudy.MirageParams
 import org.jetbrains.skia.FilterTileMode
 import org.jetbrains.skia.Image
 import org.jetbrains.skia.ImageFilter
@@ -99,6 +100,21 @@ internal actual fun createBackendProgram(compiled: CompiledProgram): MirageBacke
 }
 
 internal actual fun MirageBackendProgram.uniformSink(): UniformSink = SkikoUniformSink(this)
+
+/** Skiko always runs a content-bound RenderEffect — there is no blit-back path. */
+internal actual fun MirageBackendProgram.filterApplication(): FilterApplication =
+  FilterApplication.Effect(asContentRenderEffect())
+
+/** Skiko has no GLES blit path — every optic runs as a RenderEffect. */
+internal actual fun MirageBackendProgram.prepareGlesBlit(
+  cached: CachedProgram,
+  params: MirageParams,
+  paramsBlock: (MirageParams.() -> Unit)?,
+  width: Float,
+  height: Float,
+  density: Float,
+  time: Float,
+): (suspend (ImageBitmap) -> ImageBitmap)? = null
 
 /**
  * makeRuntimeShader with input = null feeds the layer's own content as the `content` child, matching

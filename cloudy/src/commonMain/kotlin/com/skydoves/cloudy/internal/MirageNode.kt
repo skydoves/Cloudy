@@ -262,6 +262,11 @@ internal class MirageNode(var clock: MirageClock, var enabled: Boolean, stages: 
   ) {
     val applicable = filters.mapNotNull { stage ->
       val cached = MirageProgramCache.obtain(stage.optic, dialect) ?: return@mapNotNull null
+      // A self-lit content node draws its filters in place synchronously. A Blit stage (the async GLES
+      // path) is backdrop-only — it has no self-lit capture path (no contentVersion key), so skip it
+      // here rather than pass it to the chain's Blit branch, which would silently no-op. GLES self-lit
+      // is thus unsupported; the plan's MirageFallback (if any) shows via planRenders.
+      if (!rendersInPlace(cached)) return@mapNotNull null
       stage to cached
     }
 

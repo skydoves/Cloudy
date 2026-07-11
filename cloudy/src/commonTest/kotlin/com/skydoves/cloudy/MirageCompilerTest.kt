@@ -35,7 +35,7 @@ import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotContain
 
 /** Params for the Duotone demo Colorize optic: two colors plus a blend amount. */
-private class DuotoneParams : MirageParams() {
+private class CompilerDuotoneParams : MirageParams() {
   val shadow by uniformColor(Color(0xFF1B1B3A))
   val highlight by uniformColor(Color(0xFFFFC371))
   val amount by uniform(1f)
@@ -59,7 +59,7 @@ internal class MirageCompilerTest :
       test("wraps the kernel in a content-sampling main") {
         val optic = Optic.colorize(
           name = "duotone",
-          paramsFactory = ::DuotoneParams,
+          paramsFactory = ::CompilerDuotoneParams,
           agsl = DUOTONE_KERNEL_AGSL,
           sksl = DUOTONE_KERNEL_SKSL,
         )
@@ -78,7 +78,7 @@ internal class MirageCompilerTest :
       test("emits one declaration per schema entry in declaration order") {
         val optic = Optic.colorize(
           name = "duotone",
-          paramsFactory = ::DuotoneParams,
+          paramsFactory = ::CompilerDuotoneParams,
           agsl = DUOTONE_KERNEL_AGSL,
           sksl = DUOTONE_KERNEL_SKSL,
         )
@@ -96,7 +96,7 @@ internal class MirageCompilerTest :
       test("does not prepend the lens preamble (point-wise kernels need no helpers)") {
         val optic = Optic.colorize(
           name = "duotone",
-          paramsFactory = ::DuotoneParams,
+          paramsFactory = ::CompilerDuotoneParams,
           agsl = DUOTONE_KERNEL_AGSL,
           sksl = DUOTONE_KERNEL_SKSL,
         )
@@ -204,7 +204,7 @@ internal class MirageCompilerTest :
       test("a kernel that names no standard uniform reports every uses* flag false") {
         val optic = Optic.colorize(
           name = "duotone",
-          paramsFactory = ::DuotoneParams,
+          paramsFactory = ::CompilerDuotoneParams,
           agsl = DUOTONE_KERNEL_AGSL,
           sksl = DUOTONE_KERNEL_SKSL,
         )

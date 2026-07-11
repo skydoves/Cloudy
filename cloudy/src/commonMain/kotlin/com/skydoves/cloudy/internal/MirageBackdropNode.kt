@@ -21,6 +21,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.positionInRoot
@@ -31,6 +32,7 @@ import androidx.compose.ui.node.currentValueOf
 import androidx.compose.ui.node.invalidateDraw
 import androidx.compose.ui.node.requireGraphicsContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntSize
 import com.skydoves.cloudy.ExperimentalMirage
 import com.skydoves.cloudy.MirageClock
 import com.skydoves.cloudy.Sky
@@ -45,10 +47,12 @@ import kotlinx.coroutines.launch
  * positioned relative to the Sky and refreshed as the Sky scrolls, so it carries positioning and the
  * frame-driver lifecycle that a pure self-content node has no reason to.
  *
- * A backdrop node is a descendant of the Sky recorder, so the capture pass re-enters its draw. Drawing
- * a backdrop-sampling effect into the layer being recorded would form a cyclic `RenderNode` graph that
- * overflows the render thread (https://github.com/skydoves/Cloudy/issues/112), so [draw] returns on its
- * first line while [Sky.isCapturing].
+ * A backdrop node is a descendant of the Sky recorder, so `sky.backgroundLayer` embeds this node's own
+ * RenderNode. Sampling it through a live `drawLayer(backgroundLayer)` closes a cyclic `RenderNode` graph
+ * that overflows the render thread under `captureToImage`/`PixelCopy`
+ * (https://github.com/skydoves/Cloudy/issues/112). It is sampled through [backdropSnapshot] (a rasterized
+ * bitmap, no back-edge) instead — the same fix the cloudy blur backdrop uses. The [Sky.isCapturing]
+ * early-return additionally keeps this node out of the sky's own record pass.
  */
 @OptIn(ExperimentalMirage::class)
 internal class MirageBackdropNode(
@@ -67,6 +71,17 @@ internal class MirageBackdropNode(
   private var positionInRoot: Offset = Offset.Zero
 
   private val chain = MirageFilterChain()
+
+  // Async GLES backdrop runner (API 29-32 band, where a filter is a Blit, not a RenderEffect). Lazily
+  // used only when an applicable filter reports FilterApplication.Blit; null-cost otherwise.
+  private val glesBackdrop = MirageGlesBackdrop()
+
+  // Samples the sky backdrop through a rasterized snapshot instead of a live drawLayer(backgroundLayer).
+  // The backdrop node is a descendant of the sky recorder, so backgroundLayer's displaylist embeds this
+  // node; recording drawLayer(backgroundLayer) closes a skyLayer->thisNode->skyLayer RenderNode cycle
+  // that overflows the render thread under captureToImage/PixelCopy (issue #112). Drawing bitmap pixels
+  // has no back-edge. Same machine and cadence the cloudy blur backdrop already uses.
+  private val backdropSnapshot = BackdropClearBlurMachine()
 
   // Same clock machinery as MirageNode: this small duplication is deliberate (the clock is a node
   // concern, not a chain concern, and forcing it into the shared chain would drag lifecycle in).
@@ -89,6 +104,12 @@ internal class MirageBackdropNode(
     if (this.sky != sky && isAttached) {
       this.sky.frameDriver.removeOverlay(reblur)
       sky.frameDriver.addOverlay(reblur)
+      // The cached snapshot came from the old sky's layer; a new sky's contentVersion could collide with
+      // the cached one and wrongly hit, so drop it (mirrors the cloudy backdrop node's sky swap).
+      backdropSnapshot.dispose()
+      // Same reason for the GLES blit cache: it keys on contentVersion + size, so a new sky reusing the
+      // old version/size would hit the old sky's stale bitmap.
+      glesBackdrop.release()
     }
 
     val structuralChange = sky != this.sky || clock != this.clock || enabled != this.enabled ||
@@ -204,23 +225,79 @@ internal class MirageBackdropNode(
       stage to cached
     }
 
-    with(chain) {
-      draw(
-        context = requireGraphicsContext(),
-        applicable = applicable,
-        bind = { stage, cached ->
-          bindUniforms(cached, stage.params, stage.paramsBlock, width, height, density, time)
-        },
-        // Stage 0 records the offset-shifted Sky region (a direct port of the cloudy backdrop record,
-        // CloudyBackground.android.kt:550-559); the chain's content-bound effect then grades THAT. When
-        // no stage is applicable (API < 33) the chain draws this same region raw.
-        recordSource = {
-          drawContext.canvas.save()
-          drawContext.canvas.translate(-offsetX, -offsetY)
-          drawLayer(backgroundLayer)
-          drawContext.canvas.restore()
-        },
+    // Keep the acyclic snapshot fresh (async, coalesced on contentVersion) for whichever path samples it
+    // below; the previously cached bitmap keeps drawing until the new capture lands.
+    with(backdropSnapshot) {
+      requestIfStale(
+        graphicsContext = requireGraphicsContext(),
+        coroutineScope = coroutineScope,
+        layer = backgroundLayer,
+        contentVersion = sky.contentVersion,
+        invalidate = { if (isAttached) invalidateDraw() },
       )
+    }
+
+    // On-screen backdrop region, sampled from the rasterized snapshot rather than a live
+    // drawLayer(backgroundLayer): the live layer closes the issue-112 RenderNode cycle under
+    // captureToImage/PixelCopy (see backdropSnapshot). Everything drawn into the on-screen tree — the raw
+    // fallback here and every chain filter layer (its last layer is drawn on-screen) — uses this.
+    val recordSnapshot: DrawScope.() -> Unit = {
+      with(backdropSnapshot) {
+        drawSampledRegion(Offset(offsetX, offsetY), IntSize(width.toInt(), height.toInt()))
+      }
+    }
+
+    // Live backdrop region for the GLES blit INPUT only: that layer is captured to a bitmap and released
+    // off-screen within the runner, never reachable from the on-screen tree, so it does not cycle under
+    // PixelCopy — and staying live keeps the version-keyed blit from caching a not-yet-ready snapshot.
+    val recordLive: DrawScope.() -> Unit = {
+      drawContext.canvas.save()
+      drawContext.canvas.translate(-offsetX, -offsetY)
+      drawLayer(backgroundLayer)
+      drawContext.canvas.restore()
+    }
+
+    // API 29-32 GLES band: the first applicable filter is a Blit (async FBO capture), which the sync
+    // chain cannot run. prepareGlesBlit binds this draw's uniforms into a fresh per-draw list and
+    // returns the transform; the async runner captures the region and applies it. Other filters
+    // (Effect/ColorFilter) go through the chain as before. Single-stage on this band by scope.
+    val glesFilter = applicable.firstOrNull { (_, cached) ->
+      cached.backend.filterApplication() is FilterApplication.Blit
+    }
+    val glesBlit = glesFilter?.let { (stage, cached) ->
+      cached.backend.prepareGlesBlit(
+        cached,
+        stage.params,
+        stage.paramsBlock,
+        width,
+        height,
+        density,
+        time,
+      )
+    }
+    if (glesBlit != null) {
+      with(glesBackdrop) {
+        draw(
+          context = requireGraphicsContext(),
+          scope = coroutineScope,
+          blit = glesBlit,
+          contentVersion = sky.contentVersion,
+          recordRaw = recordSnapshot,
+          recordInput = recordLive,
+          invalidate = { if (isAttached) invalidateDraw() },
+        )
+      }
+    } else {
+      with(chain) {
+        draw(
+          context = requireGraphicsContext(),
+          applicable = applicable,
+          bind = { stage, cached ->
+            bindUniforms(cached, stage.params, stage.paramsBlock, width, height, density, time)
+          },
+          recordSource = recordSnapshot,
+        )
+      }
     }
 
     drawOverlays(overlays, width, height, density, time)
@@ -259,5 +336,7 @@ internal class MirageBackdropNode(
     frameLoopJob?.cancel()
     frameLoopJob = null
     chain.release(requireGraphicsContext())
+    glesBackdrop.release()
+    backdropSnapshot.dispose()
   }
 }

@@ -131,3 +131,101 @@ jobs:
           name: pr
           path: pr/
           retention-days: 7
+
+  # Instrumented render check (still the UNTRUSTED half: read-only, uploads artifacts only -- never
+  # pushes or comments; the privileged companion-branch push + comment stays in screenshot-comment.yml).
+  #
+  # Roborazzi above runs on the JVM (Robolectric) and cannot exercise the real GLES / RenderThread path.
+  # This job boots an x86_64 emulator per API band and runs MirageBandScreenshotTest on-device to capture
+  # the actual pixels each band renders: API 30 = GLES mirage + legacy blur, API 34 = AGSL + RenderEffect.
+  # These captures are RENDER EVIDENCE, not a golden-diff gate -- the gallery in the comment shows them
+  # so a reviewer can eyeball what each band drew even when a band is not yet asserted.
+  #
+  # Emulator jobs are heavy and flaky (KVM warmup, cold boot). This job runs on top of the always-on
+  # Roborazzi gate; a red emulator run should not block a PR whose JVM screenshots are clean, so it is a
+  # SEPARATE job (not a `needs:` of roborazzi) and always uploads its captures for triage.
+  device-screenshots:
+    name: Device render (API ${{ matrix.api-level }})
+    runs-on: ubuntu-latest
+    # KVM-accelerated x86_64 emulator: boot + a small instrumented run. ~20-30 min/leg in practice
+    # (cold boot dominates); cap generously so a hung boot fails fast instead of burning the 6h default.
+    timeout-minutes: 45
+    permissions:
+      contents: read   # clone only -- this job never pushes (companion push lives in the comment workflow)
+      actions: write   # upload-artifact
+    strategy:
+      # One band's emulator failing must not cancel the other's -- we want BOTH bands' captures in the
+      # gallery for triage even if one leg dies (esp. the SwiftShader-sensitive API 30 GLES path below).
+      fail-fast: false
+      matrix:
+        api-level: [ 30, 34 ]   # 30: GLES mirage + legacy blur band | 34: AGSL + RenderEffect blur band
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v6.0.1
+        with:
+          persist-credentials: false   # this job never pushes
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5.1.0
+        with:
+          distribution: zulu
+          java-version: 21
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Make Gradle executable
+        run: chmod +x ./gradlew
+
+      # KVM hardware acceleration for the x86_64 emulator. ubuntu-latest ships KVM but the runner user
+      # is not in the kvm group; this udev rule opens /dev/kvm to all so the emulator can use it (the
+      # documented android-emulator-runner setup). Without it the emulator falls back to software and
+      # boot times balloon past the timeout.
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      # ponytail: pinned to the @v2 major tag to match this repo's action-pinning convention (see
+      # actions/checkout@v6.0.1, gradle/actions@v4, peter-evans/*@v3 elsewhere -- all tag-pinned).
+      # cicd-security KB recommends a full commit SHA for third-party actions (immutable vs a movable
+      # tag); upgrade path is to SHA-pin ALL actions repo-wide at once, not just this one.
+      #
+      # gpu: swiftshader_indirect is REQUIRED on GitHub-hosted runners (no host GPU). RISK: on API 30
+      # SwiftShader's GLES may not satisfy the mirage EGL window-surface + ImageReader round-trip, so the
+      # capture can be blank/garbled or the test can fail on the first run. That is exactly why captures
+      # upload on if: always() below -- a broken GLES band shows its raw (possibly empty) image in the
+      # gallery so the failure is diagnosable instead of silent.
+      - name: Run instrumented render capture
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          arch: x86_64
+          target: google_apis            # Pixel-class system image; default images lag on newer APIs
+          profile: pixel_6
+          ram-size: 4096M
+          disable-animations: true
+          disable-spellchecker: true
+          # -Pandroid...suppressErrors: the device-test runner is AndroidBenchmarkRunner (see
+          # cloudy/build.gradle.kts withDeviceTest), which aborts on an emulator/unlocked/low-battery
+          # host by default. Suppress those CI-environment checks so the screenshot spec can run; this
+          # is the per-run CLI override that build.gradle's comment anticipates. Class filter pins the
+          # run to the render spec (skips the microbenchmark, which would be meaningless on an emulator).
+          script: >-
+            ./gradlew :cloudy:connectedAndroidDeviceTest
+            -Pandroid.testInstrumentationRunnerArguments.class=com.skydoves.cloudy.MirageBandScreenshotTest
+            -Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.suppressErrors=EMULATOR,UNLOCKED,LOW-BATTERY,ENG-BUILD
+
+      # AGP's additionalTestOutputDir mechanism pulls the on-device PNGs
+      # (band_api<SDK>_<case>_{actual,expected}.png) back to this host path. if: always() so a FAILED
+      # instrumented run (very possible on the API 30 SwiftShader band) still surfaces whatever was
+      # captured -- the gallery is a diagnostic surface, so a red run is when the images matter most.
+      - name: Upload device screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: device-screenshots-api${{ matrix.api-level }}
+          path: cloudy/build/outputs/connected_android_test_additional_output/**/*.png
+          if-no-files-found: warn
+          retention-days: 7

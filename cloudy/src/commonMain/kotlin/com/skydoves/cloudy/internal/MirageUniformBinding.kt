@@ -66,13 +66,36 @@ internal fun bindUniforms(
   height: Float,
   density: Float,
   time: Float,
+): Unit = bindUniformsInto(
+  cached.backend.uniformSink(),
+  cached,
+  params,
+  paramsBlock,
+  width,
+  height,
+  density,
+  time,
+)
+
+/**
+ * Walks the standard uniforms + every schema slot into [sink]. Split from [bindUniforms] so a caller
+ * that must own the sink (the GLES backend pairs a fresh recording sink with one render, to avoid a
+ * shared-state race) can supply it, while the Agsl/skiko/ColorGrade path uses the backend's own sink.
+ */
+internal fun bindUniformsInto(
+  sink: UniformSink,
+  cached: CachedProgram,
+  params: MirageParams,
+  paramsBlock: (MirageParams.() -> Unit)?,
+  width: Float,
+  height: Float,
+  density: Float,
+  time: Float,
 ) {
   // Reset to defaults so a value written on a previous draw does not leak when this draw's block
   // leaves it unset — the schema's declared default is the single source of truth per draw.
   resetToDefaults(params, cached.compiled.schema)
   paramsBlock?.invoke(params)
-
-  val sink = cached.backend.uniformSink()
 
   // Standard uniforms first, each gated on whether the compiled kernel declared it: Android's
   // RuntimeShader throws on a write to an undeclared uniform name.

@@ -15,5 +15,17 @@
  */
 package com.skydoves.cloudy.internal
 
-/** Android runs AGSL. */
-internal actual fun currentDialect(): Dialect = Dialect.Agsl
+import android.os.Build
+
+/**
+ * The shading dialect for the running Android band:
+ * - API 33+ ([MirageBackendBand.Agsl]) : AGSL, run as a `RuntimeShader`.
+ * - API 29-32 ([MirageBackendBand.Gles]) : GLSL ES, the AGSL kernel translated for an FBO program.
+ * - API 23-28 ([MirageBackendBand.ColorGrade]) : AGSL as the cache key only; the ColorGrade backend
+ *   reads the compiled program's category + schema, never its GLSL source, so no translation runs.
+ */
+internal actual fun currentDialect(): Dialect =
+  when (MirageBackendBand.resolve(Build.VERSION.SDK_INT)) {
+    MirageBackendBand.Gles -> Dialect.GlslEs
+    MirageBackendBand.Agsl, MirageBackendBand.ColorGrade -> Dialect.Agsl
+  }
