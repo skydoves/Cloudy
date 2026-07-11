@@ -111,6 +111,24 @@ jobs:
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ github.token }}
 
+      # AGP's additionalTestOutputDir pull nests each capture under a DEVICE-named subdir like
+      # "androidDeviceTest/connected/emulator-5554 - 11/band_api30_..._actual.png" -- note the SPACES.
+      # The safe-set filter (^[a-zA-Z0-9_./-]+$, no space) that every check/push/gallery step applies to
+      # the FULL path then rejects every device PNG, so the gallery silently renders nothing. The
+      # filenames themselves (band_api<SDK>_<case>_<kind>.png) are already space-free, and the gallery
+      # only ever parses the basename -- the subdir hierarchy carries no information. So flatten every
+      # device PNG to device-flat/<basename> up front; downstream steps then see space-free paths and
+      # the existing basename-shaped filters/regex just work.
+      - name: Flatten device captures
+        shell: bash
+        run: |
+          mkdir -p device-flat
+          if [[ -d device-screenshots ]]; then
+            # -exec cp per file: names collide only if two bands emit the same basename, but each carries
+            # its api in band_api<SDK>_, so api30 vs api34 captures never clash.
+            find device-screenshots -type f -name "*.png" -exec cp {} device-flat/ \;
+          fi
+
       # --- Is there anything to push to the companion branch? ---
       # `diff`   = valid *_compare.png Roborazzi diff images exist (a regression).
       # `device` = instrumented render captures exist (present on every emulator run, not just diffs).
@@ -127,12 +145,15 @@ jobs:
             [[ "$f" =~ ^[a-zA-Z0-9_./-]+$ ]] && { diff="true"; break; }
           done < <(find . -type f -name "*_compare.png")
 
-          # Device render captures (band_api<SDK>_<case>_{actual,expected}.png) under device-screenshots/.
+          # Device render captures, flattened to device-flat/<basename> (see "Flatten device captures").
+          # Filter on basename so a stray odd char in a name is still caught; the dir itself is
+          # space-free by construction.
           device="false"
-          if [[ -d device-screenshots ]]; then
+          if [[ -d device-flat ]]; then
             while IFS= read -r f; do
-              [[ "$f" =~ ^[a-zA-Z0-9_./-]+$ ]] && { device="true"; break; }
-            done < <(find device-screenshots -type f -name "*.png")
+              bn=$(basename "$f")
+              [[ "$bn" =~ ^[a-zA-Z0-9_.-]+$ ]] && { device="true"; break; }
+            done < <(find device-flat -type f -name "*.png")
           fi
 
           # Committed goldens under goldens/.
@@ -167,14 +188,14 @@ jobs:
           git checkout --orphan "$BRANCH_NAME"
           git rm -rf . > /dev/null
 
-          # Roborazzi diff images (roborazzi/...) + device render captures (device-screenshots/...) +
-          # committed goldens (goldens/...). Same safe-set path filter as everywhere else before
-          # staging fork-run-produced files.
+          # Roborazzi diff images (roborazzi/...) + flattened device captures (device-flat/...) +
+          # committed goldens (goldens/...). All three trees are now space-free, so the same safe-set
+          # path filter applies before staging fork-run-produced files.
           while IFS= read -r f; do
             if [[ "$f" =~ ^[a-zA-Z0-9_./-]+$ ]]; then
               git add "$f"
             fi
-          done < <(find . -type f \( -name "*_compare.png" -o -path "./device-screenshots/*.png" -o -path "./goldens/*.png" \))
+          done < <(find . -type f \( -name "*_compare.png" -o -path "./device-flat/*.png" -o -path "./goldens/*.png" \))
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "Add screenshots for PR #${{ steps.pr.outputs.number }}"
@@ -313,9 +334,10 @@ jobs:
       # drew on the emulator. This is NOT a regression diff -- it is render evidence, so it shows on
       # every run that produced captures, independent of the Roborazzi diff above. One row per (band,
       # case): actual, and expected beside it if the spec wrote one. Filenames are
-      # band_api<SDK>_<case>_{actual,expected}.png (see MirageBandScreenshotTest); they arrive from a
-      # fork-triggered run's artifact, so parse them as UNTRUSTED -- same ^[a-zA-Z0-9_./-]+$ safe-set
-      # filter as the diff gallery, and pull SDK/case/kind out with pure bash (no eval).
+      # band_api<SDK>_<case>_{actual,expected}.png (see MirageBandScreenshotTest); read from the
+      # flattened device-flat/ tree (AGP nests them under a device-named subdir with SPACES, which the
+      # safe-set filter rejects -- see "Flatten device captures"). Parse as UNTRUSTED: basename-only
+      # safe-set gate, then pull SDK/case/kind out with pure bash (no eval).
       - id: device_gallery
         name: Generate device render gallery
         if: steps.check.outputs.device == 'true'
@@ -341,9 +363,10 @@ jobs:
           declare -A actual expected
           declare -A seen
           while IFS= read -r f; do
-            # Safe-set gate FIRST (path is fork-run-produced). Skip anything with odd chars.
-            [[ "$f" =~ ^[a-zA-Z0-9_./-]+$ ]] || continue
+            # Captures are flattened to device-flat/<basename> (space-free); gate on the basename so a
+            # stray odd char in a name is still rejected before it reaches any URL.
             bn=$(basename "$f" .png)
+            [[ "$bn" =~ ^[a-zA-Z0-9_.-]+$ ]] || continue
             # Expect band_api<SDK>_<case>_<kind>. Enforce the shape with a regex; ignore non-matching.
             [[ "$bn" =~ ^band_api([0-9]+)_(.+)_(actual|expected)$ ]] || continue
             api="${BASH_REMATCH[1]}"
@@ -356,7 +379,7 @@ jobs:
             else
               expected["$key"]="$f"
             fi
-          done < <(find device-screenshots -type f -name "*.png")
+          done < <(find device-flat -type f -name "*.png")
 
           # Stable order: sort the composite keys (api numeric-ish then case).
           for key in $(printf '%s\n' "${!seen[@]}" | sort); do
