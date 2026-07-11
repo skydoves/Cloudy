@@ -26,7 +26,6 @@ import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.clipPath
-import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.toSize
 import com.skydoves.cloudy.HIGHLIGHT_FOCAL_K
@@ -88,8 +87,14 @@ internal fun ContentDrawScope.applyPostProcess(
 
 /**
  * Clips [block] to [shape]'s outline so the fill follows rounded corners instead of a hard rectangle.
- * [RectangleShape][androidx.compose.ui.graphics.RectangleShape] is a plain rectangular clip. Moved
- * verbatim from the two nodes' `clipToShape`.
+ *
+ * A plain [RectangleShape][androidx.compose.ui.graphics.RectangleShape] draws WITHOUT a clip: a
+ * rectangle clip to node bounds enforces no corners, and every in-scope draw (the backdrop's
+ * node-sized snapshot, the tint/highlight overlays) already lands within bounds — so the only pixels
+ * it would remove are the foreground blur's outward CLAMP bloom, which must bleed past the content
+ * edge to match `Modifier.cloudy`'s pre-pipeline `graphicsLayer { renderEffect = .. }` behaviour
+ * (clipping it truncated the bloom to a hard-edged square — the passthrough-golden regression). Only
+ * rounded/generic shapes actually need a clip. Moved from the two nodes' `clipToShape`.
  */
 internal fun ContentDrawScope.clipToShape(
   shape: Shape,
@@ -98,7 +103,7 @@ internal fun ContentDrawScope.clipToShape(
   block: DrawScope.() -> Unit,
 ) {
   when (val outline = shape.createOutline(size.toSize(), layoutDirection, this)) {
-    is Outline.Rectangle -> clipRect { block() }
+    is Outline.Rectangle -> block()
 
     is Outline.Rounded -> {
       val path = cache.clipPath ?: Path().also { cache.clipPath = it }
