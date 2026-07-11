@@ -23,7 +23,7 @@ plugins {
 }
 
 // Generate BuildConfig with version information from Configuration
-val generateBuildConfig by tasks.registering {
+val generateBuildConfig = tasks.register("generateBuildConfig") {
   val outputDir = layout.buildDirectory.dir("generated/source/buildConfig/wasmJsMain/kotlin")
   outputs.dir(outputDir)
 
@@ -58,7 +58,7 @@ kotlin {
 
   sourceSets {
     commonMain.dependencies {
-      implementation(compose.components.resources)
+      implementation(libs.compose.resources)
     }
 
     wasmJsMain {
@@ -67,11 +67,11 @@ kotlin {
       dependencies {
         implementation(project(":cloudy"))
 
-        implementation(compose.runtime)
-        implementation(compose.foundation)
-        implementation(compose.ui)
-        implementation(compose.material3)
-        implementation(compose.materialIconsExtended)
+        implementation(libs.compose.runtime)
+        implementation(libs.compose.foundation)
+        implementation(libs.compose.ui)
+        implementation(libs.compose.material3)
+        implementation(libs.compose.material.icons.extended)
 
         implementation(libs.landscapist.coil)
         implementation(libs.coil)

@@ -122,7 +122,7 @@ kotlin {
     }
   }
 
-  androidLibrary {
+  android {
     namespace = "com.skydoves.cloudy"
     compileSdk = Configuration.compileSdk
     minSdk = Configuration.minSdk
@@ -160,7 +160,7 @@ kotlin {
   }
 
   sourceSets {
-    val skikoMain by getting {
+    getByName("skikoMain") {
       dependencies {
         implementation(libs.compose.runtime)
         implementation(libs.compose.foundation)
@@ -194,7 +194,7 @@ kotlin {
       implementation(libs.kotest.assertions.core)
     }
 
-    val desktopTest by getting {
+    getByName("desktopTest") {
       dependencies {
         implementation(libs.kotest.runner.junit5)
         // The OS/arch-specific skiko native runtime (the .dylib/.so/.dll). Present tests are pure
