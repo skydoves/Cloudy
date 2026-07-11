@@ -104,7 +104,7 @@ internal fun bindUniformsInto(
   if (compiled.usesTime) sink.float(STD_TIME, time)
   if (compiled.usesDensity) sink.float(STD_DENSITY, density)
 
-  // Non-null only for lens-shaped optics; identity-compared below against this specific instance's
+  // Non-null only for lens-shaped shaders; identity-compared below against this specific instance's
   // lensCenter/lensSize handles.
   val lensParams = params as? MirageLensParams
 
@@ -117,7 +117,7 @@ internal fun bindUniformsInto(
       is UFloat -> sink.float(name, handle.value)
 
       is UOffset -> {
-        // Identity (not type) match: an unrelated Offset uniform on a custom optic must never fall
+        // Identity (not type) match: an unrelated Offset uniform on a custom shader must never fall
         // into the auto-frame substitution just because it happens to be left Unspecified too.
         val value = handle.value
         if (value.isUnspecified && handle === lensParams?.lensCenter) {

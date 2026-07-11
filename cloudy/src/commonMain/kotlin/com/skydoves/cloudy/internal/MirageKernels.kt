@@ -18,7 +18,7 @@ package com.skydoves.cloudy.internal
 /*
  * Kernel bodies the [MirageCompiler] splices onto the [MiragePreamble] and generated uniform
  * declarations. Each body is paired with its [MirageParams] subclass and registered as an
- * [Optic][com.skydoves.cloudy.Optic] in [MirageOptics][com.skydoves.cloudy.MirageOptics].
+ * [MirageShader][com.skydoves.cloudy.MirageShader] in [MirageShaders][com.skydoves.cloudy.MirageShaders].
  *
  * ## Uniforms are declared by the paired params, not inline
  * A Composite / Generate body names its uniforms (`lensCenter`, `iLight`, `spec*`, `chromatic*`,
@@ -32,7 +32,7 @@ package com.skydoves.cloudy.internal
  */
 
 /**
- * AGSL Colorize kernel for the Duotone demo optic. Point-wise: it reads only the passed `src` pixel
+ * AGSL Colorize kernel for the Duotone demo shader. Point-wise: it reads only the passed `src` pixel
  * (never the content sampler), maps luminance onto a shadow -> highlight gradient, and cross-fades by
  * `amount`. The compiler wraps this `kernel(...)` with
  * `half4 main(float2 xy){ return kernel(xy, content.eval(xy)); }`. `shadow` / `highlight` / `amount`
@@ -56,7 +56,7 @@ half4 kernel(float2 p, half4 src) {
 """
 
 /**
- * AGSL Composite `main` body for the specular optic. Reads the standard lens uniforms + preamble
+ * AGSL Composite `main` body for the specular shader. Reads the standard lens uniforms + preamble
  * helpers, and its 11 `spec*` terms.
  *
  * The `spec*` / lens / `iLight` uniforms are NOT declared here: they are the property names of the
@@ -198,7 +198,7 @@ half4 main(float2 xy) {
 }
 """
 
-/** SKSL Composite `main` body for the specular optic — byte-identical to [SPECULAR_KERNEL_AGSL]. */
+/** SKSL Composite `main` body for the specular shader — byte-identical to [SPECULAR_KERNEL_AGSL]. */
 internal const val SPECULAR_KERNEL_SKSL: String = """
 // Superellipse power for the bevel field (see the highlight block): its |q|^4 iso-contours are
 // smooth rounded rects with no diagonal ridge, unlike the box SDF depth whose ridges lie on the
@@ -335,7 +335,7 @@ half4 main(float2 xy) {
 """
 
 /**
- * AGSL Composite `main` body for the chromatic optic - parameterized thin-film iridescence. The 7
+ * AGSL Composite `main` body for the chromatic shader - parameterized thin-film iridescence. The 7
  * `chromatic*` / lens / `iLight` uniforms are declared by the paired `ChromaticParams` schema, so they
  * are NOT declared inline (a duplicate would fail to compile); the `CHROMA_*` consts stay in the body
  * since they are shader-private, not uniforms.
@@ -424,7 +424,7 @@ half4 main(float2 xy) {
 }
 """
 
-/** SKSL Composite `main` body for the chromatic optic — byte-identical to [CHROMATIC_KERNEL_AGSL]. */
+/** SKSL Composite `main` body for the chromatic shader — byte-identical to [CHROMATIC_KERNEL_AGSL]. */
 internal const val CHROMATIC_KERNEL_SKSL: String = """
 // thin-film: thickness = bevel depth (center 0 -> rim 1), cos = light incidence; THICK_MIX blends
 // thickness rings vs pure light angle. OPD_BASE seats the silver 0th order at the center.
@@ -510,7 +510,7 @@ half4 main(float2 xy) {
 """
 
 /**
- * AGSL Generate `main` body for the foil overlay optic. Content-free overlay: it never samples
+ * AGSL Generate `main` body for the foil overlay shader. Content-free overlay: it never samples
  * content. The 5 foil/sparkle + lens + `iLight` uniforms come from the paired `FoilParams` schema (not
  * declared inline). It reads the standard `mirageTime` uniform so the codegen clock drives the
  * animated shimmer.
@@ -576,7 +576,7 @@ half4 main(float2 xy) {
 }
 """
 
-/** SKSL Generate `main` body for the foil overlay optic — byte-identical to [FOIL_KERNEL_AGSL]. */
+/** SKSL Generate `main` body for the foil overlay shader — byte-identical to [FOIL_KERNEL_AGSL]. */
 internal const val FOIL_KERNEL_SKSL: String = """
 // hash for the sparkle field — bounded input (lens-local, fract) so sin() never blows up at scale.
 float foilHash(float2 c) {

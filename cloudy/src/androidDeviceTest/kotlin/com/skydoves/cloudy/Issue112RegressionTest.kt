@@ -67,7 +67,7 @@ internal class Issue112RegressionTest {
       Box(
         modifier = Modifier
           .size(120.dp, 80.dp)
-          .mirage(sky = sky) { filter(MirageOptics.Duotone) },
+          .mirage(sky = sky) { filter(MirageShaders.Duotone) },
       )
     }
   }

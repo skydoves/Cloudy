@@ -200,12 +200,12 @@ internal class EffectNode(
     val dialect = currentDialect()
     var usesTime = false
     for (stage in stages) {
-      val optic = when (stage) {
-        is Stage.ProgramFilter -> stage.optic
-        is Stage.Overlay -> stage.optic
+      val shader = when (stage) {
+        is Stage.ProgramFilter -> stage.shader
+        is Stage.Overlay -> stage.shader
         is Stage.PlatformFilter -> continue
       }
-      val cached = MirageProgramCache.obtain(optic, dialect) ?: continue
+      val cached = MirageProgramCache.obtain(shader, dialect) ?: continue
       if (cached.compiled.usesTime) usesTime = true
     }
     planUsesTime = usesTime
@@ -343,7 +343,7 @@ internal class EffectNode(
     var cached: CachedProgram? = null
     for (candidate in stages) {
       if (candidate !is Stage.ProgramFilter) continue
-      val program = MirageProgramCache.obtain(candidate.optic, dialect) ?: continue
+      val program = MirageProgramCache.obtain(candidate.shader, dialect) ?: continue
       if (program.backend.filterApplication() is FilterApplication.Blit) {
         stage = candidate
         cached = program

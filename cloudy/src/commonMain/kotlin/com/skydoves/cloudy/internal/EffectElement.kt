@@ -97,10 +97,10 @@ internal class EffectElement(
     for (stage in stages) {
       result = 31 * result + stage::class.hashCode()
       when (stage) {
-        is Stage.ProgramFilter -> result = 31 * result + stage.optic.hashCode()
+        is Stage.ProgramFilter -> result = 31 * result + stage.shader.hashCode()
 
         is Stage.Overlay -> {
-          result = 31 * result + stage.optic.hashCode()
+          result = 31 * result + stage.shader.hashCode()
           result = 31 * result + stage.blendMode.hashCode()
         }
 

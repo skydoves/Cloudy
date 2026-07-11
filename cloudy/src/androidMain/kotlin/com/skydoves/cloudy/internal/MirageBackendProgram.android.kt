@@ -48,7 +48,7 @@ internal actual class MirageBackendProgram(val backend: AndroidBackend)
  * - [Agsl] wraps a [RuntimeShader] (API 33+); the original content-bound `RenderEffect` path.
  * - [Gles] runs a translated GLSL ES program on an offscreen FBO (API 29-32); applied by blitting a
  *   read-back [ImageBitmap] rather than a `RenderEffect`.
- * - [ColorGrade] reproduces a Colorize optic with an affine grade (API 23-28); applied by blitting the
+ * - [ColorGrade] reproduces a Colorize shader with an affine grade (API 23-28); applied by blitting the
  *   source through a `ColorMatrixColorFilter` (RenderEffect is API 31+, unavailable in this band).
  */
 internal sealed interface AndroidBackend {
@@ -112,7 +112,7 @@ internal actual fun createBackendProgram(compiled: CompiledProgram): MirageBacke
     // filter path). The backdrop node runs the result via an async capture, so a self-lit node still
     // no-ops on this band (self-lit has no content-version cache key — see MirageBackdropNode).
     MirageBackendBand.Gles -> when {
-      compiled.isRaw || compiled.usesTime || compiled.category == OpticCategory.Generate -> null
+      compiled.isRaw || compiled.usesTime || compiled.category == ShaderCategory.Generate -> null
 
       else -> {
         val glsl = MirageGlslEs.translate(compiled.source)

@@ -47,7 +47,7 @@ public sealed interface MirageClock {
 
   /**
    * Supplies a constant `mirageTime` and runs no frame loop, so the plan is fully deterministic —
-   * the intended clock for screenshot tests of animated optics.
+   * the intended clock for screenshot tests of animated shaders.
    */
   @ExperimentalMirage
   public data class Fixed(val seconds: Float) : MirageClock
@@ -57,32 +57,32 @@ public sealed interface MirageClock {
  * Stage declaration scope for [Modifier.mirage]. The block runs once (when the node attaches) to fix
  * the ordered stage list; each stage's `params` block re-runs every draw.
  *
- * This scope *declares* the optics of a plan; it does not write uniforms — a stage's uniforms are
- * bound each draw from its `params` block against the optic's [MirageParams].
+ * This scope *declares* the shaders of a plan; it does not write uniforms — a stage's uniforms are
+ * bound each draw from its `params` block against the shader's [MirageParams].
  */
 @ExperimentalMirage
 public interface MirageScope {
   /**
-   * Declares a content-transforming stage (a [ColorizeOptic] / [CompositeOptic] / raw filter). The
+   * Declares a content-transforming stage (a [ColorizeShader] / [CompositeShader] / raw filter). The
    * content pixels feed the shader and its output replaces them. Declared filters apply in the order
    * they are added: `content -> f1 -> f2 -> … -> screen`.
    *
-   * @param optic the filter optic to run.
+   * @param shader the filter shader to run.
    * @param params optional per-draw uniform block, run against a params instance the node mints once
    *   and reuses (no per-draw allocation). `null` leaves every uniform at its declared default.
    */
-  public fun <P : MirageParams> filter(optic: FilterOptic<P>, params: (P.() -> Unit)? = null)
+  public fun <P : MirageParams> filter(shader: FilterShader<P>, params: (P.() -> Unit)? = null)
 
   /**
-   * Declares an overlay stage (a [GenerateOptic]) drawn over the content without sampling it. Overlay
+   * Declares an overlay stage (a [GeneratorShader]) drawn over the content without sampling it. Overlay
    * output is composited over all filter results, in declared order, under [blendMode].
    *
-   * @param optic the generator optic to run.
+   * @param shader the generator shader to run.
    * @param blendMode how the overlay composites over the content. Default: [BlendMode.SrcOver].
    * @param params optional per-draw uniform block; see [filter].
    */
   public fun <P : MirageParams> overlay(
-    optic: GenerateOptic<P>,
+    shader: GeneratorShader<P>,
     blendMode: BlendMode = BlendMode.SrcOver,
     params: (P.() -> Unit)? = null,
   )
@@ -122,7 +122,7 @@ public sealed interface MirageFallback {
  * though still cheap.
  *
  * Compiled GPU programs are shared through a process-wide cache keyed on the generated shader source,
- * so two plans that declare the same optic — or the same plan re-attached after [enabled] toggles —
+ * so two plans that declare the same shader — or the same plan re-attached after [enabled] toggles —
  * reuse one program instead of recompiling.
  *
  * ## Stage order
@@ -174,7 +174,7 @@ internal fun Modifier.mirageOrFallback(
 /**
  * Applies a mirage effect [plan] to the [sky] **backdrop** behind the modified node, instead of to the
  * node's own content. Use it to grade, tint, or overlay the captured background — e.g.
- * `Modifier.mirage(sky = sky) { filter(MirageOptics.Duotone) }` renders a duotone "material" from the
+ * `Modifier.mirage(sky = sky) { filter(MirageShaders.Duotone) }` renders a duotone "material" from the
  * backdrop, the mirage counterpart of `Modifier.cloudy(sky = sky)`'s blur.
  *
  * The node samples the region of [sky]'s captured backdrop directly behind it (tracked via its layout

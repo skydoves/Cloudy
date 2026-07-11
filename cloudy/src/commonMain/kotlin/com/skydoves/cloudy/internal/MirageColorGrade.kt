@@ -62,7 +62,7 @@ private const val NAME_AMOUNT = "amount"
  * below API 33; any other optic's kernel is not affine and stays a no-op.
  */
 internal fun isColorGradeReproducible(compiled: CompiledProgram): Boolean {
-  if (compiled.category != OpticCategory.Colorize) return false
+  if (compiled.category != ShaderCategory.Colorize) return false
   val e = compiled.schema.entries
   return e.any { it.name == NAME_SHADOW && it.isColor } &&
     e.any { it.name == NAME_HIGHLIGHT && it.isColor } &&

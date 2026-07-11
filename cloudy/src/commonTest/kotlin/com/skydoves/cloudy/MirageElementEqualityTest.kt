@@ -19,9 +19,9 @@ package com.skydoves.cloudy.internal
 
 import com.skydoves.cloudy.ExperimentalMirage
 import com.skydoves.cloudy.MirageClock
-import com.skydoves.cloudy.MirageOptics
 import com.skydoves.cloudy.MirageParams
 import com.skydoves.cloudy.MirageScope
+import com.skydoves.cloudy.MirageShaders
 import com.skydoves.cloudy.Sky
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -41,11 +41,11 @@ internal class MirageElementEqualityTest :
 
     fun element(block: (MirageParams.() -> Unit)?): EffectElement =
       mirageElement(sky = null, MirageClock.Auto, enabled = true) {
-        filter(MirageOptics.OilSlick, block)
+        filter(MirageShaders.OilSlick, block)
       }
 
-    test("same optic but different block instances are unequal (update runs on recomposition)") {
-      // Two distinct lambda instances, as a recomposition would produce, over the same optic. The body
+    test("same shader but different block instances are unequal (update runs on recomposition)") {
+      // Two distinct lambda instances, as a recomposition would produce, over the same shader. The body
       // is irrelevant to equality — only the reference identity is compared.
       val first = element { }
       val second = element { }
@@ -70,15 +70,15 @@ internal class MirageElementEqualityTest :
     }
 
     test("OilSlick and Pearl share one block instance and reconcile equal at the element level") {
-      // OilSlick and Pearl are .equals-equal optics (same kernel), so with a shared block instance the
+      // OilSlick and Pearl are .equals-equal shaders (same kernel), so with a shared block instance the
       // elements ARE equal here. The look difference between them lives in the schema defaults reached
       // at draw time, not in element identity.
       val block: MirageParams.() -> Unit = { }
       val oil = mirageElement(sky = null, MirageClock.Auto, enabled = true) {
-        filter(MirageOptics.OilSlick, block)
+        filter(MirageShaders.OilSlick, block)
       }
       val pearl = mirageElement(sky = null, MirageClock.Auto, enabled = true) {
-        filter(MirageOptics.Pearl, block)
+        filter(MirageShaders.Pearl, block)
       }
 
       (oil == pearl).shouldBe(true)
@@ -89,7 +89,7 @@ internal class MirageElementEqualityTest :
       // must reconcile distinctly from an otherwise-identical backdrop plan, or Compose would keep the
       // wrong source. Backdrop carries a Sky, a content source carries none, so their keys differ.
       val block: MirageParams.() -> Unit = { }
-      val plan: MirageScope.() -> Unit = { filter(MirageOptics.OilSlick, block) }
+      val plan: MirageScope.() -> Unit = { filter(MirageShaders.OilSlick, block) }
       val contentSource = mirageElement(sky = null, MirageClock.Auto, enabled = true, plan)
       val backdrop = mirageElement(Sky(), MirageClock.Auto, enabled = true, plan)
 

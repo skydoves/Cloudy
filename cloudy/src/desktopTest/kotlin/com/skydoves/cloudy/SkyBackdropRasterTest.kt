@@ -148,7 +148,7 @@ private fun MirageCard(enabled: Boolean) = BackdropScene { sky ->
   Box(
     modifier = Modifier
       .size(CARD_W.dp, CARD_H.dp)
-      .mirage(sky = sky, enabled = enabled) { filter(MirageOptics.Duotone) },
+      .mirage(sky = sky, enabled = enabled) { filter(MirageShaders.Duotone) },
   )
 }
 

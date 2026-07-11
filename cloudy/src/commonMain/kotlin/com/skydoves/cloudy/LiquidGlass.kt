@@ -232,7 +232,7 @@ public object LiquidGlassDefaults {
  *
  * **Refraction-only:** for pure refraction without the specular glint, pass
  * `glow = LiquidGlassDefaults.NoGlow`; apply the specular separately and tunably with
- * `Modifier.mirage { filter(MirageOptics.Specular) }`.
+ * `Modifier.mirage { filter(MirageShaders.Specular) }`.
  *
  * ## Platform Behavior
  *

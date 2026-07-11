@@ -162,7 +162,7 @@ internal class BackdropCaptureCrashRegressionTest {
           modifier = Modifier
             .size(width = 120.dp, height = 80.dp)
             .clip(RoundedCornerShape(16.dp))
-            .mirage(sky = sky) { filter(MirageOptics.Duotone) },
+            .mirage(sky = sky) { filter(MirageShaders.Duotone) },
         )
       }
     }

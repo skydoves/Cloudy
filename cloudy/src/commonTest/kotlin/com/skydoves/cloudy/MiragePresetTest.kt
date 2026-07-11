@@ -23,10 +23,10 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 
 /**
- * Pins the [MirageOptics] preset defaults.
+ * Pins the [MirageShaders] preset defaults.
  *
  * Each preset's look lives entirely in its params' declared defaults, so these are the values a visual
- * regression would move. This test mints a fresh params instance from each optic's `paramsFactory` and
+ * regression would move. This test mints a fresh params instance from each shader's `paramsFactory` and
  * asserts the handle defaults in lockstep over the typed schema.
  *
  * The `spec*` defaults are cross-checked against the shared `LiquidGlassDefaults.GLOW_*` constants so
@@ -48,15 +48,15 @@ internal class MiragePresetTest :
       }
 
       test("Specular / Chromatic / Foil share the auto lens framing defaults") {
-        assertLensDefaults(MirageOptics.Specular.paramsFactory())
-        assertLensDefaults(MirageOptics.Chromatic.paramsFactory())
-        assertLensDefaults(MirageOptics.Foil.paramsFactory())
+        assertLensDefaults(MirageShaders.Specular.paramsFactory())
+        assertLensDefaults(MirageShaders.Chromatic.paramsFactory())
+        assertLensDefaults(MirageShaders.Foil.paramsFactory())
       }
     }
 
     context("Specular carries the GlowTuning defaults (bit-exact liquid-glass glint)") {
       test("the 11 spec* defaults match the historical GlowTuning values") {
-        val p = MirageOptics.Specular.paramsFactory()
+        val p = MirageShaders.Specular.paramsFactory()
         p.specStrength.value.shouldBe(LiquidGlassDefaults.GLOW_INTENSITY) // 0.7
         p.specPower.value.shouldBe(LiquidGlassDefaults.GLOW_SHARPNESS) // 10.0
         p.specRimMix.value.shouldBe(0.4f)
@@ -96,7 +96,7 @@ internal class MiragePresetTest :
 
       test("Chromatic equals the factory defaults (no regression)") {
         assertChromatic(
-          MirageOptics.Chromatic.paramsFactory(),
+          MirageShaders.Chromatic.paramsFactory(),
           intensity = 0.6f,
           gain = 3.0f,
           krgb = floatArrayOf(1f, 1.18f, 1.42f, 0f),
@@ -109,7 +109,7 @@ internal class MiragePresetTest :
 
       test("OilSlick") {
         assertChromatic(
-          MirageOptics.OilSlick.paramsFactory(),
+          MirageShaders.OilSlick.paramsFactory(),
           intensity = 0.6f,
           gain = 5.5f,
           krgb = floatArrayOf(1f, 1.30f, 1.72f, 0f),
@@ -122,7 +122,7 @@ internal class MiragePresetTest :
 
       test("SoapBubble") {
         assertChromatic(
-          MirageOptics.SoapBubble.paramsFactory(),
+          MirageShaders.SoapBubble.paramsFactory(),
           intensity = 0.6f,
           gain = 1.7f,
           krgb = floatArrayOf(1f, 1.11f, 1.26f, 0f),
@@ -135,7 +135,7 @@ internal class MiragePresetTest :
 
       test("MetallicFoil") {
         assertChromatic(
-          MirageOptics.MetallicFoil.paramsFactory(),
+          MirageShaders.MetallicFoil.paramsFactory(),
           intensity = 0.6f,
           gain = 3.6f,
           krgb = floatArrayOf(1f, 1.26f, 1.62f, 0f),
@@ -148,7 +148,7 @@ internal class MiragePresetTest :
 
       test("Pearl") {
         assertChromatic(
-          MirageOptics.Pearl.paramsFactory(),
+          MirageShaders.Pearl.paramsFactory(),
           intensity = 0.6f,
           gain = 2.4f,
           krgb = floatArrayOf(1f, 1.07f, 1.18f, 0f),
@@ -162,7 +162,7 @@ internal class MiragePresetTest :
 
     context("Foil overlay defaults carry the recipe-era values") {
       test("the 5 foil/sparkle defaults are in lockstep") {
-        val p = MirageOptics.Foil.paramsFactory()
+        val p = MirageShaders.Foil.paramsFactory()
         p.foilBands.value.shouldBe(5f)
         p.foilPhase.value.shouldBe(0f)
         p.chromaticGain.value.shouldBe(3.6f)

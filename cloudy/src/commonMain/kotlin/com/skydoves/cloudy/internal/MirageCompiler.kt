@@ -18,20 +18,20 @@
 package com.skydoves.cloudy.internal
 
 import com.skydoves.cloudy.ExperimentalMirage
-import com.skydoves.cloudy.FilterOptic
-import com.skydoves.cloudy.GenerateOptic
+import com.skydoves.cloudy.FilterShader
+import com.skydoves.cloudy.GeneratorShader
 import com.skydoves.cloudy.MirageParams
-import com.skydoves.cloudy.Optic
+import com.skydoves.cloudy.MirageShader
 
 /**
  * Thrown when [MirageCompiler.lint] finds a kernel token that cannot be compiled or contradicts the
- * kernel's [OpticCategory]. Carries the offending token and the reason so the failure points at the
+ * kernel's [ShaderCategory]. Carries the offending token and the reason so the failure points at the
  * exact source problem.
  */
 internal class MirageLintException(message: String) : IllegalArgumentException(message)
 
 /**
- * Lowers an authored [Optic] into a per-dialect [CompiledProgram]. Pure and side-effect-free: it
+ * Lowers an authored [MirageShader] into a per-dialect [CompiledProgram]. Pure and side-effect-free: it
  * touches no GPU, Compose-UI, or Node type, only strings and the schema captured from a probe params
  * instance. That purity is the point of this layer - every codegen decision is unit-testable off any
  * device.
@@ -45,24 +45,24 @@ internal class MirageLintException(message: String) : IllegalArgumentException(m
  *   4. content sampler + kernel body - Colorize wraps `kernel(...)` in a content-sampling `main`;
  *      Composite / Generate splice the author's `main` directly.
  *
- * A raw optic ([FilterOptic.skipLint]) bypasses all four: its source is authored complete, so it is
+ * A raw shader ([FilterShader.skipLint]) bypasses all four: its source is authored complete, so it is
  * emitted verbatim.
  */
 internal object MirageCompiler {
 
   /**
-   * Builds the [UniformSchema] for an optic by minting one probe params instance from [paramsFactory]
+   * Builds the [UniformSchema] for an shader by minting one probe params instance from [paramsFactory]
    * and reading the slots its `by uniform(...)` delegates registered (declaration order = bind order).
    * The probe is discarded; the engine mints its own per-node instance for actual draws.
    */
   fun schemaOf(paramsFactory: () -> MirageParams): UniformSchema =
     UniformSchema(paramsFactory().schemaEntries)
 
-  /** Lowers [optic] into a ready-to-run program for [dialect]. */
-  fun compile(optic: Optic<*>, dialect: Dialect): CompiledProgram {
-    val schema = schemaOf(optic.paramsFactory)
-    val category = categoryOf(optic)
-    val kernel = kernelOf(optic, dialect)
+  /** Lowers [shader] into a ready-to-run program for [dialect]. */
+  fun compile(shader: MirageShader<*>, dialect: Dialect): CompiledProgram {
+    val schema = schemaOf(shader.paramsFactory)
+    val category = categoryOf(shader)
+    val kernel = kernelOf(shader, dialect)
 
     // Every reference/token scan runs against comment-stripped code, never the raw text: a token that
     // only appears in a comment (e.g. a "// ...fwidth..." note, or a "#" in prose) must not trip lint
@@ -78,9 +78,9 @@ internal object MirageCompiler {
     val usesTime = code.contains(STD_TIME)
     val usesDensity = code.contains(STD_DENSITY)
 
-    // A raw optic owns its full source (uniform declarations included) and is treated as Composite,
+    // A raw shader owns its full source (uniform declarations included) and is treated as Composite,
     // so it always samples content. Emit it verbatim: no preamble, no generated declarations, no wrap.
-    if (isRaw(optic)) {
+    if (isRaw(shader)) {
       return CompiledProgram(
         source = kernel,
         schema = schema,
@@ -88,14 +88,14 @@ internal object MirageCompiler {
         usesResolution = usesResolution,
         usesTime = usesTime,
         usesDensity = usesDensity,
-        category = OpticCategory.Composite,
+        category = ShaderCategory.Composite,
         isRaw = true,
       )
     }
 
     lintCode(code, category)
 
-    val usesContent = category != OpticCategory.Generate
+    val usesContent = category != ShaderCategory.Generate
     val source = assemble(
       kernel,
       schema,
@@ -130,10 +130,10 @@ internal object MirageCompiler {
    * Comments are stripped before the scan so a forbidden token that only appears in a comment (a
    * "no fwidth here" note, a "#" in prose) is not a false positive.
    */
-  fun lint(kernelSource: String, category: OpticCategory): Unit =
+  fun lint(kernelSource: String, category: ShaderCategory): Unit =
     lintCode(stripComments(kernelSource), category)
 
-  private fun lintCode(code: String, category: OpticCategory) {
+  private fun lintCode(code: String, category: ShaderCategory) {
     for (token in FORBIDDEN_TOKENS) {
       if (code.contains(token)) {
         throw MirageLintException(
@@ -143,7 +143,7 @@ internal object MirageCompiler {
       }
     }
     when (category) {
-      OpticCategory.Colorize ->
+      ShaderCategory.Colorize ->
         if (code.contains(CONTENT_TOKEN)) {
           throw MirageLintException(
             "Colorize kernel references '$CONTENT_TOKEN': a point-wise kernel must read content " +
@@ -151,7 +151,7 @@ internal object MirageCompiler {
           )
         }
 
-      OpticCategory.Generate ->
+      ShaderCategory.Generate ->
         if (code.contains(CONTENT_TOKEN)) {
           throw MirageLintException(
             "Generate overlay kernel references '$CONTENT_TOKEN': an overlay has no content " +
@@ -159,7 +159,7 @@ internal object MirageCompiler {
           )
         }
 
-      OpticCategory.Composite -> Unit // free content access is exactly what Composite is for.
+      ShaderCategory.Composite -> Unit // free content access is exactly what Composite is for.
     }
   }
 
@@ -196,7 +196,7 @@ internal object MirageCompiler {
   private fun assemble(
     kernel: String,
     schema: UniformSchema,
-    category: OpticCategory,
+    category: ShaderCategory,
     dialect: Dialect,
     usesResolution: Boolean,
     usesTime: Boolean,
@@ -204,7 +204,7 @@ internal object MirageCompiler {
     usesContent: Boolean,
   ): String = buildString {
     // Colorize is point-wise and does not read the lens field, so it gets no preamble.
-    if (category != OpticCategory.Colorize) {
+    if (category != ShaderCategory.Colorize) {
       append(miragePreambleHelpers(dialect))
       append('\n')
     }
@@ -227,7 +227,7 @@ internal object MirageCompiler {
     // Colorize authors only `kernel(p, src)`; codegen adds the content-sampling main. Composite /
     // Generate author the full `main`, spliced as-is.
     append(kernel)
-    if (category == OpticCategory.Colorize) {
+    if (category == ShaderCategory.Colorize) {
       append('\n')
       append(COLORIZE_MAIN_WRAPPER)
       append('\n')
@@ -244,21 +244,21 @@ internal object MirageCompiler {
     else -> "uniform ${entry.glslType} ${entry.name};"
   }
 
-  // Optic is sealed to FilterOptic / GenerateOptic, so these accessor branches are exhaustive.
+  // MirageShader is sealed to FilterShader / GeneratorShader, so these accessor branches are exhaustive.
 
-  private fun categoryOf(optic: Optic<*>): OpticCategory = when (optic) {
-    is FilterOptic<*> -> optic.category
-    is GenerateOptic<*> -> OpticCategory.Generate
+  private fun categoryOf(shader: MirageShader<*>): ShaderCategory = when (shader) {
+    is FilterShader<*> -> shader.category
+    is GeneratorShader<*> -> ShaderCategory.Generate
   }
 
-  // GlslEs consumes the AGSL body (its GLSL ES 1.0 feature surface is the base the translator lowers
-  // from); Sksl uses the SKSL body; Agsl uses the AGSL body.
-  private fun kernelOf(optic: Optic<*>, dialect: Dialect): String = when (optic) {
-    is FilterOptic<*> -> if (dialect == Dialect.Sksl) optic.sksl else optic.agsl
-    is GenerateOptic<*> -> if (dialect == Dialect.Sksl) optic.sksl else optic.agsl
+  // GlslEs consumes the AGSL body (its GLSL ES feature surface is the base the translator lowers from);
+  // Sksl uses the SKSL body; Agsl uses the AGSL body.
+  private fun kernelOf(shader: MirageShader<*>, dialect: Dialect): String = when (shader) {
+    is FilterShader<*> -> if (dialect == Dialect.Sksl) shader.sksl else shader.agsl
+    is GeneratorShader<*> -> if (dialect == Dialect.Sksl) shader.sksl else shader.agsl
   }
 
-  private fun isRaw(optic: Optic<*>): Boolean = optic is FilterOptic<*> && optic.skipLint
+  private fun isRaw(shader: MirageShader<*>): Boolean = shader is FilterShader<*> && shader.skipLint
 
   /** Standard uniform names the compiler emits on demand. The kernel references these directly. */
   private const val STD_RESOLUTION = "mirageResolution"

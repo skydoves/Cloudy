@@ -101,7 +101,7 @@ sealed interface Route {
   data object BlurLight : Route
 
   /**
-   * The open shader-effect test screen — applies an optic plan from [com.skydoves.cloudy.MirageOptics]
+   * The open shader-effect test screen — applies an shader plan from [com.skydoves.cloudy.MirageShaders]
    * to a poster with a single `Modifier.mirage { }` block and toggles between the specular / chromatic
    * looks.
    */

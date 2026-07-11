@@ -43,14 +43,14 @@ import org.robolectric.RobolectricTestRunner
 internal class MiragePlanModifierTest {
 
   /** A trivial colorize filter and a trivial generator overlay, enough to populate a plan. */
-  private val tintFilter: ColorizeOptic<MirageParams> = Optic.colorize(
+  private val tintFilter: ColorizeShader<MirageParams> = MirageShader.colorize(
     name = "test-tint",
     paramsFactory = { EmptyParams() },
     agsl = "half4 kernel(float2 p, half4 src) { return src; }",
     sksl = "half4 kernel(float2 p, half4 src) { return src; }",
   )
 
-  private val glowOverlay: GenerateOptic<MirageParams> = Optic.generate(
+  private val glowOverlay: GeneratorShader<MirageParams> = MirageShader.generate(
     name = "test-glow",
     paramsFactory = { EmptyParams() },
     agsl = "half4 main(float2 xy) { return half4(1.0); }",
@@ -87,7 +87,7 @@ internal class MiragePlanModifierTest {
     assertTrue(stages[0] is Stage.ProgramFilter)
     assertTrue(stages[1] is Stage.Overlay)
     assertEquals(BlendMode.Plus, (stages[1] as Stage.Overlay).blendMode)
-    assertEquals("test-tint", (stages[0] as Stage.ProgramFilter).optic.name)
+    assertEquals("test-tint", (stages[0] as Stage.ProgramFilter).shader.name)
   }
 
   @Test
@@ -97,7 +97,7 @@ internal class MiragePlanModifierTest {
       filter(tintFilter)
     }.stages
     assertNotEquals(
-      "Two filter stages of the same optic must not share one params instance",
+      "Two filter stages of the same shader must not share one params instance",
       (stages[0] as Stage.ProgramFilter).params,
       (stages[1] as Stage.ProgramFilter).params,
     )
@@ -156,7 +156,7 @@ internal class MiragePlanModifierTest {
 
   @Test
   fun `re-creating the params block makes an otherwise-identical backdrop element unequal`() {
-    // Two distinct lambda instances (as a recomposition produces) over the same sky + optic: unequal,
+    // Two distinct lambda instances (as a recomposition produces) over the same sky + shader: unequal,
     // so Compose runs update() and the node adopts the fresh block (no frozen uniforms).
     val sky = Sky()
     val a = backdropElementOf(Modifier.mirage(sky = sky) { filter(tintFilter) { } })

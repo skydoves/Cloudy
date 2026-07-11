@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package demo.optic
+package demo.shader
 
 import android.graphics.Bitmap
 import androidx.compose.ui.graphics.ImageBitmap

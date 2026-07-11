@@ -20,11 +20,11 @@ package com.skydoves.cloudy.internal
 import androidx.compose.ui.graphics.BlendMode
 import com.skydoves.cloudy.CloudyProgressive
 import com.skydoves.cloudy.ExperimentalMirage
-import com.skydoves.cloudy.FilterOptic
-import com.skydoves.cloudy.GenerateOptic
+import com.skydoves.cloudy.FilterShader
+import com.skydoves.cloudy.GeneratorShader
 import com.skydoves.cloudy.MirageParams
 import com.skydoves.cloudy.MirageScope
-import com.skydoves.cloudy.Optic
+import com.skydoves.cloudy.MirageShader
 
 /** The shading language the current platform runs (Android = AGSL, every skiko target = SKSL). */
 internal expect fun currentDialect(): Dialect
@@ -45,14 +45,14 @@ internal sealed class Stage {
    * [paramsBlock] is the caller's per-draw uniform block, re-run each draw against [params].
    */
   class ProgramFilter(
-    val optic: FilterOptic<*>,
+    val shader: FilterShader<*>,
     val params: MirageParams,
     val paramsBlock: (MirageParams.() -> Unit)?,
   ) : Stage()
 
   /** A content-free overlay generator — drawn over the content with [blendMode]. */
   class Overlay(
-    val optic: GenerateOptic<*>,
+    val shader: GeneratorShader<*>,
     val params: MirageParams,
     val paramsBlock: (MirageParams.() -> Unit)?,
     val blendMode: BlendMode,
@@ -68,7 +68,7 @@ internal sealed class Stage {
 
 /**
  * Builds the immutable stage list for a plan by running the caller's `plan` block once. Each
- * `filter`/`overlay` call mints the optic's params instance (via its `paramsFactory`) and captures
+ * `filter`/`overlay` call mints the shader's params instance (via its `paramsFactory`) and captures
  * the per-draw block; the built [stages] are what the node draws through.
  */
 @OptIn(ExperimentalMirage::class)
@@ -77,22 +77,22 @@ internal class MiragePlanBuilder : MirageScope {
   val stages: MutableList<Stage> = mutableListOf()
 
   @Suppress("UNCHECKED_CAST")
-  override fun <P : MirageParams> filter(optic: FilterOptic<P>, params: (P.() -> Unit)?) {
+  override fun <P : MirageParams> filter(shader: FilterShader<P>, params: (P.() -> Unit)?) {
     // paramsFactory mints a P; the block is P.() -> Unit. Both are erased to MirageParams for storage
-    // and re-cast at the (type-safe by construction) call site — the instance came from this optic.
+    // and re-cast at the (type-safe by construction) call site — the instance came from this shader.
     stages +=
-      Stage.ProgramFilter(optic, optic.paramsFactory(), params as (MirageParams.() -> Unit)?)
+      Stage.ProgramFilter(shader, shader.paramsFactory(), params as (MirageParams.() -> Unit)?)
   }
 
   @Suppress("UNCHECKED_CAST")
   override fun <P : MirageParams> overlay(
-    optic: GenerateOptic<P>,
+    shader: GeneratorShader<P>,
     blendMode: BlendMode,
     params: (P.() -> Unit)?,
   ) {
     stages += Stage.Overlay(
-      optic,
-      optic.paramsFactory(),
+      shader,
+      shader.paramsFactory(),
       params as (MirageParams.() -> Unit)?,
       blendMode,
     )
@@ -130,7 +130,7 @@ internal fun mirageElement(
 
 /**
  * True when two stage lists describe the same plan structure: same length and, in order, the same
- * stage kind, optic, and (for overlays) blend mode. The per-draw params blocks are deliberately not
+ * stage kind, shader, and (for overlays) blend mode. The per-draw params blocks are deliberately not
  * compared — this is the "would the same programs and layer stack be built?" test that decides whether
  * [EffectNode.update] can take the cheap blocks-only path. Kept beside [EffectElement.equals], which
  * runs the identical comparison to decide element equality.
@@ -148,10 +148,10 @@ internal fun sameStructure(a: List<Stage>, b: List<Stage>): Boolean {
     if (x::class != y::class) return false
     when {
       x is Stage.ProgramFilter && y is Stage.ProgramFilter ->
-        if (x.optic != y.optic) return false
+        if (x.shader != y.shader) return false
 
       x is Stage.Overlay && y is Stage.Overlay ->
-        if (x.optic != y.optic || x.blendMode != y.blendMode) return false
+        if (x.shader != y.shader || x.blendMode != y.blendMode) return false
 
       // PlatformFilter: kind match suffices — radius/progressive are draw-time keys.
     }

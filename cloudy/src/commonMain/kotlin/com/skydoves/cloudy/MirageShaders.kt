@@ -28,7 +28,7 @@ import com.skydoves.cloudy.internal.SPECULAR_KERNEL_AGSL
 import com.skydoves.cloudy.internal.SPECULAR_KERNEL_SKSL
 
 /**
- * Bundled [Optic] presets — the catalog of ready-to-apply looks.
+ * Bundled [MirageShader] presets — the catalog of ready-to-apply looks.
  *
  * A preset is a kernel plus a default parameter set: the visual look lives entirely in the params'
  * declared defaults, never as a hard-coded shader constant, so every value is animatable and value
@@ -36,7 +36,7 @@ import com.skydoves.cloudy.internal.SPECULAR_KERNEL_SKSL
  * The named thin-film looks ([Chromatic] / [OilSlick] / [SoapBubble] / [MetallicFoil] / [Pearl]) are
  * the same [chromatic] factory at different defaults — one GPU program, five looks.
  *
- * Each value is a process-wide singleton, so applying one in a plan never reallocates the optic.
+ * Each value is a process-wide singleton, so applying one in a plan never reallocates the shader.
  *
  * Shared lens geometry ([MirageLensParams.lensCenter] / [lensSize][MirageLensParams.lensSize])
  * defaults to **auto framing**: left unspecified, it resolves at bind time to the node's center and
@@ -48,15 +48,15 @@ import com.skydoves.cloudy.internal.SPECULAR_KERNEL_SKSL
  * `iLight` a `rememberGyroLightSource` direction for motion lighting).
  */
 @ExperimentalMirage
-public object MirageOptics {
+public object MirageShaders {
 
   /**
-   * The liquid-glass specular glint (moving focal hotspot + Blinn rim). A [CompositeOptic] because it
+   * The liquid-glass specular glint (moving focal hotspot + Blinn rim). A [CompositeShader] because it
    * shares intermediates (SDF, bevel normal) across the refraction and specular terms. Its defaults
    * are the `GlowTuning` values, so applying it over the default lens framing reproduces the built-in
    * `liquidGlass` glint bit-for-bit.
    */
-  public val Specular: CompositeOptic<SpecularParams> = Optic.composite(
+  public val Specular: CompositeShader<SpecularParams> = MirageShader.composite(
     name = "specular",
     paramsFactory = ::SpecularParams,
     agsl = SPECULAR_KERNEL_AGSL,
@@ -64,13 +64,13 @@ public object MirageOptics {
   )
 
   /** The default thin-film iridescence look — the [chromatic] factory at its defaults. */
-  public val Chromatic: CompositeOptic<ChromaticParams> = chromatic()
+  public val Chromatic: CompositeShader<ChromaticParams> = chromatic()
 
   /**
    * Oil-slick: high band count, wide RGB spread, near-zero metal floor — a saturated, dark-based
    * rainbow with little wash-out.
    */
-  public val OilSlick: CompositeOptic<ChromaticParams> = chromatic(
+  public val OilSlick: CompositeShader<ChromaticParams> = chromatic(
     gain = 5.5f,
     krgb = floatArrayOf(1f, 1.30f, 1.72f, 0f),
     floor = 0.05f,
@@ -79,7 +79,7 @@ public object MirageOptics {
   )
 
   /** Soap-bubble: few, wide bands with a high floor and strong wash-out — pale, pastel iridescence. */
-  public val SoapBubble: CompositeOptic<ChromaticParams> = chromatic(
+  public val SoapBubble: CompositeShader<ChromaticParams> = chromatic(
     gain = 1.7f,
     krgb = floatArrayOf(1f, 1.11f, 1.26f, 0f),
     floor = 0.22f,
@@ -88,7 +88,7 @@ public object MirageOptics {
   )
 
   /** Metallic foil: dark floor + a Fresnel rim boost toward white at the edge — a sharp metallic sheen. */
-  public val MetallicFoil: CompositeOptic<ChromaticParams> = chromatic(
+  public val MetallicFoil: CompositeShader<ChromaticParams> = chromatic(
     gain = 3.6f,
     krgb = floatArrayOf(1f, 1.26f, 1.62f, 0f),
     floor = 0.03f,
@@ -98,7 +98,7 @@ public object MirageOptics {
   )
 
   /** Pearl: high floor + strong wash-out + a rim boost — a soft, luminous, low-saturation lustre. */
-  public val Pearl: CompositeOptic<ChromaticParams> = chromatic(
+  public val Pearl: CompositeShader<ChromaticParams> = chromatic(
     gain = 2.4f,
     krgb = floatArrayOf(1f, 1.07f, 1.18f, 0f),
     floor = 0.46f,
@@ -108,11 +108,11 @@ public object MirageOptics {
   )
 
   /**
-   * A foil overlay — a content-free [GenerateOptic] (glare + flowing rainbow + anti-aliased sparkle)
-   * drawn over the content. Declare it via `overlay(MirageOptics.Foil)` so it composites on top of any
+   * A foil overlay — a content-free [GeneratorShader] (glare + flowing rainbow + anti-aliased sparkle)
+   * drawn over the content. Declare it via `overlay(MirageShaders.Foil)` so it composites on top of any
    * filter result; its `mirageTime` reference lets the clock drive the sparkle shimmer.
    */
-  public val Foil: GenerateOptic<FoilParams> = Optic.generate(
+  public val Foil: GeneratorShader<FoilParams> = MirageShader.generate(
     name = "foil",
     paramsFactory = ::FoilParams,
     agsl = FOIL_KERNEL_AGSL,
@@ -122,10 +122,10 @@ public object MirageOptics {
   /**
    * A point-wise duotone grade: maps luminance onto a [shadow][DuotoneParams.shadow] →
    * [highlight][DuotoneParams.highlight] gradient and cross-fades by [amount][DuotoneParams.amount].
-   * A [ColorizeOptic], so it fuses cheaply and needs no lens framing. The defaults are a warm
+   * A [ColorizeShader], so it fuses cheaply and needs no lens framing. The defaults are a warm
    * split-tone (deep indigo shadows, cream highlights).
    */
-  public val Duotone: ColorizeOptic<DuotoneParams> = Optic.colorize(
+  public val Duotone: ColorizeShader<DuotoneParams> = MirageShader.colorize(
     name = "duotone",
     paramsFactory = ::DuotoneParams,
     agsl = DUOTONE_KERNEL_AGSL,
@@ -133,7 +133,7 @@ public object MirageOptics {
   )
 
   /**
-   * Builds a thin-film (Newton's-rings) iridescence [CompositeOptic] from its per-look parameters. It
+   * Builds a thin-film (Newton's-rings) iridescence [CompositeShader] from its per-look parameters. It
    * is a Composite (not a point-wise Colorize) because the kernel samples the content freely to tint
    * it. One kernel expresses every named look purely through uniform defaults — there is no in-shader
    * mode branch. The defaults reproduce [Chromatic]; the named looks ([OilSlick] etc.) are this factory
@@ -156,7 +156,7 @@ public object MirageOptics {
     washout: Float = 0.16f,
     modulate: Float = 1f,
     rimBoost: Float = 0f,
-  ): CompositeOptic<ChromaticParams> = Optic.composite(
+  ): CompositeShader<ChromaticParams> = MirageShader.composite(
     name = "chromatic",
     paramsFactory = {
       ChromaticParams(
@@ -175,8 +175,8 @@ public object MirageOptics {
 }
 
 /**
- * Lens-geometry + specular-light uniforms shared by the lens-shaped presets ([MirageOptics.Specular],
- * the thin-film family, [MirageOptics.Foil]). The property names *are* the uniform identifiers the
+ * Lens-geometry + specular-light uniforms shared by the lens-shaped presets ([MirageShaders.Specular],
+ * the thin-film family, [MirageShaders.Foil]). The property names *are* the uniform identifiers the
  * kernels read.
  *
  * Lens framing defaults to **auto**: an [Offset.Unspecified] [lensCenter] / [Size.Unspecified]
@@ -201,7 +201,7 @@ public abstract class MirageLensParams : MirageParams() {
 }
 
 /**
- * Params for [MirageOptics.Specular]. The 11 `spec*` defaults are the `GlowTuning` values (= the
+ * Params for [MirageShaders.Specular]. The 11 `spec*` defaults are the `GlowTuning` values (= the
  * built-in `liquidGlass` glint), so the schema defines the look: changing a default here changes the
  * visual result.
  */
@@ -221,9 +221,9 @@ public class SpecularParams : MirageLensParams() {
 }
 
 /**
- * Params for the thin-film [chromatic][MirageOptics.chromatic] presets. Built with per-look defaults
- * so one kernel expresses every named look; the constructor arguments define each [MirageOptics] look
- * (e.g. [MirageOptics.OilSlick]'s `gain == 5.5`).
+ * Params for the thin-film [chromatic][MirageShaders.chromatic] presets. Built with per-look defaults
+ * so one kernel expresses every named look; the constructor arguments define each [MirageShaders] look
+ * (e.g. [MirageShaders.OilSlick]'s `gain == 5.5`).
  *
  * `chromaticKRGB` is declared `float4` because the shader reads `.xyz` and the backends require a
  * write arity that matches the declared size; the `.w` component is unused.
@@ -255,7 +255,7 @@ public class ChromaticParams internal constructor(
   public val chromaticPoolFrac: UFloat by uniform(0.7f)
 }
 
-/** Params for [MirageOptics.Foil] — the 5 foil/sparkle uniforms plus the shared lens framing. */
+/** Params for [MirageShaders.Foil] — the 5 foil/sparkle uniforms plus the shared lens framing. */
 @ExperimentalMirage
 public class FoilParams : MirageLensParams() {
   public val foilBands: UFloat by uniform(5f)
@@ -266,7 +266,7 @@ public class FoilParams : MirageLensParams() {
 }
 
 /**
- * Params for [MirageOptics.Duotone] — the two grade endpoints plus the blend amount. Point-wise, so
+ * Params for [MirageShaders.Duotone] — the two grade endpoints plus the blend amount. Point-wise, so
  * it carries no lens framing.
  *
  * @property shadow the color mapped to the darkest luminance. Default a deep indigo.

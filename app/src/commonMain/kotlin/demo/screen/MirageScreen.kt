@@ -61,10 +61,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.skydoves.cloudy.ChromaticParams
-import com.skydoves.cloudy.CompositeOptic
+import com.skydoves.cloudy.CompositeShader
 import com.skydoves.cloudy.MirageLensParams
-import com.skydoves.cloudy.MirageOptics
 import com.skydoves.cloudy.MirageScope
+import com.skydoves.cloudy.MirageShaders
 import com.skydoves.cloudy.SpecularParams
 import com.skydoves.cloudy.mirage
 import com.skydoves.cloudy.rememberGyroLightSource
@@ -73,15 +73,15 @@ import com.skydoves.landscapist.coil3.CoilImage
 import demo.component.CollapsingAppBarScaffold
 import demo.component.MaxWidthContainer
 import demo.model.MockUtil
-import demo.optic.DropletMap
-import demo.optic.RainyWindowOptic
-import demo.optic.RainyWindowParams
+import demo.shader.DropletMap
+import demo.shader.RainyWindowParams
+import demo.shader.RainyWindowShader
 import demo.theme.Dimens
 
 /**
- * The look applied by the demo's chips. Each pick keeps a fully typed optic reference so the per-draw
- * params block can set that optic's own subclass uniform (e.g. `specStrength`, `chromaticIntensity`,
- * `rainAmount`) with no unchecked cast, which an erased `FilterOptic<out MirageLensParams>` would
+ * The look applied by the demo's chips. Each pick keeps a fully typed shader reference so the per-draw
+ * params block can set that shader's own subclass uniform (e.g. `specStrength`, `chromaticIntensity`,
+ * `rainAmount`) with no unchecked cast, which an erased `FilterShader<out MirageLensParams>` would
  * require. A pick declares its stage into the [MirageScope] via [declare], driving the shared strength
  * slider ([strength] `0..1`) into whichever param reads as "how strong" for that look.
  */
@@ -95,7 +95,7 @@ private sealed interface MiragePick {
   data object Specular : MiragePick {
     override val label = "Specular"
     override fun MirageScope.declare(framing: MirageLensParams.() -> Unit, strength: Float) {
-      filter(MirageOptics.Specular) {
+      filter(MirageShaders.Specular) {
         framing()
         specStrength(strength)
       }
@@ -104,14 +104,14 @@ private sealed interface MiragePick {
 
   /**
    * A thin-film iridescence look; strength drives its overall `chromaticIntensity` (default 0.6). Holds
-   * the concrete [optic] so the block keeps `ChromaticParams` typed across all five named variants.
+   * the concrete [shader] so the block keeps `ChromaticParams` typed across all five named variants.
    */
   data class Chromatic(
     override val label: String,
-    private val optic: CompositeOptic<ChromaticParams>,
+    private val shader: CompositeShader<ChromaticParams>,
   ) : MiragePick {
     override fun MirageScope.declare(framing: MirageLensParams.() -> Unit, strength: Float) {
-      filter(optic) {
+      filter(shader) {
         framing()
         chromaticIntensity(strength)
       }
@@ -119,14 +119,14 @@ private sealed interface MiragePick {
   }
 
   /**
-   * The demo-authored rainy-window optic (open-API showcase). Full-bleed by design and content-shaped,
+   * The demo-authored rainy-window shader (open-API showcase). Full-bleed by design and content-shaped,
    * so it ignores the lens [framing]; strength maps to `rainAmount`. Carries the baked, tileable
    * [dropletMap] (generated once and remembered in the composable) that the texture-backed kernel taps.
    */
   data class RainyWindow(private val dropletMap: ImageBitmap) : MiragePick {
     override val label = "Rainy Window"
     override fun MirageScope.declare(framing: MirageLensParams.() -> Unit, strength: Float) {
-      filter(RainyWindowOptic.RainyWindow) {
+      filter(RainyWindowShader.RainyWindow) {
         dropletMap(this@RainyWindow.dropletMap)
         rainAmount(strength)
       }
@@ -140,11 +140,11 @@ private sealed interface MiragePick {
  */
 private val BASE_PICKS: List<MiragePick> = listOf(
   MiragePick.Specular,
-  MiragePick.Chromatic("Iridescent", MirageOptics.Chromatic),
-  MiragePick.Chromatic("Oil Slick", MirageOptics.OilSlick),
-  MiragePick.Chromatic("Soap Bubble", MirageOptics.SoapBubble),
-  MiragePick.Chromatic("Metallic Foil", MirageOptics.MetallicFoil),
-  MiragePick.Chromatic("Pearl", MirageOptics.Pearl),
+  MiragePick.Chromatic("Iridescent", MirageShaders.Chromatic),
+  MiragePick.Chromatic("Oil Slick", MirageShaders.OilSlick),
+  MiragePick.Chromatic("Soap Bubble", MirageShaders.SoapBubble),
+  MiragePick.Chromatic("Metallic Foil", MirageShaders.MetallicFoil),
+  MiragePick.Chromatic("Pearl", MirageShaders.Pearl),
 )
 
 /**
@@ -152,20 +152,20 @@ private val BASE_PICKS: List<MiragePick> = listOf(
  * `Modifier.mirage { … }` block, no bespoke component.
  *
  * Demonstrated here:
- * - **Optic catalog:** chips swap between the bundled looks and a demo-authored [RainyWindowOptic]
- *   proving any app can author an optic through the public API with no core change.
+ * - **MirageShader catalog:** chips swap between the bundled looks and a demo-authored [RainyWindowShader]
+ *   proving any app can author an shader through the public API with no core change.
  * - **Strength slider:** one `0..1` slider feeds each look's "how strong" uniform (`specStrength` /
  *   `chromaticIntensity` / `rainAmount`) from the per-draw params block, so sliding re-renders live
  *   (the block identity is part of the node's element equality, so it updates cheaply).
  * - **Full-bleed lens:** a toggle grows the lens to the whole pane, so the bevel/rim terms hug the
  *   pane edges. The rainy-window look is full-bleed regardless (it is content-shaped, not lens-shaped).
- * - **Overlay over filter:** the chaining toggle adds an `overlay(MirageOptics.Foil)` on top of an
- *   `filter(MirageOptics.OilSlick)` stage; the plan orders it correctly regardless of declaration.
+ * - **Overlay over filter:** the chaining toggle adds an `overlay(MirageShaders.Foil)` on top of an
+ *   `filter(MirageShaders.OilSlick)` stage; the plan orders it correctly regardless of declaration.
  *
- * The lens center/size are seeded from the pane via `onSizeChanged` and passed into each optic's
+ * The lens center/size are seeded from the pane via `onSizeChanged` and passed into each shader's
  * `lensCenter` / `lensSize` uniforms in the per-draw params block.
  *
- * The gyro toggle keeps [rememberGyroLightSource] wired (registering the sensor), but the optic's
+ * The gyro toggle keeps [rememberGyroLightSource] wired (registering the sensor), but the shader's
  * `iLight` stays at its default direction — the motion holder's direction is not part of the public
  * surface yet.
  */
@@ -188,7 +188,7 @@ fun MirageScreen(onBackClick: () -> Unit) {
   // Keeps the sensor path exercised; the direction holder is not read into iLight (see the KDoc).
   rememberGyroLightSource(enabled = gyroEnabled)
 
-  // Sets the shared lens framing (center + size + corner) into any lens-shaped optic's params. When
+  // Sets the shared lens framing (center + size + corner) into any lens-shaped shader's params. When
   // full-bleed is on, the lens covers the whole pane (center = pane center, size = pane size) with a
   // square corner, so the bevel/rim terms fall on the pane edges. Read the seeded values into locals
   // so the params-receiver's `lensCenter` handle does not shadow them.
@@ -222,7 +222,7 @@ fun MirageScreen(onBackClick: () -> Unit) {
       ) {
         Text(
           text =
-          "One Modifier.mirage { } block applies an open optic plan to any content. Pick a " +
+          "One Modifier.mirage { } block applies an open shader plan to any content. Pick a " +
             "look, drag Strength, toggle full-bleed, or chain Foil over a refracting Oil Slick. " +
             "Android 13+ / Skia.",
           fontSize = 14.sp,
@@ -246,8 +246,8 @@ fun MirageScreen(onBackClick: () -> Unit) {
         ) { paneModifier ->
           if (chained) {
             paneModifier.mirage {
-              filter(MirageOptics.OilSlick) { lensFraming() }
-              overlay(MirageOptics.Foil) { lensFraming() }
+              filter(MirageShaders.OilSlick) { lensFraming() }
+              overlay(MirageShaders.Foil) { lensFraming() }
             }
           } else {
             paneModifier.mirage {

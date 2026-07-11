@@ -46,7 +46,7 @@ private const val RASTER = 64
 /**
  * Direct-skiko rasterization proof for the thin-film (chromatic) family. There is no compose-ui-test
  * harness in the desktop test set (only `compose.desktop.currentOs`), so instead of driving a real
- * `Modifier.mirage { ... }` this rasterizes each optic's compiled SKSL through skiko's [RuntimeEffect]
+ * `Modifier.mirage { ... }` this rasterizes each shader's compiled SKSL through skiko's [RuntimeEffect]
  * exactly the way the skiko backend does at draw time — the same source, the same schema-default
  * uniforms, with the lens sized to cover the whole raster so every pixel goes through the thin-film
  * branch (not the `content.eval(xy)` early-out).
@@ -60,11 +60,11 @@ internal class MirageChromaticRasterTest :
 
     test("OilSlick, Pearl, and baseline content all rasterize to distinct pixels") {
       val baseline = renderContent()
-      val oil = renderChromatic(MirageOptics.OilSlick)
-      val pearl = renderChromatic(MirageOptics.Pearl)
+      val oil = renderChromatic(MirageShaders.OilSlick)
+      val pearl = renderChromatic(MirageShaders.Pearl)
 
       // Each filtered look must actually alter the content (non-passthrough), and the two looks must
-      // differ from each other — the direct evidence that per-optic schema defaults reach the shader.
+      // differ from each other — the direct evidence that per-shader schema defaults reach the shader.
       // If OilSlick and Pearl shared one schema, oil-vs-pearl would be 0.
       meanAbsDiff(oil, baseline).shouldBeGreaterThan(1.0)
       meanAbsDiff(pearl, baseline).shouldBeGreaterThan(1.0)
@@ -78,12 +78,12 @@ internal class MirageChromaticRasterTest :
     // go through the REAL library binder (bindUniforms), the exact path both mirage nodes take.
     test("unset lens framing auto-binds as the full node frame, not an origin-pinned lens") {
       val size = 512
-      val auto = renderThroughLibraryBinder(MirageOptics.Chromatic, size)
-      val explicitFullBleed = renderThroughLibraryBinder(MirageOptics.Chromatic, size) {
+      val auto = renderThroughLibraryBinder(MirageShaders.Chromatic, size)
+      val explicitFullBleed = renderThroughLibraryBinder(MirageShaders.Chromatic, size) {
         lensCenter(Offset(size / 2f, size / 2f))
         lensSize(Size(size.toFloat(), size.toFloat()))
       }
-      val originPinned = renderThroughLibraryBinder(MirageOptics.Chromatic, size) {
+      val originPinned = renderThroughLibraryBinder(MirageShaders.Chromatic, size) {
         lensCenter(Offset.Zero)
         lensSize(Size(350f, 350f))
       }
@@ -100,8 +100,8 @@ internal class MirageChromaticRasterTest :
     // fraction shapes the rainbow — a widened pool must change the render.
     test("chromaticPoolFrac changes the render when the pool modulates the effect") {
       val size = 512
-      val defaultPool = renderThroughLibraryBinder(MirageOptics.Chromatic, size)
-      val widePool = renderThroughLibraryBinder(MirageOptics.Chromatic, size) {
+      val defaultPool = renderThroughLibraryBinder(MirageShaders.Chromatic, size)
+      val widePool = renderThroughLibraryBinder(MirageShaders.Chromatic, size) {
         chromaticPoolFrac(1.5f)
       }
 
@@ -129,9 +129,9 @@ internal class MirageChromaticRasterTest :
       "MetallicFoil superellipse bevel has far less diagonal-X energy than the old box bevel (full-bleed/max)",
     ) {
       val fixed =
-        renderRidgeProbe(MirageOptics.MetallicFoil, BLEED_RASTER, corner = 0f, intensity = 1f)
+        renderRidgeProbe(MirageShaders.MetallicFoil, BLEED_RASTER, corner = 0f, intensity = 1f)
       val box = renderRidgeProbe(
-        MirageOptics.MetallicFoil,
+        MirageShaders.MetallicFoil,
         BLEED_RASTER,
         corner = 0f,
         intensity = 1f,
@@ -155,13 +155,13 @@ internal class MirageChromaticRasterTest :
       val corner = DFRAME_RASTER * 0.23f
       val fixed =
         renderRidgeProbe(
-          MirageOptics.MetallicFoil,
+          MirageShaders.MetallicFoil,
           DFRAME_RASTER,
           corner = corner,
           intensity = 0.6f,
         )
       val box = renderRidgeProbe(
-        MirageOptics.MetallicFoil,
+        MirageShaders.MetallicFoil,
         DFRAME_RASTER,
         corner = corner,
         intensity = 0.6f,
@@ -179,17 +179,17 @@ private const val DFRAME_RASTER = 512
 private const val RIDGE_MIN_RATIO = 1.30
 
 /**
- * Renders [optic]'s compiled program over a fixed gradient content into an ARGB byte buffer. Resets
+ * Renders [shader]'s compiled program over a fixed gradient content into an ARGB byte buffer. Resets
  * the params to the schema defaults (as the node does each draw), overrides only the lens framing to
  * cover the whole raster, then binds every uniform through the same [com.skydoves.cloudy.internal.
  * UniformSink] path the node uses.
  */
 @OptIn(ExperimentalMirage::class)
-private fun renderChromatic(optic: CompositeOptic<ChromaticParams>): ByteArray {
-  val cached = MirageProgramCache.obtain(optic, Dialect.Sksl).shouldNotBeNull()
-  val params = optic.paramsFactory()
+private fun renderChromatic(shader: CompositeShader<ChromaticParams>): ByteArray {
+  val cached = MirageProgramCache.obtain(shader, Dialect.Sksl).shouldNotBeNull()
+  val params = shader.paramsFactory()
 
-  // Reset to this optic's declared defaults (mirrors the node's per-draw resetToDefaults), then frame
+  // Reset to this shader's declared defaults (mirrors the node's per-draw resetToDefaults), then frame
   // the lens over the whole raster so no pixel takes the sdf early-out.
   applySchemaDefaults(params, cached)
   params.lensCenter(Offset(RASTER / 2f, RASTER / 2f))
@@ -204,19 +204,19 @@ private fun renderChromatic(optic: CompositeOptic<ChromaticParams>): ByteArray {
 }
 
 /**
- * Renders [optic] over the gradient content through the REAL library binder — reset-to-defaults, the
+ * Renders [shader] over the gradient content through the REAL library binder — reset-to-defaults, the
  * per-draw [frame] block, then the auto lens-frame substitution — exactly as [com.skydoves.cloudy.
  * internal.MirageEffect] binds each draw. [frame] left `null` exercises the bare preset (the auto
  * framing path).
  */
 @OptIn(ExperimentalMirage::class)
 private fun renderThroughLibraryBinder(
-  optic: CompositeOptic<ChromaticParams>,
+  shader: CompositeShader<ChromaticParams>,
   size: Int,
   frame: (ChromaticParams.() -> Unit)? = null,
 ): ByteArray {
-  val cached = MirageProgramCache.obtain(optic, Dialect.Sksl).shouldNotBeNull()
-  val params = optic.paramsFactory()
+  val cached = MirageProgramCache.obtain(shader, Dialect.Sksl).shouldNotBeNull()
+  val params = shader.paramsFactory()
   bindLibraryUniforms(
     cached = cached,
     params = params,
@@ -232,7 +232,7 @@ private fun renderThroughLibraryBinder(
 }
 
 /**
- * Renders [optic] at a square [size] with the bevel-field artifact isolated for the broad-ridge metric:
+ * Renders [shader] at a square [size] with the bevel-field artifact isolated for the broad-ridge metric:
  * the lens covers the whole raster (center + size), corner is [corner], `chromaticIntensity` is forced
  * to [intensity], and `chromaticModulate` is forced to 0 so the light focal pool does not overlay the
  * ring geometry (the pool is a separate, pre-existing feature — the X is purely the bevel field). Light
@@ -244,14 +244,14 @@ private fun renderThroughLibraryBinder(
  */
 @OptIn(ExperimentalMirage::class)
 private fun renderRidgeProbe(
-  optic: CompositeOptic<ChromaticParams>,
+  shader: CompositeShader<ChromaticParams>,
   size: Int,
   corner: Float,
   intensity: Float,
   oldBoxBevel: Boolean = false,
 ): ByteArray {
-  val cached = MirageProgramCache.obtain(optic, Dialect.Sksl).shouldNotBeNull()
-  val params = optic.paramsFactory()
+  val cached = MirageProgramCache.obtain(shader, Dialect.Sksl).shouldNotBeNull()
+  val params = shader.paramsFactory()
 
   applySchemaDefaults(params, cached)
   params.lensCenter(Offset(size / 2f, size / 2f))
@@ -396,8 +396,8 @@ private fun meanAbsDiff(a: ByteArray, b: ByteArray): Double {
 
 /**
  * Resets each handle to its schema-entry default, mirroring the node's per-draw reset so a raster
- * starts from this optic's declared look. Only the value uniforms the chromatic family uses are
- * handled; that is the whole schema for these optics.
+ * starts from this shader's declared look. Only the value uniforms the chromatic family uses are
+ * handled; that is the whole schema for these shaders.
  */
 @OptIn(ExperimentalMirage::class)
 private fun applySchemaDefaults(params: MirageParams, cached: CachedProgram) {

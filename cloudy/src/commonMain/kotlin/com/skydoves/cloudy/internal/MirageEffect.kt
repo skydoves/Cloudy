@@ -53,7 +53,7 @@ internal object MirageEffect : Effect {
     // feeding the next stage. A stage whose program is unavailable (API < 33) is skipped. The layer
     // chaining lives in [MirageFilterChain]; here we resolve programs and supply the stage-0 source.
     val applicable = filters.mapNotNull { stage ->
-      val cached = MirageProgramCache.obtain(stage.optic, dialect) ?: return@mapNotNull null
+      val cached = MirageProgramCache.obtain(stage.shader, dialect) ?: return@mapNotNull null
       // A self-lit content node draws its filters in place synchronously. A Blit stage (the async GLES
       // path) is backdrop-only — it has no self-lit capture path (no contentVersion key), so skip it here
       // rather than pass it to the chain's Blit branch, which errors. GLES self-lit is thus unsupported;
@@ -77,7 +77,7 @@ internal object MirageEffect : Effect {
     // Overlays: the (already filtered) content was drawn above; here just composite each generator over
     // it via a ShaderBrush under the stage's blend mode.
     for (stage in overlays) {
-      val cached = MirageProgramCache.obtain(stage.optic, dialect) ?: continue
+      val cached = MirageProgramCache.obtain(stage.shader, dialect) ?: continue
       bindUniforms(cached, stage.params, stage.paramsBlock, width, height, density, time)
       drawRect(brush = cached.backend.asShaderBrush(), blendMode = stage.blendMode)
     }
