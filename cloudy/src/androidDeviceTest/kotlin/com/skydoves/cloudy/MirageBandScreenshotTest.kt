@@ -193,13 +193,17 @@ internal class MirageBandScreenshotTest {
   /**
    * Case 2: a chromatic mirage card must be non-passthrough — the pipeline actually samples and
    * transforms the backdrop. Lens-pixel accuracy is GlProgramMatchTest's job; this only proves the
-   * full compose path draws the effect. On API < 33 the lens optic has no runtime shader and the raw
-   * backdrop shows through, so the assert is skipped there.
+   * full compose path draws the effect.
+   *
+   * The Chromatic lens is a Composite optic, so it renders on both content-filtering bands: AGSL
+   * `RenderEffect` on 33+ and a translated GLES program on 29-32 (see createBackendProgram). Only the
+   * ColorGrade band (< 29) has no lens path — the optic is unsupported there and the raw backdrop shows
+   * through — so the assert is skipped only below API 29, not below 33.
    */
   @Test
   fun mirageChromaticTransformsBackdrop() {
-    // No RuntimeShader below 33: the lens optic is a passthrough, so there is nothing to assert.
-    if (Build.VERSION.SDK_INT < 33) return
+    // The lens optic is unsupported on the ColorGrade band (< 29): passthrough, nothing to assert.
+    if (Build.VERSION.SDK_INT < 29) return
 
     startFixture()
     val raw = captureCard()
