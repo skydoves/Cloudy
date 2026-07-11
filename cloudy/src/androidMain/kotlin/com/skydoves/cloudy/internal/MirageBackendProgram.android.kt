@@ -110,7 +110,7 @@ internal actual fun createBackendProgram(compiled: CompiledProgram): MirageBacke
     // only. Declined (-> null -> no-op): a raw optic (untranslatable), a time-driven optic (animation
     // is out of scope for this band), and a Generate overlay (overlays use a ShaderBrush, not the FBO
     // filter path). The backdrop node runs the result via an async capture, so a self-lit node still
-    // no-ops on this band (self-lit has no content-version cache key — see MirageBackdropNode).
+    // no-ops on this band (self-lit has no content-version cache key — see the backdrop path in EffectNode).
     MirageBackendBand.Gles -> when {
       compiled.isRaw || compiled.usesTime || compiled.category == ShaderCategory.Generate -> null
 

@@ -26,7 +26,7 @@ import com.skydoves.cloudy.ExperimentalMirage
  * filters through [MirageFilterChain] as content-bound render effects, then composite the overlays via
  * a [ShaderBrush][androidx.compose.ui.graphics.ShaderBrush] under each overlay's blend mode.
  *
- * This is the draw machinery moved verbatim from the former MirageNode / MirageBackdropNode: identical
+ * This is the draw machinery moved verbatim from the former MirageNode / MirageBackdropNode (now EffectNode): identical
  * for both stage-0 sources (self content vs. backdrop region), which is why the source is passed in as
  * `recordSource` and the effect itself is source-agnostic.
  *

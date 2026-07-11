@@ -29,6 +29,16 @@ import com.skydoves.cloudy.MirageShader
 /** The shading language the current platform runs (Android = AGSL, every skiko target = SKSL). */
 internal expect fun currentDialect(): Dialect
 
+/**
+ * Whether the mirage backdrop must sample the sky through a rasterized snapshot instead of a live
+ * `drawLayer(sky.backgroundLayer)`. True only on Android, where recording the live layer into a filter
+ * layer closes a cyclic `RenderNode` graph that `captureToImage`/`PixelCopy` overflows the RenderThread
+ * on (issue #112). Skia (every skiko target) walks the layer graph without that cycle overflow, so it
+ * samples the live layer directly — which also renders synchronously in the same draw pass (the snapshot
+ * capture is async). See [MirageBackdropSnapshot].
+ */
+internal expect fun backdropNeedsAcyclicSnapshot(): Boolean
+
 /** mirageTime wraps here so a long session never grows the argument enough to decay float32 sin(). */
 internal const val TIME_WRAP_SECONDS = 3600f
 

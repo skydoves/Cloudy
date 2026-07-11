@@ -67,7 +67,7 @@ public class GlProgramMatchTest {
   public fun duotoneGlMatchesTheColorMatrixReference() {
     val content = gradientContent(64, 64)
 
-    val compiled = MirageCompiler.compile(MirageOptics.Duotone, Dialect.GlslEs)
+    val compiled = MirageCompiler.compile(MirageShaders.Duotone, Dialect.GlslEs)
     val program = GlProgram(MirageGlslEs.translate(compiled.source))
 
     // Bind the optic's schema defaults through the recording sink, exactly as the node's binder does.
@@ -89,7 +89,7 @@ public class GlProgramMatchTest {
   @Test
   public fun chromaticGlActuallyTransformsContent() {
     val content = gradientContent(64, 64)
-    val compiled = MirageCompiler.compile(MirageOptics.Chromatic, Dialect.GlslEs)
+    val compiled = MirageCompiler.compile(MirageShaders.Chromatic, Dialect.GlslEs)
     val program = GlProgram(MirageGlslEs.translate(compiled.source))
 
     val (sink, writes) = program.uniformSink()
@@ -124,12 +124,12 @@ public class GlProgramMatchTest {
    */
   @Test
   public fun chromaticGlMatchesAgslReference() {
-    assertLensOpticMatches(MirageOptics.Chromatic)
+    assertLensOpticMatches(MirageShaders.Chromatic)
   }
 
   @Test
   public fun specularGlMatchesAgslReference() {
-    assertLensOpticMatches(MirageOptics.Specular)
+    assertLensOpticMatches(MirageShaders.Specular)
   }
 }
 
@@ -147,7 +147,7 @@ private const val LENS_FRAME = 64f
  * The MAD is always in the failure message so a passing-or-failing device run still reports the number.
  */
 @OptIn(ExperimentalMirage::class)
-private fun assertLensOpticMatches(optic: Optic<*>) {
+private fun assertLensOpticMatches(optic: MirageShader<*>) {
   val content = gradientContent(64, 64)
 
   // GLES path: translate AGSL -> GLSL ES, bind schema defaults through the recording sink, override the
@@ -245,7 +245,7 @@ private fun renderAgslToBitmap(shader: RuntimeShader, content: Bitmap): Bitmap {
 /** A params instance reset to [compiled]'s schema defaults — what colorGradeMatrixOf reads per draw. */
 @OptIn(ExperimentalMirage::class)
 private fun defaultParams(compiled: CompiledProgram): MirageParams {
-  val params = MirageOptics.Duotone.paramsFactory()
+  val params = MirageShaders.Duotone.paramsFactory()
   resetToDefaults(params, compiled.schema)
   return params
 }

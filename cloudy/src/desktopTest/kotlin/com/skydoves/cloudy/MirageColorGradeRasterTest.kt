@@ -61,7 +61,7 @@ internal class MirageColorGradeRasterTest :
 
     // Build a Duotone params reset to defaults; the .apply receiver is the public DuotoneParams (its
     // type is never named to avoid the same-package private DuotoneParams in the compiler test).
-    fun duotoneParams() = MirageOptics.Duotone.paramsFactory()
+    fun duotoneParams() = MirageShaders.Duotone.paramsFactory()
       .apply { resetToDefaults(this, duotoneCompiled().schema) }
 
     test(
@@ -98,7 +98,7 @@ internal class MirageColorGradeRasterTest :
       // A Composite lens optic is not affine, so the ColorGrade path must decline it, which is what
       // makes it a no-op / fallback below API 33.
       isColorGradeReproducible(
-        MirageProgramCache.obtain(MirageOptics.Chromatic, Dialect.Sksl).shouldNotBeNull().compiled,
+        MirageProgramCache.obtain(MirageShaders.Chromatic, Dialect.Sksl).shouldNotBeNull().compiled,
       ) shouldBe false
       isColorGradeReproducible(duotoneCompiled()) shouldBe true
     }
@@ -113,7 +113,7 @@ internal class MirageColorGradeRasterTest :
 /** The compiled Duotone program (skiko dialect) — the source the ColorGrade matrix is derived from. */
 @OptIn(ExperimentalMirage::class)
 private fun duotoneCompiled() =
-  MirageProgramCache.obtain(MirageOptics.Duotone, Dialect.Sksl)!!.compiled
+  MirageProgramCache.obtain(MirageShaders.Duotone, Dialect.Sksl)!!.compiled
 
 /** Deterministic diagonal-gradient content, opaque — the same shape the chromatic raster test uses. */
 private fun contentShader(): Shader = RuntimeEffect.makeForShader(

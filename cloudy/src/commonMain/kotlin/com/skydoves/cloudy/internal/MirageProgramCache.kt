@@ -117,17 +117,16 @@ internal object MirageProgramCache {
  * "renders" here means exactly what that node will draw. Warming the cache during composition is cheap.
  */
 @OptIn(ExperimentalMirage::class)
-internal fun planRenders(stages: List<Stage>, dialect: Dialect): Boolean =
-  stages.any { stage ->
-    // Only program stages have a shader to compile; a blur PlatformFilter renders on its own path and
-    // is never gated by a MirageFallback, so it does not participate in this check.
-    val shader = when (stage) {
-      is Stage.ProgramFilter -> stage.shader
-      is Stage.Overlay -> stage.shader
-      is Stage.PlatformFilter -> return@any false
-    }
-    rendersInPlace(MirageProgramCache.obtain(shader, dialect))
+internal fun planRenders(stages: List<Stage>, dialect: Dialect): Boolean = stages.any { stage ->
+  // Only program stages have a shader to compile; a blur PlatformFilter renders on its own path and
+  // is never gated by a MirageFallback, so it does not participate in this check.
+  val shader = when (stage) {
+    is Stage.ProgramFilter -> stage.shader
+    is Stage.Overlay -> stage.shader
+    is Stage.PlatformFilter -> return@any false
   }
+  rendersInPlace(MirageProgramCache.obtain(shader, dialect))
+}
 
 /**
  * Whether [cached]'s program renders on a self-lit content node (drawn in place synchronously). Null

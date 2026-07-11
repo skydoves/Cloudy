@@ -34,11 +34,11 @@ internal class MirageGlslEsTest :
   FunSpec({
 
     // Translate the real assembled Duotone (Colorize) program the way the GLES backend will.
-    val duotone = MirageCompiler.compile(MirageOptics.Duotone, Dialect.GlslEs)
+    val duotone = MirageCompiler.compile(MirageShaders.Duotone, Dialect.GlslEs)
     val glslDuotone = MirageGlslEs.translate(duotone.source)
 
     // And the Chromatic (Composite, lens preamble + free content sampling) program.
-    val chromatic = MirageCompiler.compile(MirageOptics.Chromatic, Dialect.GlslEs)
+    val chromatic = MirageCompiler.compile(MirageShaders.Chromatic, Dialect.GlslEs)
     val glslChromatic = MirageGlslEs.translate(chromatic.source)
 
     test("emits the GLSL ES 3.0 header and highp precision") {

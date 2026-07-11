@@ -246,10 +246,6 @@ internal class EffectNode(
       return
     }
 
-    // For a backdrop, the offset-shifted Sky region is sampled through a rasterized snapshot rather than
-    // a live drawLayer(backgroundLayer): the live layer closes the issue-112 RenderNode cycle under
-    // captureToImage/PixelCopy when a Weather records it into a layer (the mirage chain does; the blur
-    // Weather self-samples and ignores this source). Kept fresh async, coalesced on contentVersion.
     val recordSource: DrawScope.() -> Unit
     if (sky == null) {
       recordSource = { this@draw.drawContent() }
@@ -262,28 +258,44 @@ internal class EffectNode(
         return
       }
       val skyBounds = sky.sourceBounds
-      val backdropOffset = Offset(positionInRoot.x - skyBounds.left, positionInRoot.y - skyBounds.top)
-
-      // Sample the offset-shifted Sky region through a rasterized snapshot rather than a live
-      // drawLayer(backgroundLayer): the live layer closes the issue-112 RenderNode cycle under
-      // captureToImage/PixelCopy when an Effect records it into a filter layer (the mirage chain does;
-      // the blur Effect self-samples and ignores this source). Kept fresh async, coalesced on contentVersion.
-      backdropSnapshot.requestIfStale(
-        coroutineScope = coroutineScope,
-        layer = backgroundLayer,
-        contentVersion = sky.contentVersion,
-        invalidate = { if (isAttached) invalidateDraw() },
+      val backdropOffset = Offset(
+        positionInRoot.x - skyBounds.left,
+        positionInRoot.y - skyBounds.top,
       )
-      recordSource = {
-        with(backdropSnapshot) {
-          drawSampledRegion(backdropOffset, IntSize(width.toInt(), height.toInt()))
+
+      if (backdropNeedsAcyclicSnapshot()) {
+        // Android: sample the offset-shifted Sky region through a rasterized snapshot rather than a live
+        // drawLayer(backgroundLayer). Recording the live layer into an Effect's filter layer closes the
+        // issue-112 RenderNode cycle that captureToImage/PixelCopy overflows (the mirage chain records
+        // recordSource into a layer; the blur Effect self-samples and ignores this source). The snapshot
+        // capture is async, coalesced on contentVersion; the previous bitmap keeps drawing until it lands.
+        backdropSnapshot.requestIfStale(
+          coroutineScope = coroutineScope,
+          layer = backgroundLayer,
+          contentVersion = sky.contentVersion,
+          invalidate = { if (isAttached) invalidateDraw() },
+        )
+        recordSource = {
+          with(backdropSnapshot) {
+            drawSampledRegion(backdropOffset, IntSize(width.toInt(), height.toInt()))
+          }
+        }
+      } else {
+        // Skiko: Skia has no #112 cycle overflow, so sample the live sky layer directly — synchronous in
+        // this draw pass (no async snapshot latency).
+        recordSource = {
+          drawContext.canvas.save()
+          drawContext.canvas.translate(-backdropOffset.x, -backdropOffset.y)
+          drawLayer(backgroundLayer)
+          drawContext.canvas.restore()
         }
       }
 
       // API 29-32 GLES band: a mirage filter is a Blit (async FBO capture) the synchronous chain cannot
       // run, so it is routed to the async GLES runner here — before the generic Effect path, which
-      // cannot express a suspend blit. Returns true if it handled this frame. Backdrop-only and mirage-
-      // only (blur is never a Blit); every other band falls through to the generic path below.
+      // cannot express a suspend blit. Returns true if it handled this frame. Android-only (GLES is
+      // never resolved on skiko: prepareGlesBlit returns null there), backdrop-only, and mirage-only
+      // (blur is never a Blit); every other band falls through to the generic path below.
       if (drawBackdropGles(sky, backgroundLayer, backdropOffset, width, height)) {
         drawContent()
         relayState()

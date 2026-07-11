@@ -141,11 +141,11 @@ internal class BackdropCaptureCrashRegressionTest {
   }
 
   /**
-   * Canary: a mirage backdrop pipeline still samples the sky via a live `drawLayer(backgroundLayer)`
-   * (chain stage-0), which is structurally the same reference shape but does not, in practice, trigger
-   * the prepareTreeImpl recursion the blur RenderEffect layer did. If this test ever starts crashing,
-   * route the mirage backdrop record through the same snapshot sampling as
-   * [BackdropClearBlurrer][com.skydoves.cloudy.internal.BackdropClearBlurrer].
+   * A mirage backdrop pipeline records stage-0 into a filter layer under a content-bound RenderEffect,
+   * the same cyclic reference shape the blur layer had. On Android it samples the sky through a
+   * rasterized snapshot ([MirageBackdropSnapshot][com.skydoves.cloudy.internal.MirageBackdropSnapshot],
+   * gated by `backdropNeedsAcyclicSnapshot`), not a live `drawLayer(backgroundLayer)`, so the
+   * `captureToImage` full-tree re-walk has no back-edge to recurse on.
    */
   @OptIn(ExperimentalMirage::class)
   @Test
