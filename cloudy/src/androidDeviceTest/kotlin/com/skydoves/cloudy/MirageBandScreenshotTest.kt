@@ -145,7 +145,10 @@ internal class MirageBandScreenshotTest {
 
     CardEffect.Chromatic -> Modifier.mirage(sky = sky) { filter(MirageOptics.Chromatic) }
 
-    is CardEffect.Blur -> Modifier.cloudy(sky = sky, radius = effect.radius)
+    // cpuBlurEnabled = true so API < 31 runs the real legacy CPU blur (not the scrim fallback); on
+    // 31+ RenderEffect is used and this flag is a no-op, so every band captures an actual blur.
+    is CardEffect.Blur ->
+      Modifier.cloudy(sky = sky, radius = effect.radius, cpuBlurEnabled = true)
   }
 
   /**
@@ -219,10 +222,16 @@ internal class MirageBandScreenshotTest {
   }
 
   /**
-   * Case 3: a blur card must soften the backdrop — the card's horizontal contrast (adjacent-pixel
-   * delta across the vertical stripes) drops versus a radius-0 capture. Self-referential (blurred vs
-   * sharp on the same device), so it needs no golden. On API 30 and below `cpuBlurEnabled` defaults
-   * false, so a scrim replaces blur and contrast still drops — the assert holds on every band.
+   * Case 3: a blur card must *soften* the backdrop — high-frequency stripe contrast drops while overall
+   * brightness is preserved. Self-referential (blurred vs sharp on the same device), so it needs no
+   * golden. With `cpuBlurEnabled = true` (set in the fixture) every band runs a real blur: RenderEffect
+   * on 31+, legacy CPU blur on 29-30.
+   *
+   * The oracle is luminance-normalized (contrast / mean luminance) rather than absolute contrast: a
+   * pure scrim just darkens the whole card, which drops *absolute* contrast without softening anything,
+   * so an absolute-contrast assert would pass on a scrim that did no blur at all. Normalizing divides
+   * out the brightness change, so a scrim's normalized ratio stays ~1.0 while a real blur collapses it
+   * (measured ~0.28 on the RenderEffect band) — the check now distinguishes blur from scrim.
    */
   @Test
   fun blurSoftensBackdrop() {
@@ -232,10 +241,19 @@ internal class MirageBandScreenshotTest {
 
     writePng("blur", actual = blurred, expected = sharp)
 
-    val sharpContrast = horizontalContrast(sharp)
-    val blurredContrast = horizontalContrast(blurred)
-    assert(blurredContrast < sharpContrast) {
-      "Blur did not soften the backdrop: sharp contrast=$sharpContrast, blurred=$blurredContrast"
+    // Contrast per unit brightness: isolates softening from mere darkening (a scrim).
+    val sharpNormalized = horizontalContrast(sharp) / meanLuminance(sharp)
+    val blurredNormalized = horizontalContrast(blurred) / meanLuminance(blurred)
+    // Always report the ratio (asserts print only on failure) so a passing band still surfaces it.
+    android.util.Log.i(
+      "MirageBandBlur",
+      "api${Build.VERSION.SDK_INT} normalized sharp=$sharpNormalized blurred=$blurredNormalized " +
+        "ratio=${blurredNormalized / sharpNormalized}",
+    )
+    assert(blurredNormalized < sharpNormalized * BLUR_MAX_NORMALIZED_RATIO) {
+      "Blur did not soften the backdrop (normalized contrast, not just darker): " +
+        "sharp=$sharpNormalized blurred=$blurredNormalized " +
+        "(needs blurred < sharp * $BLUR_MAX_NORMALIZED_RATIO)"
     }
   }
 
@@ -360,6 +378,16 @@ internal class MirageBandScreenshotTest {
   private fun luma(p: Int): Int =
     (Color.red(p) * 54 + Color.green(p) * 183 + Color.blue(p) * 19) shr 8
 
+  /** Mean luminance over every pixel — the normalizer that divides brightness out of the contrast. */
+  private fun meanLuminance(bmp: Bitmap): Double {
+    var sum = 0L
+    for (y in 0 until bmp.height) {
+      for (x in 0 until bmp.width) sum += luma(bmp.getPixel(x, y)).toLong()
+    }
+    val n = bmp.width * bmp.height
+    return if (n == 0) 1.0 else (sum.toDouble() / n).coerceAtLeast(1.0)
+  }
+
   // --- PNG output -------------------------------------------------------------------------------
 
   /**
@@ -406,6 +434,11 @@ internal class MirageBandScreenshotTest {
 
     // A real chromatic transform moves pixels well past this; a passthrough leaves MAD ~0.
     const val CHROMATIC_MIN_DELTA = 1.0
+
+    // Blurred normalized contrast must fall below sharp * this. A real blur measures ~0.28 of sharp
+    // (RenderEffect band); a scrim-only fallback stays ~1.0. 0.75 clears a real blur comfortably while
+    // still failing a scrim that did no softening.
+    const val BLUR_MAX_NORMALIZED_RATIO = 0.75
 
     // The graded/blurred capture must differ from the raw/sharp reference by at least this to count as
     // "the effect landed" during async-blit polling.
