@@ -108,6 +108,14 @@ internal object GlEnv {
     ensureContext()
     val t = ensureTarget(width, height)
 
+    // Drain any image a previous call left in the reader. A timed-out call (below) returns before
+    // acquiring its frame, so the swap it posted lands here unclosed; without draining, those pile up
+    // and once maxImages (2) are held un-closed, acquireLatestImage throws IllegalStateException
+    // (AOSP ImageReader#acquireLatestImage), wedging every later frame into the catch as a permanent
+    // no-op. Draining also clears a stale image that would fire this call's listener for the wrong
+    // frame.
+    drain(t.reader)
+
     val available = CountDownLatch(1)
     t.reader.setOnImageAvailableListener({ available.countDown() }, t.readerHandler)
 
@@ -122,19 +130,39 @@ internal object GlEnv {
       "eglSwapBuffers failed: 0x${Integer.toHexString(EGL14.eglGetError())}"
     }
 
-    if (!available.await(2, TimeUnit.SECONDS)) return null
-    val image = t.reader.acquireLatestImage() ?: return null
-    return try {
-      val hb = image.hardwareBuffer ?: return null
-      // wrapHardwareBuffer yields a HARDWARE bitmap sharing the buffer (zero-copy). It stays valid only
-      // while the buffer/image live; the caller copies to a software bitmap before we close them.
-      val wrapped =
-        Bitmap.wrapHardwareBuffer(hb, ColorSpace.get(ColorSpace.Named.SRGB)) ?: return null
-      val copy = wrapped.copy(Bitmap.Config.ARGB_8888, false)
-      wrapped.recycle()
-      hb.close()
-      copy
+    // Detach the listener on every exit so a frame that arrives after we leave never fires a later
+    // call's latch, and the drain above is the only path that consumes leftover frames.
+    try {
+      if (!available.await(2, TimeUnit.SECONDS)) return null
+      val image = t.reader.acquireLatestImage() ?: return null
+      return try {
+        val hb = image.hardwareBuffer ?: return null
+        // wrapHardwareBuffer yields a HARDWARE bitmap sharing the buffer (zero-copy). It stays valid
+        // only while the buffer/image live; the caller copies to a software bitmap before we close
+        // them.
+        val wrapped =
+          Bitmap.wrapHardwareBuffer(hb, ColorSpace.get(ColorSpace.Named.SRGB)) ?: return null
+        val copy = wrapped.copy(Bitmap.Config.ARGB_8888, false)
+        wrapped.recycle()
+        hb.close()
+        copy
+      } finally {
+        image.close()
+      }
     } finally {
+      t.reader.setOnImageAvailableListener(null, null)
+    }
+  }
+
+  /** Acquires and closes every queued image, tolerating the full-queue IllegalStateException. */
+  private fun drain(reader: ImageReader) {
+    while (true) {
+      val image = try {
+        reader.acquireLatestImage()
+      } catch (_: IllegalStateException) {
+        // maxImages already held un-closed elsewhere: nothing this call can free, so stop draining.
+        return
+      } ?: return
       image.close()
     }
   }
