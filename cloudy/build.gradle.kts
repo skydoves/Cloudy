@@ -230,6 +230,9 @@ kotlin {
       implementation(libs.androidx.compose.runtime)
       implementation(libs.androidx.compose.ui.test)
       implementation(libs.androidx.compose.ui.test.junit4)
+      // Merges the empty ComponentActivity into the test manifest that createComposeRule() launches;
+      // without it the instrumented screenshot/regression specs fail with "Unable to resolve activity".
+      implementation(libs.androidx.compose.ui.test.manifest)
       implementation(libs.androidx.test.runner)
       implementation(libs.androidx.test.junit)
       implementation(libs.junit4)

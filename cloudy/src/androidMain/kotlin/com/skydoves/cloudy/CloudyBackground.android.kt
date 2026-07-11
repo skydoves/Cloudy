@@ -65,6 +65,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.toSize
 import androidx.tracing.trace
+import com.skydoves.cloudy.internal.BackdropClearBlurMachine
 import com.skydoves.cloudy.internals.SkySnapshot
 import com.skydoves.cloudy.internals.render.RenderScriptToolkit
 import kotlinx.coroutines.Dispatchers
@@ -296,6 +297,10 @@ private class CloudyBackgroundModifierNode(
   private var cachedBlurEffect: ComposeRenderEffect? = null
   private var cachedBlurRadius: Float = -1f
 
+  // Rasterized sky-layer snapshot all backdrop draw paths sample from; see BackdropClearBlurMachine's
+  // KDoc for why they don't draw the live layer directly (issues/112, PixelCopy variant).
+  private val backdropSnapshot = BackdropClearBlurMachine()
+
   // Reusable Path for the shape clip, rebuilt only when shape/size/layoutDirection change.
   private var clipPathCache: Path? = null
 
@@ -327,9 +332,14 @@ private class CloudyBackgroundModifierNode(
       this.cpuBlurEnabled != cpuBlurEnabled ||
       this.shape != shape
 
-    if (this.sky != sky && isAttached) {
-      this.sky.frameDriver.removeOverlay(reblur)
-      sky.frameDriver.addOverlay(reblur)
+    if (this.sky != sky) {
+      if (isAttached) {
+        this.sky.frameDriver.removeOverlay(reblur)
+        sky.frameDriver.addOverlay(reblur)
+      }
+      // The cached snapshot was captured from the OLD sky's layer; a new sky's contentVersion could
+      // coincidentally match and serve a stale bitmap of the wrong backdrop.
+      backdropSnapshot.dispose()
     }
 
     this.sky = sky
@@ -380,14 +390,24 @@ private class CloudyBackgroundModifierNode(
       return
     }
 
+    // Keep the acyclic snapshot fresh for whichever path below samples it (every path except the
+    // API < 31 CPU blur, which already snapshots on its own cadence).
+    with(backdropSnapshot) {
+      requestIfStale(
+        graphicsContext = requireGraphicsContext(),
+        coroutineScope = coroutineScope,
+        layer = backgroundLayer,
+        contentVersion = sky.contentVersion,
+        invalidate = { if (isAttached) invalidateDraw() },
+      )
+    }
+
     if (radius <= 0) {
-      // No blur, draw the background region directly
       drawBackgroundRegion(backgroundLayer)
       drawContent()
       return
     }
 
-    // Calculate offset relative to sky
     val skyBounds = sky.sourceBounds
     val offsetX = positionInRoot.x - skyBounds.left
     val offsetY = positionInRoot.y - skyBounds.top
@@ -421,13 +441,17 @@ private class CloudyBackgroundModifierNode(
 
   private fun ContentDrawScope.drawBackgroundRegion(layer: GraphicsLayer) {
     val skyBounds = sky.sourceBounds
-    val offsetX = positionInRoot.x - skyBounds.left
-    val offsetY = positionInRoot.y - skyBounds.top
+    val offset = Offset(positionInRoot.x - skyBounds.left, positionInRoot.y - skyBounds.top)
 
-    drawContext.canvas.save()
-    drawContext.canvas.translate(-offsetX, -offsetY)
-    drawLayer(layer)
-    drawContext.canvas.restore()
+    // Sample the rasterized snapshot instead of `drawLayer(layer)`: the live layer reference is the
+    // cyclic-RenderNode edge that crashes captureToImage/PixelCopy (issues/112). See
+    // BackdropClearBlurMachine's KDoc for the full explanation; every other drawSampledRegion call
+    // below is the same substitution.
+    //
+    // Node's IntSize field, qualified so it isn't shadowed by DrawScope.size (canvas Size).
+    with(backdropSnapshot) {
+      drawSampledRegion(offset, this@CloudyBackgroundModifierNode.size)
+    }
 
     // Apply tint if specified
     if (tint != Color.Transparent) {
@@ -500,10 +524,13 @@ private class CloudyBackgroundModifierNode(
     // Clip both backdrop and scrim: otherwise a rounded shape leaks the unblurred rectangular
     // backdrop outside the corners (only the scrim would be clipped).
     clipToShape {
-      drawContext.canvas.save()
-      drawContext.canvas.translate(-snapshot.offsetX, -snapshot.offsetY)
-      drawLayer(layer)
-      drawContext.canvas.restore()
+      // See drawBackgroundRegion: sample the snapshot, not `drawLayer(layer)`.
+      with(backdropSnapshot) {
+        drawSampledRegion(
+          Offset(snapshot.offsetX, snapshot.offsetY),
+          IntSize(snapshot.childWidth.toInt(), snapshot.childHeight.toInt()),
+        )
+      }
 
       drawRect(color = scrimColor, blendMode = BlendMode.SrcOver)
     }
@@ -541,11 +568,14 @@ private class CloudyBackgroundModifierNode(
       cachedBlurEffect
     }
 
+    // See drawBackgroundRegion: record the snapshot into the blur layer, not `drawLayer(layer)`.
     blurLayer.record {
-      drawContext.canvas.save()
-      drawContext.canvas.translate(-snapshot.offsetX, -snapshot.offsetY)
-      drawLayer(layer)
-      drawContext.canvas.restore()
+      with(backdropSnapshot) {
+        drawSampledRegion(
+          Offset(snapshot.offsetX, snapshot.offsetY),
+          IntSize(snapshot.childWidth.toInt(), snapshot.childHeight.toInt()),
+        )
+      }
     }
 
     if (blurLayer.renderEffect != blurEffect) {
@@ -776,6 +806,7 @@ private class CloudyBackgroundModifierNode(
 
   override fun onDetach() {
     sky.frameDriver.removeOverlay(reblur)
+    backdropSnapshot.dispose()
     blurLayer?.let { requireGraphicsContext().releaseGraphicsLayer(it) }
     blurLayer = null
     cachedBlurEffect = null

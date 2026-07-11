@@ -83,6 +83,7 @@ kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-t
 junit4 = { module = "junit:junit", version.ref = "junit4" }
 androidx-compose-ui-test = { group = "androidx.compose.ui", name = "ui-test", version.ref = "androidxCompose" }
 androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4", version.ref = "androidxCompose" }
+androidx-compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest", version.ref = "androidxCompose" }
 mockito = { module = "org.mockito:mockito-core", version.ref = "mockito" }
 mockito-inline = { module = "org.mockito:mockito-inline", version.ref = "mockito-inline" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
