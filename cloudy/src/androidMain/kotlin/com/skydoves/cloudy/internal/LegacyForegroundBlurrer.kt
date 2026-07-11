@@ -66,7 +66,7 @@ internal fun blurScaleForRadius(radius: Int): Float = when {
 }
 
 /**
- * The API < 31 CPU blur machine for the content-source (null sky) foreground path — the former
+ * The API < 31 CPU blurrer for the content-source (null sky) foreground path — the former
  * `CloudyModifierNode` body, extracted intact (record-at-scale PATH A capture, in-flight gate,
  * trailing debounce, empty-capture retry). Algorithm, thresholds, coroutine structure, bitmap
  * lifecycle, and invalidate patterns are 1-byte unchanged; only the seams changed: it reads the
@@ -77,7 +77,7 @@ internal fun blurScaleForRadius(radius: Int): Float = when {
  * Capture is self-owned (it records the node's own content at scale via [recordSource]); it does not
  * chain through the spine's GraphicsLayer pool because the blur is asynchronous + bitmap-backed.
  */
-internal class LegacyForegroundBlurMachine {
+internal class LegacyForegroundBlurrer {
 
   private var blurredBitmap: PlatformBitmap? = null
   private var cachedBlurRadius: Int = -1
@@ -101,7 +101,7 @@ internal class LegacyForegroundBlurMachine {
 
   /**
    * Draws the blurred (or interim) content. [recordSource] is the node's own content (the spine's
-   * content source); this machine records it at the capture scale itself. Detects a radius change
+   * content source); this blurrer records it at the capture scale itself. Detects a radius change
    * and schedules a coalesced capture, exactly as the former node's `updateRadius` did.
    */
   fun ContentDrawScope.draw(

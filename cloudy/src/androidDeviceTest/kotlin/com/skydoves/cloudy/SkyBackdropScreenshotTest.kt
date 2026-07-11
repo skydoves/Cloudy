@@ -151,7 +151,7 @@ internal class SkyBackdropScreenshotTest {
     tintState = tint
     composeTestRule.waitForIdle()
     // The API 31+ backdrop samples the sky through an async rasterized snapshot (drawImage, no
-    // drawLayer(sky.backgroundLayer) — the acyclic capture-safe path, see BackdropClearBlurMachine),
+    // drawLayer(sky.backgroundLayer) — the acyclic capture-safe path, see BackdropClearBlurrer),
     // so the first frame after a state change is a cold-start transparent until the snapshot lands.
     // Settle a couple of frames so the captured region reflects the sampled backdrop, not the cold gap.
     composeTestRule.mainClock.autoAdvance = true
@@ -210,7 +210,7 @@ internal class SkyBackdropScreenshotTest {
     // contrast than the radius-0 passthrough. captureToImage of a blurred backdrop used to SIGSEGV the
     // RenderThread (cyclic RenderNode graph, issue #112); it is now capture-safe because the backdrop
     // samples a rasterized snapshot (drawImage) instead of drawLayer(sky.backgroundLayer). See
-    // BackdropClearBlurMachine and BackdropCaptureCrashRegressionTest.
+    // BackdropClearBlurrer and BackdropCaptureCrashRegressionTest.
     val sharp = captureCard(radius = 0, tint = Color.Transparent)
     val blurred = captureCard(radius = 20, tint = Color.Transparent)
     assertTrue("blur must actually change the composed card", meanAbsDiff(sharp, blurred) > 1.0)

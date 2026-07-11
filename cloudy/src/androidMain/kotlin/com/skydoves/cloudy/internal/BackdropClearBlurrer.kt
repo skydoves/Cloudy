@@ -54,8 +54,8 @@ private const val TAG = "BackdropClearBlur"
  * on-screen draw re-records it anyway.
  *
  * Drawing a **bitmap** (`drawImage`) instead of `drawLayer` embeds pixels, not a RenderNode — no
- * back-edge, no cycle. This is exactly why the API < 31 CPU path ([LegacyBackdropBlurMachine], which
- * `drawImage`s a blurred bitmap) never crashed. This machine mirrors that structure but keeps the GPU
+ * back-edge, no cycle. This is exactly why the API < 31 CPU path ([LegacyBackdropBlurrer], which
+ * `drawImage`s a blurred bitmap) never crashed. This blurrer mirrors that structure but keeps the GPU
  * blur: it async-captures the whole sky layer to an [ImageBitmap] (coalesced on the sky's
  * `contentVersion`, the key the CPU path uses), then draws the sampled sub-region of that bitmap into
  * the blur layer and applies the blur `RenderEffect` to it.
@@ -67,7 +67,7 @@ private const val TAG = "BackdropClearBlur"
  *   cadence and cost the CPU path already ships. One frame of staleness on a content change (invisible
  *   for a backdrop blur), never a stale blur while idle.
  */
-internal class BackdropClearBlurMachine {
+internal class BackdropClearBlurrer {
 
   // The reusable layer the sampled bitmap region is recorded into and the blur RenderEffect is applied
   // to. Drawn each frame; its source is a bitmap (no RenderNode child), so it is never part of a cycle.

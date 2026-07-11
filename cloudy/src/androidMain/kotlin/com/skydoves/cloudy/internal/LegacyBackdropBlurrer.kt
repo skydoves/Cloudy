@@ -41,7 +41,7 @@ import kotlin.coroutines.cancellation.CancellationException
 private const val TAG = "LegacyBackdropBlur"
 
 /**
- * The API < 31 CPU blur machine for the backdrop (non-null sky) path — the former
+ * The API < 31 CPU blurrer for the backdrop (non-null sky) path — the former
  * `CloudyBackgroundModifierNode.drawWithBitmap` region, extracted intact (crop -> scale -> native
  * background blur -> mask -> scale up, completion-based coalescing with a single-slot queue, never
  * cancel an in-flight blur). Algorithm, thresholds, coroutine structure, bitmap lifecycle, and
@@ -52,7 +52,7 @@ private const val TAG = "LegacyBackdropBlur"
  * this draw (they used to be `drawCachedWithOverlays`). Capture reads the backdrop [GraphicsLayer] the
  * way the old node did — not through `recordSource`, which the async bitmap pipeline cannot consume.
  */
-internal class LegacyBackdropBlurMachine {
+internal class LegacyBackdropBlurrer {
 
   private var blurredBitmap: PlatformBitmap? = null
   private var cachedContentVersion: Long = -1L

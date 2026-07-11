@@ -42,7 +42,7 @@ private const val TAG = "CloudyBackground"
  *
  *  - [BlurTier.Gpu] (API 31+): a single reusable [GraphicsLayer] + a [RenderEffect] cached on the
  *    radius — the former `drawWithRenderEffect` (bg) and `CloudyRenderEffectStrategy` (fg), unified.
- *  - [BlurTier.Cpu] (API < 31 + [cpuBlurEnabled]): delegates to the extracted legacy CPU machines,
+ *  - [BlurTier.Cpu] (API < 31 + [cpuBlurEnabled]): delegates to the extracted legacy CPU blurrers,
  *    which self-capture and run asynchronously; the spine's layer pool is bypassed.
  *  - [BlurTier.Scrim] (API < 31, no cpuBlurEnabled, backdrop only): a scrim, via
  *    [shouldDrawContentBehind] + [drawScrim].
@@ -61,9 +61,9 @@ internal class BlurStrategy(private val cpuBlurEnabled: Boolean, private val tin
   private var cachedBlurRadius: Float = -1f
   private var hasLoggedProgressiveWarning = false
 
-  private val legacyForeground = LegacyForegroundBlurMachine()
-  private val legacyBackdrop = LegacyBackdropBlurMachine()
-  private val backdropClear = BackdropClearBlurMachine()
+  private val legacyForeground = LegacyForegroundBlurrer()
+  private val legacyBackdrop = LegacyBackdropBlurrer()
+  private val backdropClear = BackdropClearBlurrer()
 
   private var lastState: CloudyState = CloudyState.Nothing
 
@@ -151,7 +151,7 @@ internal class BlurStrategy(private val cpuBlurEnabled: Boolean, private val tin
   ) {
     val sky = node.sky
     lastState = if (sky == null) {
-      // Foreground content-source CPU blur: the machine self-captures the node's own content.
+      // Foreground content-source CPU blur: the blurrer self-captures the node's own content.
       with(legacyForeground) { draw(node, stage.radius, recordSource) }
       legacyForeground.lastState
     } else {

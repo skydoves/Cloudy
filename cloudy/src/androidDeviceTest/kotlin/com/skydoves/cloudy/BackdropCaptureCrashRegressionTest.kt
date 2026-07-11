@@ -51,7 +51,7 @@ import org.junit.Test
  * `drawLayer(sky.backgroundLayer)` back-edge that the guard's draw skip never clears, and the same
  * frame's on-screen draw re-records it anyway. The fix removes the back-edge structurally: the blur
  * backdrop samples a rasterized SNAPSHOT of the sky layer (`drawImage`, pixels only — see
- * [BackdropClearBlurMachine][com.skydoves.cloudy.internal.BackdropClearBlurMachine]), so no cycle can
+ * [BackdropClearBlurrer][com.skydoves.cloudy.internal.BackdropClearBlurrer]), so no cycle can
  * form regardless of what triggers a full-tree prepare.
  *
  * The four blur variants are the exact ones verified to crash on unmodified upstream (emulator API 34,
@@ -146,7 +146,7 @@ internal class BackdropCaptureCrashRegressionTest {
    * (chain stage-0), which is structurally the same reference shape but — empirically, on API 27/34 —
    * does NOT trigger the prepareTreeImpl recursion the blur RenderEffect layer did. If this test ever
    * starts crashing, route the mirage backdrop record through the same snapshot sampling as
-   * [BackdropClearBlurMachine][com.skydoves.cloudy.internal.BackdropClearBlurMachine].
+   * [BackdropClearBlurrer][com.skydoves.cloudy.internal.BackdropClearBlurrer].
    */
   @OptIn(ExperimentalMirage::class)
   @Test
