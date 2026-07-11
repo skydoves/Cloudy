@@ -72,7 +72,7 @@ internal class MirageFilterChainTest {
       fakeContentDrawScope().draw(
         context = throwingGraphicsContext(),
         applicable = emptyList(),
-        bind = { _, _ -> error("bind must not run for an empty plan") },
+        bind = { _, _ -> error("bind must not run for an empty pipeline") },
         recordSource = { /* no-op source */ },
       )
     }

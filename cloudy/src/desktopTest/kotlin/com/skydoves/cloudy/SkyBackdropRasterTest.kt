@@ -58,7 +58,7 @@ import kotlin.math.abs
  * refactor):
  *  - radius-20 backdrop blur differs from radius-0 (the blur executed),
  *  - radius-0 equals the raw backdrop (passthrough),
- *  - a mirage colorize (`filter(Duotone)`) over the backdrop differs from the same node with the plan
+ *  - a mirage colorize (`filter(Duotone)`) over the backdrop differs from the same node with the pipeline
  *    disabled, and the disabled render equals the raw backdrop (passthrough).
  */
 internal class SkyBackdropRasterTest :
@@ -94,7 +94,7 @@ internal class SkyBackdropRasterTest :
       val disabled = renderScene { MirageCard(enabled = false) }
       val graded = renderScene { MirageCard(enabled = true) }
 
-      // A bypassed plan draws the node content over the raw backdrop unchanged in the card region.
+      // A bypassed pipeline draws the node content over the raw backdrop unchanged in the card region.
       cardMeanAbsDiff(disabled, raw).shouldBe(0.0)
       // The Duotone colorize remaps the backdrop luminance, so the graded card must differ from both
       // the disabled render and the raw backdrop.

@@ -62,7 +62,7 @@ internal class MirageElementEqualityTest :
       first.hashCode().shouldBe(second.hashCode())
     }
 
-    test("a null block equals another null block (params-less plans reconcile)") {
+    test("a null block equals another null block (params-less pipelines reconcile)") {
       val first = element(null)
       val second = element(null)
 
@@ -84,9 +84,9 @@ internal class MirageElementEqualityTest :
       (oil == pearl).shouldBe(true)
     }
 
-    test("a content-source element is never equal to a backdrop element of the same plan") {
-      // The merged node carries its stage-0 source in the equality key: a content-source plan (null sky)
-      // must reconcile distinctly from an otherwise-identical backdrop plan, or Compose would keep the
+    test("a content-source element is never equal to a backdrop element of the same pipeline") {
+      // The merged node carries its stage-0 source in the equality key: a content-source pipeline (null
+      // sky) must reconcile distinctly from an otherwise-identical backdrop pipeline, or Compose would keep the
       // wrong source. Backdrop carries a Sky, a content source carries none, so their keys differ.
       val block: MirageParams.() -> Unit = { }
       val plan: MirageScope.() -> Unit = { filter(MirageShaders.OilSlick, block) }

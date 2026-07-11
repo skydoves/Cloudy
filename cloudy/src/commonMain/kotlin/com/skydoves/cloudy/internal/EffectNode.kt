@@ -43,7 +43,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /**
- * Orchestrates a plan against a stage-0 source: a null [sky] runs it over the node's own content, a
+ * Orchestrates a pipeline against a stage-0 source: a null [sky] runs it over the node's own content, a
  * non-null [sky] over the offset [Sky][com.skydoves.cloudy.Sky] region behind it. The
  * node owns the ordered [stages], the [MirageClock] frame loop, the layer-pool [chain], the
  * [PostProcess] (clip/tint/highlight) around the effect, and (for a backdrop) the positioning +
@@ -112,7 +112,7 @@ internal class EffectNode(
   private var startNanos: Long = -1L
 
   /** True if any program stage's compiled kernel references mirageTime (computed at warm time). */
-  private var planUsesTime: Boolean = false
+  private var pipelineUsesTime: Boolean = false
 
   // The running Auto-clock frame loop, if any. Cancelled before a re-warm launches a new one.
   private var frameLoopJob: Job? = null
@@ -151,7 +151,7 @@ internal class EffectNode(
       enabled != this.enabled || !sameStructure(this.stages, stages)
 
     if (structuralChange && isAttached) {
-      // Release the old effect's caches before adopting the new one / a new plan structure.
+      // Release the old effect's caches before adopting the new one / a new pipeline structure.
       this.effect.detach(this)
     }
 
@@ -208,7 +208,7 @@ internal class EffectNode(
       val cached = MirageProgramCache.obtain(shader, dialect) ?: continue
       if (cached.compiled.usesTime) usesTime = true
     }
-    planUsesTime = usesTime
+    pipelineUsesTime = usesTime
     startNanos = -1L
 
     frameLoopJob?.cancel()
@@ -310,7 +310,7 @@ internal class EffectNode(
       with(effect) { draw(this@EffectNode, recordSource) }
     }
 
-    // A content-source plan's filters replace the content, so the chain already drew it. A backdrop
+    // A content-source pipeline's filters replace the content, so the chain already drew it. A backdrop
     // grades the region behind the node, so the node's own content is drawn on top.
     if (sky != null) drawContent()
     relayState()
@@ -398,7 +398,7 @@ internal class EffectNode(
 
   /** Resolves the current mirageTime for this draw; called by the [Effect] when binding uniforms. */
   fun resolveTime(): Float = when (val clock = clock) {
-    is MirageClock.Auto -> if (planUsesTime) timeSeconds else 0f
+    is MirageClock.Auto -> if (pipelineUsesTime) timeSeconds else 0f
     is MirageClock.Paused -> timeSeconds
     is MirageClock.Fixed -> clock.seconds
   }

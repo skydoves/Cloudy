@@ -21,7 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.node.ModifierNodeElement
 import com.skydoves.cloudy.internal.EffectElement
-import com.skydoves.cloudy.internal.MiragePlanBuilder
+import com.skydoves.cloudy.internal.MiragePipelineBuilder
 import com.skydoves.cloudy.internal.Stage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -31,18 +31,18 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 /**
- * Smoke tests for the plan-based [Modifier.mirage] and the node it attaches.
+ * Smoke tests for the pipeline-based [Modifier.mirage] and the node it attaches.
  *
  * These exercise the parts checkable without a live Compose tree: that the factory attaches a
- * [EffectElement] (the node instantiates), that the plan block builds the right ordered stage list,
+ * [EffectElement] (the node instantiates), that the pipeline block builds the right ordered stage list,
  * and that the element's reconciliation key (sky / clock / enabled / stages) behaves. The per-draw uniform
  * binding and the RenderEffect / ShaderBrush application run on a real graphics layer and are covered
  * by the platform screenshot/instrumented tests.
  */
 @RunWith(RobolectricTestRunner::class)
-internal class MiragePlanModifierTest {
+internal class MiragePipelineModifierTest {
 
-  /** A trivial colorize filter and a trivial generator overlay, enough to populate a plan. */
+  /** A trivial colorize filter and a trivial generator overlay, enough to populate a pipeline. */
   private val tintFilter: ColorizeShader<MirageParams> = MirageShader.colorize(
     name = "test-tint",
     paramsFactory = { EmptyParams() },
@@ -69,7 +69,7 @@ internal class MiragePlanModifierTest {
   }
 
   @Test
-  fun `an empty plan still attaches a node`() {
+  fun `an empty pipeline still attaches a node`() {
     // enabled = false is a node-level no-op (the program cache stays warm), not a modifier
     // short-circuit, so the element is still present.
     val modifier = Modifier.mirage(enabled = false) {}
@@ -77,8 +77,8 @@ internal class MiragePlanModifierTest {
   }
 
   @Test
-  fun `plan builds stages in declared order`() {
-    val stages = MiragePlanBuilder().apply {
+  fun `pipeline builds stages in declared order`() {
+    val stages = MiragePipelineBuilder().apply {
       filter(tintFilter)
       overlay(glowOverlay, blendMode = BlendMode.Plus)
     }.stages
@@ -92,7 +92,7 @@ internal class MiragePlanModifierTest {
 
   @Test
   fun `each stage mints its own params instance`() {
-    val stages = MiragePlanBuilder().apply {
+    val stages = MiragePipelineBuilder().apply {
       filter(tintFilter)
       filter(tintFilter)
     }.stages
@@ -104,7 +104,7 @@ internal class MiragePlanModifierTest {
   }
 
   @Test
-  fun `elements with the same plan and clock are equal`() {
+  fun `elements with the same pipeline and clock are equal`() {
     val a = elementOf(Modifier.mirage(clock = MirageClock.Auto) { filter(tintFilter) })
     val b = elementOf(Modifier.mirage(clock = MirageClock.Auto) { filter(tintFilter) })
     assertEquals(a, b)
@@ -136,7 +136,7 @@ internal class MiragePlanModifierTest {
   }
 
   @Test
-  fun `backdrop elements with the same sky and plan and shared block are equal`() {
+  fun `backdrop elements with the same sky and pipeline and shared block are equal`() {
     val sky = Sky()
     val block: MirageParams.() -> Unit = { }
     val a = backdropElementOf(Modifier.mirage(sky = sky) { filter(tintFilter, block) })
@@ -165,14 +165,14 @@ internal class MiragePlanModifierTest {
   }
 
   @Test
-  fun `a shared params block keeps its identity through the backdrop plan`() {
-    // The plan captures the exact block instance the caller passed (=== preserved), so an unchanged
+  fun `a shared params block keeps its identity through the backdrop pipeline`() {
+    // The pipeline captures the exact block instance the caller passed (=== preserved), so an unchanged
     // block reconciles equal rather than forcing a needless update.
     val sky = Sky()
     val block: MirageParams.() -> Unit = { }
-    val stages = MiragePlanBuilder().apply { filter(tintFilter, block) }.stages
+    val stages = MiragePipelineBuilder().apply { filter(tintFilter, block) }.stages
     assertTrue(
-      "the plan must keep the caller's exact block instance",
+      "the pipeline must keep the caller's exact block instance",
       (stages[0] as Stage.ProgramFilter).paramsBlock === block,
     )
   }

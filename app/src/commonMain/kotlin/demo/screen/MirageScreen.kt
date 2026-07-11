@@ -148,7 +148,7 @@ private val BASE_PICKS: List<MiragePick> = listOf(
 )
 
 /**
- * Showcases the open [mirage] plan mechanism: an arbitrary poster gets an effect from a single
+ * Showcases the open [mirage] pipeline mechanism: an arbitrary poster gets an effect from a single
  * `Modifier.mirage { … }` block, no bespoke component.
  *
  * Demonstrated here:
@@ -160,7 +160,7 @@ private val BASE_PICKS: List<MiragePick> = listOf(
  * - **Full-bleed lens:** a toggle grows the lens to the whole pane, so the bevel/rim terms hug the
  *   pane edges. The rainy-window look is full-bleed regardless (it is content-shaped, not lens-shaped).
  * - **Overlay over filter:** the chaining toggle adds an `overlay(MirageShaders.Foil)` on top of an
- *   `filter(MirageShaders.OilSlick)` stage; the plan orders it correctly regardless of declaration.
+ *   `filter(MirageShaders.OilSlick)` stage; the pipeline orders it correctly regardless of declaration.
  *
  * The lens center/size are seeded from the pane via `onSizeChanged` and passed into each shader's
  * `lensCenter` / `lensSize` uniforms in the per-draw params block.
@@ -208,7 +208,7 @@ fun MirageScreen(onBackClick: () -> Unit) {
   }
 
   CollapsingAppBarScaffold(
-    title = "Mirage (plan)",
+    title = "Mirage (pipeline)",
     onBackClick = onBackClick,
   ) { paddingValues, _ ->
     MaxWidthContainer(modifier = Modifier.padding(paddingValues)) {
@@ -222,7 +222,7 @@ fun MirageScreen(onBackClick: () -> Unit) {
       ) {
         Text(
           text =
-          "One Modifier.mirage { } block applies an open shader plan to any content. Pick a " +
+          "One Modifier.mirage { } block applies an open shader pipeline to any content. Pick a " +
             "look, drag Strength, toggle full-bleed, or chain Foil over a refracting Oil Slick. " +
             "Android 13+ / Skia.",
           fontSize = 14.sp,

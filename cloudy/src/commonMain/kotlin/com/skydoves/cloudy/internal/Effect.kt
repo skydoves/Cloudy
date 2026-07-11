@@ -20,7 +20,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import com.skydoves.cloudy.CloudyState
 
 /**
- * The effect that an [EffectNode] applies to its stage-0 pixels. [EffectNode] owns the plan, clock,
+ * The effect that an [EffectNode] applies to its stage-0 pixels. [EffectNode] owns the pipeline, clock,
  * layer pool, positioning, and post-processing; an [Effect] owns *the draw* — how the resolved source
  * pixels become the final look. [MirageEffect] runs the shader filter/overlay pipeline; BlurStrategy
  * runs the platform blur (GPU render effect, or the CPU legacy / scrim fallback below API 31).
@@ -34,7 +34,7 @@ internal interface Effect {
   /**
    * Draws the effect. [recordSource] records the stage-0 input (the node's own content for a content
    * source, or the offset backdrop region when the node has a sky); the [Effect] runs the
-   * plan against it.
+   * pipeline against it.
    */
   fun ContentDrawScope.draw(node: EffectNode, recordSource: DrawScope.() -> Unit)
 

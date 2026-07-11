@@ -25,7 +25,7 @@ import androidx.compose.ui.graphics.layer.drawLayer
 import com.skydoves.cloudy.ExperimentalMirage
 
 /**
- * Owns and runs the layer-chaining draw for a mirage filter plan, decoupled from *what* stage 0
+ * Owns and runs the layer-chaining draw for a mirage filter pipeline, decoupled from *what* stage 0
  * samples. A content-source [EffectNode] records its own content into stage 0; a backdrop one records the
  * Sky region instead — the chaining, per-stage render-effect binding, and layer pooling are identical,
  * so they are extracted here rather than duplicated (Pure Fabrication: the algorithm is neither source,
@@ -78,7 +78,7 @@ internal class MirageFilterChain {
     }
 
     if (filterLayers.size != applicable.size) {
-      // Layer count changed (a structural plan change). Release any stale layers before resizing so
+      // Layer count changed (a structural pipeline change). Release any stale layers before resizing so
       // the pool never leaks even if the node did not reset it first.
       release(context)
       filterLayers = arrayOfNulls(applicable.size)

@@ -33,7 +33,7 @@ internal expect fun currentDialect(): Dialect
 internal const val TIME_WRAP_SECONDS = 3600f
 
 /**
- * One declared stage of a plan. Sealed so the draw loop branches exhaustively over the application
+ * One declared stage of a pipeline. Sealed so the draw loop branches exhaustively over the application
  * shapes: a program stage ([ProgramFilter]/[Overlay]) carried by [MirageEffect], or a
  * platform-blur stage ([PlatformFilter]) carried by BlurStrategy.
  */
@@ -67,12 +67,12 @@ internal sealed class Stage {
 }
 
 /**
- * Builds the immutable stage list for a plan by running the caller's `plan` block once. Each
+ * Builds the immutable stage list for a pipeline by running the caller's `plan` block once. Each
  * `filter`/`overlay` call mints the shader's params instance (via its `paramsFactory`) and captures
  * the per-draw block; the built [stages] are what the node draws through.
  */
 @OptIn(ExperimentalMirage::class)
-internal class MiragePlanBuilder : MirageScope {
+internal class MiragePipelineBuilder : MirageScope {
 
   val stages: MutableList<Stage> = mutableListOf()
 
@@ -100,7 +100,7 @@ internal class MiragePlanBuilder : MirageScope {
 }
 
 /**
- * Builds the [EffectElement] for a `Modifier.mirage` plan: runs [plan] once to fix the stages and
+ * Builds the [EffectElement] for a `Modifier.mirage` pipeline: runs [plan] once to fix the stages and
  * wires the stateless [MirageEffect] with an empty [PostProcess] (mirage clips/tints nothing — it
  * grades in-shader). The effect key is [Unit] because [MirageEffect] is a stateless object.
  */
@@ -111,7 +111,7 @@ internal fun mirageElement(
   enabled: Boolean,
   plan: MirageScope.() -> Unit,
 ): EffectElement {
-  val stages = MiragePlanBuilder().apply(plan).stages
+  val stages = MiragePipelineBuilder().apply(plan).stages
   return EffectElement(
     effect = MirageEffect,
     sky = sky,
@@ -129,7 +129,7 @@ internal fun mirageElement(
 }
 
 /**
- * True when two stage lists describe the same plan structure: same length and, in order, the same
+ * True when two stage lists describe the same pipeline structure: same length and, in order, the same
  * stage kind, shader, and (for overlays) blend mode. The per-draw params blocks are deliberately not
  * compared — this is the "would the same programs and layer stack be built?" test that decides whether
  * [EffectNode.update] can take the cheap blocks-only path. Kept beside [EffectElement.equals], which

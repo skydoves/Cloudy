@@ -17,14 +17,14 @@ package com.skydoves.cloudy
 
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.BlendMode
-import com.skydoves.cloudy.internal.MiragePlanBuilder
+import com.skydoves.cloudy.internal.MiragePipelineBuilder
 import com.skydoves.cloudy.internal.currentDialect
 import com.skydoves.cloudy.internal.mirageElement
 import com.skydoves.cloudy.internal.planRenders
 
 /**
- * Time-driving policy for the standard `mirageTime` uniform. Plan-level — the plan (not each stage)
- * owns a single frame loop, so all time-driven stages advance off one clock.
+ * Time-driving policy for the standard `mirageTime` uniform. Pipeline-level — the pipeline (not each
+ * stage) owns a single frame loop, so all time-driven stages advance off one clock.
  */
 @ExperimentalMirage
 public sealed interface MirageClock {
@@ -46,7 +46,7 @@ public sealed interface MirageClock {
   public data object Paused : MirageClock
 
   /**
-   * Supplies a constant `mirageTime` and runs no frame loop, so the plan is fully deterministic —
+   * Supplies a constant `mirageTime` and runs no frame loop, so the pipeline is fully deterministic —
    * the intended clock for screenshot tests of animated shaders.
    */
   @ExperimentalMirage
@@ -57,7 +57,7 @@ public sealed interface MirageClock {
  * Stage declaration scope for [Modifier.mirage]. The block runs once (when the node attaches) to fix
  * the ordered stage list; each stage's `params` block re-runs every draw.
  *
- * This scope *declares* the shaders of a plan; it does not write uniforms — a stage's uniforms are
+ * This scope *declares* the shaders of a pipeline; it does not write uniforms — a stage's uniforms are
  * bound each draw from its `params` block against the shader's [MirageParams].
  */
 @ExperimentalMirage
@@ -122,8 +122,8 @@ public sealed interface MirageFallback {
  * though still cheap.
  *
  * Compiled GPU programs are shared through a process-wide cache keyed on the generated shader source,
- * so two plans that declare the same shader — or the same plan re-attached after [enabled] toggles —
- * reuse one program instead of recompiling.
+ * so two pipelines that declare the same shader — or the same pipeline re-attached after [enabled]
+ * toggles — reuse one program instead of recompiling.
  *
  * ## Stage order
  * Filters chain in declared order (`content -> f1 -> f2 -> …`); overlays are then composited over the
@@ -131,12 +131,12 @@ public sealed interface MirageFallback {
  * sequence (see the node for why).
  *
  * @param clock time-driving policy for the standard `mirageTime` uniform. Default: [MirageClock.Auto].
- * @param enabled when `false`, the whole plan is bypassed and the content passes through unmodified.
+ * @param enabled when `false`, the whole pipeline is bypassed and the content passes through unmodified.
  *   Compiled programs remain cached process-wide, so re-enabling incurs no recompile.
  * @param fallback what to draw when the plan cannot render on this device (see [MirageFallback]).
  *   Default [MirageFallback.None] — content passes through, matching the historic behavior.
  * @param plan the stage declaration block; see [MirageScope].
- * @return a [Modifier] that applies the plan.
+ * @return a [Modifier] that applies the pipeline.
  */
 @ExperimentalMirage
 public expect fun Modifier.mirage(
@@ -163,7 +163,7 @@ internal fun Modifier.mirageOrFallback(
   plan: MirageScope.() -> Unit,
 ): Modifier {
   if (fallback is MirageFallback.Content && enabled) {
-    val stages = MiragePlanBuilder().apply(plan).stages
+    val stages = MiragePipelineBuilder().apply(plan).stages
     if (!planRenders(stages, currentDialect())) {
       return this.then(fallback.modifier)
     }
@@ -178,7 +178,7 @@ internal fun Modifier.mirageOrFallback(
  * backdrop, the mirage counterpart of `Modifier.cloudy(sky = sky)`'s blur.
  *
  * The node samples the region of [sky]'s captured backdrop directly behind it (tracked via its layout
- * position, like [Modifier.cloudy]), feeds those pixels through the plan's filter stages, and draws the
+ * position, like [Modifier.cloudy]), feeds those pixels through the pipeline's filter stages, and draws the
  * result. The modified node's own content is drawn on top, so this is typically applied to an otherwise
  * empty surface.
  *
@@ -193,11 +193,11 @@ internal fun Modifier.mirageOrFallback(
  * programs are shared through the same process-wide cache.
  *
  * @param sky the backdrop state holder captured by a `Modifier.sky` ancestor; the source of the pixels
- *   the plan grades. Identity-stable via `rememberSky`, so it participates in the node's key cheaply.
+ *   the pipeline grades. Identity-stable via `rememberSky`, so it participates in the node's key cheaply.
  * @param clock time-driving policy for the standard `mirageTime` uniform. Default: [MirageClock.Auto].
- * @param enabled when `false`, the plan is bypassed and the node's content passes through unmodified.
+ * @param enabled when `false`, the pipeline is bypassed and the node's content passes through unmodified.
  * @param plan the stage declaration block; see [MirageScope].
- * @return a [Modifier] that applies the plan to the [sky] backdrop.
+ * @return a [Modifier] that applies the pipeline to the [sky] backdrop.
  */
 @ExperimentalMirage
 public fun Modifier.mirage(

@@ -26,7 +26,7 @@ import com.skydoves.cloudy.Sky
 
 /**
  * Element that reconciles an [EffectNode]. Equatable on the stage-0 [sky] (the backdrop's [Sky], or
- * null for a content source), [clock], [enabled], the plan's ordered stage structure, the
+ * null for a content source), [clock], [enabled], the pipeline's ordered stage structure, the
  * per-program-stage params-block identities, the [postProcess] (by value), and the [effectKey].
  *
  * ## effectKey

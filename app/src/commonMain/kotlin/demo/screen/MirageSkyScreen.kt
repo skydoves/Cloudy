@@ -73,7 +73,7 @@ import demo.theme.Dimens
  *
  * The headline look is [MirageShaders.Duotone], a colorize "material" rendered from the backdrop; the
  * chips also switch to the content-sampling looks ([MirageShaders.Chromatic] / [MirageShaders.Specular])
- * to show the same overload carries any filter shader. The Enabled toggle bypasses the plan so the raw
+ * to show the same overload carries any filter shader. The Enabled toggle bypasses the pipeline so the raw
  * backdrop region shows through, making the grade easy to compare.
  *
  * Backdrop capture needs a real GPU (Android 13+ for the runtime shader), so this renders on a device
@@ -210,7 +210,7 @@ private sealed interface BackdropPick {
   val label: String
 
   /**
-   * Declares this pick's filter stage into the plan; [Duotone] reads the tone/amount controls,
+   * Declares this pick's filter stage into the pipeline; [Duotone] reads the tone/amount controls,
    * [Chromatic] the chromatic sliders, and [Specular] the specular sliders.
    */
   fun MirageScope.declare(

@@ -36,7 +36,7 @@ import com.skydoves.cloudy.internal.SPECULAR_KERNEL_SKSL
  * The named thin-film looks ([Chromatic] / [OilSlick] / [SoapBubble] / [MetallicFoil] / [Pearl]) are
  * the same [chromatic] factory at different defaults — one GPU program, five looks.
  *
- * Each value is a process-wide singleton, so applying one in a plan never reallocates the shader.
+ * Each value is a process-wide singleton, so applying one in a pipeline never reallocates the shader.
  *
  * Shared lens geometry ([MirageLensParams.lensCenter] / [lensSize][MirageLensParams.lensSize])
  * defaults to **auto framing**: left unspecified, it resolves at bind time to the node's center and

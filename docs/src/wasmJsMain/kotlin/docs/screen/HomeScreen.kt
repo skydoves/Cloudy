@@ -188,8 +188,8 @@ private fun FeaturesSection() {
       FeatureCard(
         icon = Icons.Default.AutoAwesome,
         title = "Mirage",
-        description = "An open shader-effect plan — thin-film and specular presets, " +
-          "or author your own optic with no library change",
+        description = "An open shader-effect pipeline — thin-film and specular presets, " +
+          "or author your own shader with no library change",
       )
 
       FeatureCard(

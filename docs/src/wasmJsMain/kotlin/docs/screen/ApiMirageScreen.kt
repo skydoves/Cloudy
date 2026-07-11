@@ -56,11 +56,11 @@ fun ApiMirageScreen() {
     Spacer(modifier = Modifier.height(16.dp))
 
     Text(
-      text = "Mirage applies an open shader-effect plan to any content through a single " +
-        "modifier. One Modifier.mirage { } block declares an ordered list of optics — an " +
-        "optic pairs an AGSL (Android) / SKSL (Skia) kernel with the uniforms it reads. The " +
+      text = "Mirage applies an open shader-effect pipeline to any content through a single " +
+        "modifier. One Modifier.mirage { } block declares an ordered list of shaders — an " +
+        "shader pairs an AGSL (Android) / SKSL (Skia) kernel with the uniforms it reads. The " +
         "library ships thin-film, specular, and foil presets, and consumers can author their " +
-        "own optics through the same public API with no library change.",
+        "own shaders through the same public API with no library change.",
       style = DocsTheme.typography.body,
       color = DocsTheme.colors.onSurfaceVariant,
     )
@@ -87,7 +87,7 @@ fun ApiMirageScreen() {
 
     CodeBlock(
       code = """
-        // Applies an ordered optic plan to the content it modifies. Node-based (not @Composable):
+        // Applies an ordered shader pipeline to the content it modifies. Node-based (not @Composable):
         // the plan block runs once to fix the stages; each stage's params block re-runs per draw.
         @ExperimentalMirage
         fun Modifier.mirage(
@@ -99,11 +99,11 @@ fun ApiMirageScreen() {
         // Declared inside the plan block:
         interface MirageScope {
           // Content-transforming stage; chains in declared order (content -> f1 -> f2 -> screen).
-          fun <P : MirageParams> filter(optic: FilterOptic<P>, params: (P.() -> Unit)? = null)
+          fun <P : MirageParams> filter(shader: FilterShader<P>, params: (P.() -> Unit)? = null)
 
           // Overlay drawn over the filtered result; composites in declared order.
           fun <P : MirageParams> overlay(
-            optic: GenerateOptic<P>,
+            shader: GeneratorShader<P>,
             blendMode: BlendMode = BlendMode.SrcOver,
             params: (P.() -> Unit)? = null,
           )
@@ -146,7 +146,7 @@ fun ApiMirageScreen() {
               // Seed the lens center from the pane size (defaults to the content origin otherwise).
               .onSizeChanged { center = Offset(it.width / 2f, it.height / 2f) }
               .mirage {
-                filter(MirageOptics.Specular) {
+                filter(MirageShaders.Specular) {
                   lensCenter(center)
                   lensSize(Size(350f, 350f))
                   cornerRadius(50f)
@@ -195,7 +195,7 @@ fun ApiMirageScreen() {
 
     Text(
       text = "The clock drives the standard mirageTime uniform (seconds since attach). The " +
-        "plan owns a single frame loop, so every time-driven stage advances off one clock. " +
+        "the pipeline owns a single frame loop, so every time-driven stage advances off one clock. " +
         "Auto only spins the loop when some stage's kernel actually references mirageTime.",
       style = DocsTheme.typography.body,
       color = DocsTheme.colors.onSurfaceVariant,
@@ -211,7 +211,7 @@ fun ApiMirageScreen() {
         // Freezes time at its last value; no frame loop runs.
         Modifier.mirage(clock = MirageClock.Paused) { /* ... */ }
 
-        // A constant mirageTime with no loop — deterministic, for screenshot tests of animated optics.
+        // A constant mirageTime with no loop — deterministic, for screenshot tests of animated shaders.
         Modifier.mirage(clock = MirageClock.Fixed(seconds = 1.5f)) { /* ... */ }
       """,
     )
@@ -230,7 +230,7 @@ fun ApiMirageScreen() {
     Text(
       text = "A filter transforms the content; an overlay (a content-free generator such as " +
         "Foil) is drawn over the filtered result. Filters chain in declared order, then " +
-        "overlays composite over them in declared order under blendMode. The plan orders them " +
+        "overlays composite over them in declared order under blendMode. The pipeline orders them " +
         "correctly regardless of which you declare first.",
       style = DocsTheme.typography.body,
       color = DocsTheme.colors.onSurfaceVariant,
@@ -252,8 +252,8 @@ fun ApiMirageScreen() {
           Box(
             modifier = Modifier.mirage {
               // Refract the content, then composite the foil sparkle over it (Screen blend).
-              filter(MirageOptics.OilSlick) { framing() }
-              overlay(MirageOptics.Foil, blendMode = BlendMode.Screen) { framing() }
+              filter(MirageShaders.OilSlick) { framing() }
+              overlay(MirageShaders.Foil, blendMode = BlendMode.Screen) { framing() }
             },
           ) { /* ... */ }
         }
@@ -262,9 +262,9 @@ fun ApiMirageScreen() {
 
     Spacer(modifier = Modifier.height(32.dp))
 
-    // Author your own optic
+    // Author your own shader
     Text(
-      text = "Author your own optic",
+      text = "Author your own shader",
       style = DocsTheme.typography.h2,
       color = DocsTheme.colors.onBackground,
     )
@@ -272,11 +272,11 @@ fun ApiMirageScreen() {
     Spacer(modifier = Modifier.height(12.dp))
 
     Text(
-      text = "An optic is a kernel plus a MirageParams subclass. Declare uniforms with by " +
+      text = "An shader is a kernel plus a MirageParams subclass. Declare uniforms with by " +
         "uniform(...) / by uniformColor(...) — the property name is the shader uniform " +
-        "identifier, and declaration order is the binding order. Optic.composite authors a " +
+        "identifier, and declaration order is the binding order. MirageShader.composite authors a " +
         "full half4 main(float2 xy) that samples the content through the auto-declared content " +
-        "shader (content.eval(xy)); Optic.colorize authors only half4 kernel(float2 p, half4 " +
+        "shader (content.eval(xy)); MirageShader.colorize authors only half4 kernel(float2 p, half4 " +
         "src) and codegen wraps the content sampling for you.",
       style = DocsTheme.typography.body,
       color = DocsTheme.colors.onSurfaceVariant,
@@ -294,10 +294,10 @@ fun ApiMirageScreen() {
           val vignette: UFloat by uniform(0.6f)
         }
 
-        // A composite optic authors the whole main(); it may sample the content freely via content.eval.
+        // A composite shader authors the whole main(); it may sample the content freely via content.eval.
         // The standard uniform mirageResolution is auto-declared when referenced by name.
         @OptIn(ExperimentalMirage::class)
-        val TintVignette = Optic.composite(
+        val TintVignette = MirageShader.composite(
           name = "tint-vignette",
           paramsFactory = ::TintVignetteParams,
           agsl = TINT_VIGNETTE_KERNEL,
@@ -331,7 +331,7 @@ fun ApiMirageScreen() {
 
     CodeBlock(
       code = """
-        // Apply the authored optic exactly like a preset.
+        // Apply the authored shader exactly like a preset.
         Modifier.mirage {
           filter(TintVignette) {
             tint(Color(0xFF7E57C2))
@@ -366,9 +366,9 @@ fun ApiMirageScreen() {
       text = """
         • The shader path needs Android API 33+; Skia targets (iOS, macOS, Desktop, Web) run the full effect.
         • The plan block runs once (its stage list is the node's equality key); each stage's params block runs per draw.
-        • Compiled programs are cached process-wide by shader source, so reusing an optic or toggling enabled never recompiles.
+        • Compiled programs are cached process-wide by shader source, so reusing an shader or toggling enabled never recompiles.
         • Preset defaults live in the params, not as shader constants, so every value is animatable and changing one never recompiles.
-        • enabled = false bypasses the whole plan and passes the content through unmodified.
+        • enabled = false bypasses the whole pipeline and passes the content through unmodified.
       """.trimIndent(),
       style = DocsTheme.typography.body,
       color = DocsTheme.colors.onSurfaceVariant,
@@ -473,7 +473,7 @@ private fun PresetRow(name: String, family: String, description: String) {
     horizontalArrangement = Arrangement.SpaceBetween,
   ) {
     Text(
-      text = "MirageOptics.$name",
+      text = "MirageShaders.$name",
       style = DocsTheme.typography.code,
       color = DocsTheme.colors.primary,
       modifier = Modifier.weight(1f),

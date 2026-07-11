@@ -142,7 +142,7 @@ internal class BackdropCaptureCrashRegressionTest {
   }
 
   /**
-   * Canary: a mirage backdrop plan still samples the sky via a live `drawLayer(backgroundLayer)`
+   * Canary: a mirage backdrop pipeline still samples the sky via a live `drawLayer(backgroundLayer)`
    * (chain stage-0), which is structurally the same reference shape but — empirically, on API 27/34 —
    * does NOT trigger the prepareTreeImpl recursion the blur RenderEffect layer did. If this test ever
    * starts crashing, route the mirage backdrop record through the same snapshot sampling as
@@ -168,7 +168,7 @@ internal class BackdropCaptureCrashRegressionTest {
     }
     composeTestRule.waitForIdle()
     // Capture twice: the first may land before the sky's first capture pass (passthrough card); the
-    // second runs after the plan has drawn through the filter chain, which is the cyclic structure.
+    // second runs after the pipeline has drawn through the filter chain, which is the cyclic structure.
     composeTestRule.onNodeWithTag(ROOT_TAG).captureToImage()
     composeTestRule.waitForIdle()
     composeTestRule.onNodeWithTag(ROOT_TAG).captureToImage()
