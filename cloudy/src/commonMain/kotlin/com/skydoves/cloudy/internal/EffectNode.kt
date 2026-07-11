@@ -298,7 +298,7 @@ internal class EffectNode(
     // highlight), so only the shape clip applies.
     if (effect.shouldDrawContentBehind(this@EffectNode)) {
       val contentScope = this
-      clipToShape(postProcess.shape, intSize, postProcessCache) {
+      clipToShape(postProcess.shape, intSize, postProcessCache, clipRectangle = true) {
         with(effect) { contentScope.drawScrim(this@EffectNode, recordSource) }
       }
       if (sky != null) drawContent()
@@ -306,7 +306,10 @@ internal class EffectNode(
       return
     }
 
-    applyPostProcess(postProcess, intSize, postProcessCache) {
+    // A backdrop is always clipped to the node bounds (its blur layer's CLAMP bloom must not smear
+    // over siblings); the content-source blur is deliberately unclipped so its bloom bleeds like the
+    // pre-pipeline graphicsLayer render effect did. See [clipToShape].
+    applyPostProcess(postProcess, intSize, postProcessCache, clipRectangle = sky != null) {
       with(effect) { draw(this@EffectNode, recordSource) }
     }
 

@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.toSize
 import com.skydoves.cloudy.HIGHLIGHT_FOCAL_K
@@ -73,10 +74,11 @@ internal fun ContentDrawScope.applyPostProcess(
   post: PostProcess,
   size: IntSize,
   cache: PostProcessCache,
+  clipRectangle: Boolean,
   content: ContentDrawScope.() -> Unit,
 ) {
   val contentScope = this
-  clipToShape(post.shape, size, cache) {
+  clipToShape(post.shape, size, cache, clipRectangle) {
     contentScope.content()
     if (post.tint != Color.Transparent) {
       drawRect(color = post.tint, blendMode = BlendMode.SrcOver)
@@ -88,22 +90,23 @@ internal fun ContentDrawScope.applyPostProcess(
 /**
  * Clips [block] to [shape]'s outline so the fill follows rounded corners instead of a hard rectangle.
  *
- * A plain [RectangleShape][androidx.compose.ui.graphics.RectangleShape] draws WITHOUT a clip: a
- * rectangle clip to node bounds enforces no corners, and every in-scope draw (the backdrop's
- * node-sized snapshot, the tint/highlight overlays) already lands within bounds — so the only pixels
- * it would remove are the foreground blur's outward CLAMP bloom, which must bleed past the content
- * edge to match `Modifier.cloudy`'s pre-pipeline `graphicsLayer { renderEffect = .. }` behaviour
- * (clipping it truncated the bloom to a hard-edged square — the passthrough-golden regression). Only
- * rounded/generic shapes actually need a clip. Moved from the two nodes' `clipToShape`.
+ * [clipRectangle] decides whether a plain [RectangleShape][androidx.compose.ui.graphics.RectangleShape]
+ * clips at all, because the two sources need opposite behaviour: a BACKDROP must always clip — its
+ * blur layer carries a CLAMP `RenderEffect` whose bloom would otherwise smear past the node onto
+ * siblings (the pre-refactor backdrop node always clipped). The CONTENT (foreground) blur must NOT
+ * rect-clip — its bloom is meant to bleed past the content edge, matching the pre-pipeline
+ * `graphicsLayer { renderEffect = .. }` behaviour the screenshot goldens encode. Rounded/generic
+ * shapes always clip (they carry corner geometry).
  */
 internal fun ContentDrawScope.clipToShape(
   shape: Shape,
   size: IntSize,
   cache: PostProcessCache,
+  clipRectangle: Boolean,
   block: DrawScope.() -> Unit,
 ) {
   when (val outline = shape.createOutline(size.toSize(), layoutDirection, this)) {
-    is Outline.Rectangle -> block()
+    is Outline.Rectangle -> if (clipRectangle) clipRect { block() } else block()
 
     is Outline.Rounded -> {
       val path = cache.clipPath ?: Path().also { cache.clipPath = it }
