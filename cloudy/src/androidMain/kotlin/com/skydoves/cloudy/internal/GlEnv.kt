@@ -29,8 +29,10 @@ import android.os.Handler
 import android.os.HandlerThread
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.async
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.Executors
 
@@ -41,10 +43,11 @@ import java.util.concurrent.Executors
  * the GL thread finishes.
  *
  * The GL thread is a single-thread coroutine dispatcher, not a HandlerThread: the callers are already
- * coroutines ([MirageGlesBackdrop]), so [render] suspends on [glDispatcher] instead of blocking a pool
- * thread on a latch. [glDispatcher] is a one-thread executor whose single thread is the EGL affinity
- * anchor, so every GL call must stay inside `withContext(glDispatcher)` and never touch another
- * dispatcher, or the context would be used off its owning thread (UB).
+ * coroutines ([MirageGlesBackdrop]), so [render] suspends instead of blocking a pool thread on a latch.
+ * [glDispatcher] is a one-thread executor whose single thread is the EGL affinity anchor; all GL work
+ * runs in [glScope] (bound to it), so the context is never touched off its owning thread (UB). [render]
+ * awaits that work under a timeout, so a driver-wedged GL thread bounds the caller (not the GL job,
+ * which native calls make uninterruptible) — see [render].
  *
  * ## Zero-copy readback (confirmed on API 30)
  * The context renders into an `ImageReader.getSurface()` window surface; `eglSwapBuffers` pushes the
@@ -56,6 +59,11 @@ internal object GlEnv {
 
   private val glDispatcher =
     Executors.newSingleThreadExecutor { r -> Thread(r, "mirage-gl") }.asCoroutineDispatcher()
+
+  // GL work runs in this scope (on glDispatcher), decoupled from the caller's coroutine so a timed-out
+  // caller can abandon a render without cancelling the GL job — a GL/EGL call in native code cannot be
+  // interrupted anyway. SupervisorJob so one render's failure never tears the scope down for the next.
+  private val glScope = CoroutineScope(glDispatcher + SupervisorJob())
 
   // The listener bridge runs on its own looper, not the GL thread: while a render suspends on
   // awaitImage the GL thread is released back to glDispatcher, and the listener's resume() re-dispatches
@@ -94,25 +102,28 @@ internal object GlEnv {
    */
   suspend fun render(width: Int, height: Int, block: () -> Unit): Bitmap? {
     if (width <= 0 || height <= 0) return null
-    // withContext pins every GL call to the single GL thread (EGL affinity). withTimeoutOrNull bounds a
-    // wedged GL thread so it cannot stall the caller's capture coroutine forever; on timeout the frame
-    // is a no-op and the next render's drain() clears whatever this one left in the reader.
-    return withContext(glDispatcher) {
-      withTimeoutOrNull(2_000) {
-        try {
-          renderOnGlThread(width, height, block)
-        } catch (e: CancellationException) {
-          // The timeout above cancels through here; propagate so withTimeoutOrNull yields null, never
-          // masking it as a degraded frame.
-          throw e
-        } catch (e: RuntimeException) {
-          // GL / EGL failure (lost context, unsupported format, a failed `check()`): degrade to no-op.
-          // This frame passes through; the band's original no-op is preserved, so it is not a regression.
-          // Narrow to RuntimeException so an Error (e.g. OOM) still propagates and is never masked.
-          null
-        }
+    // Run the GL work in glScope (glDispatcher pins it to the single GL thread for EGL affinity), then
+    // await it under a timeout from the *caller's* context. The timeout bounds the caller only:
+    // Deferred.await() cancels promptly at 2s (caller gets null) WITHOUT cancelling the GL job, because
+    // a GL/EGL/glFinish call hung in the driver cannot be interrupted from Kotlin. The abandoned job
+    // keeps running on the GL thread; whatever frame it eventually swaps is cleaned up by the next
+    // render's entry drain(). If the driver wedges permanently the GL thread stays pinned and later
+    // renders also time out to null — a degradation back to the band's original no-op, not a new hang.
+    val deferred = glScope.async {
+      try {
+        renderOnGlThread(width, height, block)
+      } catch (e: CancellationException) {
+        // Never reached by the caller's timeout (that cancels the awaiter, not this job); rethrow so a
+        // real scope cancellation is not masked as a degraded frame.
+        throw e
+      } catch (e: RuntimeException) {
+        // GL / EGL failure (lost context, unsupported format, a failed `check()`): degrade to no-op.
+        // This frame passes through; the band's original no-op is preserved, so it is not a regression.
+        // Narrow to RuntimeException so an Error (e.g. OOM) still propagates and is never masked.
+        null
       }
     }
+    return withTimeoutOrNull(2_000) { deferred.await() }
   }
 
   private suspend fun renderOnGlThread(width: Int, height: Int, block: () -> Unit): Bitmap? {
