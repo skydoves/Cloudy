@@ -18,14 +18,12 @@ package com.skydoves.cloudy
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import com.skydoves.cloudy.internal.CHROMATIC_KERNEL_AGSL
-import com.skydoves.cloudy.internal.CHROMATIC_KERNEL_SKSL
-import com.skydoves.cloudy.internal.DUOTONE_KERNEL_AGSL
-import com.skydoves.cloudy.internal.DUOTONE_KERNEL_SKSL
-import com.skydoves.cloudy.internal.FOIL_KERNEL_AGSL
-import com.skydoves.cloudy.internal.FOIL_KERNEL_SKSL
-import com.skydoves.cloudy.internal.SPECULAR_KERNEL_AGSL
-import com.skydoves.cloudy.internal.SPECULAR_KERNEL_SKSL
+import com.skydoves.cloudy.internal.edsl.emitColorizeKernel
+import com.skydoves.cloudy.internal.edsl.emitCompositeOrGenerateMain
+import com.skydoves.cloudy.internal.edsl.traceChromatic
+import com.skydoves.cloudy.internal.edsl.traceDuotone
+import com.skydoves.cloudy.internal.edsl.traceFoil
+import com.skydoves.cloudy.internal.edsl.traceSpecular
 
 /**
  * Bundled [MirageShader] presets — the catalog of ready-to-apply looks.
@@ -51,17 +49,76 @@ import com.skydoves.cloudy.internal.SPECULAR_KERNEL_SKSL
 public object MirageShaders {
 
   /**
+   * The Chromatic kernel text, traced through the eDSL ([com.skydoves.cloudy.internal.edsl.
+   * traceChromatic]) once and shared by every named look ([Chromatic], [OilSlick], [SoapBubble],
+   * [MetallicFoil], [Pearl]) — the kernel source depends only on the params *schema* (uniform slots),
+   * never on a look's default values, so tracing it 5 times (once per [chromatic] call) would emit the
+   * same text 5 times over. A probe [ChromaticParams] at its own defaults supplies that schema.
+   *
+   * Declared first in this object: [chromatic] (called while initializing [Chromatic]/[OilSlick]/etc.
+   * below) reads this eagerly, and a Kotlin `object`'s properties initialize top-to-bottom — a `val`
+   * declared after its first reader sees an uninitialized backing field (an NPE, not a compile error),
+   * so this can't simply live next to [chromatic] where it's used.
+   */
+  private val chromaticKernel: String = run {
+    val probe = ChromaticParams(0f, 0f, floatArrayOf(0f, 0f, 0f, 0f), 0f, 0f, 0f, 0f)
+    val uniformNames = probe.schemaEntries.map { it.name }
+    val module = traceChromatic(
+      lensCenter = probe.lensCenter,
+      lensSize = probe.lensSize,
+      cornerRadius = probe.cornerRadius,
+      iLight = probe.iLight,
+      chromaticIntensity = probe.chromaticIntensity,
+      chromaticGain = probe.chromaticGain,
+      chromaticKRGB = probe.chromaticKRGB,
+      chromaticFloor = probe.chromaticFloor,
+      chromaticWashout = probe.chromaticWashout,
+      chromaticModulate = probe.chromaticModulate,
+      chromaticRimBoost = probe.chromaticRimBoost,
+      chromaticPoolFrac = probe.chromaticPoolFrac,
+    )
+    emitCompositeOrGenerateMain(module, uniformNames)
+  }
+
+  /**
    * The liquid-glass specular glint (moving focal hotspot + Blinn rim). A [CompositeShader] because it
    * shares intermediates (SDF, bevel normal) across the refraction and specular terms. Its defaults
    * are the `GlowTuning` values, so applying it over the default lens framing reproduces the built-in
    * `liquidGlass` glint bit-for-bit.
+   *
+   * Traced through the eDSL ([com.skydoves.cloudy.internal.edsl.traceSpecular]) rather than
+   * hand-written AGSL/SkSL strings — the first ported kernel with a mutable local ([MutableLocal],
+   * `pixel`), a non-exiting conditional block ([IfBlock]), and free `content.eval` sampling
+   * ([SampleContent]) via multiple taps.
    */
-  public val Specular: CompositeShader<SpecularParams> = MirageShader.composite(
-    name = "specular",
-    paramsFactory = ::SpecularParams,
-    agsl = SPECULAR_KERNEL_AGSL,
-    sksl = SPECULAR_KERNEL_SKSL,
-  )
+  public val Specular: CompositeShader<SpecularParams> = run {
+    val probe = SpecularParams()
+    val uniformNames = probe.schemaEntries.map { it.name }
+    val module = traceSpecular(
+      lensCenter = probe.lensCenter,
+      lensSize = probe.lensSize,
+      cornerRadius = probe.cornerRadius,
+      iLight = probe.iLight,
+      specStrength = probe.specStrength,
+      specPower = probe.specPower,
+      specRimMix = probe.specRimMix,
+      specWidthPx = probe.specWidthPx,
+      specLightZ = probe.specLightZ,
+      specDomeFrac = probe.specDomeFrac,
+      specBodyPower = probe.specBodyPower,
+      specBodyGain = probe.specBodyGain,
+      specFocalK = probe.specFocalK,
+      specPoolFrac = probe.specPoolFrac,
+      specPoolGain = probe.specPoolGain,
+    )
+    val kernel = emitCompositeOrGenerateMain(module, uniformNames)
+    MirageShader.composite(
+      name = "specular",
+      paramsFactory = ::SpecularParams,
+      agsl = kernel,
+      sksl = kernel,
+    )
+  }
 
   /** The default thin-film iridescence look — the [chromatic] factory at its defaults. */
   public val Chromatic: CompositeShader<ChromaticParams> = chromatic()
@@ -111,26 +168,56 @@ public object MirageShaders {
    * A foil overlay — a content-free [GeneratorShader] (glare + flowing rainbow + anti-aliased sparkle)
    * drawn over the content. Declare it via `overlay(MirageShaders.Foil)` so it composites on top of any
    * filter result; its `mirageTime` reference lets the clock drive the sparkle shimmer.
+   *
+   * Traced through the eDSL ([com.skydoves.cloudy.internal.edsl.traceFoil]) rather than hand-written
+   * AGSL/SkSL strings — the first Generate-category, control-flow-bearing (early-return guard) kernel
+   * ported, proving the eDSL beyond the point-wise, control-flow-free Duotone MVP.
    */
-  public val Foil: GeneratorShader<FoilParams> = MirageShader.generate(
-    name = "foil",
-    paramsFactory = ::FoilParams,
-    agsl = FOIL_KERNEL_AGSL,
-    sksl = FOIL_KERNEL_SKSL,
-  )
+  public val Foil: GeneratorShader<FoilParams> = run {
+    val probe = FoilParams()
+    val uniformNames = probe.schemaEntries.map { it.name }
+    val module = traceFoil(
+      lensCenter = probe.lensCenter,
+      lensSize = probe.lensSize,
+      cornerRadius = probe.cornerRadius,
+      iLight = probe.iLight,
+      foilBands = probe.foilBands,
+      foilPhase = probe.foilPhase,
+      chromaticGain = probe.chromaticGain,
+      sparkleDensity = probe.sparkleDensity,
+      sparkleAmplitude = probe.sparkleAmplitude,
+    )
+    val kernel = emitCompositeOrGenerateMain(module, uniformNames)
+    MirageShader.generate(
+      name = "foil",
+      paramsFactory = ::FoilParams,
+      agsl = kernel,
+      sksl = kernel,
+    )
+  }
 
   /**
    * A point-wise duotone grade: maps luminance onto a [shadow][DuotoneParams.shadow] →
    * [highlight][DuotoneParams.highlight] gradient and cross-fades by [amount][DuotoneParams.amount].
    * A [ColorizeShader], so it fuses cheaply and needs no lens framing. The defaults are a warm
    * split-tone (deep indigo shadows, cream highlights).
+   *
+   * The kernel body is authored once in [com.skydoves.cloudy.internal.edsl.traceDuotone] (the eDSL,
+   * not a hand-written AGSL/SkSL string pair) and emitted here for both dialects — see
+   * mirage-edsl-design.md for why one emitted text is valid for both.
    */
-  public val Duotone: ColorizeShader<DuotoneParams> = MirageShader.colorize(
-    name = "duotone",
-    paramsFactory = ::DuotoneParams,
-    agsl = DUOTONE_KERNEL_AGSL,
-    sksl = DUOTONE_KERNEL_SKSL,
-  )
+  public val Duotone: ColorizeShader<DuotoneParams> = run {
+    val probe = DuotoneParams()
+    val uniformNames = probe.schemaEntries.map { it.name }
+    val module = traceDuotone(probe.shadow, probe.highlight, probe.amount)
+    val kernel = emitColorizeKernel(module, uniformNames)
+    MirageShader.colorize(
+      name = "duotone",
+      paramsFactory = ::DuotoneParams,
+      agsl = kernel,
+      sksl = kernel,
+    )
+  }
 
   /**
    * Builds a thin-film (Newton's-rings) iridescence [CompositeShader] from its per-look parameters. It
@@ -169,8 +256,8 @@ public object MirageShaders {
         rimBoost = rimBoost,
       )
     },
-    agsl = CHROMATIC_KERNEL_AGSL,
-    sksl = CHROMATIC_KERNEL_SKSL,
+    agsl = chromaticKernel,
+    sksl = chromaticKernel,
   )
 }
 

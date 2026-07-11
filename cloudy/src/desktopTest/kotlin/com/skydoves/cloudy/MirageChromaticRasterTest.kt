@@ -277,31 +277,59 @@ private fun renderRidgeProbe(
  * this contrasting field lets the guard assert the box construction dumps more diagonal energy, so the
  * comparison cannot pass vacuously. Anchored on the bevel block's own source markers.
  */
+/**
+ * Finds the emitted local name a `let(readableName, ...)` call produced for [readableName] (e.g.
+ * `sdf` -> `sdf_3`): the eDSL emitter (MirageShaderScope's `freshName`) suffixes every traced local
+ * with a deterministic-but-arbitrary `_<n>`, so the box-SDF replacement block below — which reads
+ * `sdf`/`minHalf`/`halfDim`/`r`/`p` from the surrounding trace — must resolve each name from the
+ * actual source rather than assume the hand-written kernel's unsuffixed spelling.
+ */
+private fun emittedName(source: String, readableName: String): String {
+  val match = Regex("""\b${Regex.escape(readableName)}(_\d+)?\b(?= = )""").find(source)
+    ?: error("no declaration of '$readableName' found — update toOldBoxBevel")
+  return match.value
+}
+
 private fun toOldBoxBevel(source: String): String {
-  val startAnchor = "    float2 q  = abs(p) / max(halfDim, float2(1.0));"
-  val endAnchor = "    float n_cos   = 1.0 - t;"
+  val p = emittedName(source, "p")
+  val sdf = emittedName(source, "sdf")
+  val halfDim = emittedName(source, "halfDim")
+  val r = emittedName(source, "r")
+  val minHalf = emittedName(source, "minHalf")
+
+  // Anchored on the declaration of the superellipse block's first (`q`) and last (`n_cos`) locals.
+  // Everything the box-SDF replacement must NOT leave dangling is whatever the kept tail references
+  // by name — `cN` reads `cDir` and `n_cos`, `cosT`/`ringTerm`/etc. chain off `cN`/`cL` — so the
+  // replacement keeps the original emitted names for `cDir` and `n_cos` (renaming them, unlike the
+  // hand-written kernel's `cDir`/`n_cos`, would leave every downstream reference unresolved).
+  val qName = emittedName(source, "q")
+  val cDirName = emittedName(source, "cDir")
+  val nCosName = emittedName(source, "n_cos")
+  val startAnchor = "float2 $qName ="
+  val endAnchor = "float $nCosName ="
   val start = source.indexOf(startAnchor)
-  val end = source.indexOf(endAnchor)
+  val end = source.indexOf(endAnchor, start)
   require(start >= 0 && end > start) {
     "superellipse block markers not found — update toOldBoxBevel"
   }
+  val lineEnd = source.indexOf('\n', end).let { if (it < 0) source.length else it + 1 }
   val head = source.substring(0, start)
-  val tail = source.substring(end + endAnchor.length)
+  val tail = source.substring(lineEnd)
   val boxBlock = """
-    float2 d2 = abs(p) - halfDim + float2(r);
-    float2 s2 = float2(p.x >= 0.0 ? 1.0 : -1.0, p.y >= 0.0 ? 1.0 : -1.0);
-    float2 cDir;
+    float2 d2 = abs($p) - $halfDim + float2($r);
+    float2 s2 = float2($p.x >= 0.0 ? 1.0 : -1.0, $p.y >= 0.0 ? 1.0 : -1.0);
+    float2 $cDirName;
     if (max(d2.x, d2.y) > 0.0) {
-        cDir = s2 * normalize(max(d2, 0.0));
+        $cDirName = s2 * normalize(max(d2, 0.0));
     } else {
         float w = clamp(0.5 + 0.5 * (d2.x - d2.y) / SEAM_BLEND_PX, 0.0, 1.0);
-        cDir = normalize(float2(s2.x * w, s2.y * (1.0 - w)) + float2(0.0, 1.0e-4));
+        $cDirName = normalize(float2(s2.x * w, s2.y * (1.0 - w)) + float2(0.0, 1.0e-4));
     }
-    float depthIn = max(-sdf, 0.0);
-    float t       = clamp(depthIn / max(minHalf, 1.0), 0.0, 1.0);
-    float n_cos   = 1.0 - t;
+    float depthIn = max(-$sdf, 0.0);
+    float t       = clamp(depthIn / max($minHalf, 1.0), 0.0, 1.0);
+    float $nCosName   = 1.0 - t;
   """.trimIndent()
-  return head + boxBlock + tail
+  return head + boxBlock + "\n" + tail
 }
 
 /**
