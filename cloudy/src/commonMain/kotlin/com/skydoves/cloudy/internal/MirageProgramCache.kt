@@ -37,7 +37,7 @@ internal class CachedProgram(val compiled: CompiledProgram, val backend: MirageB
 
 /**
  * Process-wide **backend** cache, keyed by the **generated source text** (not by [MirageShader] identity) so
- * that two shaders that lower to the same kernel — e.g. the chromatic preset family, or an shader
+ * that two shaders that lower to the same kernel — e.g. the chromatic preset family, or a shader
  * hoisted into two different `val`s — share one GPU program instead of compiling twice.
  *
  * ## What is shared vs per-shader

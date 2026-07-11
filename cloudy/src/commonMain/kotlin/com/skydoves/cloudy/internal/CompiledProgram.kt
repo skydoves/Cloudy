@@ -55,7 +55,7 @@ internal class UniformEntry(
 )
 
 /**
- * The ordered uniform declarations of an shader's params, captured from `by uniform(...)` delegate
+ * The ordered uniform declarations of a shader's params, captured from `by uniform(...)` delegate
  * registration. Registration order equals declaration order equals uniform binding order, so the
  * list index is the deterministic bind slot.
  */

@@ -153,7 +153,7 @@ private val BASE_PICKS: List<MiragePick> = listOf(
  *
  * Demonstrated here:
  * - **MirageShader catalog:** chips swap between the bundled looks and a demo-authored [RainyWindowShader]
- *   proving any app can author an shader through the public API with no core change.
+ *   proving any app can author a shader through the public API with no core change.
  * - **Strength slider:** one `0..1` slider feeds each look's "how strong" uniform (`specStrength` /
  *   `chromaticIntensity` / `rainAmount`) from the per-draw params block, so sliding re-renders live
  *   (the block identity is part of the node's element equality, so it updates cheaply).

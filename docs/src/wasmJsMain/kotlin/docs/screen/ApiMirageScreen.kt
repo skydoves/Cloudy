@@ -195,7 +195,7 @@ fun ApiMirageScreen() {
 
     Text(
       text = "The clock drives the standard mirageTime uniform (seconds since attach). The " +
-        "the pipeline owns a single frame loop, so every time-driven stage advances off one clock. " +
+        "pipeline owns a single frame loop, so every time-driven stage advances off one clock. " +
         "Auto only spins the loop when some stage's kernel actually references mirageTime.",
       style = DocsTheme.typography.body,
       color = DocsTheme.colors.onSurfaceVariant,
@@ -230,8 +230,8 @@ fun ApiMirageScreen() {
     Text(
       text = "A filter transforms the content; an overlay (a content-free generator such as " +
         "Foil) is drawn over the filtered result. Filters chain in declared order, then " +
-        "overlays composite over them in declared order under blendMode. The pipeline orders them " +
-        "correctly regardless of which you declare first.",
+        "overlays composite over them in declared order under blendMode. The pipeline " +
+        "orders them correctly regardless of which you declare first.",
       style = DocsTheme.typography.body,
       color = DocsTheme.colors.onSurfaceVariant,
     )
@@ -272,12 +272,12 @@ fun ApiMirageScreen() {
     Spacer(modifier = Modifier.height(12.dp))
 
     Text(
-      text = "An shader is a kernel plus a MirageParams subclass. Declare uniforms with by " +
+      text = "A shader is a kernel plus a MirageParams subclass. Declare uniforms with by " +
         "uniform(...) / by uniformColor(...) — the property name is the shader uniform " +
-        "identifier, and declaration order is the binding order. MirageShader.composite authors a " +
-        "full half4 main(float2 xy) that samples the content through the auto-declared content " +
-        "shader (content.eval(xy)); MirageShader.colorize authors only half4 kernel(float2 p, half4 " +
-        "src) and codegen wraps the content sampling for you.",
+        "identifier, and declaration order is the binding order. MirageShader.composite " +
+        "authors a full half4 main(float2 xy) that samples the content through the " +
+        "auto-declared content shader (content.eval(xy)); MirageShader.colorize authors only " +
+        "half4 kernel(float2 p, half4 src) and codegen wraps the content sampling for you.",
       style = DocsTheme.typography.body,
       color = DocsTheme.colors.onSurfaceVariant,
     )
@@ -366,7 +366,7 @@ fun ApiMirageScreen() {
       text = """
         • The shader path needs Android API 33+; Skia targets (iOS, macOS, Desktop, Web) run the full effect.
         • The pipeline block runs once (its stage list is the node's equality key); each stage's params block runs per draw.
-        • Compiled programs are cached process-wide by shader source, so reusing an shader or toggling enabled never recompiles.
+        • Compiled programs are cached process-wide by shader source, so reusing a shader or toggling enabled never recompiles.
         • Preset defaults live in the params, not as shader constants, so every value is animatable and changing one never recompiles.
         • enabled = false bypasses the whole pipeline and passes the content through unmodified.
       """.trimIndent(),

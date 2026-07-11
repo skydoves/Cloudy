@@ -19,7 +19,7 @@ import com.skydoves.cloudy.internal.ShaderCategory
 
 /**
  * A named mirage shader: a shader effect paired with the [MirageParams] subclass that declares its
- * uniforms. An shader is the authored front end — its kernel plus its uniform schema — that the
+ * uniforms. A shader is the authored front end — its kernel plus its uniform schema — that the
  * compiler later lowers into a per-dialect [CompiledProgram][com.skydoves.cloudy.internal.CompiledProgram].
  *
  * Build one with the [Companion] factories ([colorize], [composite], [generate], [raw]) rather than
@@ -30,7 +30,7 @@ import com.skydoves.cloudy.internal.ShaderCategory
  * [equals] / [hashCode] are keyed on `(name, kernel sources, category)` — the [paramsFactory] is
  * **excluded** because it is a lambda (never structurally comparable) and it only *mints* a fresh
  * params instance; two shaders with identical name, sources, and category compile to the same GPU
- * program and so must compare equal for source-hash cache keys and dedup. This also lets an shader be
+ * program and so must compare equal for source-hash cache keys and dedup. This also lets a shader be
  * hoisted into a top-level `val` and reused across recompositions without reallocating the effect.
  *
  * The equality contract is declared abstract here and implemented per concrete subtype: each subtype

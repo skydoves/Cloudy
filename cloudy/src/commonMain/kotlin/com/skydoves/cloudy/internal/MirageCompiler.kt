@@ -51,7 +51,7 @@ internal class MirageLintException(message: String) : IllegalArgumentException(m
 internal object MirageCompiler {
 
   /**
-   * Builds the [UniformSchema] for an shader by minting one probe params instance from [paramsFactory]
+   * Builds the [UniformSchema] for a shader by minting one probe params instance from [paramsFactory]
    * and reading the slots its `by uniform(...)` delegates registered (declaration order = bind order).
    * The probe is discarded; the engine mints its own per-node instance for actual draws.
    */

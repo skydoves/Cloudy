@@ -154,7 +154,8 @@ fun MenuHomeScreen(
         item {
           MenuCard(
             title = "Shader Effect (pipeline)",
-            description = "Apply an open shader pipeline in one modifier block — specular vs chromatic",
+            description = "Apply an open shader pipeline in one modifier block — " +
+              "specular vs chromatic",
             poster = posters[5],
             onClick = onMirageClick,
           )

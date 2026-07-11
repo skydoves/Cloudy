@@ -236,7 +236,8 @@ fun GettingStartedScreen() {
     Spacer(modifier = Modifier.height(16.dp))
 
     Text(
-      text = "Apply an open shader-effect pipeline through Modifier.mirage { }. It ships thin-film " +
+      text =
+      "Apply an open shader-effect pipeline through Modifier.mirage { }. It ships thin-film " +
         "and specular presets, and consumers can author their own shaders with no library " +
         "change. Mirage is experimental — opt in with @OptIn(ExperimentalMirage::class):",
       style = DocsTheme.typography.body,
