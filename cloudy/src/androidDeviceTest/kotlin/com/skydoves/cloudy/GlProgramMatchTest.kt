@@ -18,7 +18,20 @@
 package com.skydoves.cloudy
 
 import android.graphics.Bitmap
+import android.graphics.BitmapShader
 import android.graphics.Color
+import android.util.Log
+import android.graphics.ColorSpace
+import android.graphics.HardwareRenderer
+import android.graphics.Paint
+import android.graphics.PixelFormat
+import android.graphics.RenderNode
+import android.graphics.RuntimeShader
+import android.graphics.Shader
+import android.hardware.HardwareBuffer
+import android.media.ImageReader
+import androidx.compose.ui.graphics.toArgb
+import com.skydoves.cloudy.internal.CompiledProgram
 import com.skydoves.cloudy.internal.Dialect
 import com.skydoves.cloudy.internal.GlProgram
 import com.skydoves.cloudy.internal.MirageCompiler
@@ -88,6 +101,138 @@ public class GlProgramMatchTest {
       meanAbsDiff(glOut!!, content) > 1.0,
     )
   }
+
+  /**
+   * The lens kernel translated to GLSL ES ([GlProgram], the 29-32 band) must match the same optic run
+   * natively as an AGSL [RuntimeShader] (the 33+ band) — proving the translator, not just that "the GL
+   * program did *something*". A vendor GPU (real Adreno on 33+) runs both in one process, so this is the
+   * cross-check the emulator's SwiftShader can't give.
+   *
+   * The lens is framed over the whole 64x64 raster (center 32,32 / size 64,64 / cornerRadius 0) so every
+   * pixel takes the refraction/thin-film branch rather than the sdf early-out. Both paths bind the
+   * schema defaults from the *same* [CompiledProgram] (no hand-copied values), then override the lens
+   * frame identically, so any divergence is a translation bug, not a setup drift.
+   *
+   * The tolerance starts as a **report** (TOL below), not a real bound: the assert message always prints
+   * the measured MAD so a first S25 run yields the number to lock the TOL to. Bilinear content.eval vs a
+   * GL bilinear texture fetch on refracted (sub-pixel) coords is where any real divergence shows up.
+   */
+  @Test
+  public fun chromaticGlMatchesAgslReference() {
+    assertLensOpticMatches(MirageOptics.Chromatic)
+  }
+
+  @Test
+  public fun specularGlMatchesAgslReference() {
+    assertLensOpticMatches(MirageOptics.Specular)
+  }
+}
+
+// Measured on a real Adreno 840 (S25, API 36): Chromatic MAD 0.017, Specular 0.20 — the GLSL-ES
+// translation is pixel-tight against 33+ AGSL. 1.0 leaves headroom over the worst optic while still
+// catching a real regression (a Y-flip or coordinate bug blows the MAD up by orders of magnitude).
+private const val GL_AGSL_MATCH_TOL = 1.0
+
+/** The full-raster lens frame both paths share, so a divergence is a translation bug, not a setup skew. */
+private const val LENS_FRAME = 64f
+
+/**
+ * Renders [optic] through both backends at 64x64 and asserts the GLES output matches the AGSL reference.
+ * The MAD is always in the failure message so a passing-or-failing S25 run still reports the number.
+ */
+@OptIn(ExperimentalMirage::class)
+private fun assertLensOpticMatches(optic: Optic<*>) {
+  val content = gradientContent(64, 64)
+
+  // GLES path: translate AGSL -> GLSL ES, bind schema defaults through the recording sink, override the
+  // lens frame, render offscreen through GlEnv's FBO. Same setup the node's binder uses.
+  val compiled = MirageCompiler.compile(optic, Dialect.GlslEs)
+  val glProgram = GlProgram(MirageGlslEs.translate(compiled.source))
+  val (glSink, glWrites) = glProgram.uniformSink()
+  bindSchemaDefaults(glSink, compiled)
+  frameLens(glSink)
+  val glOut = glProgram.render(content, glWrites)
+  assertNotNull("GLES render returned null for ${compiled.category}", glOut)
+
+  // AGSL path: the same optic compiled to AGSL, driven by an identical schema-default bind directly on
+  // the RuntimeShader (no shared sink — set each uniform ourselves so the two paths stay symmetric).
+  val agsl = MirageCompiler.compile(optic, Dialect.Agsl)
+  val shader = RuntimeShader(agsl.source)
+  bindAgslDefaults(shader, agsl)
+  frameLensAgsl(shader)
+  val agslOut = renderAgslToBitmap(shader, content)
+
+  val mad = meanAbsDiff(glOut!!, agslOut)
+  // Always report the MAD so a passing run still surfaces the number (asserts print only on failure).
+  Log.i("GlProgramMatch", "MAD ${compiled.category}=$mad (TOL=$GL_AGSL_MATCH_TOL)")
+  assertTrue(
+    "GLES vs AGSL diverged for the lens optic: MAD=$mad (TOL=$GL_AGSL_MATCH_TOL).",
+    mad < GL_AGSL_MATCH_TOL,
+  )
+}
+
+/**
+ * Renders an AGSL [shader] to a fresh ARGB_8888 bitmap on the GPU. A RuntimeShader is a HARDWARE-only
+ * feature: a plain `Canvas(Bitmap)` is a software canvas and throws
+ * `"Software rendering doesn't support RuntimeShader"`, so this drives a [RenderNode] through a
+ * [HardwareRenderer] into an [ImageReader] surface and reads the frame back exactly like `GlEnv` does
+ * (the readback path already proven on real Adreno by the duotone/chromatic GLES tests) —
+ * `HardwareBuffer` -> `wrapHardwareBuffer` -> `copy(ARGB_8888)`.
+ *
+ * Binds [content] as the `content` child sampler (CLAMP, matching the GL texture wrap). The RenderNode
+ * is positioned at the origin and the rect is drawn untransformed, so `main(float2 xy)` receives
+ * top-left pixel coords matching the GLES path's Y-flipped fragCoord frame.
+ */
+private fun renderAgslToBitmap(shader: RuntimeShader, content: Bitmap): Bitmap {
+  shader.setInputShader(
+    "content",
+    BitmapShader(content, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP),
+  )
+  val w = content.width
+  val h = content.height
+
+  val node = RenderNode("agsl-ref").apply {
+    setPosition(0, 0, w, h)
+    val canvas = beginRecording(w, h)
+    canvas.drawRect(0f, 0f, w.toFloat(), h.toFloat(), Paint().apply { this.shader = shader })
+    endRecording()
+  }
+
+  // Same ImageReader usage flags as GlEnv's proven readback target.
+  val reader = ImageReader.newInstance(
+    w,
+    h,
+    PixelFormat.RGBA_8888,
+    2,
+    HardwareBuffer.USAGE_GPU_COLOR_OUTPUT or
+      HardwareBuffer.USAGE_GPU_SAMPLED_IMAGE or
+      HardwareBuffer.USAGE_CPU_READ_RARELY,
+  )
+  val renderer = HardwareRenderer().apply {
+    setSurface(reader.surface)
+    setContentRoot(node)
+  }
+  try {
+    // setWaitForPresent(true) blocks until the single frame is on the surface; acquireNextImage then
+    // returns that one produced frame (the recipe in the official RenderScript-migration guide).
+    renderer.createRenderRequest().setWaitForPresent(true).syncAndDraw()
+    val image = reader.acquireNextImage() ?: error("HardwareRenderer produced no frame for the AGSL ref")
+    return try {
+      val hb = image.hardwareBuffer ?: error("AGSL ref image had no HardwareBuffer")
+      val wrapped = Bitmap.wrapHardwareBuffer(hb, ColorSpace.get(ColorSpace.Named.SRGB))
+        ?: error("wrapHardwareBuffer returned null for the AGSL ref")
+      val copy = wrapped.copy(Bitmap.Config.ARGB_8888, false)
+      wrapped.recycle()
+      hb.close()
+      copy
+    } finally {
+      image.close()
+    }
+  } finally {
+    renderer.destroy()
+    reader.close()
+    node.discardDisplayList()
+  }
 }
 
 /** A params instance reset to [compiled]'s schema defaults — what colorGradeMatrixOf reads per draw. */
@@ -125,6 +270,43 @@ private fun bindSchemaDefaults(sink: UniformSink, compiled: com.skydoves.cloudy.
       else -> {} // textures / null: unused by these optics
     }
   }
+}
+
+/**
+ * Binds each schema slot's declared default directly onto the AGSL [shader] — the symmetric twin of
+ * [bindSchemaDefaults], but set on the RuntimeShader ourselves so the GLES and AGSL paths never share a
+ * sink (a shared sink's own conversions could mask a real translation divergence). A `layout(color)`
+ * uniform uses `setColorUniform` (color-space aware, the native path); the lens optics declare none.
+ */
+@OptIn(ExperimentalMirage::class)
+private fun bindAgslDefaults(shader: RuntimeShader, compiled: CompiledProgram) {
+  for (entry in compiled.schema.entries) {
+    val d = entry.default
+    when {
+      entry.isColor && d is androidx.compose.ui.graphics.Color ->
+        shader.setColorUniform(entry.name, d.toArgb())
+      d is Float -> shader.setFloatUniform(entry.name, d)
+      d is androidx.compose.ui.geometry.Offset -> shader.setFloatUniform(entry.name, d.x, d.y)
+      d is androidx.compose.ui.geometry.Size -> shader.setFloatUniform(entry.name, d.width, d.height)
+      d is FloatArray -> shader.setFloatUniform(entry.name, d)
+      d is Int -> shader.setIntUniform(entry.name, d)
+      else -> {} // textures / null: unused by these optics
+    }
+  }
+}
+
+/** Frames the lens over the whole 64x64 raster on the GLES sink so every pixel takes the lens branch. */
+private fun frameLens(sink: UniformSink) {
+  sink.float2("lensCenter", LENS_FRAME / 2f, LENS_FRAME / 2f)
+  sink.float2("lensSize", LENS_FRAME, LENS_FRAME)
+  sink.float("cornerRadius", 0f)
+}
+
+/** The AGSL twin of [frameLens] — the same override, set directly on the RuntimeShader. */
+private fun frameLensAgsl(shader: RuntimeShader) {
+  shader.setFloatUniform("lensCenter", LENS_FRAME / 2f, LENS_FRAME / 2f)
+  shader.setFloatUniform("lensSize", LENS_FRAME, LENS_FRAME)
+  shader.setFloatUniform("cornerRadius", 0f)
 }
 
 private fun applyMatrix(m: FloatArray, src: Bitmap): Bitmap {
