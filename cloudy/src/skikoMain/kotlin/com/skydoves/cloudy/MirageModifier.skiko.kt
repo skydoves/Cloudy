@@ -16,17 +16,17 @@
 package com.skydoves.cloudy
 
 import androidx.compose.ui.Modifier
-import com.skydoves.cloudy.internal.MirageElement
 
 /**
  * Skiko implementation of the plan-based [Modifier.mirage] — shared across iOS, macOS, Desktop, and
  * Wasm. Attaches a `MirageNode` that orchestrates the plan. Skia is always present, so every stage's
- * program compiles; the node reads its params blocks in the draw phase, so a plan never forces
- * recomposition.
+ * program compiles and the plan always renders — the [MirageFallback] therefore never triggers here.
+ * The node reads its params blocks in the draw phase, so a plan never forces recomposition.
  */
 @ExperimentalMirage
 public actual fun Modifier.mirage(
   clock: MirageClock,
   enabled: Boolean,
+  fallback: MirageFallback,
   plan: MirageScope.() -> Unit,
-): Modifier = this.then(MirageElement(clock, enabled, plan))
+): Modifier = mirageOrFallback(clock, enabled, fallback, plan)

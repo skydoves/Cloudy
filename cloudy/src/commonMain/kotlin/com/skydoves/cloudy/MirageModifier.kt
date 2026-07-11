@@ -18,6 +18,10 @@ package com.skydoves.cloudy
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.BlendMode
 import com.skydoves.cloudy.internal.MirageBackdropElement
+import com.skydoves.cloudy.internal.MirageElement
+import com.skydoves.cloudy.internal.MiragePlanBuilder
+import com.skydoves.cloudy.internal.currentDialect
+import com.skydoves.cloudy.internal.planRenders
 
 /**
  * Time-driving policy for the standard `mirageTime` uniform. Plan-level — the plan (not each stage)
@@ -86,6 +90,29 @@ public interface MirageScope {
 }
 
 /**
+ * What to draw when a mirage plan cannot render on the current device — e.g. a lens optic on Android
+ * below API 33, where no runtime shader is available. The library never invents a degraded look for a
+ * lens optic (a tint would be a different effect, not the one authored); instead the caller decides.
+ *
+ * A plan is considered unrenderable only when **no** stage produces any output on this platform. A
+ * plan whose Colorize stage is reproduced by the color-grade path (Duotone below API 33) renders, so
+ * its fallback is ignored.
+ */
+@ExperimentalMirage
+public sealed interface MirageFallback {
+  /** Default: draw nothing extra. The plan's content passes through unmodified (the historic behavior). */
+  @ExperimentalMirage
+  public data object None : MirageFallback
+
+  /**
+   * Draw [modifier] in place of the unrenderable plan. Applied to the same node — use it to supply a
+   * still image, a solid fill, or any other stand-in for the effect the device cannot run.
+   */
+  @ExperimentalMirage
+  public data class Content(val modifier: Modifier) : MirageFallback
+}
+
+/**
  * Applies a mirage effect [plan] to the content it modifies.
  *
  * Non-composable and `Modifier.Node`-based: [plan] is evaluated **once** to fix the ordered stage
@@ -107,6 +134,8 @@ public interface MirageScope {
  * @param clock time-driving policy for the standard `mirageTime` uniform. Default: [MirageClock.Auto].
  * @param enabled when `false`, the whole plan is bypassed and the content passes through unmodified.
  *   Compiled programs remain cached process-wide, so re-enabling incurs no recompile.
+ * @param fallback what to draw when the plan cannot render on this device (see [MirageFallback]).
+ *   Default [MirageFallback.None] — content passes through, matching the historic behavior.
  * @param plan the stage declaration block; see [MirageScope].
  * @return a [Modifier] that applies the plan.
  */
@@ -114,8 +143,34 @@ public interface MirageScope {
 public expect fun Modifier.mirage(
   clock: MirageClock = MirageClock.Auto,
   enabled: Boolean = true,
+  fallback: MirageFallback = MirageFallback.None,
   plan: MirageScope.() -> Unit,
 ): Modifier
+
+/**
+ * Shared body of the content [Modifier.mirage] actuals. Kept in commonMain so the platform actuals are
+ * one-liners: they differ only because [Modifier.mirage] is `expect` (historic), not in behavior.
+ *
+ * When [fallback] is [MirageFallback.Content] **and** the plan renders nothing on this device (every
+ * stage's program is unavailable — e.g. a lens optic below API 33), the mirage node is skipped and the
+ * fallback modifier is applied in its place. Otherwise the normal mirage node attaches; a
+ * [MirageFallback.None] never changes the chain.
+ */
+@ExperimentalMirage
+internal fun Modifier.mirageOrFallback(
+  clock: MirageClock,
+  enabled: Boolean,
+  fallback: MirageFallback,
+  plan: MirageScope.() -> Unit,
+): Modifier {
+  if (fallback is MirageFallback.Content && enabled) {
+    val stages = MiragePlanBuilder().apply(plan).stages
+    if (!planRenders(stages, currentDialect())) {
+      return this.then(fallback.modifier)
+    }
+  }
+  return this.then(MirageElement(clock, enabled, plan))
+}
 
 /**
  * Applies a mirage effect [plan] to the [sky] **backdrop** behind the modified node, instead of to the

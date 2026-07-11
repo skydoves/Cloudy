@@ -102,3 +102,28 @@ internal object MirageProgramCache {
     }
   }
 }
+
+/**
+ * True when at least one of [stages]'s programs renders **on a self-lit content node** under [dialect]
+ * — i.e. the plan produces some output there. False when every stage is unsupported (e.g. a lens optic
+ * on Android below API 33, or any optic on the API 29-32 GLES band, which is backdrop-only), which is
+ * when a [com.skydoves.cloudy.MirageFallback.Content] should stand in.
+ *
+ * A [FilterApplication.Blit] stage (the async GLES path) does **not** count as rendering here: only the
+ * backdrop node drives that async capture (it has the `Sky.contentVersion` cache key a self-lit node
+ * lacks — see [MirageGlesBackdrop]). So a self-lit GLES plan renders nothing and its fallback shows.
+ *
+ * Uses the same [MirageProgramCache.obtain] + [filterApplication] the self-lit draw loop uses, so
+ * "renders" here means exactly what that node will draw. Warming the cache during composition is cheap.
+ */
+@OptIn(ExperimentalMirage::class)
+internal fun planRenders(stages: List<Stage>, dialect: Dialect): Boolean =
+  stages.any { rendersInPlace(MirageProgramCache.obtain(it.optic, dialect)) }
+
+/**
+ * Whether [cached]'s program renders on a self-lit content node (drawn in place synchronously). Null
+ * (unsupported band) and [FilterApplication.Blit] (async, backdrop-only) both render nothing in place.
+ */
+@OptIn(ExperimentalMirage::class)
+internal fun rendersInPlace(cached: CachedProgram?): Boolean =
+  cached != null && cached.backend.filterApplication() !is FilterApplication.Blit
