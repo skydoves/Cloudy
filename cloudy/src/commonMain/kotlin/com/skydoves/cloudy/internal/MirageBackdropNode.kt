@@ -21,6 +21,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.positionInRoot
@@ -67,6 +68,10 @@ internal class MirageBackdropNode(
   private var positionInRoot: Offset = Offset.Zero
 
   private val chain = MirageFilterChain()
+
+  // Async GLES backdrop runner (API 29-32 band, where a filter is a Blit, not a RenderEffect). Lazily
+  // used only when an applicable filter reports FilterApplication.Blit; null-cost otherwise.
+  private val glesBackdrop = MirageGlesBackdrop()
 
   // Same clock machinery as MirageNode: this small duplication is deliberate (the clock is a node
   // concern, not a chain concern, and forcing it into the shared chain would drag lifecycle in).
@@ -204,23 +209,56 @@ internal class MirageBackdropNode(
       stage to cached
     }
 
-    with(chain) {
-      draw(
-        context = requireGraphicsContext(),
-        applicable = applicable,
-        bind = { stage, cached ->
-          bindUniforms(cached, stage.params, stage.paramsBlock, width, height, density, time)
-        },
-        // Stage 0 records the offset-shifted Sky region (a direct port of the cloudy backdrop record,
-        // CloudyBackground.android.kt:550-559); the chain's content-bound effect then grades THAT. When
-        // no stage is applicable (API < 33) the chain draws this same region raw.
-        recordSource = {
-          drawContext.canvas.save()
-          drawContext.canvas.translate(-offsetX, -offsetY)
-          drawLayer(backgroundLayer)
-          drawContext.canvas.restore()
-        },
+    val recordSource: DrawScope.() -> Unit = {
+      // The offset-shifted Sky region (a direct port of the cloudy backdrop record,
+      // CloudyBackground.android.kt:550-559). When no stage is applicable (e.g. API 23-28 lens), the
+      // chain / GLES runner draws this same region raw.
+      drawContext.canvas.save()
+      drawContext.canvas.translate(-offsetX, -offsetY)
+      drawLayer(backgroundLayer)
+      drawContext.canvas.restore()
+    }
+
+    // API 29-32 GLES band: the first applicable filter is a Blit (async FBO capture), which the sync
+    // chain cannot run. prepareGlesBlit binds this draw's uniforms into a fresh per-draw list and
+    // returns the transform; the async runner captures the region and applies it. Other filters
+    // (Effect/ColorFilter) go through the chain as before. Single-stage on this band by scope.
+    val glesFilter = applicable.firstOrNull { (_, cached) ->
+      cached.backend.filterApplication() is FilterApplication.Blit
+    }
+    val glesBlit = glesFilter?.let { (stage, cached) ->
+      cached.backend.prepareGlesBlit(
+        cached,
+        stage.params,
+        stage.paramsBlock,
+        width,
+        height,
+        density,
+        time,
       )
+    }
+    if (glesBlit != null) {
+      with(glesBackdrop) {
+        draw(
+          context = requireGraphicsContext(),
+          scope = coroutineScope,
+          blit = glesBlit,
+          contentVersion = sky.contentVersion,
+          recordSource = recordSource,
+          invalidate = { if (isAttached) invalidateDraw() },
+        )
+      }
+    } else {
+      with(chain) {
+        draw(
+          context = requireGraphicsContext(),
+          applicable = applicable,
+          bind = { stage, cached ->
+            bindUniforms(cached, stage.params, stage.paramsBlock, width, height, density, time)
+          },
+          recordSource = recordSource,
+        )
+      }
     }
 
     drawOverlays(overlays, width, height, density, time)
@@ -259,5 +297,6 @@ internal class MirageBackdropNode(
     frameLoopJob?.cancel()
     frameLoopJob = null
     chain.release(requireGraphicsContext())
+    glesBackdrop.release()
   }
 }

@@ -89,6 +89,7 @@ internal object MirageCompiler {
         usesTime = usesTime,
         usesDensity = usesDensity,
         category = OpticCategory.Composite,
+        isRaw = true,
       )
     }
 
@@ -250,9 +251,11 @@ internal object MirageCompiler {
     is GenerateOptic<*> -> OpticCategory.Generate
   }
 
+  // GlslEs consumes the AGSL body (its GLSL ES 1.0 feature surface is the base the translator lowers
+  // from); Sksl uses the SKSL body; Agsl uses the AGSL body.
   private fun kernelOf(optic: Optic<*>, dialect: Dialect): String = when (optic) {
-    is FilterOptic<*> -> if (dialect == Dialect.Agsl) optic.agsl else optic.sksl
-    is GenerateOptic<*> -> if (dialect == Dialect.Agsl) optic.agsl else optic.sksl
+    is FilterOptic<*> -> if (dialect == Dialect.Sksl) optic.sksl else optic.agsl
+    is GenerateOptic<*> -> if (dialect == Dialect.Sksl) optic.sksl else optic.agsl
   }
 
   private fun isRaw(optic: Optic<*>): Boolean = optic is FilterOptic<*> && optic.skipLint
