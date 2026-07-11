@@ -91,7 +91,23 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: screenshot-summary
-          path: cloudy/build/test-results/roborazzi/debug/results-summary.json
+          # The KMP android host test writes under .../roborazzi/androidHostTest/ (not .../debug/);
+          # glob the variant segment so a task rename cannot silently drop the artifact again.
+          path: cloudy/build/test-results/roborazzi/**/results-summary.json
+          if-no-files-found: warn
+          retention-days: 7
+
+      # The committed goldens themselves (checked in under androidHostTest/assets/screenshots/). verify
+      # only writes PNGs to build/ on a mismatch, so a clean PR had no images to show; uploading the
+      # goldens gives the comment workflow an ALWAYS-ON "Screenshots" gallery -- the current state each
+      # spec asserts against, visible in the PR regardless of diff. Just checked-out files (~8 small
+      # PNGs), so this is a plain copy with no extra Gradle task.
+      - name: Upload screenshot goldens
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshot-goldens
+          path: cloudy/src/androidHostTest/assets/screenshots/*.png
           if-no-files-found: warn
           retention-days: 7
 
