@@ -29,13 +29,13 @@ import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 /**
  * Spike B-1 for the API 29-32 GLES mirage backend (option b: ImageReader-Surface).
@@ -94,7 +94,10 @@ public class GlesRoundtripSpikeTest {
       assertNotNull("acquireLatestImage returned null after onImageAvailable", image)
 
       val hb: HardwareBuffer = image!!.hardwareBuffer!!
-      assertTrue("buffer usage lost GPU_COLOR_OUTPUT", hb.usage and HardwareBuffer.USAGE_GPU_COLOR_OUTPUT != 0L)
+      assertTrue(
+        "buffer usage lost GPU_COLOR_OUTPUT",
+        hb.usage and HardwareBuffer.USAGE_GPU_COLOR_OUTPUT != 0L,
+      )
 
       val bitmap = Bitmap.wrapHardwareBuffer(hb, ColorSpace.get(ColorSpace.Named.SRGB))
       assertNotNull("wrapHardwareBuffer returned null", bitmap)
@@ -149,17 +152,23 @@ private class EglWindow(surface: android.view.Surface, width: Int, height: Int) 
     )
     val configs = arrayOfNulls<EGLConfig>(1)
     val numConfigs = IntArray(1)
-    check(EGL14.eglChooseConfig(display, configAttribs, 0, configs, 0, 1, numConfigs, 0) && numConfigs[0] > 0) {
+    check(
+      EGL14.eglChooseConfig(display, configAttribs, 0, configs, 0, 1, numConfigs, 0) &&
+        numConfigs[0] > 0,
+    ) {
       "eglChooseConfig found no config"
     }
     val config = configs[0]!!
 
     val contextAttribs = intArrayOf(EGL14.EGL_CONTEXT_CLIENT_VERSION, 3, EGL14.EGL_NONE)
     context = EGL14.eglCreateContext(display, config, EGL14.EGL_NO_CONTEXT, contextAttribs, 0)
-    check(context != EGL14.EGL_NO_CONTEXT) { "eglCreateContext failed: 0x${Integer.toHexString(EGL14.eglGetError())}" }
+    check(context != EGL14.EGL_NO_CONTEXT) {
+      "eglCreateContext failed: 0x${Integer.toHexString(EGL14.eglGetError())}"
+    }
 
     // The ImageReader Surface is the render target; eglSwapBuffers pushes each frame into the reader.
-    eglSurface = EGL14.eglCreateWindowSurface(display, config, surface, intArrayOf(EGL14.EGL_NONE), 0)
+    eglSurface =
+      EGL14.eglCreateWindowSurface(display, config, surface, intArrayOf(EGL14.EGL_NONE), 0)
     check(eglSurface != EGL14.EGL_NO_SURFACE) {
       "eglCreateWindowSurface failed: 0x${Integer.toHexString(EGL14.eglGetError())}"
     }

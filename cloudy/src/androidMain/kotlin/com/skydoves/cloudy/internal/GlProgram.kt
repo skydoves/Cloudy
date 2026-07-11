@@ -70,7 +70,8 @@ internal class GlProgram(private val fragmentSource: String) {
       GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
       GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, contentTex)
       GLES30.glUniform1i(GLES30.glGetUniformLocation(program, "content"), 0)
-      GLES30.glUniform2f(GLES30.glGetUniformLocation(program, "uResolution"), w.toFloat(), h.toFloat())
+      val resLoc = GLES30.glGetUniformLocation(program, "uResolution")
+      GLES30.glUniform2f(resLoc, w.toFloat(), h.toFloat())
 
       for (write in writes) write(program)
 
@@ -105,13 +106,20 @@ internal class GlProgram(private val fragmentSource: String) {
     // Clip-space fullscreen quad as a triangle strip. gl_FragCoord is derived by the rasterizer; the
     // shader handles the Y-flip itself (MirageGlslEs), so no UV attribute is needed.
     val verts = floatArrayOf(
-      -1f, -1f,
-      1f, -1f,
-      -1f, 1f,
-      1f, 1f,
+      -1f,
+      -1f,
+      1f,
+      -1f,
+      -1f,
+      1f,
+      1f,
+      1f,
     )
     val buffer = ByteBuffer.allocateDirect(verts.size * 4).order(ByteOrder.nativeOrder())
-      .asFloatBuffer().apply { put(verts); position(0) }
+      .asFloatBuffer().apply {
+        put(verts)
+        position(0)
+      }
     val ids = IntArray(1)
     GLES30.glGenBuffers(1, ids, 0)
     GLES30.glBindBuffer(GLES30.GL_ARRAY_BUFFER, ids[0])
@@ -194,7 +202,8 @@ private class GlRecordingSink(private val out: MutableList<(Int) -> Unit>) : Uni
   }
 
   override fun floatArray(name: String, v: FloatArray) {
-    val copy = v.copyOf() // the handle reuses its array across draws; snapshot for the deferred replay
+    // The handle reuses its array across draws; snapshot for the deferred replay.
+    val copy = v.copyOf()
     out += { p ->
       val loc = GLES30.glGetUniformLocation(p, name)
       when (copy.size) {
@@ -209,7 +218,9 @@ private class GlRecordingSink(private val out: MutableList<(Int) -> Unit>) : Uni
   /** GLES has no color-aware setter; the translator made this a plain vec4, so write sRGB float4. */
   override fun color(name: String, c: androidx.compose.ui.graphics.Color) {
     val s = c.convert(androidx.compose.ui.graphics.colorspace.ColorSpaces.Srgb)
-    out += { p -> GLES30.glUniform4f(GLES30.glGetUniformLocation(p, name), s.red, s.green, s.blue, s.alpha) }
+    out += { p ->
+      GLES30.glUniform4f(GLES30.glGetUniformLocation(p, name), s.red, s.green, s.blue, s.alpha)
+    }
   }
 
   override fun texture(

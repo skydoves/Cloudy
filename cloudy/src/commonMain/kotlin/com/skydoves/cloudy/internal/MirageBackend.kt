@@ -20,8 +20,8 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.RenderEffect
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.TileMode
-import androidx.compose.ui.graphics.ColorFilter as ComposeColorFilter
 import kotlin.jvm.JvmInline
+import androidx.compose.ui.graphics.ColorFilter as ComposeColorFilter
 
 /**
  * Opaque per-platform compiled program handle. Wraps whatever the platform runtime shader object is

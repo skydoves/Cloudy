@@ -20,7 +20,7 @@ package com.skydoves.cloudy.internal
 import androidx.compose.ui.graphics.Color
 import com.skydoves.cloudy.ExperimentalMirage
 
-/**
+/*
  * Below API 33 there is no `RuntimeShader`, so a lens optic cannot run. The one built-in Colorize
  * optic — Duotone — is nonetheless a **pure affine transform of the source pixel**, so it can be
  * reproduced exactly with a 4x5 color matrix (the thing a `ColorMatrixColorFilter` runs, available on
@@ -73,7 +73,10 @@ internal fun isColorGradeReproducible(compiled: CompiledProgram): Boolean {
  * override is honored, matching 33+/skiko). Falls back to the schema default for any value the draw's
  * block left unset — the params were reset to defaults before the block ran.
  */
-internal fun colorGradeMatrixOf(compiled: CompiledProgram, params: com.skydoves.cloudy.MirageParams): FloatArray {
+internal fun colorGradeMatrixOf(
+  compiled: CompiledProgram,
+  params: com.skydoves.cloudy.MirageParams,
+): FloatArray {
   val entries = compiled.schema.entries
   var shadow = Color(0f, 0f, 0f)
   var highlight = Color(1f, 1f, 1f)

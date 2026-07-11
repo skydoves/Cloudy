@@ -87,7 +87,8 @@ internal object MirageGlslEs {
     s = rewriteEntryPoint(s)
 
     // 5. Alias mirageResolution to the helper's uResolution (kernels read `mirageResolution`).
-    val resolutionAlias = if (s.contains("mirageResolution")) "#define mirageResolution uResolution\n" else ""
+    val resolutionAlias =
+      if (s.contains("mirageResolution")) "#define mirageResolution uResolution\n" else ""
 
     return buildString {
       append(HEADER)
@@ -136,7 +137,8 @@ internal object MirageGlslEs {
    * last), so everything from the entry brace onward is its body.
    */
   private fun rewriteEntryPoint(src: String): String {
-    val match = ENTRY_RE.find(src) ?: return src // no entry (should not happen for a compiled program)
+    // No entry match should not happen for a compiled program; return unchanged if it somehow does.
+    val match = ENTRY_RE.find(src) ?: return src
     val argName = match.groupValues[1]
     val bodyStart = match.range.last + 1 // just after the '{'
 

@@ -52,7 +52,8 @@ internal sealed interface AndroidBackend {
 
   class Agsl
   @RequiresApi(Build.VERSION_CODES.TIRAMISU)
-  constructor(val shader: RuntimeShader) : AndroidBackend
+  constructor(val shader: RuntimeShader) :
+    AndroidBackend
 
   /** API 29-32 GLES program: the AGSL source translated to GLSL ES, run through an offscreen FBO. */
   class Gles(val program: GlProgram) : AndroidBackend
@@ -107,6 +108,7 @@ internal actual fun createBackendProgram(compiled: CompiledProgram): MirageBacke
     // no-ops on this band (self-lit has no content-version cache key — see MirageBackdropNode).
     MirageBackendBand.Gles -> when {
       compiled.isRaw || compiled.usesTime || compiled.category == OpticCategory.Generate -> null
+
       else -> {
         val glsl = MirageGlslEs.translate(compiled.source)
         MirageBackendProgram(AndroidBackend.Gles(GlProgram(glsl)))
@@ -116,9 +118,11 @@ internal actual fun createBackendProgram(compiled: CompiledProgram): MirageBacke
 
 internal actual fun MirageBackendProgram.uniformSink(): UniformSink = when (val b = backend) {
   is AndroidBackend.Agsl -> AndroidUniformSink(b.shader)
+
   // ColorGrade captures this draw's shadow/highlight/amount and rebuilds its matrix, so a per-draw
   // params override is honored (not just the schema default).
   is AndroidBackend.ColorGrade -> ColorGradeSink(b)
+
   // GLES binds through prepareGlesBlit (fresh per-draw list), not this generic sink.
   is AndroidBackend.Gles -> NoOpUniformSink
 }
@@ -129,14 +133,16 @@ internal actual fun MirageBackendProgram.uniformSink(): UniformSink = when (val 
  * API 31+, unavailable in their bands — so [filterApplication] steers the chain past this for them and
  * a call here is a wiring bug.
  */
-internal actual fun MirageBackendProgram.asContentRenderEffect(): RenderEffect = when (val b = backend) {
-  is AndroidBackend.Agsl -> AndroidRenderEffect
-    .createRuntimeShaderEffect(b.shader, "content")
-    .asComposeRenderEffect()
+internal actual fun MirageBackendProgram.asContentRenderEffect(): RenderEffect =
+  when (val b = backend) {
+    is AndroidBackend.Agsl ->
+      AndroidRenderEffect
+        .createRuntimeShaderEffect(b.shader, "content")
+        .asComposeRenderEffect()
 
-  is AndroidBackend.Gles, is AndroidBackend.ColorGrade ->
-    error("only the Agsl backend applies via RenderEffect; others use FilterApplication.Blit")
-}
+    is AndroidBackend.Gles, is AndroidBackend.ColorGrade ->
+      error("only the Agsl backend applies via RenderEffect; others use FilterApplication.Blit")
+  }
 
 /**
  * How this backend applies to a stage's content:
@@ -148,15 +154,18 @@ internal actual fun MirageBackendProgram.asContentRenderEffect(): RenderEffect =
  *   self-lit content node has no async capture path for it, so it treats this marker as unsupported and
  *   no-ops (GLES is backdrop-only; see the node and planRenders).
  */
-internal actual fun MirageBackendProgram.filterApplication(): FilterApplication = when (val b = backend) {
-  is AndroidBackend.Agsl -> FilterApplication.Effect(asContentRenderEffect())
-  is AndroidBackend.ColorGrade ->
-    FilterApplication.ColorFilter(
-      // A fresh ColorMatrixColorFilter over the matrix the sink just rebuilt for this draw.
-      android.graphics.ColorMatrixColorFilter(b.matrix).asComposeColorFilter(),
-    )
-  is AndroidBackend.Gles -> FilterApplication.Blit { it }
-}
+internal actual fun MirageBackendProgram.filterApplication(): FilterApplication =
+  when (val b = backend) {
+    is AndroidBackend.Agsl -> FilterApplication.Effect(asContentRenderEffect())
+
+    is AndroidBackend.ColorGrade ->
+      FilterApplication.ColorFilter(
+        // A fresh ColorMatrixColorFilter over the matrix the sink just rebuilt for this draw.
+        android.graphics.ColorMatrixColorFilter(b.matrix).asComposeColorFilter(),
+      )
+
+    is AndroidBackend.Gles -> FilterApplication.Blit { it }
+  }
 
 /**
  * Builds the GLES transform with this draw's uniforms bound into a **fresh** recording list (never a
@@ -180,6 +189,7 @@ internal actual fun MirageBackendProgram.prepareGlesBlit(
 
 internal actual fun MirageBackendProgram.asShaderBrush(): ShaderBrush = when (val b = backend) {
   is AndroidBackend.Agsl -> ShaderBrush(b.shader)
+
   // Overlays (Generate optics) only ever build an Agsl program: a Generate kernel is not translatable
   // to a ColorGrade and is a no-op on Gles, so neither leaf reaches an overlay brush.
   is AndroidBackend.Gles, is AndroidBackend.ColorGrade ->

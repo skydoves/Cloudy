@@ -64,7 +64,9 @@ internal class MirageColorGradeRasterTest :
     fun duotoneParams() = MirageOptics.Duotone.paramsFactory()
       .apply { resetToDefaults(this, duotoneCompiled().schema) }
 
-    test("the Duotone color matrix (schema defaults) reproduces the Duotone kernel pixel-for-pixel") {
+    test(
+      "the Duotone color matrix (schema defaults) reproduces the Duotone kernel pixel-for-pixel",
+    ) {
       val params = duotoneParams()
       val kernelPixels = renderDuotoneKernel(params)
       val gradePixels = applyMatrix(colorGradeMatrixOf(duotoneCompiled(), params), contentPixels())
@@ -87,7 +89,8 @@ internal class MirageColorGradeRasterTest :
       maxAbsDiff(kernelPixels, applyMatrix(matrix, contentPixels())).shouldBeLessThan(2)
 
       // And it must differ from the default grade — proving the override actually took effect.
-      val defaultGrade = applyMatrix(colorGradeMatrixOf(duotoneCompiled(), duotoneParams()), contentPixels())
+      val defaultGrade =
+        applyMatrix(colorGradeMatrixOf(duotoneCompiled(), duotoneParams()), contentPixels())
       meanAbsDiff(applyMatrix(matrix, contentPixels()), defaultGrade).shouldBeGreaterThan(1.0)
     }
 
@@ -101,7 +104,8 @@ internal class MirageColorGradeRasterTest :
     }
 
     test("the matrix actually changes the content (not an accidental identity)") {
-      val graded = applyMatrix(colorGradeMatrixOf(duotoneCompiled(), duotoneParams()), contentPixels())
+      val graded =
+        applyMatrix(colorGradeMatrixOf(duotoneCompiled(), duotoneParams()), contentPixels())
       meanAbsDiff(graded, contentPixels()).shouldBeGreaterThan(1.0)
     }
   })
@@ -140,7 +144,9 @@ private fun renderDuotoneKernel(params: MirageParams): ByteArray {
         val c = handle.value
         builder.uniform(name, c.red, c.green, c.blue, c.alpha)
       }
+
       is UFloat -> builder.uniform(name, handle.value)
+
       else -> error("unexpected Duotone handle: $handle")
     }
   }

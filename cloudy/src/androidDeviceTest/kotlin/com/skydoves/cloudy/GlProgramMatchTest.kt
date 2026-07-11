@@ -20,7 +20,6 @@ package com.skydoves.cloudy
 import android.graphics.Bitmap
 import android.graphics.BitmapShader
 import android.graphics.Color
-import android.util.Log
 import android.graphics.ColorSpace
 import android.graphics.HardwareRenderer
 import android.graphics.Paint
@@ -30,7 +29,9 @@ import android.graphics.RuntimeShader
 import android.graphics.Shader
 import android.hardware.HardwareBuffer
 import android.media.ImageReader
+import android.util.Log
 import androidx.compose.ui.graphics.toArgb
+import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.skydoves.cloudy.internal.CompiledProgram
 import com.skydoves.cloudy.internal.Dialect
 import com.skydoves.cloudy.internal.GlProgram
@@ -38,12 +39,11 @@ import com.skydoves.cloudy.internal.MirageCompiler
 import com.skydoves.cloudy.internal.MirageGlslEs
 import com.skydoves.cloudy.internal.UniformSink
 import com.skydoves.cloudy.internal.colorGradeMatrixOf
-import kotlin.math.abs
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
-import androidx.test.ext.junit.runners.AndroidJUnit4
+import kotlin.math.abs
 
 /**
  * On-device validation of the GLES M3 pipeline (translator + [GlProgram] + GlEnv roundtrip) on the API
@@ -216,7 +216,8 @@ private fun renderAgslToBitmap(shader: RuntimeShader, content: Bitmap): Bitmap {
     // setWaitForPresent(true) blocks until the single frame is on the surface; acquireNextImage then
     // returns that one produced frame (the recipe in the official RenderScript-migration guide).
     renderer.createRenderRequest().setWaitForPresent(true).syncAndDraw()
-    val image = reader.acquireNextImage() ?: error("HardwareRenderer produced no frame for the AGSL ref")
+    val image =
+      reader.acquireNextImage() ?: error("HardwareRenderer produced no frame for the AGSL ref")
     return try {
       val hb = image.hardwareBuffer ?: error("AGSL ref image had no HardwareBuffer")
       val wrapped = Bitmap.wrapHardwareBuffer(hb, ColorSpace.get(ColorSpace.Named.SRGB))
@@ -257,7 +258,10 @@ private fun gradientContent(w: Int, h: Int): Bitmap {
 }
 
 @OptIn(ExperimentalMirage::class)
-private fun bindSchemaDefaults(sink: UniformSink, compiled: com.skydoves.cloudy.internal.CompiledProgram) {
+private fun bindSchemaDefaults(
+  sink: UniformSink,
+  compiled: com.skydoves.cloudy.internal.CompiledProgram,
+) {
   if (compiled.usesResolution) sink.float2("mirageResolution", 64f, 64f)
   for (entry in compiled.schema.entries) {
     when (val d = entry.default) {
@@ -285,11 +289,21 @@ private fun bindAgslDefaults(shader: RuntimeShader, compiled: CompiledProgram) {
     when {
       entry.isColor && d is androidx.compose.ui.graphics.Color ->
         shader.setColorUniform(entry.name, d.toArgb())
+
       d is Float -> shader.setFloatUniform(entry.name, d)
+
       d is androidx.compose.ui.geometry.Offset -> shader.setFloatUniform(entry.name, d.x, d.y)
-      d is androidx.compose.ui.geometry.Size -> shader.setFloatUniform(entry.name, d.width, d.height)
+
+      d is androidx.compose.ui.geometry.Size -> shader.setFloatUniform(
+        entry.name,
+        d.width,
+        d.height,
+      )
+
       d is FloatArray -> shader.setFloatUniform(entry.name, d)
+
       d is Int -> shader.setIntUniform(entry.name, d)
+
       else -> {} // textures / null: unused by these optics
     }
   }

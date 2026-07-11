@@ -107,8 +107,10 @@ internal class MirageFilterChain {
       when (val application = cached.backend.filterApplication()) {
         // API 33+ AGSL / every skiko target: a content-bound render effect.
         is FilterApplication.Effect -> layer.renderEffect = application.renderEffect
+
         // API 23-28 ColorGrade: an affine color filter applied in the layer paint (no RenderEffect).
         is FilterApplication.ColorFilter -> layer.colorFilter = application.colorFilter
+
         // Blit (API 29-32 GLES) never reaches the synchronous chain: the backdrop node routes it to the
         // async GLES runner and self-lit nodes filter it out (rendersInPlace). A Blit here is a wiring
         // bug — it would silently pass through, which is the self-lit no-op gap this guards against.

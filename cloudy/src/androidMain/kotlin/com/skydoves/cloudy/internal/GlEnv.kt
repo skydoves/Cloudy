@@ -128,7 +128,8 @@ internal object GlEnv {
       val hb = image.hardwareBuffer ?: return null
       // wrapHardwareBuffer yields a HARDWARE bitmap sharing the buffer (zero-copy). It stays valid only
       // while the buffer/image live; the caller copies to a software bitmap before we close them.
-      val wrapped = Bitmap.wrapHardwareBuffer(hb, ColorSpace.get(ColorSpace.Named.SRGB)) ?: return null
+      val wrapped =
+        Bitmap.wrapHardwareBuffer(hb, ColorSpace.get(ColorSpace.Named.SRGB)) ?: return null
       val copy = wrapped.copy(Bitmap.Config.ARGB_8888, false)
       wrapped.recycle()
       hb.close()
