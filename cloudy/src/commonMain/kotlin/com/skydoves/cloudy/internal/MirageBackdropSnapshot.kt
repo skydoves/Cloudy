@@ -26,6 +26,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlin.coroutines.Continuation
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
+import kotlin.coroutines.startCoroutine
 
 /**
  * Samples the sky's captured [GraphicsLayer] through a rasterized snapshot instead of a live
@@ -51,9 +55,12 @@ import kotlinx.coroutines.launch
  *
  * ## Cost
  * - Idle (content static): the cached bitmap is reused; each frame just `drawImage`s the sampled region.
- * - Content changing (scroll / animation): one `toImageBitmap()` readback per content version, one frame
- *   of staleness on a content change (a mirage grade is not visually sensitive to it), never a stale
- *   draw while idle.
+ * - Content changing (scroll / animation): the capture is driven synchronously within [requestIfStale]
+ *   ([captureInline]) whenever the platform's `toImageBitmap()` doesn't actually suspend (true on Android
+ *   API 28+, whose impl is a synchronous `Picture` rasterize — see [BackdropClearBlurrer] for the
+ *   equivalent blur-backdrop machinery and why an async `launch` alone left the shown snapshot lagging
+ *   the content during a fast scroll). If the platform's snapshot impl genuinely suspends, [captureInline]
+ *   returns without adopting a bitmap and the coalesced async path below picks it up next frame.
  */
 internal class MirageBackdropSnapshot {
 
@@ -66,8 +73,10 @@ internal class MirageBackdropSnapshot {
   private var queuedVersion: Long = -1L
 
   /**
-   * Refreshes the cached snapshot when [contentVersion] changed (async, coalesced); the previously
-   * cached bitmap keeps being drawn via [drawSampledRegion] until the new capture lands.
+   * Refreshes the cached snapshot when [contentVersion] changed. Tries a synchronous inline capture
+   * first ([captureInline]); if the platform's `toImageBitmap()` actually suspends, falls back to the
+   * coalesced async path, and the previously cached bitmap keeps being drawn via [drawSampledRegion]
+   * until a capture lands.
    */
   fun requestIfStale(
     coroutineScope: CoroutineScope,
@@ -76,7 +85,40 @@ internal class MirageBackdropSnapshot {
     invalidate: () -> Unit,
   ) {
     if (contentVersion == cachedContentVersion) return
-    requestCapture(coroutineScope, layer, contentVersion, invalidate)
+    if (!captureInline(layer, contentVersion)) {
+      requestCapture(coroutineScope, layer, contentVersion, invalidate)
+    }
+  }
+
+  // Runs the `suspend fun toImageBitmap()` to completion synchronously when the platform's impl doesn't
+  // actually suspend (Android API 28+'s LayerSnapshotV28 never does — see BackdropClearBlurrer's KDoc
+  // for the full mechanism). Returns true once a bitmap is adopted this frame; false if the impl
+  // suspended, letting the caller fall back to the coalesced async path.
+  private fun captureInline(layer: GraphicsLayer, contentVersion: Long): Boolean {
+    val bitmap = try {
+      layer.captureImageBitmapOrNull()
+    } catch (e: CancellationException) {
+      throw e
+    } catch (e: Exception) {
+      // Leave the previous snapshot in place; the cold-start "no snapshot" case draws the node's own
+      // content instead (the node handles a null backdrop layer before reaching here).
+      return true
+    } ?: return false
+    snapshot = bitmap
+    cachedContentVersion = contentVersion
+    return true
+  }
+
+  private fun GraphicsLayer.captureImageBitmapOrNull(): ImageBitmap? {
+    var result: Result<ImageBitmap>? = null
+    val continuation = object : Continuation<ImageBitmap> {
+      override val context: CoroutineContext = EmptyCoroutineContext
+      override fun resumeWith(outcome: Result<ImageBitmap>) {
+        result = outcome
+      }
+    }
+    (suspend { toImageBitmap() }).startCoroutine(continuation)
+    return result?.getOrThrow()
   }
 
   private fun requestCapture(
