@@ -89,22 +89,22 @@ public interface MirageScope {
 }
 
 /**
- * What to draw when a mirage plan cannot render on the current device — e.g. a lens optic on Android
- * below API 33, where no runtime shader is available. The library never invents a degraded look for a
- * lens optic (a tint would be a different effect, not the one authored); instead the caller decides.
+ * What to draw when a mirage pipeline cannot render on the current device — e.g. a lens shader on
+ * Android below API 33, where no runtime shader is available. The library never invents a degraded look
+ * for a lens shader (a tint would be a different effect, not the one authored); instead the caller decides.
  *
- * A plan is considered unrenderable only when **no** stage produces any output on this platform. A
- * plan whose Colorize stage is reproduced by the color-grade path (Duotone below API 33) renders, so
+ * A pipeline is considered unrenderable only when **no** stage produces any output on this platform. A
+ * pipeline whose Colorize stage is reproduced by the color-grade path (Duotone below API 33) renders, so
  * its fallback is ignored.
  */
 @ExperimentalMirage
 public sealed interface MirageFallback {
-  /** Default: draw nothing extra. The plan's content passes through unmodified (the historic behavior). */
+  /** Default: draw nothing extra. The pipeline's content passes through unmodified (the historic behavior). */
   @ExperimentalMirage
   public data object None : MirageFallback
 
   /**
-   * Draw [modifier] in place of the unrenderable plan. Applied to the same node — use it to supply a
+   * Draw [modifier] in place of the unrenderable pipeline. Applied to the same node — use it to supply a
    * still image, a solid fill, or any other stand-in for the effect the device cannot run.
    */
   @ExperimentalMirage
@@ -112,9 +112,9 @@ public sealed interface MirageFallback {
 }
 
 /**
- * Applies a mirage effect [plan] to the content it modifies.
+ * Applies a mirage effect [pipeline] to the content it modifies.
  *
- * Non-composable and `Modifier.Node`-based: [plan] is evaluated **once** to fix the ordered stage
+ * Non-composable and `Modifier.Node`-based: [pipeline] is evaluated **once** to fix the ordered stage
  * list (which, together with [clock] and [enabled], forms the node's equality key), while each stage's
  * `params` block is re-evaluated **per draw**. Reading snapshot state inside a `params` block
  * therefore invalidates only the draw — recomposition is never required. Hoisting the whole modifier
@@ -133,9 +133,9 @@ public sealed interface MirageFallback {
  * @param clock time-driving policy for the standard `mirageTime` uniform. Default: [MirageClock.Auto].
  * @param enabled when `false`, the whole pipeline is bypassed and the content passes through unmodified.
  *   Compiled programs remain cached process-wide, so re-enabling incurs no recompile.
- * @param fallback what to draw when the plan cannot render on this device (see [MirageFallback]).
+ * @param fallback what to draw when the pipeline cannot render on this device (see [MirageFallback]).
  *   Default [MirageFallback.None] — content passes through, matching the historic behavior.
- * @param plan the stage declaration block; see [MirageScope].
+ * @param pipeline the stage declaration block; see [MirageScope].
  * @return a [Modifier] that applies the pipeline.
  */
 @ExperimentalMirage
@@ -143,15 +143,15 @@ public expect fun Modifier.mirage(
   clock: MirageClock = MirageClock.Auto,
   enabled: Boolean = true,
   fallback: MirageFallback = MirageFallback.None,
-  plan: MirageScope.() -> Unit,
+  pipeline: MirageScope.() -> Unit,
 ): Modifier
 
 /**
  * Shared body of the content [Modifier.mirage] actuals. Kept in commonMain so the platform actuals are
  * one-liners: they differ only because [Modifier.mirage] is `expect` (historic), not in behavior.
  *
- * When [fallback] is [MirageFallback.Content] **and** the plan renders nothing on this device (every
- * stage's program is unavailable — e.g. a lens optic below API 33), the mirage node is skipped and the
+ * When [fallback] is [MirageFallback.Content] **and** the pipeline renders nothing on this device (every
+ * stage's program is unavailable — e.g. a lens shader below API 33), the mirage node is skipped and the
  * fallback modifier is applied in its place. Otherwise the normal mirage node attaches; a
  * [MirageFallback.None] never changes the chain.
  */
@@ -160,19 +160,19 @@ internal fun Modifier.mirageOrFallback(
   clock: MirageClock,
   enabled: Boolean,
   fallback: MirageFallback,
-  plan: MirageScope.() -> Unit,
+  pipeline: MirageScope.() -> Unit,
 ): Modifier {
   if (fallback is MirageFallback.Content && enabled) {
-    val stages = MiragePipelineBuilder().apply(plan).stages
+    val stages = MiragePipelineBuilder().apply(pipeline).stages
     if (!planRenders(stages, currentDialect())) {
       return this.then(fallback.modifier)
     }
   }
-  return this.then(mirageElement(sky = null, clock, enabled, plan))
+  return this.then(mirageElement(sky = null, clock, enabled, pipeline))
 }
 
 /**
- * Applies a mirage effect [plan] to the [sky] **backdrop** behind the modified node, instead of to the
+ * Applies a mirage effect [pipeline] to the [sky] **backdrop** behind the modified node, instead of to the
  * node's own content. Use it to grade, tint, or overlay the captured background — e.g.
  * `Modifier.mirage(sky = sky) { filter(MirageShaders.Duotone) }` renders a duotone "material" from the
  * backdrop, the mirage counterpart of `Modifier.cloudy(sky = sky)`'s blur.
@@ -188,7 +188,7 @@ internal fun Modifier.mirageOrFallback(
  * filters are skipped and the raw backdrop region is drawn, mirroring the radius-0 backdrop blur.
  *
  * This is a distinct overload from the content [mirage] above: `mirage { … }` filters the content,
- * `mirage(sky = …) { … }` filters the backdrop. Otherwise it behaves identically — [plan] is evaluated
+ * `mirage(sky = …) { … }` filters the backdrop. Otherwise it behaves identically — [pipeline] is evaluated
  * once to fix the stages, each stage's `params` block is re-evaluated per draw (no recomposition), and
  * programs are shared through the same process-wide cache.
  *
@@ -196,7 +196,7 @@ internal fun Modifier.mirageOrFallback(
  *   the pipeline grades. Identity-stable via `rememberSky`, so it participates in the node's key cheaply.
  * @param clock time-driving policy for the standard `mirageTime` uniform. Default: [MirageClock.Auto].
  * @param enabled when `false`, the pipeline is bypassed and the node's content passes through unmodified.
- * @param plan the stage declaration block; see [MirageScope].
+ * @param pipeline the stage declaration block; see [MirageScope].
  * @return a [Modifier] that applies the pipeline to the [sky] backdrop.
  */
 @ExperimentalMirage
@@ -204,5 +204,5 @@ public fun Modifier.mirage(
   sky: Sky,
   clock: MirageClock = MirageClock.Auto,
   enabled: Boolean = true,
-  plan: MirageScope.() -> Unit,
-): Modifier = this.then(mirageElement(sky, clock, enabled, plan))
+  pipeline: MirageScope.() -> Unit,
+): Modifier = this.then(mirageElement(sky, clock, enabled, pipeline))

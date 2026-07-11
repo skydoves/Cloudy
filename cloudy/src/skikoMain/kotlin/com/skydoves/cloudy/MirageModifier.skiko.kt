@@ -28,5 +28,5 @@ public actual fun Modifier.mirage(
   clock: MirageClock,
   enabled: Boolean,
   fallback: MirageFallback,
-  plan: MirageScope.() -> Unit,
-): Modifier = mirageOrFallback(clock, enabled, fallback, plan)
+  pipeline: MirageScope.() -> Unit,
+): Modifier = mirageOrFallback(clock, enabled, fallback, pipeline)

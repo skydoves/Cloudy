@@ -88,15 +88,15 @@ fun ApiMirageScreen() {
     CodeBlock(
       code = """
         // Applies an ordered shader pipeline to the content it modifies. Node-based (not @Composable):
-        // the plan block runs once to fix the stages; each stage's params block re-runs per draw.
+        // the pipeline block runs once to fix the stages; each stage's params block re-runs per draw.
         @ExperimentalMirage
         fun Modifier.mirage(
           clock: MirageClock = MirageClock.Auto,
           enabled: Boolean = true,
-          plan: MirageScope.() -> Unit,
+          pipeline: MirageScope.() -> Unit,
         ): Modifier
 
-        // Declared inside the plan block:
+        // Declared inside the pipeline block:
         interface MirageScope {
           // Content-transforming stage; chains in declared order (content -> f1 -> f2 -> screen).
           fun <P : MirageParams> filter(shader: FilterShader<P>, params: (P.() -> Unit)? = null)
@@ -365,7 +365,7 @@ fun ApiMirageScreen() {
     Text(
       text = """
         • The shader path needs Android API 33+; Skia targets (iOS, macOS, Desktop, Web) run the full effect.
-        • The plan block runs once (its stage list is the node's equality key); each stage's params block runs per draw.
+        • The pipeline block runs once (its stage list is the node's equality key); each stage's params block runs per draw.
         • Compiled programs are cached process-wide by shader source, so reusing an shader or toggling enabled never recompiles.
         • Preset defaults live in the params, not as shader constants, so every value is animatable and changing one never recompiles.
         • enabled = false bypasses the whole pipeline and passes the content through unmodified.

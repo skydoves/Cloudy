@@ -89,9 +89,9 @@ internal class MirageElementEqualityTest :
       // sky) must reconcile distinctly from an otherwise-identical backdrop pipeline, or Compose would keep the
       // wrong source. Backdrop carries a Sky, a content source carries none, so their keys differ.
       val block: MirageParams.() -> Unit = { }
-      val plan: MirageScope.() -> Unit = { filter(MirageShaders.OilSlick, block) }
-      val contentSource = mirageElement(sky = null, MirageClock.Auto, enabled = true, plan)
-      val backdrop = mirageElement(Sky(), MirageClock.Auto, enabled = true, plan)
+      val pipeline: MirageScope.() -> Unit = { filter(MirageShaders.OilSlick, block) }
+      val contentSource = mirageElement(sky = null, MirageClock.Auto, enabled = true, pipeline)
+      val backdrop = mirageElement(Sky(), MirageClock.Auto, enabled = true, pipeline)
 
       (contentSource == backdrop).shouldBe(false)
     }

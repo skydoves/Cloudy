@@ -67,7 +67,7 @@ internal sealed class Stage {
 }
 
 /**
- * Builds the immutable stage list for a pipeline by running the caller's `plan` block once. Each
+ * Builds the immutable stage list for a pipeline by running the caller's `pipeline` block once. Each
  * `filter`/`overlay` call mints the shader's params instance (via its `paramsFactory`) and captures
  * the per-draw block; the built [stages] are what the node draws through.
  */
@@ -100,7 +100,7 @@ internal class MiragePipelineBuilder : MirageScope {
 }
 
 /**
- * Builds the [EffectElement] for a `Modifier.mirage` pipeline: runs [plan] once to fix the stages and
+ * Builds the [EffectElement] for a `Modifier.mirage` pipeline: runs [pipeline] once to fix the stages and
  * wires the stateless [MirageEffect] with an empty [PostProcess] (mirage clips/tints nothing — it
  * grades in-shader). The effect key is [Unit] because [MirageEffect] is a stateless object.
  */
@@ -109,9 +109,9 @@ internal fun mirageElement(
   sky: com.skydoves.cloudy.Sky?,
   clock: com.skydoves.cloudy.MirageClock,
   enabled: Boolean,
-  plan: MirageScope.() -> Unit,
+  pipeline: MirageScope.() -> Unit,
 ): EffectElement {
-  val stages = MiragePipelineBuilder().apply(plan).stages
+  val stages = MiragePipelineBuilder().apply(pipeline).stages
   return EffectElement(
     effect = MirageEffect,
     sky = sky,
