@@ -97,6 +97,20 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+      # The committed goldens themselves (checked in under androidHostTest/assets/screenshots/). verify
+      # only writes PNGs to build/ on a mismatch, so a clean PR had no images to show; uploading the
+      # goldens gives the comment workflow an ALWAYS-ON "Screenshots" gallery -- the current state each
+      # spec asserts against, visible in the PR regardless of diff. Just checked-out files (~8 small
+      # PNGs), so this is a plain copy with no extra Gradle task.
+      - name: Upload screenshot goldens
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshot-goldens
+          path: cloudy/src/androidHostTest/assets/screenshots/*.png
+          if-no-files-found: warn
+          retention-days: 7
+
       # Stash the PR number so the privileged workflow_run job can resolve which PR to comment on
       # (workflow_run payload does not carry it directly).
       # always() so the PR number is still stashed when the verify step above FAILS (a regression) --

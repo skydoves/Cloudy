@@ -99,10 +99,23 @@ jobs:
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ github.token }}
 
+      # The committed goldens, uploaded on every run. continue-on-error: an older producer run (before
+      # this artifact existed) or a download hiccup must NOT fail the job -- the goldens gallery step
+      # below simply renders nothing when the dir is empty.
+      - name: Download screenshot goldens artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: screenshot-goldens
+          path: goldens
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
       # --- Is there anything to push to the companion branch? ---
-      # `diff`  = valid *_compare.png Roborazzi diff images exist (a regression).
+      # `diff`   = valid *_compare.png Roborazzi diff images exist (a regression).
       # `device` = instrumented render captures exist (present on every emulator run, not just diffs).
-      # `any`   = either -- the push + companion branch run when EITHER is true.
+      # `golden` = committed goldens downloaded (present on every run -> gallery is always-on).
+      # `any`    = any of the three -- the push + companion branch run when ANY is true.
       - id: check
         name: Check for images to publish
         shell: bash
@@ -122,11 +135,20 @@ jobs:
             done < <(find device-screenshots -type f -name "*.png")
           fi
 
+          # Committed goldens under goldens/.
+          golden="false"
+          if [[ -d goldens ]]; then
+            while IFS= read -r f; do
+              [[ "$f" =~ ^[a-zA-Z0-9_./-]+$ ]] && { golden="true"; break; }
+            done < <(find goldens -type f -name "*.png")
+          fi
+
           any="false"
-          [[ "$diff" == "true" || "$device" == "true" ]] && any="true"
+          [[ "$diff" == "true" || "$device" == "true" || "$golden" == "true" ]] && any="true"
           {
             echo "diff=$diff"
             echo "device=$device"
+            echo "golden=$golden"
             echo "any=$any"
           } >> "$GITHUB_OUTPUT"
 
@@ -145,13 +167,14 @@ jobs:
           git checkout --orphan "$BRANCH_NAME"
           git rm -rf . > /dev/null
 
-          # Roborazzi diff images (roborazzi/...) + device render captures (device-screenshots/...).
-          # Same safe-set path filter as everywhere else before staging fork-run-produced files.
+          # Roborazzi diff images (roborazzi/...) + device render captures (device-screenshots/...) +
+          # committed goldens (goldens/...). Same safe-set path filter as everywhere else before
+          # staging fork-run-produced files.
           while IFS= read -r f; do
             if [[ "$f" =~ ^[a-zA-Z0-9_./-]+$ ]]; then
               git add "$f"
             fi
-          done < <(find . -type f \( -name "*_compare.png" -o -path "./device-screenshots/*.png" \))
+          done < <(find . -type f \( -name "*_compare.png" -o -path "./device-screenshots/*.png" -o -path "./goldens/*.png" \))
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "Add screenshots for PR #${{ steps.pr.outputs.number }}"
@@ -219,6 +242,38 @@ jobs:
             echo ""
             echo "[Full screenshot report (artifact)](${RUN_URL})"
           } >> "$GITHUB_OUTPUT"
+          echo "${delimiter}" >> "$GITHUB_OUTPUT"
+
+      # --- Goldens gallery (ALWAYS, whenever goldens were downloaded): the committed reference PNGs each
+      # spec asserts against, inlined from the companion branch. This is NOT a diff -- it shows the
+      # current expected state so a reviewer sees the actual screenshots in the PR even on a clean pass
+      # (the whole point of this section). goldens/ came from our own upload-artifact, but apply the
+      # same ^[a-zA-Z0-9_./-]+$ safe-set filter as the other galleries before building any URL.
+      - id: goldens
+        name: Generate goldens gallery
+        if: steps.check.outputs.golden == 'true'
+        shell: bash
+        env:
+          # Must match the push step's branch key (PR number, not head_branch).
+          BRANCH_NAME: companion_pr-${{ steps.pr.outputs.number }}
+        run: |
+          files=$(find goldens -type f -name "*.png" | grep -E "^[a-zA-Z0-9_./-]+$" || true)
+          delimiter="$(openssl rand -hex 8)"
+          {
+            echo "body<<${delimiter}"
+            echo ""
+            echo "### Screenshots"
+            echo ""
+            echo "Committed reference screenshots each spec verifies against (current expected state)."
+            echo ""
+            echo "| File name | Image |"
+            echo "|-----------|-------|"
+          } >> "$GITHUB_OUTPUT"
+          for f in $files; do
+            name=$(basename "$f")
+            url="https://github.com/${{ github.repository }}/blob/$BRANCH_NAME/$f"
+            echo "| \`$name\` | ![]($url?raw=true) |" >> "$GITHUB_OUTPUT"
+          done
           echo "${delimiter}" >> "$GITHUB_OUTPUT"
 
       # --- Gallery (ONLY when there are diffs): inline before/after/diff images from companion branch.
@@ -335,9 +390,9 @@ jobs:
           body-includes: '<!-- roborazzi-screenshot-diff -->'
 
       # --- Single sticky comment, ALWAYS posted on pull_request runs: summary + optional galleries.
-      # Both gallery outputs are empty when their step was skipped (steps.gallery on a clean Roborazzi
-      # pass, steps.device_gallery when no emulator captures), so the comment degrades to just the
-      # summary; each gallery is appended only when it has content.
+      # Order: summary -> goldens (always, the committed reference shots) -> diff gallery (regression
+      # only) -> device gallery (emulator captures only). Each gallery output is empty when its step
+      # was skipped, so the comment degrades to just the summary and whatever galleries have content.
       - name: Comment screenshot report
         uses: peter-evans/create-or-update-comment@v4
         with:
@@ -347,6 +402,7 @@ jobs:
           body: |
             <!-- roborazzi-screenshot-diff -->
             ${{ steps.summary.outputs.body }}
+            ${{ steps.goldens.outputs.body }}
             ${{ steps.gallery.outputs.body }}
             ${{ steps.device_gallery.outputs.body }}
 
