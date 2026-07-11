@@ -90,7 +90,7 @@ internal class MirageFilterChain {
         ?: context.createGraphicsLayer().also { filterLayers[index] = it }
 
       // Record the previous stage's output (or the caller's source for the first stage) into this
-      // stage's layer, so the render effect below transforms exactly that.
+      // stage's layer, so the application below transforms exactly that.
       layer.record {
         if (index == 0) {
           recordSource()
@@ -100,7 +100,21 @@ internal class MirageFilterChain {
       }
 
       bind(stage, cached)
-      layer.renderEffect = cached.backend.asContentRenderEffect()
+      // Reset both per-draw layer applications first: the pool is reused across structural configs, so
+      // a leftover effect/filter from a prior plan must not carry over onto this stage.
+      layer.renderEffect = null
+      layer.colorFilter = null
+      when (val application = cached.backend.filterApplication()) {
+        // API 33+ AGSL / every skiko target: a content-bound render effect.
+        is FilterApplication.Effect -> layer.renderEffect = application.renderEffect
+        // API 23-28 ColorGrade: an affine color filter applied in the layer paint (no RenderEffect).
+        is FilterApplication.ColorFilter -> layer.colorFilter = application.colorFilter
+        // Blit (API 29-32 GLES) never reaches the synchronous chain: the backdrop node routes it to the
+        // async GLES runner and self-lit nodes filter it out (rendersInPlace). A Blit here is a wiring
+        // bug — it would silently pass through, which is the self-lit no-op gap this guards against.
+        is FilterApplication.Blit ->
+          error("Blit filter reached the synchronous chain; it must run via MirageGlesBackdrop")
+      }
     }
 
     // The last applicable filter's layer holds the fully chained result.
