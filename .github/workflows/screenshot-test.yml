@@ -91,7 +91,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: screenshot-summary
-          path: cloudy/build/test-results/roborazzi/debug/results-summary.json
+          # The KMP android host test writes under .../roborazzi/androidHostTest/ (not .../debug/);
+          # glob the variant segment so a task rename cannot silently drop the artifact again.
+          path: cloudy/build/test-results/roborazzi/**/results-summary.json
           if-no-files-found: warn
           retention-days: 7
 

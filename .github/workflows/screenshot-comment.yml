@@ -138,7 +138,10 @@ jobs:
           # unzipped HTML cannot be deep-linked; the run page exposes the artifact downloads).
           RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}
         run: |
-          summary_json="$(find screenshot-summary -type f -name 'results-summary.json' 2>/dev/null | head -n1)"
+          # `|| true`: the artifact is absent whenever the producing run failed before writing the
+          # summary; under `set -e -o pipefail` a bare failing find kills this step before the
+          # "summary unavailable" fallback below can run.
+          summary_json="$(find screenshot-summary -type f -name 'results-summary.json' 2>/dev/null | head -n1 || true)"
           delimiter="$(openssl rand -hex 8)"
           {
             echo "body<<${delimiter}"
