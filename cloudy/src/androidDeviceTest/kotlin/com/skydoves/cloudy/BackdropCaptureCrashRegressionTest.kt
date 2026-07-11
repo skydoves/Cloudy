@@ -54,11 +54,10 @@ import org.junit.Test
  * [BackdropClearBlurrer][com.skydoves.cloudy.internal.BackdropClearBlurrer]), so no cycle can
  * form regardless of what triggers a full-tree prepare.
  *
- * The four blur variants are the exact ones verified to crash on unmodified upstream (emulator API 34,
- * emulator API 27, real Galaxy S25 API 36). A crash kills the whole instrumentation process, so a
- * green run of this class IS the proof the cycle is broken. The blur/tint pixel EFFECTS are asserted
- * separately (blur softening on skiko `SkyBackdropRasterTest`; passthrough/tint on device in
- * `SkyBackdropScreenshotTest`).
+ * Each of the four variants reproduced the crash before the fix. A crash kills the whole
+ * instrumentation process, so a green run of this class IS the proof the cycle is broken. The
+ * blur/tint pixel EFFECTS are asserted separately (blur softening on skiko `SkyBackdropRasterTest`;
+ * passthrough/tint on device in `SkyBackdropScreenshotTest`).
  */
 internal class BackdropCaptureCrashRegressionTest {
 
@@ -143,9 +142,9 @@ internal class BackdropCaptureCrashRegressionTest {
 
   /**
    * Canary: a mirage backdrop pipeline still samples the sky via a live `drawLayer(backgroundLayer)`
-   * (chain stage-0), which is structurally the same reference shape but — empirically, on API 27/34 —
-   * does NOT trigger the prepareTreeImpl recursion the blur RenderEffect layer did. If this test ever
-   * starts crashing, route the mirage backdrop record through the same snapshot sampling as
+   * (chain stage-0), which is structurally the same reference shape but does not, in practice, trigger
+   * the prepareTreeImpl recursion the blur RenderEffect layer did. If this test ever starts crashing,
+   * route the mirage backdrop record through the same snapshot sampling as
    * [BackdropClearBlurrer][com.skydoves.cloudy.internal.BackdropClearBlurrer].
    */
   @OptIn(ExperimentalMirage::class)
