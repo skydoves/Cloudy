@@ -113,7 +113,7 @@ internal actual fun MirageBackendProgram.prepareGlesBlit(
   height: Float,
   density: Float,
   time: Float,
-): ((ImageBitmap) -> ImageBitmap)? = null
+): (suspend (ImageBitmap) -> ImageBitmap)? = null
 
 /**
  * makeRuntimeShader with input = null feeds the layer's own content as the `content` child, matching

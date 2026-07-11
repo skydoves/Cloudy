@@ -39,6 +39,7 @@ import com.skydoves.cloudy.internal.MirageCompiler
 import com.skydoves.cloudy.internal.MirageGlslEs
 import com.skydoves.cloudy.internal.UniformSink
 import com.skydoves.cloudy.internal.colorGradeMatrixOf
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -68,7 +69,7 @@ public class GlProgramMatchTest {
     // Bind the optic's schema defaults through the recording sink, exactly as the node's binder does.
     val (sink, writes) = program.uniformSink()
     bindSchemaDefaults(sink, compiled)
-    val glOut = program.render(content, writes)
+    val glOut = runBlocking { program.render(content, writes) }
     assertNotNull("GL render returned null on the GLES band", glOut)
 
     val params = defaultParams(compiled)
@@ -94,7 +95,7 @@ public class GlProgramMatchTest {
     sink.float2("lensSize", 64f, 64f)
     sink.float("cornerRadius", 0f)
 
-    val glOut = program.render(content, writes)
+    val glOut = runBlocking { program.render(content, writes) }
     assertNotNull("GL render returned null (Chromatic lens kernel failed to compile/run?)", glOut)
     assertTrue(
       "Chromatic GL output is identical to content (kernel did nothing)",
@@ -152,7 +153,7 @@ private fun assertLensOpticMatches(optic: Optic<*>) {
   val (glSink, glWrites) = glProgram.uniformSink()
   bindSchemaDefaults(glSink, compiled)
   frameLens(glSink)
-  val glOut = glProgram.render(content, glWrites)
+  val glOut = runBlocking { glProgram.render(content, glWrites) }
   assertNotNull("GLES render returned null for ${compiled.category}", glOut)
 
   // AGSL path: the same optic compiled to AGSL, driven by an identical schema-default bind directly on

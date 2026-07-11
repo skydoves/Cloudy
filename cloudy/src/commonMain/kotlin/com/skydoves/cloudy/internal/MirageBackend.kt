@@ -121,8 +121,8 @@ internal expect fun MirageBackendProgram.filterApplication(): FilterApplication
  * backend that is not GLES (skiko always; Android AGSL/ColorGrade), i.e. those that apply via
  * [filterApplication] instead.
  *
- * The returned closure runs the GL round-trip off the draw thread; the backdrop node owns the async
- * capture around it (see [MirageGlesBackdrop]).
+ * The returned closure suspends on the GL thread's dispatcher (see [GlEnv][MirageGlesBackdrop]); the
+ * backdrop node owns the async capture around it.
  */
 internal expect fun MirageBackendProgram.prepareGlesBlit(
   cached: CachedProgram,
@@ -132,7 +132,7 @@ internal expect fun MirageBackendProgram.prepareGlesBlit(
   height: Float,
   density: Float,
   time: Float,
-): ((ImageBitmap) -> ImageBitmap)?
+): (suspend (ImageBitmap) -> ImageBitmap)?
 
 /**
  * Builds a [RenderEffect] that runs this program over the layer's content, binding the content as the

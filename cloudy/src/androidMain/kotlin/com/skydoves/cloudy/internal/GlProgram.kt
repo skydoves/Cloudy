@@ -59,7 +59,7 @@ internal class GlProgram(private val fragmentSource: String) {
    * [GlEnv]), or `null` on GL failure. [writes] are the uniform closures recorded by the paired
    * [uniformSink], replayed on the GL thread.
    */
-  fun render(content: Bitmap, writes: List<(Int) -> Unit>): Bitmap? {
+  suspend fun render(content: Bitmap, writes: List<(Int) -> Unit>): Bitmap? {
     val w = content.width
     val h = content.height
     return GlEnv.render(w, h) {

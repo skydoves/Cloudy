@@ -182,7 +182,7 @@ internal actual fun MirageBackendProgram.prepareGlesBlit(
   height: Float,
   density: Float,
   time: Float,
-): ((ImageBitmap) -> ImageBitmap)? {
+): (suspend (ImageBitmap) -> ImageBitmap)? {
   val gles = backend as? AndroidBackend.Gles ?: return null
   val (sink, writes) = gles.program.uniformSink()
   bindUniformsInto(sink, cached, params, paramsBlock, width, height, density, time)

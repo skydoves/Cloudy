@@ -27,30 +27,42 @@ import android.opengl.EGLSurface
 import android.opengl.GLES30
 import android.os.Handler
 import android.os.HandlerThread
-import android.view.Surface
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import java.util.concurrent.Executors
 
 /**
  * Process-wide GLES 3.0 environment for the API 29-32 mirage backend: one dedicated GL thread owning
  * one EGL 3.0 context, plus per-size [ImageReader] render targets. Every GL call runs on the GL thread
- * (an EGL context is single-thread-affine), so callers hand work in via [run] which blocks until the
- * GL thread finishes.
+ * (an EGL context is single-thread-affine), so callers hand work in via [render], which suspends until
+ * the GL thread finishes.
  *
- * Why a thread of its own: `GraphicsLayer.toImageBitmap()` is `suspend` — the capture can't
- * happen inside `ContentDrawScope.draw`, so the whole GLES path is already off the draw thread. A
- * dedicated GL thread keeps the EGL context stable across those async captures.
+ * The GL thread is a single-thread coroutine dispatcher, not a HandlerThread: the callers are already
+ * coroutines ([MirageGlesBackdrop]), so [render] suspends on [glDispatcher] instead of blocking a pool
+ * thread on a latch. [glDispatcher] is a one-thread executor whose single thread is the EGL affinity
+ * anchor, so every GL call must stay inside `withContext(glDispatcher)` and never touch another
+ * dispatcher, or the context would be used off its owning thread (UB).
  *
  * ## Zero-copy readback (confirmed on API 30)
  * The context renders into an `ImageReader.getSurface()` window surface; `eglSwapBuffers` pushes the
  * frame into the reader, whose [ImageReader.OnImageAvailableListener] then yields a `HardwareBuffer`
  * that `Bitmap.wrapHardwareBuffer` wraps with no CPU copy. `acquireLatestImage()` polled without the
- * listener returns null, so the listener + latch is required, not optional.
+ * listener returns null, so the listener bridge ([awaitImage]) is required, not optional.
  */
 internal object GlEnv {
 
-  private val thread = HandlerThread("mirage-gl").apply { start() }
-  private val handler = Handler(thread.looper)
+  private val glDispatcher =
+    Executors.newSingleThreadExecutor { r -> Thread(r, "mirage-gl") }.asCoroutineDispatcher()
+
+  // The listener bridge runs on its own looper, not the GL thread: while a render suspends on
+  // awaitImage the GL thread is released back to glDispatcher, and the listener's resume() re-dispatches
+  // the continuation onto it — but setOnImageAvailableListener wants a Handler, which a coroutine
+  // dispatcher does not provide, so one Handler thread serves every reader.
+  private val readerThread = HandlerThread("mirage-gl-reader").apply { start() }
+  private val readerHandler = Handler(readerThread.looper)
 
   // Lazily created on the GL thread on first use; guarded by the single-thread affinity (only the GL
   // thread ever touches these).
@@ -70,8 +82,6 @@ internal object GlEnv {
         HardwareBuffer.USAGE_CPU_READ_RARELY,
     )
     var surface: EGLSurface = EGL14.EGL_NO_SURFACE
-    val readerThread = HandlerThread("mirage-gl-reader").apply { start() }
-    val readerHandler = Handler(readerThread.looper)
   }
 
   private var target: Target? = null
@@ -82,42 +92,47 @@ internal object GlEnv {
    * — the caller then no-ops that frame). [block] issues the draw calls (bind program, set uniforms,
    * draw the quad); this owns context/surface setup, swap, and readback.
    */
-  fun render(width: Int, height: Int, block: () -> Unit): Bitmap? {
+  suspend fun render(width: Int, height: Int, block: () -> Unit): Bitmap? {
     if (width <= 0 || height <= 0) return null
-    var result: Bitmap? = null
-    val done = CountDownLatch(1)
-    handler.post {
-      try {
-        result = renderOnGlThread(width, height, block)
-      } catch (e: RuntimeException) {
-        // GL / EGL failure (lost context, unsupported format, a failed `check()`): degrade to no-op.
-        // This frame passes through; the band's original no-op is preserved, so it is not a regression.
-        // Narrow to RuntimeException so an Error (e.g. OOM) still propagates and is never masked. This
-        // runs on the GL HandlerThread, not a coroutine, so no CancellationException flows here.
-        result = null
-      } finally {
-        done.countDown()
+    // withContext pins every GL call to the single GL thread (EGL affinity). withTimeoutOrNull bounds a
+    // wedged GL thread so it cannot stall the caller's capture coroutine forever; on timeout the frame
+    // is a no-op and the next render's drain() clears whatever this one left in the reader.
+    return withContext(glDispatcher) {
+      withTimeoutOrNull(2_000) {
+        try {
+          renderOnGlThread(width, height, block)
+        } catch (e: CancellationException) {
+          // The timeout above cancels through here; propagate so withTimeoutOrNull yields null, never
+          // masking it as a degraded frame.
+          throw e
+        } catch (e: RuntimeException) {
+          // GL / EGL failure (lost context, unsupported format, a failed `check()`): degrade to no-op.
+          // This frame passes through; the band's original no-op is preserved, so it is not a regression.
+          // Narrow to RuntimeException so an Error (e.g. OOM) still propagates and is never masked.
+          null
+        }
       }
     }
-    // Bounded wait: a wedged GL thread must not hang the caller's capture coroutine forever.
-    done.await(2, TimeUnit.SECONDS)
-    return result
   }
 
-  private fun renderOnGlThread(width: Int, height: Int, block: () -> Unit): Bitmap? {
+  private suspend fun renderOnGlThread(width: Int, height: Int, block: () -> Unit): Bitmap? {
     ensureContext()
     val t = ensureTarget(width, height)
 
-    // Drain any image a previous call left in the reader. A timed-out call (below) returns before
-    // acquiring its frame, so the swap it posted lands here unclosed; without draining, those pile up
-    // and once maxImages (2) are held un-closed, acquireLatestImage throws IllegalStateException
-    // (AOSP ImageReader#acquireLatestImage), wedging every later frame into the catch as a permanent
-    // no-op. Draining also clears a stale image that would fire this call's listener for the wrong
-    // frame.
+    // Drain any image a previous call left in the reader. A timed-out call returns before acquiring its
+    // frame, so the swap it posted lands here unclosed; without draining, those pile up and once
+    // maxImages (2) are held un-closed, acquireLatestImage throws IllegalStateException (AOSP
+    // ImageReader#acquireLatestImage), wedging every later frame into the catch as a permanent no-op.
+    // Draining also clears a stale image that would fire this call's listener for the wrong frame.
     drain(t.reader)
 
-    val available = CountDownLatch(1)
-    t.reader.setOnImageAvailableListener({ available.countDown() }, t.readerHandler)
+    // Register the frame-available signal BEFORE the swap: setOnImageAvailableListener fires only for
+    // frames that arrive after registration, and glFinish + eglSwapBuffers queue the frame synchronously
+    // here, so a listener registered after the swap would miss an already-queued image and wait forever
+    // (the 2s timeout). A CompletableDeferred (not suspendCancellableCoroutine) holds the signal even if
+    // the listener fires before await() below, so there is no lost-signal race with the swap.
+    val ready = CompletableDeferred<Unit>()
+    t.reader.setOnImageAvailableListener({ ready.complete(Unit) }, readerHandler)
 
     check(EGL14.eglMakeCurrent(display, t.surface, t.surface, context)) {
       "eglMakeCurrent failed: 0x${Integer.toHexString(EGL14.eglGetError())}"
@@ -130,16 +145,13 @@ internal object GlEnv {
       "eglSwapBuffers failed: 0x${Integer.toHexString(EGL14.eglGetError())}"
     }
 
-    // Detach the listener on every exit so a frame that arrives after we leave never fires a later
-    // call's latch, and the drain above is the only path that consumes leftover frames.
     try {
-      if (!available.await(2, TimeUnit.SECONDS)) return null
+      ready.await()
       val image = t.reader.acquireLatestImage() ?: return null
       return try {
         val hb = image.hardwareBuffer ?: return null
-        // wrapHardwareBuffer yields a HARDWARE bitmap sharing the buffer (zero-copy). It stays valid
-        // only while the buffer/image live; the caller copies to a software bitmap before we close
-        // them.
+        // wrapHardwareBuffer yields a HARDWARE bitmap sharing the buffer (zero-copy). It stays valid only
+        // while the buffer/image live; the caller copies to a software bitmap before we close them.
         val wrapped =
           Bitmap.wrapHardwareBuffer(hb, ColorSpace.get(ColorSpace.Named.SRGB)) ?: return null
         val copy = wrapped.copy(Bitmap.Config.ARGB_8888, false)
@@ -150,6 +162,8 @@ internal object GlEnv {
         image.close()
       }
     } finally {
+      // Detach on every exit (success, timeout-cancel, GL failure) so a later frame never fires this
+      // reader's listener for the wrong render; drain (next render) is the only leftover consumer.
       t.reader.setOnImageAvailableListener(null, null)
     }
   }
@@ -221,6 +235,5 @@ internal object GlEnv {
   private fun releaseTarget(t: Target) {
     if (t.surface != EGL14.EGL_NO_SURFACE) EGL14.eglDestroySurface(display, t.surface)
     t.reader.close()
-    t.readerThread.quitSafely()
   }
 }

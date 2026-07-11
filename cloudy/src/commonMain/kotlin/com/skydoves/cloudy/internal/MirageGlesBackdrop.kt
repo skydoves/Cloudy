@@ -21,10 +21,8 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 
 /**
@@ -59,7 +57,7 @@ internal class MirageGlesBackdrop {
   fun ContentDrawScope.draw(
     context: androidx.compose.ui.graphics.GraphicsContext,
     scope: CoroutineScope,
-    blit: (ImageBitmap) -> ImageBitmap,
+    blit: suspend (ImageBitmap) -> ImageBitmap,
     contentVersion: Long,
     recordSource: DrawScope.() -> Unit,
     invalidate: () -> Unit,
@@ -89,14 +87,13 @@ internal class MirageGlesBackdrop {
     layer.record(size = IntSize(w, h)) { recordSource() }
 
     inFlight = true
-    // toImageBitmap() must run on the node's (main) scope; the blit's GL round-trip blocks, so push it
-    // off the main thread. Dispatchers.Default is hardcoded to match the sibling legacy backdrop-blur
-    // strategy — this is a draw-node collaborator, never unit-tested in isolation, so DI would be dead
-    // ceremony here. ponytail: inject a dispatcher only if a test ever needs to swap it.
+    // toImageBitmap() runs on the node's (main) scope; blit is suspend and pins its GL round-trip to
+    // GlEnv's single GL-thread dispatcher itself, so this launch needs no withContext to leave the main
+    // thread — the GL work never runs here.
     job = scope.launch {
       try {
         val input = layer.toImageBitmap()
-        val output = withContext(Dispatchers.Default) { blit(input) }
+        val output = blit(input)
         cached = output
         cachedVersion = contentVersion
         invalidate()

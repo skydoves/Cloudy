@@ -27,6 +27,7 @@ import com.skydoves.cloudy.internal.GlProgram
 import com.skydoves.cloudy.internal.MirageCompiler
 import com.skydoves.cloudy.internal.MirageGlslEs
 import com.skydoves.cloudy.internal.UniformSink
+import kotlinx.coroutines.runBlocking
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -78,7 +79,9 @@ internal class GlesRoundtripBenchmark(private val case: Case) {
       val (sink, writes) = program.uniformSink()
       bindSchemaDefaults(sink, compiled)
       if (case.optic === MirageOptics.Chromatic) frameLens(sink, case.width, case.height)
-      program.render(content, writes)
+      // render() is suspend (GlEnv pins it to its GL-thread dispatcher); runBlocking drives it from the
+      // non-suspend measure block. Its cost is negligible next to the GL roundtrip this measures.
+      runBlocking { program.render(content, writes) }
     }
   }
 
