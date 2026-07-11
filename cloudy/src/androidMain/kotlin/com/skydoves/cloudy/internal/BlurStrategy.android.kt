@@ -106,7 +106,7 @@ internal class BlurStrategy(private val cpuBlurEnabled: Boolean, private val tin
         logProgressiveBlurWarningOnce()
       }
       with(backdropClear) {
-        draw(node, layer, stage.radius, node.sampleOffset(), sky.contentVersion)
+        draw(node, layer, stage.radius, node.sampleOffset(), sky.contentVersion, stage.progressive)
       }
       lastState = backdropClear.lastState
       return
@@ -199,6 +199,7 @@ internal class BlurStrategy(private val cpuBlurEnabled: Boolean, private val tin
           radius = 0,
           offset = node.sampleOffset(),
           contentVersion = sky.contentVersion,
+          progressive = com.skydoves.cloudy.CloudyProgressive.None,
         )
       }
     } else {
