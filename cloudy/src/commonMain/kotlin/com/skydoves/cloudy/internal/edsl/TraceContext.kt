@@ -56,7 +56,7 @@ internal class TraceContext {
     val start = statements.size
     block()
     val body = statements.subList(start, statements.size).toList()
-    repeat(statements.size - start) { statements.removeAt(statements.size - 1) }
+    statements.subList(start, statements.size).clear()
     statements += IfBlock(condition, body)
   }
 }
