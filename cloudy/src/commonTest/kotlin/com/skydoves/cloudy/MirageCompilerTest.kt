@@ -24,9 +24,9 @@ import com.skydoves.cloudy.internal.DUOTONE_KERNEL_SKSL
 import com.skydoves.cloudy.internal.Dialect
 import com.skydoves.cloudy.internal.FOIL_KERNEL_AGSL
 import com.skydoves.cloudy.internal.MirageCompiler
-import com.skydoves.cloudy.internal.MirageLintException
 import com.skydoves.cloudy.internal.SPECULAR_KERNEL_AGSL
 import com.skydoves.cloudy.internal.ShaderCategory
+import com.skydoves.cloudy.internal.edsl.MirageDiagnosticException
 import io.kotest.assertions.throwables.shouldNotThrowAny
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
@@ -274,14 +274,14 @@ internal class MirageCompilerTest :
 
     context("lint rejects tokens that cannot compile") {
       test("fwidth is rejected") {
-        val e = shouldThrow<MirageLintException> {
+        val e = shouldThrow<MirageDiagnosticException> {
           MirageCompiler.lint("half4 main() { return half4(fwidth(x)); }", ShaderCategory.Composite)
         }
         e.message.shouldContain("fwidth")
       }
 
       test("a #version directive is rejected") {
-        val e = shouldThrow<MirageLintException> {
+        val e = shouldThrow<MirageDiagnosticException> {
           MirageCompiler.lint(
             "#version 300 es\nhalf4 main() { return half4(0.0); }",
             ShaderCategory.Composite,
@@ -291,10 +291,10 @@ internal class MirageCompilerTest :
       }
 
       test("dFdx / sk_FragCoord are rejected") {
-        shouldThrow<MirageLintException> {
+        shouldThrow<MirageDiagnosticException> {
           MirageCompiler.lint("float d = dFdx(x);", ShaderCategory.Composite)
         }
-        shouldThrow<MirageLintException> {
+        shouldThrow<MirageDiagnosticException> {
           MirageCompiler.lint("float2 c = sk_FragCoord.xy;", ShaderCategory.Composite)
         }
       }
@@ -313,7 +313,7 @@ internal class MirageCompilerTest :
 
     context("lint enforces the content-access category contract") {
       test("a Colorize kernel that references content is rejected") {
-        val e = shouldThrow<MirageLintException> {
+        val e = shouldThrow<MirageDiagnosticException> {
           MirageCompiler.lint(
             "half4 kernel(float2 p, half4 src) { return content.eval(p); }",
             ShaderCategory.Colorize,
@@ -324,7 +324,7 @@ internal class MirageCompilerTest :
       }
 
       test("a Generate kernel that references content is rejected") {
-        val e = shouldThrow<MirageLintException> {
+        val e = shouldThrow<MirageDiagnosticException> {
           MirageCompiler.lint(
             "half4 main(float2 xy) { return content.eval(xy); }",
             ShaderCategory.Generate,

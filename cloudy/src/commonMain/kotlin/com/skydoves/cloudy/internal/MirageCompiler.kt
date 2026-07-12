@@ -25,9 +25,6 @@ import com.skydoves.cloudy.MirageShader
 import com.skydoves.cloudy.internal.edsl.MirageDiagnosticCode
 import com.skydoves.cloudy.internal.edsl.MirageDiagnosticException
 
-// ponytail: 1-release shim so any lingering reference to the old lint type keeps compiling; drop next release.
-internal typealias MirageLintException = MirageDiagnosticException
-
 /**
  * Lowers an authored [MirageShader] into a per-dialect [CompiledProgram]. Pure and side-effect-free: it
  * touches no GPU, Compose-UI, or Node type, only strings and the schema captured from a probe params
