@@ -198,6 +198,24 @@ internal class MirageCompilerTest :
         program.usesDensity.shouldBe(false)
       }
 
+      // Regression: `code.contains("mirageTime")` used to match inside an unrelated identifier like
+      // `mirageTimeScale`, wrongly declaring the uniform and — since usesTime also drives redraw
+      // scheduling — leaving an unwanted per-frame invalidation loop running for a kernel that never
+      // reads the clock.
+      test("a uniform name that merely contains a standard uniform's name does not trigger it") {
+        val kernel = """
+          half4 main(float2 xy) { return half4(half(mirageTimeScale), 0.0, 0.0, 1.0); }
+        """.trimIndent()
+
+        val program = MirageCompiler.compile(
+          MirageShader.generate("shadowed", ::EmptyParams, kernel, kernel),
+          Dialect.Agsl,
+        )
+
+        program.usesTime.shouldBe(false)
+        program.source.shouldNotContain("uniform float mirageTime;")
+      }
+
       // Android's RuntimeShader throws IllegalArgumentException if the node binds a standard uniform
       // the shader never declared, so a kernel that names no standard uniform must report every uses*
       // flag false and the node must bind none.
@@ -280,6 +298,17 @@ internal class MirageCompilerTest :
           MirageCompiler.lint("float2 c = sk_FragCoord.xy;", ShaderCategory.Composite)
         }
       }
+
+      // Regression: a substring match on `dFdx` used to reject a kernel that merely names a uniform
+      // like `dFdxScale`, even though it never calls the (unavailable) derivative function.
+      test("a name that merely contains a forbidden builtin's name is not rejected") {
+        shouldNotThrowAny {
+          MirageCompiler.lint(
+            "half4 main() { return half4(half(dFdxScale)); }",
+            ShaderCategory.Composite,
+          )
+        }
+      }
     }
 
     context("lint enforces the content-access category contract") {
@@ -309,6 +338,21 @@ internal class MirageCompilerTest :
           MirageCompiler.lint(
             "half4 main(float2 xy) { return content.eval(xy); }",
             ShaderCategory.Composite,
+          )
+        }
+      }
+
+      // Regression: `code.contains("content")` used to match a uniform name like `contentOpacity`,
+      // wrongly rejecting a Colorize/Generate kernel that never actually samples content.
+      test("a uniform name that merely contains 'content' does not trip the Colorize/Generate lint") {
+        shouldNotThrowAny {
+          MirageCompiler.lint(
+            "half4 kernel(float2 p, half4 src) { return src * half(contentOpacity); }",
+            ShaderCategory.Colorize,
+          )
+          MirageCompiler.lint(
+            "half4 main(float2 xy) { return half4(half(contentOpacity)); }",
+            ShaderCategory.Generate,
           )
         }
       }

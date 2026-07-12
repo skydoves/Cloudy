@@ -71,10 +71,13 @@ internal object MirageCompiler {
     // Standard-uniform references are static scans over comment-stripped code in every path (raw
     // included). Each gates two things in lockstep: whether the uniform is declared in the emitted
     // source, and whether the node binds it. Android's RuntimeShader rejects a write to an undeclared
-    // uniform, so these must agree exactly. (usesTime additionally drives redraw scheduling.)
-    val usesResolution = code.contains(STD_RESOLUTION)
-    val usesTime = code.contains(STD_TIME)
-    val usesDensity = code.contains(STD_DENSITY)
+    // uniform, so these must agree exactly. (usesTime additionally drives redraw scheduling, so a false
+    // positive here is not just a spurious declaration — it leaves an unwanted per-frame invalidation
+    // loop running. A whole-identifier match, not a substring one, is what keeps an unrelated name like
+    // `mirageTimeScale` from tripping it.)
+    val usesResolution = referencesIdentifier(code, STD_RESOLUTION)
+    val usesTime = referencesIdentifier(code, STD_TIME)
+    val usesDensity = referencesIdentifier(code, STD_DENSITY)
 
     // A raw shader owns its full source (uniform declarations included) and is treated as Composite,
     // so it always samples content. Emit it verbatim: no preamble, no generated declarations, no wrap.
@@ -132,18 +135,18 @@ internal object MirageCompiler {
     lintCode(stripComments(kernelSource), category)
 
   private fun lintCode(code: String, category: ShaderCategory) {
-    for (token in FORBIDDEN_TOKENS) {
-      if (code.contains(token)) {
-        throw MirageDiagnosticException(
-          MirageDiagnosticCode.FORBIDDEN_TOKEN,
-          "mirage kernel uses forbidden token '$token': it does not compile as a runtime shader",
-          "no derivatives (fwidth/dFdx/dFdy), preprocessor (#), or raw frag-coord (sk_FragCoord) are available",
-        )
-      }
+    // Preprocessor markers ('#version', '#') are not identifier characters, so a plain substring check
+    // cannot false-positive on an unrelated name; the derivative/frag-coord builtins are identifiers and
+    // go through the same whole-token match `referencesIdentifier` uses for the standard uniforms.
+    for (token in FORBIDDEN_PREPROCESSOR_TOKENS) {
+      if (code.contains(token)) throw forbiddenTokenException(token)
+    }
+    for (token in FORBIDDEN_IDENTIFIER_TOKENS) {
+      if (referencesIdentifier(code, token)) throw forbiddenTokenException(token)
     }
     when (category) {
       ShaderCategory.Colorize ->
-        if (code.contains(CONTENT_TOKEN)) {
+        if (code.contains(CONTENT_EVAL_CALL)) {
           throw MirageDiagnosticException(
             MirageDiagnosticCode.CONTENT_IN_COLORIZE,
             "Colorize kernel references '$CONTENT_TOKEN': a point-wise kernel must read content only through its `src` argument",
@@ -152,7 +155,7 @@ internal object MirageCompiler {
         }
 
       ShaderCategory.Generate ->
-        if (code.contains(CONTENT_TOKEN)) {
+        if (code.contains(CONTENT_EVAL_CALL)) {
           throw MirageDiagnosticException(
             MirageDiagnosticCode.CONTENT_IN_COLORIZE,
             "Generate overlay kernel references '$CONTENT_TOKEN': an overlay has no content sampler",
@@ -163,6 +166,34 @@ internal object MirageCompiler {
       ShaderCategory.Composite -> Unit // free content access is exactly what Composite is for.
     }
   }
+
+  private fun forbiddenTokenException(token: String): MirageDiagnosticException = MirageDiagnosticException(
+    MirageDiagnosticCode.FORBIDDEN_TOKEN,
+    "mirage kernel uses forbidden token '$token': it does not compile as a runtime shader",
+    "no derivatives (fwidth/dFdx/dFdy), preprocessor (#), or raw frag-coord (sk_FragCoord) are available",
+  )
+
+  /**
+   * True if [code] uses the GLSL identifier [name] as a whole token, not merely as a substring of some
+   * other identifier (`mirageTime` must not match inside `mirageTimeScale`). GLSL identifier characters
+   * are `[A-Za-z0-9_]`, so a real reference has a non-identifier character (or a string boundary) on
+   * both sides.
+   */
+  private fun referencesIdentifier(code: String, name: String): Boolean {
+    var from = 0
+    while (true) {
+      val at = code.indexOf(name, from)
+      if (at == -1) return false
+      val before = at - 1
+      val after = at + name.length
+      val boundaryBefore = before < 0 || !code[before].isIdentifierChar()
+      val boundaryAfter = after >= code.length || !code[after].isIdentifierChar()
+      if (boundaryBefore && boundaryAfter) return true
+      from = at + 1
+    }
+  }
+
+  private fun Char.isIdentifierChar(): Boolean = this == '_' || isLetterOrDigit()
 
   /**
    * Strips `//` line comments and `/* */` block comments from shader source so the analysis scans
@@ -269,21 +300,33 @@ internal object MirageCompiler {
   /** The content child sampler name (both the generated declaration and the wrapper reference it). */
   private const val CONTENT_TOKEN = "content"
 
+  /**
+   * The exact call form a content read takes in every kernel body (hand-written or eDSL-emitted, see
+   * [com.skydoves.cloudy.internal.edsl.sampleContent]) — matched literally rather than a bare
+   * [CONTENT_TOKEN] substring so an unrelated uniform name like `contentOpacity` does not trip the
+   * Colorize/Generate content-access lint.
+   */
+  private const val CONTENT_EVAL_CALL = "content.eval("
+
   /** Colorize wrapper: sample content once at the fragment coord and hand the pixel to the kernel. */
   private const val COLORIZE_MAIN_WRAPPER =
     "half4 main(float2 xy) { return kernel(xy, content.eval(xy)); }"
 
+  /** Preprocessor directives a runtime shader rejects — not identifiers, so a substring match is exact. */
+  private val FORBIDDEN_PREPROCESSOR_TOKENS = listOf(
+    "#version",
+    "#",
+  )
+
   /**
-   * Tokens that never compile in a runtime shader (any category). fwidth/dFdx/dFdy are derivative
-   * functions AGSL lacks; '#version' / '#' are preprocessor directives the runtime rejects;
-   * sk_FragCoord is the raw builtin the wrapper's `xy` argument replaces.
+   * Builtins/functions a runtime shader lacks. Identifiers, so they are matched whole-token (via
+   * [referencesIdentifier]) rather than by substring — otherwise a kernel name like `dFdxScale` would
+   * be rejected for a function it never calls.
    */
-  private val FORBIDDEN_TOKENS = listOf(
+  private val FORBIDDEN_IDENTIFIER_TOKENS = listOf(
     "fwidth",
     "dFdx",
     "dFdy",
-    "#version",
-    "#",
     "sk_FragCoord",
   )
 }
