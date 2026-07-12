@@ -133,15 +133,21 @@ internal class EffectNode(
     effectKey: Any?,
     onStateChanged: ((CloudyState) -> Unit)?,
   ) {
-    // Re-register the scroll-refresh overlay on the new sky before adopting it.
+    // Re-home the scroll-refresh overlay when the sky changes. This covers all four transitions the
+    // same node can see when a call site swaps Modifier.mirage/cloudy between a content source (null
+    // sky) and a backdrop: null->null no-ops, X->null removes the old overlay (else it leaks forever),
+    // null->X registers on the new sky, X->Y removes-then-adds.
     val previous = this.sky
-    if (sky != null && previous != null && previous != sky && isAttached) {
-      previous.frameDriver.removeOverlay(reblur)
-      sky.frameDriver.addOverlay(reblur)
+    if (previous !== sky && isAttached) {
+      previous?.frameDriver?.removeOverlay(reblur)
+      sky?.frameDriver?.addOverlay(reblur)
       // The cached snapshot / GLES blit came from the old sky's layer and key on contentVersion + size;
-      // a new sky reusing the old version/size would wrongly hit the stale bitmap, so drop both.
-      backdropSnapshot.dispose()
-      glesBackdrop.release()
+      // any real sky change (including a drop to null) makes them stale, so drop both. Only when there
+      // was actually an old sky to invalidate from.
+      if (previous != null) {
+        backdropSnapshot.dispose()
+        glesBackdrop.release()
+      }
     }
 
     // An effect-config change (blur cpuBlurEnabled / scrim tint) can't be swapped into the live

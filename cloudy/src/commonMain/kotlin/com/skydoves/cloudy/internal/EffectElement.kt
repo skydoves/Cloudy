@@ -77,6 +77,11 @@ internal class EffectElement(
     if (clock != other.clock || enabled != other.enabled) return false
     if (effectKey != other.effectKey) return false
     if (postProcess != other.postProcess) return false
+    // Compose REUSEs (never calls update()) when the element is equal, so a fresh onStateChanged
+    // lambda each recomposition would leave the node invoking the stale callback. Compare it by
+    // reference so a new lambda forces an update() that adopts it; a stable/remembered callback stays
+    // equal and takes no update.
+    if (onStateChanged !== other.onStateChanged) return false
     if (!sameStructure(stages, other.stages)) return false
     for (i in stages.indices) {
       if (paramsBlockOf(stages[i]) !== paramsBlockOf(other.stages[i])) return false
@@ -94,6 +99,7 @@ internal class EffectElement(
     result = 31 * result + enabled.hashCode()
     result = 31 * result + (effectKey?.hashCode() ?: 0)
     result = 31 * result + postProcess.hashCode()
+    result = 31 * result + (onStateChanged?.hashCode() ?: 0)
     for (stage in stages) {
       result = 31 * result + stage::class.hashCode()
       when (stage) {

@@ -218,6 +218,12 @@ internal class LegacyBackdropBlurrer {
         Log.e(TAG, "Background blur failed", e)
         lastState = CloudyState.Error(e)
         node.invalidate()
+      } catch (e: LinkageError) {
+        // The native RenderScript-toolkit lib is missing/unloadable: degrade to Error instead of
+        // crashing (a LinkageError is not an Exception, so it would otherwise escape this coroutine).
+        Log.e(TAG, "Background blur failed", e)
+        lastState = CloudyState.Error(e)
+        node.invalidate()
       } finally {
         isProcessing = false
         blurJob = null

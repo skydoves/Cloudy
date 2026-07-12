@@ -240,6 +240,11 @@ internal class LegacyForegroundBlurrer {
       } catch (e: Exception) {
         lastState = CloudyState.Error(e)
         node.invalidate()
+      } catch (e: LinkageError) {
+        // The native RenderScript-toolkit lib is missing/unloadable: degrade to Error instead of
+        // crashing (a LinkageError is not an Exception, so it would otherwise escape this coroutine).
+        lastState = CloudyState.Error(e)
+        node.invalidate()
       } finally {
         graphicsContext.releaseGraphicsLayer(graphicsLayer)
         isProcessing = false
@@ -296,8 +301,11 @@ internal class LegacyForegroundBlurrer {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
       bmp.config == Bitmap.Config.HARDWARE
     ) {
-      bmp = bmp.copy(Bitmap.Config.ARGB_8888, false)
+      val hardware = bmp
+      bmp = hardware.copy(Bitmap.Config.ARGB_8888, false)
         ?: throw RuntimeException("Failed to copy HARDWARE bitmap to ARGB_8888")
+      // Recycle the source HARDWARE bitmap only after the copy succeeded (it is never returned).
+      hardware.recycle()
     }
     return bmp
   }
