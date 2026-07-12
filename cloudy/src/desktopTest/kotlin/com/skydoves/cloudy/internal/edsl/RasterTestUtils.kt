@@ -25,19 +25,23 @@ import org.jetbrains.skia.Shader
 import org.jetbrains.skia.Surface
 import kotlin.math.abs
 
-/** Draws [shader] over an opaque [size]x[size] raster and returns its ARGB_8888 bytes. */
+/** Draws [shader] over an opaque [size]x[size] raster and returns its RGBA_8888 bytes. */
 internal fun rasterize(shader: Shader, size: Int): ByteArray {
   val info = ImageInfo(size, size, ColorType.RGBA_8888, ColorAlphaType.PREMUL)
-  val surface = Surface.makeRaster(info)
-  val canvas: Canvas = surface.canvas
-  canvas.drawPaint(Paint().apply { this.shader = shader })
-
-  val bitmap = Bitmap().apply { allocPixels(info) }
-  surface.readPixels(bitmap, 0, 0)
-  return bitmap.readPixels() ?: error("readPixels returned null")
+  return Surface.makeRaster(info).use { surface ->
+    Paint().use { paint ->
+      paint.shader = shader
+      surface.canvas.drawPaint(paint)
+    }
+    Bitmap().use { bitmap ->
+      bitmap.allocPixels(info)
+      surface.readPixels(bitmap, 0, 0)
+      bitmap.readPixels() ?: error("readPixels returned null")
+    }
+  }
 }
 
-/** Mean absolute per-byte difference between two equally sized ARGB buffers (0..255 scale). */
+/** Mean absolute per-byte difference between two equally sized RGBA buffers (0..255 scale). */
 internal fun meanAbsDiff(a: ByteArray, b: ByteArray): Double {
   require(a.size == b.size) { "buffers differ in size: ${a.size} vs ${b.size}" }
   var sum = 0L
