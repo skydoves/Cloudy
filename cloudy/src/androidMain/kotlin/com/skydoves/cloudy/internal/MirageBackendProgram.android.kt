@@ -157,7 +157,7 @@ internal actual fun MirageBackendProgram.asContentRenderEffect(): RenderEffect =
  * - GLES : an FBO blit. The [FilterApplication.Blit] here is a **detection marker** (identity) — the
  *   real per-draw transform, with uniforms bound into a fresh list, comes from [prepareGlesBlit]. A
  *   self-lit content node has no async capture path for it, so it treats this marker as unsupported and
- *   no-ops (GLES is backdrop-only; see the node and planRenders).
+ *   no-ops (GLES is backdrop-only; see the node and pipelineRenders).
  */
 internal actual fun MirageBackendProgram.filterApplication(): FilterApplication =
   when (val b = backend) {

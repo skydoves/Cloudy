@@ -101,7 +101,7 @@ internal class MirageFilterChain {
 
       bind(stage, cached)
       // Reset both per-draw layer applications first: the pool is reused across structural configs, so
-      // a leftover effect/filter from a prior plan must not carry over onto this stage.
+      // a leftover effect/filter from a prior pipeline must not carry over onto this stage.
       layer.renderEffect = null
       layer.colorFilter = null
       when (val application = cached.backend.filterApplication()) {

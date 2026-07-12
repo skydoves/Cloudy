@@ -93,6 +93,10 @@ internal class SkyBackdropScreenshotTest {
 
   private companion object {
     const val ROOT_TAG = "sky-root"
+
+    // Upper bound on the settle poll: the inline snapshot lands within a couple of frames, so this only
+    // guards against a never-settling frame (fail, not hang). ~1.5s is generous headroom on a slow emulator.
+    const val SETTLE_TIMEOUT_NANOS = 1_500_000_000L
   }
 
   /**
@@ -149,14 +153,29 @@ internal class SkyBackdropScreenshotTest {
     }
     radiusState = radius
     tintState = tint
-    composeTestRule.waitForIdle()
-    // The API 31+ backdrop samples the sky through an async rasterized snapshot (drawImage, no
-    // drawLayer(sky.backgroundLayer) — the acyclic capture-safe path, see BackdropClearBlurrer),
-    // so the first frame after a state change is a cold-start transparent until the snapshot lands.
-    // Settle a couple of frames so the captured region reflects the sampled backdrop, not the cold gap.
     composeTestRule.mainClock.autoAdvance = true
-    Thread.sleep(600)
     composeTestRule.waitForIdle()
+
+    // The API 31+ backdrop samples the sky through a snapshot that lands over the first draw passes after
+    // a state change (BackdropClearBlurrer.captureInline: the sky must first record backgroundLayer, then
+    // the backdrop node captures + blurs it), so the very first capture can be a cold-start transparent.
+    // Poll until two consecutive captures are byte-identical — the same determinism the assertions rely
+    // on — rather than a fixed sleep. Bounded so a genuinely non-settling frame fails instead of hanging.
+    var previous: Capture? = null
+    val deadline = System.nanoTime() + SETTLE_TIMEOUT_NANOS
+    while (true) {
+      composeTestRule.waitForIdle()
+      val current = captureCardRegion()
+      if (previous != null && meanAbsDiff(previous, current) == 0.0) {
+        return current
+      }
+      check(System.nanoTime() < deadline) { "backdrop capture did not settle within timeout" }
+      previous = current
+    }
+  }
+
+  /** Captures the sky root and crops the centered card region. */
+  private fun captureCardRegion(): Capture {
     val map = composeTestRule.onNodeWithTag(ROOT_TAG).captureToImage().toPixelMap()
 
     // Crop the centered card region. The card is centered in a square surface, so the pixel scale is

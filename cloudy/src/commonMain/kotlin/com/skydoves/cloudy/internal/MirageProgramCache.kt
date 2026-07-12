@@ -105,19 +105,19 @@ internal object MirageProgramCache {
 
 /**
  * True when at least one of [stages]'s programs renders **on a self-lit content node** under [dialect]
- * — i.e. the plan produces some output there. False when every stage is unsupported (e.g. a lens optic
- * on Android below API 33, or any optic on the API 29-32 GLES band, which is backdrop-only), which is
- * when a [com.skydoves.cloudy.MirageFallback.Content] should stand in.
+ * — i.e. the pipeline produces some output there. False when every stage is unsupported (e.g. a lens
+ * optic on Android below API 33, or any optic on the API 29-32 GLES band, which is backdrop-only), which
+ * is when a [com.skydoves.cloudy.MirageFallback.Content] should stand in.
  *
  * A [FilterApplication.Blit] stage (the async GLES path) does **not** count as rendering here: only the
  * backdrop node drives that async capture (it has the `Sky.contentVersion` cache key a self-lit node
- * lacks — see [MirageGlesBackdrop]). So a self-lit GLES plan renders nothing and its fallback shows.
+ * lacks — see [MirageGlesBackdrop]). So a self-lit GLES pipeline renders nothing and its fallback shows.
  *
  * Uses the same [MirageProgramCache.obtain] + [filterApplication] the self-lit draw loop uses, so
  * "renders" here means exactly what that node will draw. Warming the cache during composition is cheap.
  */
 @OptIn(ExperimentalMirage::class)
-internal fun planRenders(stages: List<Stage>, dialect: Dialect): Boolean = stages.any { stage ->
+internal fun pipelineRenders(stages: List<Stage>, dialect: Dialect): Boolean = stages.any { stage ->
   // Only program stages have a shader to compile; a blur PlatformFilter renders on its own path and
   // is never gated by a MirageFallback, so it does not participate in this check.
   val shader = when (stage) {

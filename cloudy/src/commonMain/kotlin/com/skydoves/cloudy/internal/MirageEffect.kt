@@ -57,7 +57,7 @@ internal object MirageEffect : Effect {
       // A self-lit content node draws its filters in place synchronously. A Blit stage (the async GLES
       // path) is backdrop-only — it has no self-lit capture path (no contentVersion key), so skip it here
       // rather than pass it to the chain's Blit branch, which errors. GLES self-lit is thus unsupported;
-      // the plan's MirageFallback (if any) shows via planRenders. On the backdrop path a Blit filter is
+      // the pipeline's MirageFallback (if any) shows via pipelineRenders. On the backdrop path a Blit filter is
       // routed to the async GLES runner before this draw is reached, so it never arrives here.
       if (!rendersInPlace(cached)) return@mapNotNull null
       stage to cached

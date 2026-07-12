@@ -57,7 +57,7 @@ fun ApiMirageScreen() {
 
     Text(
       text = "Mirage applies an open shader-effect pipeline to any content through a single " +
-        "modifier. One Modifier.mirage { } block declares an ordered list of shaders — an " +
+        "modifier. One Modifier.mirage { } block declares an ordered list of shaders — a " +
         "shader pairs an AGSL (Android) / SKSL (Skia) kernel with the uniforms it reads. The " +
         "library ships thin-film, specular, and foil presets, and consumers can author their " +
         "own shaders through the same public API with no library change.",

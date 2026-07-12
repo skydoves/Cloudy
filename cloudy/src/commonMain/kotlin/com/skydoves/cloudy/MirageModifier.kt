@@ -20,7 +20,7 @@ import androidx.compose.ui.graphics.BlendMode
 import com.skydoves.cloudy.internal.MiragePipelineBuilder
 import com.skydoves.cloudy.internal.currentDialect
 import com.skydoves.cloudy.internal.mirageElement
-import com.skydoves.cloudy.internal.planRenders
+import com.skydoves.cloudy.internal.pipelineRenders
 
 /**
  * Time-driving policy for the standard `mirageTime` uniform. Pipeline-level — the pipeline (not each
@@ -164,7 +164,7 @@ internal fun Modifier.mirageOrFallback(
 ): Modifier {
   if (fallback is MirageFallback.Content && enabled) {
     val stages = MiragePipelineBuilder().apply(pipeline).stages
-    if (!planRenders(stages, currentDialect())) {
+    if (!pipelineRenders(stages, currentDialect())) {
       return this.then(fallback.modifier)
     }
   }

@@ -159,16 +159,20 @@ private fun MirageCard(enabled: Boolean) = BackdropScene { sky ->
 private fun renderScene(content: @Composable () -> Unit): ByteArray =
   ImageComposeScene(width = SURFACE, height = SURFACE, density = Density(1f), content = content)
     .use { scene ->
-      scene.render()
-      imageBytes(scene.render())
+      // Pump two frames so the layout pass has set Sky.sourceBounds before the overlay samples the
+      // backdrop; the first Image is discarded, so close it too (both are Skia native handles).
+      scene.render().close()
+      scene.render().use { imageBytes(it) }
     }
 
 /** Reads an [Image] into a PREMUL RGBA_8888 byte buffer. */
 private fun imageBytes(image: Image): ByteArray {
   val info = ImageInfo(SURFACE, SURFACE, ColorType.RGBA_8888, ColorAlphaType.PREMUL)
-  val bitmap = Bitmap().apply { allocPixels(info) }
-  require(image.readPixels(bitmap)) { "Image.readPixels returned false" }
-  return bitmap.readPixels() ?: error("Bitmap.readPixels returned null")
+  return Bitmap().use { bitmap ->
+    bitmap.allocPixels(info)
+    require(image.readPixels(bitmap)) { "Image.readPixels returned false" }
+    bitmap.readPixels() ?: error("Bitmap.readPixels returned null")
+  }
 }
 
 /**
