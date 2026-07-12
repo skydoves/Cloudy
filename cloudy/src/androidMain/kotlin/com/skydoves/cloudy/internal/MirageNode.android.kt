@@ -29,3 +29,7 @@ internal actual fun currentDialect(): Dialect =
     MirageBackendBand.Gles -> Dialect.GlslEs
     MirageBackendBand.Agsl, MirageBackendBand.ColorGrade -> Dialect.Agsl
   }
+
+/** Android HWUI cycles the RenderNode graph under captureToImage/PixelCopy (issue #112), so the mirage
+ *  backdrop samples a rasterized snapshot instead of the live sky layer. */
+internal actual fun backdropNeedsAcyclicSnapshot(): Boolean = true

@@ -49,7 +49,7 @@ fun GettingStartedScreen() {
       text = "Cloudy is a Compose Multiplatform surface effects library. It ships four " +
         "modifiers you can mix and match: Modifier.cloudy() for blur (your own content, " +
         "or the content behind you), Modifier.liquidGlass() for a refractive glass lens, " +
-        "and Modifier.mirage { } for an open shader-effect plan.",
+        "and Modifier.mirage { } for an open shader-effect pipeline.",
       style = DocsTheme.typography.body,
       color = DocsTheme.colors.onSurfaceVariant,
     )
@@ -236,8 +236,9 @@ fun GettingStartedScreen() {
     Spacer(modifier = Modifier.height(16.dp))
 
     Text(
-      text = "Apply an open shader-effect plan through Modifier.mirage { }. It ships thin-film " +
-        "and specular presets, and consumers can author their own optics with no library " +
+      text =
+      "Apply an open shader-effect pipeline through Modifier.mirage { }. It ships thin-film " +
+        "and specular presets, and consumers can author their own shaders with no library " +
         "change. Mirage is experimental — opt in with @OptIn(ExperimentalMirage::class):",
       style = DocsTheme.typography.body,
       color = DocsTheme.colors.onSurfaceVariant,
@@ -252,7 +253,7 @@ fun GettingStartedScreen() {
         fun Poster() {
           Box(
             modifier = Modifier.mirage {
-              filter(MirageOptics.Chromatic) {
+              filter(MirageShaders.Chromatic) {
                 lensCenter(Offset(260f, 260f))
                 lensSize(Size(520f, 520f))
               }
@@ -268,7 +269,7 @@ fun GettingStartedScreen() {
 
     Text(
       text = "See the Mirage reference for the full preset gallery and how to author " +
-        "your own optic.",
+        "your own shader.",
       style = DocsTheme.typography.bodySmall,
       color = DocsTheme.colors.onSurfaceVariant,
     )

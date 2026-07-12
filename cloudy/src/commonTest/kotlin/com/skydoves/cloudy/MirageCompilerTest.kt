@@ -25,8 +25,8 @@ import com.skydoves.cloudy.internal.Dialect
 import com.skydoves.cloudy.internal.FOIL_KERNEL_AGSL
 import com.skydoves.cloudy.internal.MirageCompiler
 import com.skydoves.cloudy.internal.MirageLintException
-import com.skydoves.cloudy.internal.OpticCategory
 import com.skydoves.cloudy.internal.SPECULAR_KERNEL_AGSL
+import com.skydoves.cloudy.internal.ShaderCategory
 import io.kotest.assertions.throwables.shouldNotThrowAny
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
@@ -34,7 +34,7 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotContain
 
-/** Params for the Duotone demo Colorize optic: two colors plus a blend amount. */
+/** Params for the Duotone demo Colorize shader: two colors plus a blend amount. */
 private class CompilerDuotoneParams : MirageParams() {
   val shadow by uniformColor(Color(0xFF1B1B3A))
   val highlight by uniformColor(Color(0xFFFFC371))
@@ -57,14 +57,14 @@ internal class MirageCompilerTest :
 
     context("Colorize codegen") {
       test("wraps the kernel in a content-sampling main") {
-        val optic = Optic.colorize(
+        val shader = MirageShader.colorize(
           name = "duotone",
           paramsFactory = ::CompilerDuotoneParams,
           agsl = DUOTONE_KERNEL_AGSL,
           sksl = DUOTONE_KERNEL_SKSL,
         )
 
-        val program = MirageCompiler.compile(optic, Dialect.Agsl)
+        val program = MirageCompiler.compile(shader, Dialect.Agsl)
 
         // The generated wrapper samples content once and feeds the pixel to the author's kernel.
         program.source.shouldContain(
@@ -72,18 +72,18 @@ internal class MirageCompilerTest :
         )
         program.source.shouldContain("uniform shader content;")
         program.usesContent.shouldBe(true)
-        program.category.shouldBe(OpticCategory.Colorize)
+        program.category.shouldBe(ShaderCategory.Colorize)
       }
 
       test("emits one declaration per schema entry in declaration order") {
-        val optic = Optic.colorize(
+        val shader = MirageShader.colorize(
           name = "duotone",
           paramsFactory = ::CompilerDuotoneParams,
           agsl = DUOTONE_KERNEL_AGSL,
           sksl = DUOTONE_KERNEL_SKSL,
         )
 
-        val src = MirageCompiler.compile(optic, Dialect.Agsl).source
+        val src = MirageCompiler.compile(shader, Dialect.Agsl).source
 
         // Colors become layout(color) float4; the scalar becomes a plain float; order is preserved.
         src.shouldContain("layout(color) uniform float4 shadow;")
@@ -94,14 +94,14 @@ internal class MirageCompilerTest :
       }
 
       test("does not prepend the lens preamble (point-wise kernels need no helpers)") {
-        val optic = Optic.colorize(
+        val shader = MirageShader.colorize(
           name = "duotone",
           paramsFactory = ::CompilerDuotoneParams,
           agsl = DUOTONE_KERNEL_AGSL,
           sksl = DUOTONE_KERNEL_SKSL,
         )
 
-        MirageCompiler.compile(optic, Dialect.Agsl).source.shouldNotContain("float boxRoundedSDF(")
+        MirageCompiler.compile(shader, Dialect.Agsl).source.shouldNotContain("float boxRoundedSDF(")
       }
     }
 
@@ -113,21 +113,21 @@ internal class MirageCompilerTest :
               return content.eval(xy);
           }
         """.trimIndent()
-        val optic = Optic.composite(
+        val shader = MirageShader.composite(
           name = "c",
           paramsFactory = ::EmptyParams,
           agsl = kernel,
           sksl = kernel,
         )
 
-        val program = MirageCompiler.compile(optic, Dialect.Agsl)
+        val program = MirageCompiler.compile(shader, Dialect.Agsl)
 
         program.source.shouldContain("float boxRoundedSDF(")
         program.source.shouldContain("uniform shader content;")
         // No Colorize wrapper is appended: the author owns the single main.
         program.source.shouldNotContain("return kernel(xy, content.eval(xy));")
         program.usesContent.shouldBe(true)
-        program.category.shouldBe(OpticCategory.Composite)
+        program.category.shouldBe(ShaderCategory.Composite)
       }
     }
 
@@ -139,19 +139,19 @@ internal class MirageCompilerTest :
               return half4(0.0);
           }
         """.trimIndent()
-        val optic = Optic.generate(
+        val shader = MirageShader.generate(
           name = "g",
           paramsFactory = ::EmptyParams,
           agsl = kernel,
           sksl = kernel,
         )
 
-        val program = MirageCompiler.compile(optic, Dialect.Agsl)
+        val program = MirageCompiler.compile(shader, Dialect.Agsl)
 
         program.source.shouldContain("float boxRoundedSDF(")
         program.source.shouldNotContain("uniform shader content;")
         program.usesContent.shouldBe(false)
-        program.category.shouldBe(OpticCategory.Generate)
+        program.category.shouldBe(ShaderCategory.Generate)
       }
     }
 
@@ -165,11 +165,11 @@ internal class MirageCompilerTest :
         """.trimIndent()
 
         val timed = MirageCompiler.compile(
-          Optic.generate("t", ::EmptyParams, withTime, withTime),
+          MirageShader.generate("t", ::EmptyParams, withTime, withTime),
           Dialect.Agsl,
         )
         val untimed = MirageCompiler.compile(
-          Optic.generate("u", ::EmptyParams, withoutTime, withoutTime),
+          MirageShader.generate("u", ::EmptyParams, withoutTime, withoutTime),
           Dialect.Agsl,
         )
 
@@ -188,7 +188,7 @@ internal class MirageCompilerTest :
         """.trimIndent()
 
         val program = MirageCompiler.compile(
-          Optic.generate("r", ::EmptyParams, kernel, kernel),
+          MirageShader.generate("r", ::EmptyParams, kernel, kernel),
           Dialect.Agsl,
         )
 
@@ -202,14 +202,14 @@ internal class MirageCompilerTest :
       // the shader never declared, so a kernel that names no standard uniform must report every uses*
       // flag false and the node must bind none.
       test("a kernel that names no standard uniform reports every uses* flag false") {
-        val optic = Optic.colorize(
+        val shader = MirageShader.colorize(
           name = "duotone",
           paramsFactory = ::CompilerDuotoneParams,
           agsl = DUOTONE_KERNEL_AGSL,
           sksl = DUOTONE_KERNEL_SKSL,
         )
 
-        val program = MirageCompiler.compile(optic, Dialect.Agsl)
+        val program = MirageCompiler.compile(shader, Dialect.Agsl)
 
         program.usesResolution.shouldBe(false)
         program.usesTime.shouldBe(false)
@@ -220,26 +220,26 @@ internal class MirageCompilerTest :
       }
     }
 
-    context("raw optic emits its source verbatim") {
+    context("raw shader emits its source verbatim") {
       test("no preamble, no generated declarations, no wrapper — flags still scanned") {
         val fullSource = """
           uniform float2 mirageResolution;
           half4 main(float2 xy) { return half4(half(mirageTime), 0.0, 0.0, 1.0); }
         """.trimIndent()
-        val optic = Optic.raw(
+        val shader = MirageShader.raw(
           name = "raw",
           paramsFactory = ::EmptyParams,
           agsl = fullSource,
           sksl = fullSource,
         )
 
-        val program = MirageCompiler.compile(optic, Dialect.Agsl)
+        val program = MirageCompiler.compile(shader, Dialect.Agsl)
 
         // The source is exactly what the author wrote — codegen added nothing.
         program.source.shouldBe(fullSource)
         program.source.shouldNotContain("float boxRoundedSDF(")
         // raw is always Composite and samples content; usesTime is still text-scanned.
-        program.category.shouldBe(OpticCategory.Composite)
+        program.category.shouldBe(ShaderCategory.Composite)
         program.usesContent.shouldBe(true)
         program.usesTime.shouldBe(true)
       }
@@ -248,16 +248,16 @@ internal class MirageCompilerTest :
         val fullSource = """
           half4 main(float2 xy) { float e = fwidth(xy.x); return half4(half(e)); }
         """.trimIndent()
-        val optic = Optic.raw("raw", ::EmptyParams, fullSource, fullSource)
+        val shader = MirageShader.raw("raw", ::EmptyParams, fullSource, fullSource)
 
-        shouldNotThrowAny { MirageCompiler.compile(optic, Dialect.Agsl) }
+        shouldNotThrowAny { MirageCompiler.compile(shader, Dialect.Agsl) }
       }
     }
 
     context("lint rejects tokens that cannot compile") {
       test("fwidth is rejected") {
         val e = shouldThrow<MirageLintException> {
-          MirageCompiler.lint("half4 main() { return half4(fwidth(x)); }", OpticCategory.Composite)
+          MirageCompiler.lint("half4 main() { return half4(fwidth(x)); }", ShaderCategory.Composite)
         }
         e.message.shouldContain("fwidth")
       }
@@ -266,7 +266,7 @@ internal class MirageCompilerTest :
         val e = shouldThrow<MirageLintException> {
           MirageCompiler.lint(
             "#version 300 es\nhalf4 main() { return half4(0.0); }",
-            OpticCategory.Composite,
+            ShaderCategory.Composite,
           )
         }
         e.message.shouldContain("#version")
@@ -274,10 +274,10 @@ internal class MirageCompilerTest :
 
       test("dFdx / sk_FragCoord are rejected") {
         shouldThrow<MirageLintException> {
-          MirageCompiler.lint("float d = dFdx(x);", OpticCategory.Composite)
+          MirageCompiler.lint("float d = dFdx(x);", ShaderCategory.Composite)
         }
         shouldThrow<MirageLintException> {
-          MirageCompiler.lint("float2 c = sk_FragCoord.xy;", OpticCategory.Composite)
+          MirageCompiler.lint("float2 c = sk_FragCoord.xy;", ShaderCategory.Composite)
         }
       }
     }
@@ -287,7 +287,7 @@ internal class MirageCompilerTest :
         val e = shouldThrow<MirageLintException> {
           MirageCompiler.lint(
             "half4 kernel(float2 p, half4 src) { return content.eval(p); }",
-            OpticCategory.Colorize,
+            ShaderCategory.Colorize,
           )
         }
         e.message.shouldContain("Colorize")
@@ -298,7 +298,7 @@ internal class MirageCompilerTest :
         val e = shouldThrow<MirageLintException> {
           MirageCompiler.lint(
             "half4 main(float2 xy) { return content.eval(xy); }",
-            OpticCategory.Generate,
+            ShaderCategory.Generate,
           )
         }
         e.message.shouldContain("Generate")
@@ -308,7 +308,7 @@ internal class MirageCompilerTest :
         shouldNotThrowAny {
           MirageCompiler.lint(
             "half4 main(float2 xy) { return content.eval(xy); }",
-            OpticCategory.Composite,
+            ShaderCategory.Composite,
           )
         }
       }
@@ -316,17 +316,17 @@ internal class MirageCompilerTest :
 
     context("carried kernels compile through the pipeline") {
       // The specular/chromatic/foil bodies in MirageKernels.kt must pass lint (they use no forbidden
-      // tokens) so they can be wired as optics.
+      // tokens) so they can be wired as shaders.
       test("the ported Composite bodies pass lint") {
         shouldNotThrowAny {
-          MirageCompiler.lint(SPECULAR_KERNEL_AGSL, OpticCategory.Composite)
-          MirageCompiler.lint(CHROMATIC_KERNEL_AGSL, OpticCategory.Composite)
+          MirageCompiler.lint(SPECULAR_KERNEL_AGSL, ShaderCategory.Composite)
+          MirageCompiler.lint(CHROMATIC_KERNEL_AGSL, ShaderCategory.Composite)
         }
       }
 
       test("the ported Foil overlay body passes Generate lint (never samples content)") {
         shouldNotThrowAny {
-          MirageCompiler.lint(FOIL_KERNEL_AGSL, OpticCategory.Generate)
+          MirageCompiler.lint(FOIL_KERNEL_AGSL, ShaderCategory.Generate)
         }
       }
     }

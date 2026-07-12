@@ -138,14 +138,14 @@ internal class MirageBandScreenshotTest {
     CardEffect.Off -> Modifier
 
     is CardEffect.Duotone -> Modifier.mirage(sky = sky) {
-      filter(MirageOptics.Duotone) {
+      filter(MirageShaders.Duotone) {
         shadow(effect.shadow)
         highlight(effect.highlight)
         amount(effect.amount)
       }
     }
 
-    CardEffect.Chromatic -> Modifier.mirage(sky = sky) { filter(MirageOptics.Chromatic) }
+    CardEffect.Chromatic -> Modifier.mirage(sky = sky) { filter(MirageShaders.Chromatic) }
 
     // cpuBlurEnabled = true so API < 31 runs the real legacy CPU blur (not the scrim fallback); on
     // 31+ RenderEffect is used and this flag is a no-op, so every band captures an actual blur.
@@ -314,9 +314,9 @@ internal class MirageBandScreenshotTest {
 
   // --- Oracle + metrics -------------------------------------------------------------------------
 
-  /** [MirageOptics.Duotone]'s schema-default shadow/highlight/amount — the grade the card applies. */
+  /** [MirageShaders.Duotone]'s schema-default shadow/highlight/amount — the grade the card applies. */
   private fun duotoneDefaults(): Triple<ComposeColor, ComposeColor, Float> {
-    val params = MirageOptics.Duotone.paramsFactory()
+    val params = MirageShaders.Duotone.paramsFactory()
     return Triple(params.shadow.value, params.highlight.value, params.amount.value)
   }
 

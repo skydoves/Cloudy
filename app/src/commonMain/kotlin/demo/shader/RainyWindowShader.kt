@@ -15,17 +15,17 @@
  */
 @file:OptIn(com.skydoves.cloudy.ExperimentalMirage::class)
 
-package demo.optic
+package demo.shader
 
 import androidx.compose.ui.graphics.TileMode
-import com.skydoves.cloudy.CompositeOptic
+import com.skydoves.cloudy.CompositeShader
 import com.skydoves.cloudy.MirageParams
-import com.skydoves.cloudy.Optic
+import com.skydoves.cloudy.MirageShader
 import com.skydoves.cloudy.UFloat
 import com.skydoves.cloudy.UTexture
 
 /**
- * A demo-authored optic that proves the open mirage API: any consumer can author a composite kernel
+ * A demo-authored shader that proves the open mirage API: any consumer can author a composite kernel
  * plus a [MirageParams] subclass — here even a *texture-backed* one — and apply it through
  * `Modifier.mirage { }` with no library change. "Rain on a window": a light blur of the background
  * reads as misted glass, wiped sharp where droplets sit, and each droplet refracts a warped, brighter
@@ -49,10 +49,10 @@ import com.skydoves.cloudy.UTexture
  * channel encoding, the smoothstep erosion pulse, and the fog-wipe math below are all original and are
  * deliberately GPU-robust (see the robustness notes and the desktop `RainyWindowRasterTest`).
  */
-public object RainyWindowOptic {
+public object RainyWindowShader {
 
-  /** The rainy-window composite optic. Full-bleed by design — see the demo screen's framing note. */
-  public val RainyWindow: CompositeOptic<RainyWindowParams> = Optic.composite(
+  /** The rainy-window composite shader. Full-bleed by design — see the demo screen's framing note. */
+  public val RainyWindow: CompositeShader<RainyWindowParams> = MirageShader.composite(
     name = "rainyWindow",
     paramsFactory = ::RainyWindowParams,
     agsl = RAINY_WINDOW_KERNEL,
@@ -61,7 +61,7 @@ public object RainyWindowOptic {
 }
 
 /**
- * Uniforms for [RainyWindowOptic.RainyWindow]. The property names are the shader uniform identifiers.
+ * Uniforms for [RainyWindowShader.RainyWindow]. The property names are the shader uniform identifiers.
  *
  * @property dropletMap the baked, tileable droplet texture (REPEAT tile mode). The demo remembers one
  *   [DropletMap.generate] result and binds it every draw. It has no useful default (a null texture is

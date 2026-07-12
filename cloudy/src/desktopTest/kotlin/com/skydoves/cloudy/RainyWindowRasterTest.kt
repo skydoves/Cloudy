@@ -35,7 +35,7 @@ import kotlin.math.sqrt
 private const val RASTER = 96
 
 /**
- * Direct-skiko rasterization proof for the demo `RainyWindowOptic` kernel. The optic lives in the
+ * Direct-skiko rasterization proof for the demo `RainyWindowShader` kernel. The shader lives in the
  * `:app` module (a consumer of the open mirage API), so this test does not depend on it: it reads the
  * kernel source string out of the app file and compiles it through skiko's [RuntimeEffect] the same way
  * the skiko backend does at draw time. This makes the SKSL kernel the single source of truth while
@@ -103,8 +103,8 @@ private fun readRainyWindowKernel(): String {
     dir = dir.parentFile
   }
   requireNotNull(dir) { "could not locate the repo root (settings.gradle.kts) from user.dir" }
-  val source = File(dir, "app/src/commonMain/kotlin/demo/optic/RainyWindowOptic.kt")
-  require(source.exists()) { "RainyWindowOptic.kt not found at ${source.absolutePath}" }
+  val source = File(dir, "app/src/commonMain/kotlin/demo/shader/RainyWindowShader.kt")
+  require(source.exists()) { "RainyWindowShader.kt not found at ${source.absolutePath}" }
 
   val text = source.readText()
   val marker = "RAINY_WINDOW_KERNEL: String = \"\"\""
@@ -119,7 +119,7 @@ private fun readRainyWindowKernel(): String {
 /**
  * The uniform header the mirage compiler prepends before splicing a composite kernel (see
  * `MirageCompiler`): the standard `mirageResolution`/`mirageTime` uniforms, the schema uniforms this
- * optic declares (`dropletMap`, `rainAmount`, `blurRadius`, `dropScale`), and the `content` child
+ * shader declares (`dropletMap`, `rainAmount`, `blurRadius`, `dropScale`), and the `content` child
  * shader. The raw kernel body references these but does not declare them, so the test must prepend the
  * same header to compile. `dropletMap` is a `uniform shader` child the texture-backed kernel taps.
  */

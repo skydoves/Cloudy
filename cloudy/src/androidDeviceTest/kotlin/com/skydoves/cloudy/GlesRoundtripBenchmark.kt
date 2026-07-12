@@ -81,7 +81,7 @@ internal class GlesRoundtripBenchmark(private val case: Case) {
       // is negligible next to the GL roundtrip and the sink is what render() replays on the GL thread.
       val (sink, writes) = program.uniformSink()
       bindSchemaDefaults(sink, compiled)
-      if (case.optic === MirageOptics.Chromatic) frameLens(sink, case.width, case.height)
+      if (case.optic === MirageShaders.Chromatic) frameLens(sink, case.width, case.height)
       // render() is suspend (GlEnv pins it to its GL-thread dispatcher); runBlocking drives it from the
       // non-suspend measure block. Its cost is negligible next to the GL roundtrip this measures.
       runBlocking { program.render(content, writes) }
@@ -89,7 +89,7 @@ internal class GlesRoundtripBenchmark(private val case: Case) {
   }
 
   /** One case: which optic and at what content size (the size the readback copy scales with). */
-  data class Case(val name: String, val optic: Optic<*>, val width: Int, val height: Int) {
+  data class Case(val name: String, val optic: MirageShader<*>, val width: Int, val height: Int) {
     override fun toString(): String = name // Parameterized uses this for the test name.
   }
 
@@ -100,10 +100,10 @@ internal class GlesRoundtripBenchmark(private val case: Case) {
       // Duotone = simplest colorize kernel; Chromatic = lens kernel (does real per-pixel work). Card
       // ~= a floating backdrop card region; fullscreen ~= a full-bleed pane, where the bandwidth-bound
       // copy dominates.
-      Case("duotone_card_720x480", MirageOptics.Duotone, 720, 480),
-      Case("duotone_fullscreen_1080x2400", MirageOptics.Duotone, 1080, 2400),
-      Case("chromatic_card_720x480", MirageOptics.Chromatic, 720, 480),
-      Case("chromatic_fullscreen_1080x2400", MirageOptics.Chromatic, 1080, 2400),
+      Case("duotone_card_720x480", MirageShaders.Duotone, 720, 480),
+      Case("duotone_fullscreen_1080x2400", MirageShaders.Duotone, 1080, 2400),
+      Case("chromatic_card_720x480", MirageShaders.Chromatic, 720, 480),
+      Case("chromatic_fullscreen_1080x2400", MirageShaders.Chromatic, 1080, 2400),
     )
   }
 }

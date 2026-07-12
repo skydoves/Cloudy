@@ -16,7 +16,6 @@
 package com.skydoves.cloudy.internal
 
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.GraphicsContext
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.layer.GraphicsLayer
@@ -27,17 +26,20 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlin.coroutines.Continuation
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
+import kotlin.coroutines.startCoroutine
 
 /**
  * Samples the sky's captured [GraphicsLayer] through a rasterized snapshot instead of a live
- * `drawLayer(sky.backgroundLayer)`. Shared by every backdrop node that samples the sky — the cloudy blur
- * backdrop and the mirage backdrop.
+ * `drawLayer(sky.backgroundLayer)`, for the **mirage backdrop** (`Modifier.mirage(sky) { … }`).
  *
  * ## Why a snapshot (the captureToImage / PixelCopy crash)
  * The backdrop node is a DESCENDANT of the sky recorder, so `sky.backgroundLayer`'s displaylist embeds
  * this node's own RenderNode by pointer. If this node's draw records `drawLayer(sky.backgroundLayer)` —
- * directly for the radius-0/scrim/raw paths, or into an effect layer for the RenderEffect/blur path —
- * that closes a cyclic RenderNode graph: `skyLayer -> (this node's layer) -> skyLayer`.
+ * directly for the raw pass-through, or into a filter layer under a content-bound `RenderEffect` — that
+ * closes a cyclic RenderNode graph: `skyLayer -> (this node's layer) -> skyLayer`.
  *
  * On-screen HWUI walks `prepareTreeImpl` damage-scoped and survives the cycle, but `captureToImage()` /
  * `PixelCopy` forces a full-tree re-walk with no cycle guard, overflowing the RenderThread stack
@@ -47,20 +49,20 @@ import kotlinx.coroutines.launch
  * window.
  *
  * Drawing a **bitmap** (`drawImage`) instead of `drawLayer` embeds pixels, not a RenderNode — no
- * back-edge, no cycle. This is structurally what the API < 31 CPU path (`drawWithBitmap`, already
- * `toImageBitmap()`-based) does, which is why it never crashed. This machine gives the API 31+ path the
- * same acyclic shape while keeping the GPU blur: it async-captures the sky layer to an [ImageBitmap]
- * (coalesced on the sky's `contentVersion`, the same key `drawWithBitmap` uses), then draws the sampled
- * sub-region of that bitmap wherever the caller used to `drawLayer` the live sky layer.
+ * back-edge, no cycle. This is the same acyclic shape the cloudy blur backdrop uses (a snapshot bitmap):
+ * it async-captures the sky layer to an [ImageBitmap] (coalesced on the sky's `contentVersion`), then
+ * draws the sampled sub-region of that bitmap wherever the caller used to `drawLayer` the live sky layer.
  *
  * ## Cost
- * - Idle (content static): the cached bitmap is reused; each frame just `drawImage`s the sampled region
- *   — cheaper than re-walking the sky subtree through a live `drawLayer`.
- * - Content changing (scroll / animation): one `toImageBitmap()` readback per content version, the same
- *   cadence and cost `drawWithBitmap` already pays. One frame of staleness on a content change
- *   (invisible for a backdrop blur), never a stale draw while idle.
+ * - Idle (content static): the cached bitmap is reused; each frame just `drawImage`s the sampled region.
+ * - Content changing (scroll / animation): the capture is driven synchronously within [requestIfStale]
+ *   ([captureInline]) whenever the platform's `toImageBitmap()` doesn't actually suspend (true on Android
+ *   API 28+, whose impl is a synchronous `Picture` rasterize — see [BackdropClearBlurrer] for the
+ *   equivalent blur-backdrop machinery and why an async `launch` alone left the shown snapshot lagging
+ *   the content during a fast scroll). If the platform's snapshot impl genuinely suspends, [captureInline]
+ *   returns without adopting a bitmap and the coalesced async path below picks it up next frame.
  */
-internal class BackdropClearBlurMachine {
+internal class MirageBackdropSnapshot {
 
   private var snapshot: ImageBitmap? = null
   private var cachedContentVersion: Long = -1L
@@ -71,18 +73,52 @@ internal class BackdropClearBlurMachine {
   private var queuedVersion: Long = -1L
 
   /**
-   * Refreshes the cached snapshot when [contentVersion] changed (async, coalesced); the previously
-   * cached bitmap keeps being returned via [current] until the new capture lands.
+   * Refreshes the cached snapshot when [contentVersion] changed. Tries a synchronous inline capture
+   * first ([captureInline]); if the platform's `toImageBitmap()` actually suspends, falls back to the
+   * coalesced async path, and the previously cached bitmap keeps being drawn via [drawSampledRegion]
+   * until a capture lands.
    */
   fun requestIfStale(
-    graphicsContext: GraphicsContext,
     coroutineScope: CoroutineScope,
     layer: GraphicsLayer,
     contentVersion: Long,
     invalidate: () -> Unit,
   ) {
     if (contentVersion == cachedContentVersion) return
-    requestCapture(coroutineScope, layer, contentVersion, invalidate)
+    if (!captureInline(layer, contentVersion)) {
+      requestCapture(coroutineScope, layer, contentVersion, invalidate)
+    }
+  }
+
+  // Runs the `suspend fun toImageBitmap()` to completion synchronously when the platform's impl doesn't
+  // actually suspend (Android API 28+'s LayerSnapshotV28 never does — see BackdropClearBlurrer's KDoc
+  // for the full mechanism). Returns true once a bitmap is adopted this frame; false if the impl
+  // suspended, letting the caller fall back to the coalesced async path.
+  private fun captureInline(layer: GraphicsLayer, contentVersion: Long): Boolean {
+    val bitmap = try {
+      layer.captureImageBitmapOrNull()
+    } catch (e: CancellationException) {
+      throw e
+    } catch (e: Exception) {
+      // Leave the previous snapshot in place; the cold-start "no snapshot" case draws the node's own
+      // content instead (the node handles a null backdrop layer before reaching here).
+      return true
+    } ?: return false
+    snapshot = bitmap
+    cachedContentVersion = contentVersion
+    return true
+  }
+
+  private fun GraphicsLayer.captureImageBitmapOrNull(): ImageBitmap? {
+    var result: Result<ImageBitmap>? = null
+    val continuation = object : Continuation<ImageBitmap> {
+      override val context: CoroutineContext = EmptyCoroutineContext
+      override fun resumeWith(outcome: Result<ImageBitmap>) {
+        result = outcome
+      }
+    }
+    (suspend { toImageBitmap() }).startCoroutine(continuation)
+    return result?.getOrThrow()
   }
 
   private fun requestCapture(
@@ -106,8 +142,8 @@ internal class BackdropClearBlurMachine {
       } catch (e: CancellationException) {
         throw e
       } catch (e: Exception) {
-        // Leave the previous snapshot in place; the caller's normal Error state handling elsewhere
-        // covers the "no snapshot at all" cold-start case.
+        // Leave the previous snapshot in place; the cold-start "no snapshot" case draws the node's own
+        // content instead (the node handles a null backdrop layer before reaching here).
         invalidate()
       } finally {
         isCapturing = false
@@ -120,6 +156,9 @@ internal class BackdropClearBlurMachine {
       }
     }
   }
+
+  /** True once a snapshot has been captured at least once (so the caller can fall back before then). */
+  fun hasSnapshot(): Boolean = snapshot != null
 
   /** Samples [offset]..[offset]+size out of the cached snapshot into the current draw target. */
   fun DrawScope.drawSampledRegion(offset: Offset, size: IntSize) {

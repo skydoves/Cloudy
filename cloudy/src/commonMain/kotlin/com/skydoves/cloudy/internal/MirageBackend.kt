@@ -36,7 +36,7 @@ internal expect class MirageBackendProgram
  * Compiles [compiled]'s generated dialect source into a platform program.
  *
  * Returns `null` when the platform cannot support it right now (Android API < 33 — `RuntimeShader`
- * is unavailable), in which case the whole optic is a draw-time no-op. On a supporting platform a
+ * is unavailable), in which case the whole shader is a draw-time no-op. On a supporting platform a
  * source that fails to compile throws (surfacing the shader error) rather than returning `null`.
  */
 internal expect fun createBackendProgram(compiled: CompiledProgram): MirageBackendProgram?
@@ -145,7 +145,7 @@ internal expect fun MirageBackendProgram.asContentRenderEffect(): RenderEffect
 
 /**
  * Builds a [ShaderBrush] over this program with its current uniforms, for the **overlay** application
- * path (a [Generate][OpticCategory.Generate] optic drawn over the content). The node fills the draw
+ * path (a [Generate][ShaderCategory.Generate] shader drawn over the content). The node fills the draw
  * area with it under a caller-chosen blend mode. Call *after* the per-draw [uniformSink] writes:
  * skiko bakes uniforms at shader-build time, so this must observe the latest values.
  */

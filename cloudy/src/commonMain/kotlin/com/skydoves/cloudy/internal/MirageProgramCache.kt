@@ -18,7 +18,7 @@
 package com.skydoves.cloudy.internal
 
 import com.skydoves.cloudy.ExperimentalMirage
-import com.skydoves.cloudy.Optic
+import com.skydoves.cloudy.MirageShader
 import kotlin.concurrent.atomics.AtomicReference
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
@@ -28,23 +28,23 @@ import kotlin.concurrent.atomics.ExperimentalAtomicApi
  * GPU program the [UniformSink] writes into.
  *
  * The [backend] is **shared per source** (see [MirageProgramCache]); [compiled] is **per call**. Two
- * optics that lower to the same kernel share one GPU program but each keeps its own [compiled], so its
+ * shaders that lower to the same kernel share one GPU program but each keeps its own [compiled], so its
  * own [UniformSchema] defaults reach the binder. Only [CompiledProgram.schema]'s per-entry defaults
- * differ between such optics — the `uses*` flags, category, and source are functions of the source
+ * differ between such shaders — the `uses*` flags, category, and source are functions of the source
  * text and are therefore identical.
  */
 internal class CachedProgram(val compiled: CompiledProgram, val backend: MirageBackendProgram)
 
 /**
- * Process-wide **backend** cache, keyed by the **generated source text** (not by [Optic] identity) so
- * that two optics that lower to the same kernel — e.g. the chromatic preset family, or an optic
+ * Process-wide **backend** cache, keyed by the **generated source text** (not by [MirageShader] identity) so
+ * that two shaders that lower to the same kernel — e.g. the chromatic preset family, or a shader
  * hoisted into two different `val`s — share one GPU program instead of compiling twice.
  *
- * ## What is shared vs per-optic
+ * ## What is shared vs per-shader
  * Only the compiled GPU program (the expensive artifact) is shared. Each [obtain] returns a fresh
  * [CachedProgram] wrapping **this call's** [CompiledProgram], so the caller always sees its own
- * optic's [UniformSchema] defaults. Sharing the compiled schema instead would alias every same-source
- * optic to whichever compiled first, collapsing all thin-film looks to a single default set.
+ * shader's [UniformSchema] defaults. Sharing the compiled schema instead would alias every same-source
+ * shader to whichever compiled first, collapsing all thin-film looks to a single default set.
  *
  * ## Ownership
  * This is a process-wide singleton, deliberately **not** owned by any node's attach/detach lifecycle.
@@ -65,15 +65,15 @@ internal object MirageProgramCache {
   private val backends = AtomicReference<Map<String, MirageBackendProgram>>(emptyMap())
 
   /**
-   * Returns the program for [optic] under [dialect], compiling and caching the backend on first use.
+   * Returns the program for [shader] under [dialect], compiling and caching the backend on first use.
    * Returns `null` when the platform cannot build the program right now (Android API < 33), which the
    * caller treats as a draw-time no-op.
    *
-   * The returned [CachedProgram] carries **this call's** [CompiledProgram] (so this optic's schema
+   * The returned [CachedProgram] carries **this call's** [CompiledProgram] (so this shader's schema
    * defaults reach the binder) over the source-shared backend.
    */
-  fun obtain(optic: Optic<*>, dialect: Dialect): CachedProgram? {
-    val compiled = MirageCompiler.compile(optic, dialect)
+  fun obtain(shader: MirageShader<*>, dialect: Dialect): CachedProgram? {
+    val compiled = MirageCompiler.compile(shader, dialect)
     val backend = obtainBackend(compiled) ?: return null
     return CachedProgram(compiled, backend)
   }
@@ -105,20 +105,28 @@ internal object MirageProgramCache {
 
 /**
  * True when at least one of [stages]'s programs renders **on a self-lit content node** under [dialect]
- * — i.e. the plan produces some output there. False when every stage is unsupported (e.g. a lens optic
- * on Android below API 33, or any optic on the API 29-32 GLES band, which is backdrop-only), which is
- * when a [com.skydoves.cloudy.MirageFallback.Content] should stand in.
+ * — i.e. the pipeline produces some output there. False when every stage is unsupported (e.g. a lens
+ * optic on Android below API 33, or any optic on the API 29-32 GLES band, which is backdrop-only), which
+ * is when a [com.skydoves.cloudy.MirageFallback.Content] should stand in.
  *
  * A [FilterApplication.Blit] stage (the async GLES path) does **not** count as rendering here: only the
  * backdrop node drives that async capture (it has the `Sky.contentVersion` cache key a self-lit node
- * lacks — see [MirageGlesBackdrop]). So a self-lit GLES plan renders nothing and its fallback shows.
+ * lacks — see [MirageGlesBackdrop]). So a self-lit GLES pipeline renders nothing and its fallback shows.
  *
  * Uses the same [MirageProgramCache.obtain] + [filterApplication] the self-lit draw loop uses, so
  * "renders" here means exactly what that node will draw. Warming the cache during composition is cheap.
  */
 @OptIn(ExperimentalMirage::class)
-internal fun planRenders(stages: List<Stage>, dialect: Dialect): Boolean =
-  stages.any { rendersInPlace(MirageProgramCache.obtain(it.optic, dialect)) }
+internal fun pipelineRenders(stages: List<Stage>, dialect: Dialect): Boolean = stages.any { stage ->
+  // Only program stages have a shader to compile; a blur PlatformFilter renders on its own path and
+  // is never gated by a MirageFallback, so it does not participate in this check.
+  val shader = when (stage) {
+    is Stage.ProgramFilter -> stage.shader
+    is Stage.Overlay -> stage.shader
+    is Stage.PlatformFilter -> return@any false
+  }
+  rendersInPlace(MirageProgramCache.obtain(shader, dialect))
+}
 
 /**
  * Whether [cached]'s program renders on a self-lit content node (drawn in place synchronously). Null

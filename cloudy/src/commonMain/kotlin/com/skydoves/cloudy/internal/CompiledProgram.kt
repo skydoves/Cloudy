@@ -16,10 +16,10 @@
 package com.skydoves.cloudy.internal
 
 /**
- * The three real codegen categories a mirage optic compiles into. Each fixes the kernel signature
+ * The three real codegen categories a mirage shader compiles into. Each fixes the kernel signature
  * the front-end wraps and how the content input is wired, so the compiler can branch exhaustively.
  */
-internal enum class OpticCategory {
+internal enum class ShaderCategory {
   Colorize,
   Composite,
   Generate,
@@ -55,7 +55,7 @@ internal class UniformEntry(
 )
 
 /**
- * The ordered uniform declarations of an optic's params, captured from `by uniform(...)` delegate
+ * The ordered uniform declarations of a shader's params, captured from `by uniform(...)` delegate
  * registration. Registration order equals declaration order equals uniform binding order, so the
  * list index is the deterministic bind slot.
  */
@@ -76,7 +76,7 @@ internal class UniformSchema(val entries: List<UniformEntry>) {
  * @property usesTime Whether the kernel references the mirage clock (drives redraw scheduling).
  * @property usesDensity Whether the kernel references the density standard uniform.
  * @property category The codegen category this program was emitted from.
- * @property isRaw Whether the optic is a raw escape-hatch ([com.skydoves.cloudy.Optic.raw]) whose
+ * @property isRaw Whether the shader is a raw escape-hatch ([com.skydoves.cloudy.MirageShader.raw]) whose
  *   source is authored verbatim. The GLSL ES backend cannot mechanically translate a raw AGSL body
  *   (it has no known assembled structure), so a raw optic is declined on that band.
  */
@@ -87,6 +87,6 @@ internal class CompiledProgram(
   val usesResolution: Boolean,
   val usesTime: Boolean,
   val usesDensity: Boolean,
-  val category: OpticCategory,
+  val category: ShaderCategory,
   val isRaw: Boolean = false,
 )

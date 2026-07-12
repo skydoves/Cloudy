@@ -26,7 +26,7 @@ import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
 
 /**
- * The uniform schema of a mirage optic, declared by subclassing and writing one
+ * The uniform schema of a mirage shader, declared by subclassing and writing one
  * `val <name> by uniform(...)` property per uniform.
  *
  * Each delegated property does two things at once: it names a shader uniform (the property name is

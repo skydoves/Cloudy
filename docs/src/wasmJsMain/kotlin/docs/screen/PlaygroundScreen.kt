@@ -65,7 +65,7 @@ import androidx.compose.ui.unit.dp
 import com.skydoves.cloudy.CloudyProgressive
 import com.skydoves.cloudy.ExperimentalMirage
 import com.skydoves.cloudy.LiquidGlassDefaults
-import com.skydoves.cloudy.MirageOptics
+import com.skydoves.cloudy.MirageShaders
 import com.skydoves.cloudy.cloudy
 import com.skydoves.cloudy.liquidGlass
 import com.skydoves.cloudy.mirage
@@ -547,7 +547,7 @@ private fun MirageDemo() {
       Spacer(modifier = Modifier.height(8.dp))
 
       Text(
-        text = "Drag on the preview to move the optic's lens. Experimental — behind " +
+        text = "Drag on the preview to move the shader's lens. Experimental — behind " +
           "@OptIn(ExperimentalMirage::class). Foil (an overlay) and Duotone (no lens) " +
           "aren't lens-driven presets, so they're left out of this drag demo — see the " +
           "Mirage reference for the full gallery.",
@@ -626,39 +626,39 @@ private fun MirageDemo() {
             .mirage(enabled = enabled) {
               // Each preset carries its own MirageLensParams subclass, so the filter() call
               // (and its type-inferred params block) must be repeated per branch rather than
-              // hoisted behind a shared `val optic = when (...) { ... }`.
+              // hoisted behind a shared `val shader = when (...) { ... }`.
               when (preset) {
-                MiragePresetOption.Specular -> filter(MirageOptics.Specular) {
+                MiragePresetOption.Specular -> filter(MirageShaders.Specular) {
                   lensCenter(lensCenter)
                   lensSize(Size(180f, 180f))
                   cornerRadius(40f)
                 }
 
-                MiragePresetOption.Chromatic -> filter(MirageOptics.Chromatic) {
+                MiragePresetOption.Chromatic -> filter(MirageShaders.Chromatic) {
                   lensCenter(lensCenter)
                   lensSize(Size(180f, 180f))
                   cornerRadius(40f)
                 }
 
-                MiragePresetOption.OilSlick -> filter(MirageOptics.OilSlick) {
+                MiragePresetOption.OilSlick -> filter(MirageShaders.OilSlick) {
                   lensCenter(lensCenter)
                   lensSize(Size(180f, 180f))
                   cornerRadius(40f)
                 }
 
-                MiragePresetOption.SoapBubble -> filter(MirageOptics.SoapBubble) {
+                MiragePresetOption.SoapBubble -> filter(MirageShaders.SoapBubble) {
                   lensCenter(lensCenter)
                   lensSize(Size(180f, 180f))
                   cornerRadius(40f)
                 }
 
-                MiragePresetOption.MetallicFoil -> filter(MirageOptics.MetallicFoil) {
+                MiragePresetOption.MetallicFoil -> filter(MirageShaders.MetallicFoil) {
                   lensCenter(lensCenter)
                   lensSize(Size(180f, 180f))
                   cornerRadius(40f)
                 }
 
-                MiragePresetOption.Pearl -> filter(MirageOptics.Pearl) {
+                MiragePresetOption.Pearl -> filter(MirageShaders.Pearl) {
                   lensCenter(lensCenter)
                   lensSize(Size(180f, 180f))
                   cornerRadius(40f)
@@ -698,7 +698,7 @@ private fun MirageDemo() {
         } else {
           append("  modifier = Modifier.mirage(enabled = false) {\n")
         }
-        append("    filter(MirageOptics.${preset.displayName}) {\n")
+        append("    filter(MirageShaders.${preset.displayName}) {\n")
         append("      lensCenter(lensCenter)\n")
         append("      lensSize(Size(180f, 180f))\n")
         append("      cornerRadius(40f)\n")

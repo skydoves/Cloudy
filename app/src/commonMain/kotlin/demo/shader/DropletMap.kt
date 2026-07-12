@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package demo.optic
+package demo.shader
 
 import androidx.compose.ui.graphics.ImageBitmap
 import kotlin.math.sqrt
@@ -22,7 +22,7 @@ import kotlin.math.sqrt
  * Offline generator for the rainy-window droplet map: a single tileable RGBA texture that bakes every
  * droplet's shape, so the shader only animates and refracts (it never hashes or shapes a drop at draw
  * time). This is the texture-map half of the well-documented "static droplet maps + cheap animating
- * shader" architecture; see [RainyWindowOptic] for the technique attribution and the clean-room note.
+ * shader" architecture; see [RainyWindowShader] for the technique attribution and the clean-room note.
  *
  * ### Channel encoding (ARGB8888, non-premultiplied sRGB — the [ImageBitmap.readPixels] contract)
  * Each pixel packs four independent fields the kernel decodes:

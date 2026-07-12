@@ -60,7 +60,7 @@ public annotation class ExperimentalLiquidGlassMotion
 @Deprecated(
   "The open shader-effect mechanism supersedes the loose-float tuning. " +
     "Use Modifier.liquidGlass(...) for refraction and " +
-    "Modifier.mirage { filter(MirageOptics.Specular) } for the full specular glint instead.",
+    "Modifier.mirage { filter(MirageShaders.Specular) } for the full specular glint instead.",
   level = DeprecationLevel.WARNING,
 )
 @ExperimentalLiquidGlassMotion

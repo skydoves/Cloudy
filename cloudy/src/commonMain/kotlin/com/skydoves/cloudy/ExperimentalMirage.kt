@@ -16,11 +16,11 @@
 package com.skydoves.cloudy
 
 /**
- * Marks the open shader-effect API ([Modifier.mirage], [Optic], [MirageParams], [MirageScope],
- * [MirageOptics]) as experimental.
+ * Marks the open shader-effect API ([Modifier.mirage], [MirageShader], [MirageParams], [MirageScope],
+ * [MirageShaders]) as experimental.
  *
- * This API lets callers author arbitrary AGSL / SKSL optics and bind their typed uniforms, so its
- * surface (the optic author contract, the plan scope, the modifier parameters) may still change.
+ * This API lets callers author arbitrary AGSL / SKSL shaders and bind their typed uniforms, so its
+ * surface (the shader author contract, the pipeline scope, the modifier parameters) may still change.
  * Opt in with `@OptIn(ExperimentalMirage::class)` or by propagating the annotation.
  *
  * The marker is self-annotated so binary-compatibility validation treats it as a non-public (opt-in)

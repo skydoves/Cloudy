@@ -56,8 +56,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.skydoves.cloudy.MirageOptics
 import com.skydoves.cloudy.MirageScope
+import com.skydoves.cloudy.MirageShaders
 import com.skydoves.cloudy.mirage
 import com.skydoves.cloudy.rememberSky
 import com.skydoves.cloudy.sky
@@ -69,11 +69,11 @@ import demo.theme.Dimens
  * Demonstrates `Modifier.mirage(sky = ...)`: a card grades the `Sky` backdrop behind it instead of its
  * own content — the backdrop counterpart of `Modifier.cloudy(sky = ...)`'s blur. The container carries
  * `Modifier.sky`, a high-contrast list scrolls behind the card, and the card samples that region and
- * runs the picked optic over it.
+ * runs the picked shader over it.
  *
- * The headline look is [MirageOptics.Duotone], a colorize "material" rendered from the backdrop; the
- * chips also switch to the content-sampling looks ([MirageOptics.Chromatic] / [MirageOptics.Specular])
- * to show the same overload carries any filter optic. The Enabled toggle bypasses the plan so the raw
+ * The headline look is [MirageShaders.Duotone], a colorize "material" rendered from the backdrop; the
+ * chips also switch to the content-sampling looks ([MirageShaders.Chromatic] / [MirageShaders.Specular])
+ * to show the same overload carries any filter shader. The Enabled toggle bypasses the pipeline so the raw
  * backdrop region shows through, making the grade easy to compare.
  *
  * Backdrop capture needs a real GPU (Android 13+ for the runtime shader), so this renders on a device
@@ -117,7 +117,7 @@ fun MirageSkyScreen(onBackClick: () -> Unit) {
             items(BACKDROP_ITEM_COUNT, key = { it }) { index -> BackdropRow(index) }
           }
 
-          // The card samples the backdrop region directly behind it and runs the picked optic over it.
+          // The card samples the backdrop region directly behind it and runs the picked shader over it.
           // A visible border marks the graded region against the raw backdrop around it; the label names
           // the recipe. Transparent fill so only the graded backdrop shows through.
           Box(
@@ -180,7 +180,7 @@ private const val BACKDROP_ITEM_COUNT = 40
 
 /**
  * Per-draw values the Chromatic pick feeds its uniforms, snapshotted outside the modifier lambda like
- * the tone controls. Defaults match [MirageOptics.Chromatic]'s own defaults, so the sliders start at
+ * the tone controls. Defaults match [MirageShaders.Chromatic]'s own defaults, so the sliders start at
  * the preset look. `poolFrac` scales the light pool off the lens' half-min dimension — on a wide card
  * the default 0.7 reads as a small patch, so the slider range goes well past it.
  */
@@ -191,7 +191,7 @@ private data class ChromaticControls(
 )
 
 /**
- * Per-draw values the Specular pick feeds its uniforms; defaults match [MirageOptics.Specular]'s
+ * Per-draw values the Specular pick feeds its uniforms; defaults match [MirageShaders.Specular]'s
  * GlowTuning schema. The glass model keeps refraction at the rim by design (a flat interior bends
  * nothing), so these drive the *face* terms: `rimMix` crossfades body pool (0) vs rim glint (1) and
  * `poolFrac` spreads the moving hotspot the same way the chromatic pool slider does.
@@ -203,14 +203,14 @@ private data class SpecularControls(
 )
 
 /**
- * A backdrop look the card can apply. Each keeps a typed optic so its `declare` sets that optic's own
+ * A backdrop look the card can apply. Each keeps a typed shader so its `declare` sets that shader's own
  * uniforms with no cast, mirroring the self-content [MirageScreen]'s pick model.
  */
 private sealed interface BackdropPick {
   val label: String
 
   /**
-   * Declares this pick's filter stage into the plan; [Duotone] reads the tone/amount controls,
+   * Declares this pick's filter stage into the pipeline; [Duotone] reads the tone/amount controls,
    * [Chromatic] the chromatic sliders, and [Specular] the specular sliders.
    */
   fun MirageScope.declare(
@@ -231,7 +231,7 @@ private sealed interface BackdropPick {
       chromatic: ChromaticControls,
       specular: SpecularControls,
     ) {
-      filter(MirageOptics.Duotone) {
+      filter(MirageShaders.Duotone) {
         shadow(shadow)
         highlight(highlight)
         amount(amount)
@@ -239,7 +239,7 @@ private sealed interface BackdropPick {
     }
   }
 
-  /** A content-sampling thin-film look, proving the overload carries any filter optic over a backdrop. */
+  /** A content-sampling thin-film look, proving the overload carries any filter shader over a backdrop. */
   data object Chromatic : BackdropPick {
     override val label = "Chromatic"
     override fun MirageScope.declare(
@@ -249,7 +249,7 @@ private sealed interface BackdropPick {
       chromatic: ChromaticControls,
       specular: SpecularControls,
     ) {
-      filter(MirageOptics.Chromatic) {
+      filter(MirageShaders.Chromatic) {
         chromaticIntensity(chromatic.intensity)
         chromaticModulate(chromatic.modulate)
         chromaticPoolFrac(chromatic.poolFrac)
@@ -267,7 +267,7 @@ private sealed interface BackdropPick {
       chromatic: ChromaticControls,
       specular: SpecularControls,
     ) {
-      filter(MirageOptics.Specular) {
+      filter(MirageShaders.Specular) {
         specStrength(specular.strength)
         specRimMix(specular.rimMix)
         specPoolFrac(specular.poolFrac)
@@ -318,7 +318,7 @@ private fun ControlsCard(
       )
       Spacer(modifier = Modifier.height(12.dp))
 
-      SectionLabel("Optic")
+      SectionLabel("MirageShader")
       FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         BACKDROP_PICKS.forEach { entry ->
           FilterChip(

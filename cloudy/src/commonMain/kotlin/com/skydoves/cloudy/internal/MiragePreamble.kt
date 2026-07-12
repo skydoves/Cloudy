@@ -19,12 +19,12 @@ package com.skydoves.cloudy.internal
  * Shared shader preamble text the [MirageCompiler] prepends before a codegen kernel body.
  *
  * The preamble owns the lens geometry/color helpers (`boxRoundedSDF`, `lensNormalDirection`,
- * `toBrightness`, `processColor`) and the shared edge consts a [Composite][OpticCategory.Composite]
- * or [Generate][OpticCategory.Generate] kernel may call. It declares **no** `main` and **no**
+ * `toBrightness`, `processColor`) and the shared edge consts a [Composite][ShaderCategory.Composite]
+ * or [Generate][ShaderCategory.Generate] kernel may call. It declares **no** `main` and **no**
  * standard uniforms — the compiler emits the standard-uniform declarations on demand (only the ones
  * a kernel actually references), and the kernel owns the single entry point.
  *
- * [Colorize][OpticCategory.Colorize] kernels are point-wise (`kernel(float2 p, half4 src)`) and do
+ * [Colorize][ShaderCategory.Colorize] kernels are point-wise (`kernel(float2 p, half4 src)`) and do
  * not read the lens field, so they receive no preamble at all — including it would only add dead
  * helpers.
  *

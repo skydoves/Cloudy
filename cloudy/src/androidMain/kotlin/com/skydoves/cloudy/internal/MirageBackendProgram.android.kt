@@ -48,7 +48,7 @@ internal actual class MirageBackendProgram(val backend: AndroidBackend)
  * - [Agsl] wraps a [RuntimeShader] (API 33+); the original content-bound `RenderEffect` path.
  * - [Gles] runs a translated GLSL ES program on an offscreen FBO (API 29-32); applied by blitting a
  *   read-back [ImageBitmap] rather than a `RenderEffect`.
- * - [ColorGrade] reproduces a Colorize optic with an affine grade (API 23-28); applied by blitting the
+ * - [ColorGrade] reproduces a Colorize shader with an affine grade (API 23-28); applied by blitting the
  *   source through a `ColorMatrixColorFilter` (RenderEffect is API 31+, unavailable in this band).
  */
 internal sealed interface AndroidBackend {
@@ -110,9 +110,9 @@ internal actual fun createBackendProgram(compiled: CompiledProgram): MirageBacke
     // only. Declined (-> null -> no-op): a raw optic (untranslatable), a time-driven optic (animation
     // is out of scope for this band), and a Generate overlay (overlays use a ShaderBrush, not the FBO
     // filter path). The backdrop node runs the result via an async capture, so a self-lit node still
-    // no-ops on this band (self-lit has no content-version cache key — see MirageBackdropNode).
+    // no-ops on this band (self-lit has no content-version cache key — see the backdrop path in EffectNode).
     MirageBackendBand.Gles -> when {
-      compiled.isRaw || compiled.usesTime || compiled.category == OpticCategory.Generate -> null
+      compiled.isRaw || compiled.usesTime || compiled.category == ShaderCategory.Generate -> null
 
       else -> {
         val glsl = MirageGlslEs.translate(compiled.source)
@@ -157,7 +157,7 @@ internal actual fun MirageBackendProgram.asContentRenderEffect(): RenderEffect =
  * - GLES : an FBO blit. The [FilterApplication.Blit] here is a **detection marker** (identity) — the
  *   real per-draw transform, with uniforms bound into a fresh list, comes from [prepareGlesBlit]. A
  *   self-lit content node has no async capture path for it, so it treats this marker as unsupported and
- *   no-ops (GLES is backdrop-only; see the node and planRenders).
+ *   no-ops (GLES is backdrop-only; see the node and pipelineRenders).
  */
 internal actual fun MirageBackendProgram.filterApplication(): FilterApplication =
   when (val b = backend) {

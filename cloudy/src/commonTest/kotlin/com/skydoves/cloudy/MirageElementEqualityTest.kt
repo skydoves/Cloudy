@@ -19,32 +19,33 @@ package com.skydoves.cloudy.internal
 
 import com.skydoves.cloudy.ExperimentalMirage
 import com.skydoves.cloudy.MirageClock
-import com.skydoves.cloudy.MirageOptics
 import com.skydoves.cloudy.MirageParams
+import com.skydoves.cloudy.MirageScope
+import com.skydoves.cloudy.MirageShaders
+import com.skydoves.cloudy.Sky
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 
 /**
- * [MirageElement] equality must include the per-stage params-block identity, so a recomposition that
+ * [EffectElement] equality must include the per-stage params-block identity, so a recomposition that
  * re-creates the block (e.g. to feed a freshly measured lens center or an animated uniform) produces
  * an *unequal* element and Compose calls `update()` to adopt it. If equality excluded the blocks, the
  * node would freeze on whatever block it first captured and never see a later-seeded lens center.
  *
  * This tests the equality contract directly (pure logic, no GraphicsContext); the "cheap update()
- * path when only blocks changed" lives in [MirageNode.update] and is covered by the desktop raster /
+ * path when only blocks changed" lives in [EffectNode.update] and is covered by the desktop raster /
  * cache tests plus the on-device screenshot specs.
  */
 internal class MirageElementEqualityTest :
   FunSpec({
 
-    fun element(block: (MirageParams.() -> Unit)?): MirageElement = MirageElement(
-      clock = MirageClock.Auto,
-      enabled = true,
-      plan = { filter(MirageOptics.OilSlick, block) },
-    )
+    fun element(block: (MirageParams.() -> Unit)?): EffectElement =
+      mirageElement(sky = null, MirageClock.Auto, enabled = true) {
+        filter(MirageShaders.OilSlick, block)
+      }
 
-    test("same optic but different block instances are unequal (update runs on recomposition)") {
-      // Two distinct lambda instances, as a recomposition would produce, over the same optic. The body
+    test("same shader but different block instances are unequal (update runs on recomposition)") {
+      // Two distinct lambda instances, as a recomposition would produce, over the same shader. The body
       // is irrelevant to equality — only the reference identity is compared.
       val first = element { }
       val second = element { }
@@ -61,7 +62,7 @@ internal class MirageElementEqualityTest :
       first.hashCode().shouldBe(second.hashCode())
     }
 
-    test("a null block equals another null block (params-less plans reconcile)") {
+    test("a null block equals another null block (params-less pipelines reconcile)") {
       val first = element(null)
       val second = element(null)
 
@@ -69,15 +70,29 @@ internal class MirageElementEqualityTest :
     }
 
     test("OilSlick and Pearl share one block instance and reconcile equal at the element level") {
-      // OilSlick and Pearl are .equals-equal optics (same kernel), so with a shared block instance the
+      // OilSlick and Pearl are .equals-equal shaders (same kernel), so with a shared block instance the
       // elements ARE equal here. The look difference between them lives in the schema defaults reached
       // at draw time, not in element identity.
       val block: MirageParams.() -> Unit = { }
-      val oil =
-        MirageElement(MirageClock.Auto, true, plan = { filter(MirageOptics.OilSlick, block) })
-      val pearl =
-        MirageElement(MirageClock.Auto, true, plan = { filter(MirageOptics.Pearl, block) })
+      val oil = mirageElement(sky = null, MirageClock.Auto, enabled = true) {
+        filter(MirageShaders.OilSlick, block)
+      }
+      val pearl = mirageElement(sky = null, MirageClock.Auto, enabled = true) {
+        filter(MirageShaders.Pearl, block)
+      }
 
       (oil == pearl).shouldBe(true)
+    }
+
+    test("a content-source element is never equal to a backdrop element of the same pipeline") {
+      // The merged node carries its stage-0 source in the equality key: a content-source pipeline (null
+      // sky) must reconcile distinctly from an otherwise-identical backdrop pipeline, or Compose would keep the
+      // wrong source. Backdrop carries a Sky, a content source carries none, so their keys differ.
+      val block: MirageParams.() -> Unit = { }
+      val pipeline: MirageScope.() -> Unit = { filter(MirageShaders.OilSlick, block) }
+      val contentSource = mirageElement(sky = null, MirageClock.Auto, enabled = true, pipeline)
+      val backdrop = mirageElement(Sky(), MirageClock.Auto, enabled = true, pipeline)
+
+      (contentSource == backdrop).shouldBe(false)
     }
   })

@@ -17,3 +17,7 @@ package com.skydoves.cloudy.internal
 
 /** Every skiko target (iOS / macOS / Desktop / Wasm) runs SKSL. */
 internal actual fun currentDialect(): Dialect = Dialect.Sksl
+
+/** Skia walks the layer graph without the Android #112 cycle overflow, so the mirage backdrop samples
+ *  the live sky layer directly — synchronous in the same draw pass, no snapshot needed. */
+internal actual fun backdropNeedsAcyclicSnapshot(): Boolean = false

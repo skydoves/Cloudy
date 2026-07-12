@@ -20,9 +20,8 @@ package com.skydoves.cloudy
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.node.ModifierNodeElement
-import com.skydoves.cloudy.internal.MirageBackdropElement
-import com.skydoves.cloudy.internal.MirageElement
-import com.skydoves.cloudy.internal.MiragePlanBuilder
+import com.skydoves.cloudy.internal.EffectElement
+import com.skydoves.cloudy.internal.MiragePipelineBuilder
 import com.skydoves.cloudy.internal.Stage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -32,26 +31,26 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 /**
- * Smoke tests for the plan-based [Modifier.mirage] and the node it attaches.
+ * Smoke tests for the pipeline-based [Modifier.mirage] and the node it attaches.
  *
  * These exercise the parts checkable without a live Compose tree: that the factory attaches a
- * [MirageElement] (the node instantiates), that the plan block builds the right ordered stage list,
- * and that the element's reconciliation key (clock / enabled / stages) behaves. The per-draw uniform
+ * [EffectElement] (the node instantiates), that the pipeline block builds the right ordered stage list,
+ * and that the element's reconciliation key (sky / clock / enabled / stages) behaves. The per-draw uniform
  * binding and the RenderEffect / ShaderBrush application run on a real graphics layer and are covered
  * by the platform screenshot/instrumented tests.
  */
 @RunWith(RobolectricTestRunner::class)
-internal class MiragePlanModifierTest {
+internal class MiragePipelineModifierTest {
 
-  /** A trivial colorize filter and a trivial generator overlay, enough to populate a plan. */
-  private val tintFilter: ColorizeOptic<MirageParams> = Optic.colorize(
+  /** A trivial colorize filter and a trivial generator overlay, enough to populate a pipeline. */
+  private val tintFilter: ColorizeShader<MirageParams> = MirageShader.colorize(
     name = "test-tint",
     paramsFactory = { EmptyParams() },
     agsl = "half4 kernel(float2 p, half4 src) { return src; }",
     sksl = "half4 kernel(float2 p, half4 src) { return src; }",
   )
 
-  private val glowOverlay: GenerateOptic<MirageParams> = Optic.generate(
+  private val glowOverlay: GeneratorShader<MirageParams> = MirageShader.generate(
     name = "test-glow",
     paramsFactory = { EmptyParams() },
     agsl = "half4 main(float2 xy) { return half4(1.0); }",
@@ -61,51 +60,51 @@ internal class MiragePlanModifierTest {
   private class EmptyParams : MirageParams()
 
   @Test
-  fun `mirage attaches a MirageElement`() {
+  fun `mirage attaches a EffectElement`() {
     val modifier = Modifier.mirage { filter(tintFilter) }
     assertTrue(
-      "Modifier.mirage should attach a MirageElement",
-      modifier.firstElementOrNull() is MirageElement,
+      "Modifier.mirage should attach a EffectElement",
+      modifier.firstElementOrNull() is EffectElement,
     )
   }
 
   @Test
-  fun `an empty plan still attaches a node`() {
+  fun `an empty pipeline still attaches a node`() {
     // enabled = false is a node-level no-op (the program cache stays warm), not a modifier
     // short-circuit, so the element is still present.
     val modifier = Modifier.mirage(enabled = false) {}
-    assertTrue(modifier.firstElementOrNull() is MirageElement)
+    assertTrue(modifier.firstElementOrNull() is EffectElement)
   }
 
   @Test
-  fun `plan builds stages in declared order`() {
-    val stages = MiragePlanBuilder().apply {
+  fun `pipeline builds stages in declared order`() {
+    val stages = MiragePipelineBuilder().apply {
       filter(tintFilter)
       overlay(glowOverlay, blendMode = BlendMode.Plus)
     }.stages
 
     assertEquals(2, stages.size)
-    assertTrue(stages[0] is Stage.Filter)
+    assertTrue(stages[0] is Stage.ProgramFilter)
     assertTrue(stages[1] is Stage.Overlay)
     assertEquals(BlendMode.Plus, (stages[1] as Stage.Overlay).blendMode)
-    assertEquals("test-tint", stages[0].optic.name)
+    assertEquals("test-tint", (stages[0] as Stage.ProgramFilter).shader.name)
   }
 
   @Test
   fun `each stage mints its own params instance`() {
-    val stages = MiragePlanBuilder().apply {
+    val stages = MiragePipelineBuilder().apply {
       filter(tintFilter)
       filter(tintFilter)
     }.stages
     assertNotEquals(
-      "Two filter stages of the same optic must not share one params instance",
-      stages[0].params,
-      stages[1].params,
+      "Two filter stages of the same shader must not share one params instance",
+      (stages[0] as Stage.ProgramFilter).params,
+      (stages[1] as Stage.ProgramFilter).params,
     )
   }
 
   @Test
-  fun `elements with the same plan and clock are equal`() {
+  fun `elements with the same pipeline and clock are equal`() {
     val a = elementOf(Modifier.mirage(clock = MirageClock.Auto) { filter(tintFilter) })
     val b = elementOf(Modifier.mirage(clock = MirageClock.Auto) { filter(tintFilter) })
     assertEquals(a, b)
@@ -127,17 +126,17 @@ internal class MiragePlanModifierTest {
   }
 
   @Test
-  fun `mirage with sky attaches a MirageBackdropElement`() {
+  fun `mirage with sky attaches a EffectElement`() {
     val sky = Sky()
     val modifier = Modifier.mirage(sky = sky) { filter(tintFilter) }
     assertTrue(
-      "Modifier.mirage(sky) should attach a MirageBackdropElement",
-      modifier.firstElementOrNull() is MirageBackdropElement,
+      "Modifier.mirage(sky) should attach a EffectElement",
+      modifier.firstElementOrNull() is EffectElement,
     )
   }
 
   @Test
-  fun `backdrop elements with the same sky and plan and shared block are equal`() {
+  fun `backdrop elements with the same sky and pipeline and shared block are equal`() {
     val sky = Sky()
     val block: MirageParams.() -> Unit = { }
     val a = backdropElementOf(Modifier.mirage(sky = sky) { filter(tintFilter, block) })
@@ -157,7 +156,7 @@ internal class MiragePlanModifierTest {
 
   @Test
   fun `re-creating the params block makes an otherwise-identical backdrop element unequal`() {
-    // Two distinct lambda instances (as a recomposition produces) over the same sky + optic: unequal,
+    // Two distinct lambda instances (as a recomposition produces) over the same sky + shader: unequal,
     // so Compose runs update() and the node adopts the fresh block (no frozen uniforms).
     val sky = Sky()
     val a = backdropElementOf(Modifier.mirage(sky = sky) { filter(tintFilter) { } })
@@ -166,23 +165,23 @@ internal class MiragePlanModifierTest {
   }
 
   @Test
-  fun `a shared params block keeps its identity through the backdrop plan`() {
-    // The plan captures the exact block instance the caller passed (=== preserved), so an unchanged
+  fun `a shared params block keeps its identity through the backdrop pipeline`() {
+    // The pipeline captures the exact block instance the caller passed (=== preserved), so an unchanged
     // block reconciles equal rather than forcing a needless update.
     val sky = Sky()
     val block: MirageParams.() -> Unit = { }
-    val stages = MiragePlanBuilder().apply { filter(tintFilter, block) }.stages
+    val stages = MiragePipelineBuilder().apply { filter(tintFilter, block) }.stages
     assertTrue(
-      "the plan must keep the caller's exact block instance",
-      stages[0].paramsBlock === block,
+      "the pipeline must keep the caller's exact block instance",
+      (stages[0] as Stage.ProgramFilter).paramsBlock === block,
     )
   }
 
-  private fun elementOf(modifier: Modifier): MirageElement =
-    modifier.firstElementOrNull() as MirageElement
+  private fun elementOf(modifier: Modifier): EffectElement =
+    modifier.firstElementOrNull() as EffectElement
 
-  private fun backdropElementOf(modifier: Modifier): MirageBackdropElement =
-    modifier.firstElementOrNull() as MirageBackdropElement
+  private fun backdropElementOf(modifier: Modifier): EffectElement =
+    modifier.firstElementOrNull() as EffectElement
 
   /** foldIn returns the first ModifierNodeElement in the chain (there is exactly one here). */
   private fun Modifier.firstElementOrNull(): ModifierNodeElement<*>? =

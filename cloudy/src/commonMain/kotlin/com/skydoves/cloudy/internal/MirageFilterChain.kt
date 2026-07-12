@@ -25,14 +25,14 @@ import androidx.compose.ui.graphics.layer.drawLayer
 import com.skydoves.cloudy.ExperimentalMirage
 
 /**
- * Owns and runs the layer-chaining draw for a mirage filter plan, decoupled from *what* stage 0
- * samples. A [MirageNode] records its own content into stage 0; a backdrop node records the Sky
- * region instead — the chaining, per-stage render-effect binding, and layer pooling are identical, so
- * they are extracted here rather than duplicated (Pure Fabrication: the algorithm is neither the
- * self-content node nor the backdrop node, it is the shared stage-chain machinery).
+ * Owns and runs the layer-chaining draw for a mirage filter pipeline, decoupled from *what* stage 0
+ * samples. A content-source [EffectNode] records its own content into stage 0; a backdrop one records the
+ * Sky region instead — the chaining, per-stage render-effect binding, and layer pooling are identical,
+ * so they are extracted here rather than duplicated (Pure Fabrication: the algorithm is neither source,
+ * it is the shared stage-chain machinery).
  *
  * It holds no clock, no Sky, and no params ownership: the caller supplies the already-resolved
- * [Stage.Filter] → [CachedProgram] pairs, the per-stage uniform [bind], and the stage-0 source. This
+ * [Stage.ProgramFilter] → [CachedProgram] pairs, the per-stage uniform [bind], and the stage-0 source. This
  * keeps the chain lifecycle-free — its only state is the reusable layer pool, released on detach.
  *
  * ## Draw model (no fusion)
@@ -67,8 +67,8 @@ internal class MirageFilterChain {
    */
   fun ContentDrawScope.draw(
     context: GraphicsContext,
-    applicable: List<Pair<Stage.Filter, CachedProgram>>,
-    bind: (Stage.Filter, CachedProgram) -> Unit,
+    applicable: List<Pair<Stage.ProgramFilter, CachedProgram>>,
+    bind: (Stage.ProgramFilter, CachedProgram) -> Unit,
     recordSource: DrawScope.() -> Unit,
   ) {
     if (applicable.isEmpty()) {
@@ -78,7 +78,7 @@ internal class MirageFilterChain {
     }
 
     if (filterLayers.size != applicable.size) {
-      // Layer count changed (a structural plan change). Release any stale layers before resizing so
+      // Layer count changed (a structural pipeline change). Release any stale layers before resizing so
       // the pool never leaks even if the node did not reset it first.
       release(context)
       filterLayers = arrayOfNulls(applicable.size)
@@ -101,7 +101,7 @@ internal class MirageFilterChain {
 
       bind(stage, cached)
       // Reset both per-draw layer applications first: the pool is reused across structural configs, so
-      // a leftover effect/filter from a prior plan must not carry over onto this stage.
+      // a leftover effect/filter from a prior pipeline must not carry over onto this stage.
       layer.renderEffect = null
       layer.colorFilter = null
       when (val application = cached.backend.filterApplication()) {

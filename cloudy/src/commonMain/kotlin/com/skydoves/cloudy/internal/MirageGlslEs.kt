@@ -36,7 +36,7 @@ package com.skydoves.cloudy.internal
  * content sampler's V is derived from that same flipped fragCoord, keeping content and geometry in one
  * consistent top-left frame. Get this wrong and the whole effect renders upside down.
  *
- * A raw optic ([FilterOptic.skipLint]) owns its full source and cannot be mechanically translated, so
+ * A raw shader ([FilterShader.skipLint]) owns its full source and cannot be mechanically translated, so
  * it is declined upstream (its GlslEs program is never built).
  */
 internal object MirageGlslEs {
