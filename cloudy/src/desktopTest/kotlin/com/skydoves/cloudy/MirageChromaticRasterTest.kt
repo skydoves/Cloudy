@@ -324,9 +324,11 @@ private fun toOldBoxBevel(source: String): String {
     .let { replaceInit(it, nCosName, "(1.0 - tBox)") }
 }
 
+private val TEMP_DECL_RE = Regex("""\b(_t\d+) = ([^;]+);""")
+
 /** The temp name declared as `<type> <name> = <init>;` whose `<init>` matches [initPattern]. */
 private fun tempWhoseInit(source: String, initPattern: Regex): String {
-  val decl = Regex("""\b(_t\d+) = ([^;]+);""").findAll(source)
+  val decl = TEMP_DECL_RE.findAll(source)
     .firstOrNull { initPattern.containsMatchIn(it.groupValues[2].trim()) }
     ?: error("no temp with init matching /$initPattern/ found — update toOldBoxBevel")
   return decl.groupValues[1]
