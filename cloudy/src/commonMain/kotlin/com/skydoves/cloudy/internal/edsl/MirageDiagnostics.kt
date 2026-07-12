@@ -40,11 +40,15 @@ public enum class MirageDiagnosticCode {
 
 /**
  * The single failure type for every mirage authoring/compile diagnostic. Carries a stable [code] so a
- * test or tool can branch on it, plus a human [message] and a [hint] on how to fix it. `internal`: the
- * [code] enum is the only part of the contract callers assert on, and it is public behind the marker.
+ * test or tool can branch on it, plus a human-readable [rawMessage] and a [hint] on how to fix it.
+ * [Throwable.message] is the formatted `"$rawMessage ($code) — $hint"` — not [rawMessage] alone — so a
+ * stack trace or `toString()` shows the full diagnostic, not just its first clause.
+ *
+ * `internal`: the [code] enum is the only part of the contract callers assert on, and it is public
+ * behind the marker.
  */
 internal class MirageDiagnosticException(
   val code: MirageDiagnosticCode,
-  override val message: String,
+  val rawMessage: String,
   val hint: String,
-) : IllegalArgumentException("$message ($code) — $hint")
+) : IllegalArgumentException("$rawMessage ($code) — $hint")
