@@ -34,10 +34,9 @@ private const val RASTER = 32
  * MVP proof that [MirageShaders.Duotone] — now traced through the eDSL (see [traceDuotone] /
  * [emitColorizeKernel]) instead of authored as two hand-written AGSL/SkSL strings — still compiles
  * through the real skiko [RuntimeEffect] and rasterizes byte-for-byte identically to a build of the
- * old hand-written kernel text. This is the design's raster-parity gate (mirage-edsl-design.md §9.2,
- * §11): a text diff would catch a wording change, but only a pixel diff proves the *emitted GLSL*
- * still means the same thing. [handRolledDuotoneShader] is a real color blend (not identity), so this
- * one byte-identity assertion also rules out a regression to a passthrough no-op.
+ * old hand-written kernel text. A text diff would catch a wording change, but only a pixel diff proves
+ * the *emitted GLSL* still means the same thing. [handRolledDuotoneShader] is a real color blend (not
+ * identity), so this one byte-identity assertion also rules out a regression to a passthrough no-op.
  */
 internal class MirageEdslDuotoneTest :
   FunSpec({

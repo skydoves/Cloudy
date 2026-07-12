@@ -42,7 +42,7 @@ public enum class ShaderType(internal val components: Int, internal val isHalf: 
 /**
  * A node in the traced expression tree for a Colorize/Generate/Composite kernel body. Plain classes,
  * not value classes: a polymorphic AST boxes on every use as the [Expression] supertype regardless, so
- * a value-class wrapper buys nothing here (see mirage-edsl-design.md §5.1).
+ * a value-class wrapper buys nothing here.
  *
  * Public (but `@ExperimentalMirage`) so the value types can carry it through a public `.e`; every
  * concrete node stays `internal`, so the only thing a caller can do with an [Expression] is hand it
@@ -102,9 +102,9 @@ internal data class Select(val condition: Expression, val ifTrue: Expression, va
 /**
  * A `content.eval(coord)` sample. A dedicated node rather than a [Call] because it is the one construct
  * whose spelling actually differs across dialects — AGSL/SkSL both write `.eval()`, but a future GLSL
- * ES 3.0 emitter would lower this to a `sampleContent()` helper over a `sampler2D`/`texture()` (see
- * mirage-edsl-design.md §7.2). AGSL/SkSL emit the same text either way, so [RuntimeEffectEmitter] does
- * not yet need to branch on it — the node exists so a GLSL emitter can, without touching callers.
+ * ES 3.0 emitter would lower this to a `sampleContent()` helper over a `sampler2D`/`texture()`. AGSL/
+ * SkSL emit the same text either way, so [RuntimeEffectEmitter] does not yet need to branch on it — the
+ * node exists so a GLSL emitter can, without touching callers.
  */
 internal data class SampleContent(val coord: Expression) : Expression {
   override val type: ShaderType get() = ShaderType.Half4
@@ -128,7 +128,7 @@ internal data class Reassign(val name: String, val value: Expression) : Statemen
 
 /**
  * `if (<condition>) return <value>;` — the one control-flow shape Foil's early-out needs. Not a general
- * if/else (see mirage-edsl-design.md §10, "not now": general control flow is P3+ if a kernel needs it).
+ * if/else; that is P3+ scope if a kernel needs it.
  */
 internal data class EarlyReturn(val condition: Expression, val value: Expression) : Statement
 

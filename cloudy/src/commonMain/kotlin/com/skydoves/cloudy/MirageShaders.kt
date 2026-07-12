@@ -335,8 +335,8 @@ public object MirageShaders {
    * A [ColorizeShader], so it fuses cheaply and needs no lens framing. The defaults are a warm
    * split-tone (deep indigo shadows, cream highlights).
    *
-   * Authored as an eDSL body lambda (a point-wise `kernel(float2 p, half4 src)`), emitted once for
-   * both dialects — see mirage-edsl-design.md for why one emitted text is valid for both.
+   * Authored as an eDSL body lambda (a point-wise `kernel(float2 p, half4 src)`), emitted once and
+   * reused for both dialects (AGSL and SkSL share this authoring surface).
    */
   public val Duotone: ColorizeShader<DuotoneParams> =
     MirageShader.colorize("duotone", ::DuotoneParams) { src ->

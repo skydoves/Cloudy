@@ -167,7 +167,7 @@ public operator fun Float1.unaryMinus(): Float1 = Float1(Unary("-", e, ShaderTyp
 
 // Float literals directly on the left/right of a scalar op, so a body can write `0.5f * along` and
 // `t * 0.25f` without a `float1(...)` wrapper. Distinct parameter types from the built-in
-// `Float.times(Float)`, so there is no ambiguity (mirage-edsl-design.md §4.2).
+// `Float.times(Float)`, so there is no ambiguity.
 @ExperimentalMirage
 public operator fun Float1.plus(o: Float): Float1 = Float1(Binary("+", e, Literal(o), ShaderType.Float1))
 

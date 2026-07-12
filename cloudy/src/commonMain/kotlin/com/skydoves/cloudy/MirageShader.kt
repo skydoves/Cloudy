@@ -136,9 +136,9 @@ public sealed class MirageShader<P : MirageParams> protected constructor(
      * Creates a [ColorizeShader] from a **traced body lambda** instead of two hand-written dialect
      * strings. The body runs once at construction with the shader's [MirageParams] as receiver (so it
      * reads uniform handles bare) and `src` as the sampled pixel; its final expression is the returned
-     * color. The trace is emitted to one AGSL/SkSL kernel text (valid for both — see
-     * mirage-edsl-design.md §7.1) and handed to the string [colorize] overload, so codegen, caching,
-     * and equality are unchanged.
+     * color. AGSL is a public-runtime-effect-restricted profile of SkSL, so the traced source compiles
+     * unchanged under either dialect; the emitter prints it once and hands it to the string [colorize]
+     * overload, so codegen, caching, and equality are unchanged.
      */
     public fun <P : MirageParams> colorize(
       name: String,

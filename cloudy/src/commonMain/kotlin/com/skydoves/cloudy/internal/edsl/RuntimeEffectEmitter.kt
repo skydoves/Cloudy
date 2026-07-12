@@ -18,8 +18,7 @@ package com.skydoves.cloudy.internal.edsl
 /**
  * Prints a [ShaderModule] to a Colorize `kernel(float2 p, half4 src)` body. One printer for both AGSL
  * and SkSL: AGSL is Skia's public (ES2-restricted) runtime-effect profile, so any expression this
- * emitter can produce compiles under both (see mirage-edsl-design.md §7.1) — there is no dialect
- * branch to make here.
+ * emitter can produce compiles under both — there is no dialect branch to make here.
  *
  * [uniformNames] maps a declaration slot to its uniform identifier, so [UniformRef] prints the same
  * name the hand-written kernels read (`shadow`, `highlight`, `amount`, ...).
