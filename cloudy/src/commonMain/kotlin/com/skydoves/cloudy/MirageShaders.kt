@@ -68,7 +68,7 @@ public object MirageShaders {
     val p = xy - lensCenter
     val sdf = boxRoundedSDF(p, halfDim, r)
 
-    guard(sdf gt smoothEdgePx) { sampleContent(xy) }
+    guard(sdf greaterThan smoothEdgePx) { sampleContent(xy) }
 
     var pixel by local(sampleContent(xy))
 
@@ -154,7 +154,7 @@ public object MirageShaders {
       val p = xy - lensCenter
       val sdf = boxRoundedSDF(p, halfDim, r)
 
-      guard(sdf gt smoothEdgePx) { sampleContent(xy) }
+      guard(sdf greaterThan smoothEdgePx) { sampleContent(xy) }
 
       val normal = lensNormalDirection(p, halfDim, r)
 
@@ -168,12 +168,12 @@ public object MirageShaders {
       val sampleXY = xy - normal * (bend * 0.25f * minDim)
 
       var pixel by local(sampleContent(sampleXY))
-      If(pixel.a le 0f) { pixel = sampleContent(xy) }
+      If(pixel.a lessThanEqual 0f) { pixel = sampleContent(xy) }
       pixel = half4(processColor(pixel.rgb, 1f, 1f, float4(0f, 0f, 0f, 0f)), pixel.a)
 
       val edge = float1(0.2f)
 
-      If((edge gt 0f) and (specStrength gt 0f)) {
+      If((edge greaterThan 0f) and (specStrength greaterThan 0f)) {
         val lightVec = normalize(iLight)
         val minHalf = min(halfDim.x, halfDim.y)
         val q = abs(p) / float2(max(halfDim.x, 1f), max(halfDim.y, 1f))
@@ -291,7 +291,7 @@ public object MirageShaders {
       val p = xy - lensCenter
       val sdf = boxRoundedSDF(p, halfDim, r)
 
-      guard(sdf gt smoothEdgePx) { half4(0f) }
+      guard(sdf greaterThan smoothEdgePx) { half4(0f) }
 
       val minHalf = min(halfDim.x, halfDim.y)
       val cLightVec = normalize(iLight)

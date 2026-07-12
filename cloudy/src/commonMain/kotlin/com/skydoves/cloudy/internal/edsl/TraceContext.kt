@@ -79,7 +79,13 @@ private val currentTrace = AtomicReference<TraceContext?>(null)
  */
 internal fun <P, R> trace(params: P, body: P.() -> R): Pair<R, TraceContext> {
   val ctx = TraceContext()
-  check(currentTrace.compareAndSet(null, ctx)) { "nested/concurrent mirage trace" }
+  if (!currentTrace.compareAndSet(null, ctx)) {
+    throw MirageDiagnosticException(
+      MirageDiagnosticCode.NESTED_TRACE,
+      "a mirage shader body started while another was still tracing",
+      "build one shader at a time; do not construct a MirageShader from inside another's body lambda",
+    )
+  }
   try {
     return params.body() to ctx
   } finally {
@@ -89,7 +95,11 @@ internal fun <P, R> trace(params: P, body: P.() -> R): Pair<R, TraceContext> {
 
 /** The open trace, or a loud failure when an intrinsic that records a statement runs outside a body. */
 internal fun activeTrace(): TraceContext =
-  currentTrace.load() ?: error("mirage intrinsic used outside a shader body")
+  currentTrace.load() ?: throw MirageDiagnosticException(
+    MirageDiagnosticCode.INTRINSIC_OUTSIDE_BODY,
+    "a mirage intrinsic was used outside a shader body",
+    "call it only inside a colorize/composite/generate body lambda",
+  )
 
 /**
  * `mirageTime` — the standard, name-gated animation clock (MirageCompiler.kt's STD_TIME). A top-level

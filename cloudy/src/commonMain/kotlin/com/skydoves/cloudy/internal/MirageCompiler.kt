@@ -22,13 +22,11 @@ import com.skydoves.cloudy.FilterShader
 import com.skydoves.cloudy.GeneratorShader
 import com.skydoves.cloudy.MirageParams
 import com.skydoves.cloudy.MirageShader
+import com.skydoves.cloudy.internal.edsl.MirageDiagnosticCode
+import com.skydoves.cloudy.internal.edsl.MirageDiagnosticException
 
-/**
- * Thrown when [MirageCompiler.lint] finds a kernel token that cannot be compiled or contradicts the
- * kernel's [ShaderCategory]. Carries the offending token and the reason so the failure points at the
- * exact source problem.
- */
-internal class MirageLintException(message: String) : IllegalArgumentException(message)
+// ponytail: 1-release shim so any lingering reference to the old lint type keeps compiling; drop next release.
+internal typealias MirageLintException = MirageDiagnosticException
 
 /**
  * Lowers an authored [MirageShader] into a per-dialect [CompiledProgram]. Pure and side-effect-free: it
@@ -136,26 +134,29 @@ internal object MirageCompiler {
   private fun lintCode(code: String, category: ShaderCategory) {
     for (token in FORBIDDEN_TOKENS) {
       if (code.contains(token)) {
-        throw MirageLintException(
-          "mirage kernel uses forbidden token '$token': it does not compile as a runtime shader " +
-            "(no derivatives / preprocessor / raw frag-coord are available).",
+        throw MirageDiagnosticException(
+          MirageDiagnosticCode.FORBIDDEN_TOKEN,
+          "mirage kernel uses forbidden token '$token': it does not compile as a runtime shader",
+          "no derivatives (fwidth/dFdx/dFdy), preprocessor (#), or raw frag-coord (sk_FragCoord) are available",
         )
       }
     }
     when (category) {
       ShaderCategory.Colorize ->
         if (code.contains(CONTENT_TOKEN)) {
-          throw MirageLintException(
-            "Colorize kernel references '$CONTENT_TOKEN': a point-wise kernel must read content " +
-              "only through its `src` argument. Use composite() to sample content.",
+          throw MirageDiagnosticException(
+            MirageDiagnosticCode.CONTENT_IN_COLORIZE,
+            "Colorize kernel references '$CONTENT_TOKEN': a point-wise kernel must read content only through its `src` argument",
+            "use composite() to sample content",
           )
         }
 
       ShaderCategory.Generate ->
         if (code.contains(CONTENT_TOKEN)) {
-          throw MirageLintException(
-            "Generate overlay kernel references '$CONTENT_TOKEN': an overlay has no content " +
-              "sampler. Use composite() to sample content.",
+          throw MirageDiagnosticException(
+            MirageDiagnosticCode.CONTENT_IN_COLORIZE,
+            "Generate overlay kernel references '$CONTENT_TOKEN': an overlay has no content sampler",
+            "use composite() to sample content",
           )
         }
 

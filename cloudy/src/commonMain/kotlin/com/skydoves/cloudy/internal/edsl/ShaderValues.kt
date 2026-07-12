@@ -17,6 +17,9 @@
 
 package com.skydoves.cloudy.internal.edsl
 
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import com.skydoves.cloudy.ExperimentalMirage
 
 /**
@@ -128,15 +131,20 @@ internal class Half3Node(override val e: Expression) : Half3
 internal class Half4Node(override val e: Expression) : Half4
 internal class UBoolNode(override val e: Expression) : UBool
 
-/** The comparisons Foil/Specular's guards need (`sdf > SMOOTH_EDGE_PX`, `pixel.a <= 0.0`). */
+/**
+ * The comparisons Foil/Specular's guards need (`sdf > SMOOTH_EDGE_PX`, `pixel.a <= 0.0`). The names
+ * reuse GLSL's vector relational builtins (`greaterThan`/`lessThanEqual`/...), but note the semantics
+ * differ: our infix compares two **scalars** and yields a [UBool], where GLSL's builtins compare vector
+ * components element-wise and yield a `bvec` — same spelling, scalar meaning.
+ */
 @ExperimentalMirage
-public infix fun Float1.gt(o: Float1): UBool = UBool(Comparison(">", e, o.e))
+public infix fun Float1.greaterThan(o: Float1): UBool = UBool(Comparison(">", e, o.e))
 
 @ExperimentalMirage
-public infix fun Float1.gt(o: Float): UBool = UBool(Comparison(">", e, Literal(o)))
+public infix fun Float1.greaterThan(o: Float): UBool = UBool(Comparison(">", e, Literal(o)))
 
 @ExperimentalMirage
-public infix fun Half1.le(o: Float): UBool = UBool(Comparison("<=", e, Literal(o)))
+public infix fun Half1.lessThanEqual(o: Float): UBool = UBool(Comparison("<=", e, Literal(o)))
 
 /** `&&` — Specular's highlight gate (`edge > 0.0 && specStrength > 0.0`). */
 @ExperimentalMirage
@@ -342,14 +350,14 @@ public fun select(condition: UBool, ifTrue: Float1, ifFalse: Float1): Float1 =
   Float1(Select(condition.e, ifTrue.e, ifFalse.e, ShaderType.Float1))
 
 @ExperimentalMirage
-public infix fun Float1.ge(o: Float): UBool = UBool(Comparison(">=", e, Literal(o)))
+public infix fun Float1.greaterThanEqual(o: Float): UBool = UBool(Comparison(">=", e, Literal(o)))
 
 /**
  * `p.x >= 0.0 ? 1.0 : -1.0` — the sign-select the superellipse bevel direction needs on each axis.
  * Shared by the Specular and Chromatic bodies (both build the same bevel field).
  */
 @ExperimentalMirage
-public fun signSelect(v: Float1): Float1 = select(v ge 0f, float1(1f), float1(-1f))
+public fun signSelect(v: Float1): Float1 = select(v greaterThanEqual 0f, float1(1f), float1(-1f))
 
 @ExperimentalMirage
 public fun min(a: Float1, b: Float1): Float1 = Float1(Call("min", listOf(a.e, b.e), ShaderType.Float1))
@@ -536,3 +544,47 @@ public fun foilHash(c: Float2): Float1 {
   )
   return Float1(Call("foilHash", listOf(c.e), ShaderType.Float1))
 }
+
+// --- Host-type literals: bake a Compose Color/Offset/Size into the source as a constructor call, so a
+// body can write a design-token color or a geometry constant without hand-expanding its channels. ---
+
+/**
+ * A `half4` color literal from packed `0xAARRGGBB` bits, e.g. `color(0xFF1B1B3A)`.
+ *
+ * Unlike a `layout(color)` uniform, a literal is baked into the source and receives **no** color-space
+ * conversion — its channels are emitted as-is (sRGB). For a color that must match a `layout(color)`
+ * uniform's working-space value, pass it as a uniform, not a literal.
+ */
+@ExperimentalMirage
+public fun color(argb: Long): Half4 {
+  val a = ((argb shr 24) and 0xFF) / 255f
+  val r = ((argb shr 16) and 0xFF) / 255f
+  val g = ((argb shr 8) and 0xFF) / 255f
+  val b = (argb and 0xFF) / 255f
+  return Half4(Call("half4", listOf(Literal(r), Literal(g), Literal(b), Literal(a)), ShaderType.Half4))
+}
+
+/**
+ * A `half4` color literal from a Compose [Color] (e.g. an app design token). Its raw sRGB channels are
+ * emitted verbatim — see [color] for the color-space note (no `layout(color)` conversion is applied).
+ */
+@ExperimentalMirage
+public fun color(c: Color): Half4 =
+  Half4(Call("half4", listOf(Literal(c.red), Literal(c.green), Literal(c.blue), Literal(c.alpha)), ShaderType.Half4))
+
+/** A `float2` literal from a Compose [Offset] (`float2(o.x, o.y)`). */
+@ExperimentalMirage
+public fun offset(o: Offset): Float2 =
+  Float2(Call("float2", listOf(Literal(o.x), Literal(o.y)), ShaderType.Float2))
+
+/** A `float2` literal from a Compose [Size] (`float2(s.width, s.height)`). */
+@ExperimentalMirage
+public fun size(s: Size): Float2 =
+  Float2(Call("float2", listOf(Literal(s.width), Literal(s.height)), ShaderType.Float2))
+
+/**
+ * `mix(half4, color, t)` — convenience so a body can blend toward a literal [Color] without wrapping it
+ * in [color] first. The literal's raw sRGB channels are baked in ([color]'s color-space note applies).
+ */
+@ExperimentalMirage
+public fun mix(a: Half4, b: Color, t: Float1): Half4 = mix(a, color(b), t)
