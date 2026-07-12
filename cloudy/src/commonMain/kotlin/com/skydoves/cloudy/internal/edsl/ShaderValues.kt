@@ -169,28 +169,36 @@ public operator fun Float1.unaryMinus(): Float1 = Float1(Unary("-", e, ShaderTyp
 // `t * 0.25f` without a `float1(...)` wrapper. Distinct parameter types from the built-in
 // `Float.times(Float)`, so there is no ambiguity.
 @ExperimentalMirage
-public operator fun Float1.plus(o: Float): Float1 = Float1(Binary("+", e, Literal(o), ShaderType.Float1))
+public operator fun Float1.plus(o: Float): Float1 =
+  Float1(Binary("+", e, Literal(o), ShaderType.Float1))
 
 @ExperimentalMirage
-public operator fun Float.plus(o: Float1): Float1 = Float1(Binary("+", Literal(this), o.e, ShaderType.Float1))
+public operator fun Float.plus(o: Float1): Float1 =
+  Float1(Binary("+", Literal(this), o.e, ShaderType.Float1))
 
 @ExperimentalMirage
-public operator fun Float1.minus(o: Float): Float1 = Float1(Binary("-", e, Literal(o), ShaderType.Float1))
+public operator fun Float1.minus(o: Float): Float1 =
+  Float1(Binary("-", e, Literal(o), ShaderType.Float1))
 
 @ExperimentalMirage
-public operator fun Float.minus(o: Float1): Float1 = Float1(Binary("-", Literal(this), o.e, ShaderType.Float1))
+public operator fun Float.minus(o: Float1): Float1 =
+  Float1(Binary("-", Literal(this), o.e, ShaderType.Float1))
 
 @ExperimentalMirage
-public operator fun Float1.times(o: Float): Float1 = Float1(Binary("*", e, Literal(o), ShaderType.Float1))
+public operator fun Float1.times(o: Float): Float1 =
+  Float1(Binary("*", e, Literal(o), ShaderType.Float1))
 
 @ExperimentalMirage
-public operator fun Float.times(o: Float1): Float1 = Float1(Binary("*", Literal(this), o.e, ShaderType.Float1))
+public operator fun Float.times(o: Float1): Float1 =
+  Float1(Binary("*", Literal(this), o.e, ShaderType.Float1))
 
 @ExperimentalMirage
-public operator fun Float1.div(o: Float): Float1 = Float1(Binary("/", e, Literal(o), ShaderType.Float1))
+public operator fun Float1.div(o: Float): Float1 =
+  Float1(Binary("/", e, Literal(o), ShaderType.Float1))
 
 @ExperimentalMirage
-public operator fun Float.div(o: Float1): Float1 = Float1(Binary("/", Literal(this), o.e, ShaderType.Float1))
+public operator fun Float.div(o: Float1): Float1 =
+  Float1(Binary("/", Literal(this), o.e, ShaderType.Float1))
 
 @ExperimentalMirage
 public operator fun Float2.plus(o: Float2): Float2 = Float2(Binary("+", e, o.e, ShaderType.Float2))
@@ -199,7 +207,8 @@ public operator fun Float2.plus(o: Float2): Float2 = Float2(Binary("+", e, o.e, 
 public operator fun Float2.plus(o: Float1): Float2 = Float2(Binary("+", e, o.e, ShaderType.Float2))
 
 @ExperimentalMirage
-public operator fun Float2.plus(o: Float): Float2 = Float2(Binary("+", e, Literal(o), ShaderType.Float2))
+public operator fun Float2.plus(o: Float): Float2 =
+  Float2(Binary("+", e, Literal(o), ShaderType.Float2))
 
 @ExperimentalMirage
 public operator fun Float2.minus(o: Float2): Float2 = Float2(Binary("-", e, o.e, ShaderType.Float2))
@@ -208,7 +217,8 @@ public operator fun Float2.minus(o: Float2): Float2 = Float2(Binary("-", e, o.e,
 public operator fun Float2.times(o: Float1): Float2 = Float2(Binary("*", e, o.e, ShaderType.Float2))
 
 @ExperimentalMirage
-public operator fun Float2.times(o: Float): Float2 = Float2(Binary("*", e, Literal(o), ShaderType.Float2))
+public operator fun Float2.times(o: Float): Float2 =
+  Float2(Binary("*", e, Literal(o), ShaderType.Float2))
 
 @ExperimentalMirage
 public operator fun Float2.times(o: Float2): Float2 = Float2(Binary("*", e, o.e, ShaderType.Float2))
@@ -229,13 +239,15 @@ public operator fun Float3.plus(o: Float3): Float3 = Float3(Binary("+", e, o.e, 
 public operator fun Float3.minus(o: Float1): Float3 = Float3(Binary("-", e, o.e, ShaderType.Float3))
 
 @ExperimentalMirage
-public operator fun Float3.minus(o: Float): Float3 = Float3(Binary("-", e, Literal(o), ShaderType.Float3))
+public operator fun Float3.minus(o: Float): Float3 =
+  Float3(Binary("-", e, Literal(o), ShaderType.Float3))
 
 @ExperimentalMirage
 public operator fun Float3.times(o: Float1): Float3 = Float3(Binary("*", e, o.e, ShaderType.Float3))
 
 @ExperimentalMirage
-public operator fun Float3.times(o: Float): Float3 = Float3(Binary("*", e, Literal(o), ShaderType.Float3))
+public operator fun Float3.times(o: Float): Float3 =
+  Float3(Binary("*", e, Literal(o), ShaderType.Float3))
 
 @ExperimentalMirage
 public operator fun Float1.times(o: Float3): Float3 = Float3(Binary("*", e, o.e, ShaderType.Float3))
@@ -271,7 +283,8 @@ public operator fun Half3.times(o: Float1): Half3 = Half3(Binary("*", e, o.e, Sh
 
 /** `half3(1.0)` — a broadcast constant, e.g. the `(1.0 - pixel.rgb)` screen-blend complement. */
 @ExperimentalMirage
-public fun half3(scalar: Float): Half3 = Half3(Call("half3", listOf(Literal(scalar)), ShaderType.Half3))
+public fun half3(scalar: Float): Half3 =
+  Half3(Call("half3", listOf(Literal(scalar)), ShaderType.Half3))
 
 /** `.x` / `.y` on a `float2`. */
 @ExperimentalMirage
@@ -299,10 +312,12 @@ public val Half4.a: Half1 get() = Half1(Swizzle(e, "a", ShaderType.Half1))
 public fun float1(v: Float): Float1 = Float1(Literal(v, ShaderType.Float1))
 
 @ExperimentalMirage
-public fun float2(x: Float1, y: Float1): Float2 = Float2(Call("float2", listOf(x.e, y.e), ShaderType.Float2))
+public fun float2(x: Float1, y: Float1): Float2 =
+  Float2(Call("float2", listOf(x.e, y.e), ShaderType.Float2))
 
 @ExperimentalMirage
-public fun float2(x: Float, y: Float): Float2 = Float2(Call("float2", listOf(Literal(x), Literal(y)), ShaderType.Float2))
+public fun float2(x: Float, y: Float): Float2 =
+  Float2(Call("float2", listOf(Literal(x), Literal(y)), ShaderType.Float2))
 
 @ExperimentalMirage
 public fun float3(x: Float, y: Float, z: Float): Float3 = Float3(
@@ -313,10 +328,12 @@ public fun float3(x: Float, y: Float, z: Float): Float3 = Float3(
 public fun float3(v: Float1): Float3 = Float3(Call("float3", listOf(v.e), ShaderType.Float3))
 
 @ExperimentalMirage
-public fun float3(xy: Float2, z: Float1): Float3 = Float3(Call("float3", listOf(xy.e, z.e), ShaderType.Float3))
+public fun float3(xy: Float2, z: Float1): Float3 =
+  Float3(Call("float3", listOf(xy.e, z.e), ShaderType.Float3))
 
 @ExperimentalMirage
-public fun float3(xy: Float2, z: Float): Float3 = Float3(Call("float3", listOf(xy.e, Literal(z)), ShaderType.Float3))
+public fun float3(xy: Float2, z: Float): Float3 =
+  Float3(Call("float3", listOf(xy.e, Literal(z)), ShaderType.Float3))
 
 /**
  * `float4(0.0, 0.0, 0.0, 0.0)` — Specular's transparent-tint argument to `processColor`. A [Float4],
@@ -338,11 +355,13 @@ public fun half4(rgb: Half3, a: Half1): Half4 =
   Half4(Call("half4", listOf(rgb.e, a.e), ShaderType.Half4))
 
 @ExperimentalMirage
-public fun mix(a: Half4, b: Half4, t: Float1): Half4 = Half4(Call("mix", listOf(a.e, b.e, t.e), ShaderType.Half4))
+public fun mix(a: Half4, b: Half4, t: Float1): Half4 =
+  Half4(Call("mix", listOf(a.e, b.e, t.e), ShaderType.Half4))
 
 /** `half4(0.0)` — the all-channels-zero constructor Foil's lens-bounds early-out returns. */
 @ExperimentalMirage
-public fun half4(scalar: Float): Half4 = Half4(Call("half4", listOf(Literal(scalar)), ShaderType.Half4))
+public fun half4(scalar: Float): Half4 =
+  Half4(Call("half4", listOf(Literal(scalar)), ShaderType.Half4))
 
 /** `cond ? ifTrue : ifFalse` — Kotlin has no ternary to overload, so this is the DSL spelling of one. */
 @ExperimentalMirage
@@ -360,13 +379,16 @@ public infix fun Float1.greaterThanEqual(o: Float): UBool = UBool(Comparison(">=
 public fun signSelect(v: Float1): Float1 = select(v greaterThanEqual 0f, float1(1f), float1(-1f))
 
 @ExperimentalMirage
-public fun min(a: Float1, b: Float1): Float1 = Float1(Call("min", listOf(a.e, b.e), ShaderType.Float1))
+public fun min(a: Float1, b: Float1): Float1 =
+  Float1(Call("min", listOf(a.e, b.e), ShaderType.Float1))
 
 @ExperimentalMirage
-public fun max(a: Float1, b: Float1): Float1 = Float1(Call("max", listOf(a.e, b.e), ShaderType.Float1))
+public fun max(a: Float1, b: Float1): Float1 =
+  Float1(Call("max", listOf(a.e, b.e), ShaderType.Float1))
 
 @ExperimentalMirage
-public fun max(a: Float1, b: Float): Float1 = Float1(Call("max", listOf(a.e, Literal(b)), ShaderType.Float1))
+public fun max(a: Float1, b: Float): Float1 =
+  Float1(Call("max", listOf(a.e, Literal(b)), ShaderType.Float1))
 
 @ExperimentalMirage
 public fun max(a: Half1, b: Half1): Half1 = Half1(Call("max", listOf(a.e, b.e), ShaderType.Half1))
@@ -384,14 +406,16 @@ public fun abs(a: Float2): Float2 = Float2(Call("abs", listOf(a.e), ShaderType.F
 public fun abs(a: Float3): Float3 = Float3(Call("abs", listOf(a.e), ShaderType.Float3))
 
 @ExperimentalMirage
-public fun clamp(a: Float1, lo: Float1, hi: Float1): Float1 = Float1(Call("clamp", listOf(a.e, lo.e, hi.e), ShaderType.Float1))
+public fun clamp(a: Float1, lo: Float1, hi: Float1): Float1 =
+  Float1(Call("clamp", listOf(a.e, lo.e, hi.e), ShaderType.Float1))
 
 @ExperimentalMirage
 public fun clamp(a: Float1, lo: Float, hi: Float): Float1 =
   Float1(Call("clamp", listOf(a.e, Literal(lo), Literal(hi)), ShaderType.Float1))
 
 @ExperimentalMirage
-public fun clamp(a: Float3, lo: Float1, hi: Float1): Float3 = Float3(Call("clamp", listOf(a.e, lo.e, hi.e), ShaderType.Float3))
+public fun clamp(a: Float3, lo: Float1, hi: Float1): Float3 =
+  Float3(Call("clamp", listOf(a.e, lo.e, hi.e), ShaderType.Float3))
 
 @ExperimentalMirage
 public fun clamp(a: Float3, lo: Float, hi: Float): Float3 =
@@ -414,10 +438,12 @@ public fun smoothstep(lo: Float1, hi: Float, x: Float1): Float1 =
   Float1(Call("smoothstep", listOf(lo.e, Literal(hi), x.e), ShaderType.Float1))
 
 @ExperimentalMirage
-public fun step(edge: Float1, x: Float1): Float1 = Float1(Call("step", listOf(edge.e, x.e), ShaderType.Float1))
+public fun step(edge: Float1, x: Float1): Float1 =
+  Float1(Call("step", listOf(edge.e, x.e), ShaderType.Float1))
 
 @ExperimentalMirage
-public fun step(edge: Float, x: Float1): Float1 = Float1(Call("step", listOf(Literal(edge), x.e), ShaderType.Float1))
+public fun step(edge: Float, x: Float1): Float1 =
+  Float1(Call("step", listOf(Literal(edge), x.e), ShaderType.Float1))
 
 @ExperimentalMirage
 public fun length(v: Float2): Float1 = Float1(Call("length", listOf(v.e), ShaderType.Float1))
@@ -429,13 +455,16 @@ public fun normalize(v: Float2): Float2 = Float2(Call("normalize", listOf(v.e), 
 public fun normalize(v: Float3): Float3 = Float3(Call("normalize", listOf(v.e), ShaderType.Float3))
 
 @ExperimentalMirage
-public fun dot(a: Float2, b: Float2): Float1 = Float1(Call("dot", listOf(a.e, b.e), ShaderType.Float1))
+public fun dot(a: Float2, b: Float2): Float1 =
+  Float1(Call("dot", listOf(a.e, b.e), ShaderType.Float1))
 
 @ExperimentalMirage
-public fun dot(a: Float3, b: Float3): Float1 = Float1(Call("dot", listOf(a.e, b.e), ShaderType.Float1))
+public fun dot(a: Float3, b: Float3): Float1 =
+  Float1(Call("dot", listOf(a.e, b.e), ShaderType.Float1))
 
 @ExperimentalMirage
-public fun pow(base: Float1, exponent: Float1): Float1 = Float1(Call("pow", listOf(base.e, exponent.e), ShaderType.Float1))
+public fun pow(base: Float1, exponent: Float1): Float1 =
+  Float1(Call("pow", listOf(base.e, exponent.e), ShaderType.Float1))
 
 @ExperimentalMirage
 public fun pow(base: Float1, exponent: Float): Float1 =
@@ -455,7 +484,13 @@ public fun processColor(src: Half3, vibrancy: Float1, intensity: Float1, overlay
 
 @ExperimentalMirage
 public fun processColor(src: Half3, vibrancy: Float, intensity: Float, overlay: Float4): Half3 =
-  Half3(Call("processColor", listOf(src.e, Literal(vibrancy), Literal(intensity), overlay.e), ShaderType.Half3))
+  Half3(
+    Call(
+      "processColor",
+      listOf(src.e, Literal(vibrancy), Literal(intensity), overlay.e),
+      ShaderType.Half3,
+    ),
+  )
 
 @ExperimentalMirage
 public fun fract(v: Float1): Float1 = Float1(Call("fract", listOf(v.e), ShaderType.Float1))
@@ -476,7 +511,8 @@ public fun sin(v: Float1): Float1 = Float1(Call("sin", listOf(v.e), ShaderType.F
 public fun cos(v: Float3): Float3 = Float3(Call("cos", listOf(v.e), ShaderType.Float3))
 
 @ExperimentalMirage
-public fun mix(a: Float1, b: Float1, t: Float1): Float1 = Float1(Call("mix", listOf(a.e, b.e, t.e), ShaderType.Float1))
+public fun mix(a: Float1, b: Float1, t: Float1): Float1 =
+  Float1(Call("mix", listOf(a.e, b.e, t.e), ShaderType.Float1))
 
 @ExperimentalMirage
 public fun mix(a: Float1, b: Float1, t: Float): Float1 =
@@ -487,7 +523,8 @@ public fun mix(a: Float, b: Float1, t: Float1): Float1 =
   Float1(Call("mix", listOf(Literal(a), b.e, t.e), ShaderType.Float1))
 
 @ExperimentalMirage
-public fun mix(a: Float3, b: Float3, t: Float1): Float3 = Float3(Call("mix", listOf(a.e, b.e, t.e), ShaderType.Float3))
+public fun mix(a: Float3, b: Float3, t: Float1): Float3 =
+  Float3(Call("mix", listOf(a.e, b.e, t.e), ShaderType.Float3))
 
 @ExperimentalMirage
 public fun mix(a: Float3, b: Float3, t: Float): Float3 =
@@ -508,8 +545,7 @@ public fun lensNormalDirection(p: Float2, halfDim: Float2, r: Float1): Float2 =
 
 /** Rec. 709 luma weights — the same constant the hand-written Duotone kernel uses. */
 @ExperimentalMirage
-public fun luma(c: Half3): Half1 =
-  Half1(Call("mirage_luma", listOf(c.e), ShaderType.Half1))
+public fun luma(c: Half3): Half1 = Half1(Call("mirage_luma", listOf(c.e), ShaderType.Half1))
 
 @ExperimentalMirage
 public fun mix(a: Half3, b: Half3, t: Half1): Half3 =
@@ -561,7 +597,9 @@ public fun color(argb: Long): Half4 {
   val r = ((argb shr 16) and 0xFF) / 255f
   val g = ((argb shr 8) and 0xFF) / 255f
   val b = (argb and 0xFF) / 255f
-  return Half4(Call("half4", listOf(Literal(r), Literal(g), Literal(b), Literal(a)), ShaderType.Half4))
+  return Half4(
+    Call("half4", listOf(Literal(r), Literal(g), Literal(b), Literal(a)), ShaderType.Half4),
+  )
 }
 
 /**
@@ -569,8 +607,13 @@ public fun color(argb: Long): Half4 {
  * emitted verbatim — see [color] for the color-space note (no `layout(color)` conversion is applied).
  */
 @ExperimentalMirage
-public fun color(c: Color): Half4 =
-  Half4(Call("half4", listOf(Literal(c.red), Literal(c.green), Literal(c.blue), Literal(c.alpha)), ShaderType.Half4))
+public fun color(c: Color): Half4 = Half4(
+  Call(
+    "half4",
+    listOf(Literal(c.red), Literal(c.green), Literal(c.blue), Literal(c.alpha)),
+    ShaderType.Half4,
+  ),
+)
 
 /** A `float2` literal from a Compose [Offset] (`float2(o.x, o.y)`). */
 @ExperimentalMirage

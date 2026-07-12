@@ -344,7 +344,9 @@ internal class MirageCompilerTest :
 
       // Regression: `code.contains("content")` used to match a uniform name like `contentOpacity`,
       // wrongly rejecting a Colorize/Generate kernel that never actually samples content.
-      test("a uniform name that merely contains 'content' does not trip the Colorize/Generate lint") {
+      test(
+        "a uniform name that merely contains 'content' does not trip the Colorize/Generate lint",
+      ) {
         shouldNotThrowAny {
           MirageCompiler.lint(
             "half4 kernel(float2 p, half4 src) { return src * half(contentOpacity); }",

@@ -52,7 +52,9 @@ internal class MirageEdslDuotoneTest :
 /** Binds [MirageShaders.Duotone]'s eDSL-traced, program-cache-compiled source to a live shader. */
 private fun buildEdslDuotoneShader(): Shader {
   val cached = MirageProgramCache.obtain(MirageShaders.Duotone, Dialect.Sksl).shouldNotBeNull()
-  return bindDuotoneUniforms(RuntimeShaderBuilder(RuntimeEffect.makeForShader(cached.compiled.source)))
+  return bindDuotoneUniforms(
+    RuntimeShaderBuilder(RuntimeEffect.makeForShader(cached.compiled.source)),
+  )
 }
 
 /**

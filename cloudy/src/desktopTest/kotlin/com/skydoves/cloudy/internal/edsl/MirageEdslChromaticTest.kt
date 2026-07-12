@@ -51,7 +51,10 @@ internal class MirageEdslChromaticTest :
     test("OilSlick, SoapBubble, MetallicFoil, and Pearl share one compiled kernel program") {
       val oil = MirageProgramCache.obtain(MirageShaders.OilSlick, Dialect.Sksl).shouldNotBeNull()
       val soap = MirageProgramCache.obtain(MirageShaders.SoapBubble, Dialect.Sksl).shouldNotBeNull()
-      val foil = MirageProgramCache.obtain(MirageShaders.MetallicFoil, Dialect.Sksl).shouldNotBeNull()
+      val foil = MirageProgramCache.obtain(
+        MirageShaders.MetallicFoil,
+        Dialect.Sksl,
+      ).shouldNotBeNull()
       val pearl = MirageProgramCache.obtain(MirageShaders.Pearl, Dialect.Sksl).shouldNotBeNull()
 
       oil.compiled.source shouldBe soap.compiled.source
@@ -68,7 +71,9 @@ internal class MirageEdslChromaticTest :
 
 private fun buildEdslChromaticShader(): Shader {
   val cached = MirageProgramCache.obtain(MirageShaders.Chromatic, Dialect.Sksl).shouldNotBeNull()
-  return bindChromaticUniforms(RuntimeShaderBuilder(RuntimeEffect.makeForShader(cached.compiled.source)))
+  return bindChromaticUniforms(
+    RuntimeShaderBuilder(RuntimeEffect.makeForShader(cached.compiled.source)),
+  )
 }
 
 /**

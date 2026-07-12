@@ -94,12 +94,11 @@ internal fun <P, R> trace(params: P, body: P.() -> R): Pair<R, TraceContext> {
 }
 
 /** The open trace, or a loud failure when an intrinsic that records a statement runs outside a body. */
-internal fun activeTrace(): TraceContext =
-  currentTrace.load() ?: throw MirageDiagnosticException(
-    MirageDiagnosticCode.INTRINSIC_OUTSIDE_BODY,
-    "a mirage intrinsic was used outside a shader body",
-    "call it only inside a colorize/composite/generate body lambda",
-  )
+internal fun activeTrace(): TraceContext = currentTrace.load() ?: throw MirageDiagnosticException(
+  MirageDiagnosticCode.INTRINSIC_OUTSIDE_BODY,
+  "a mirage intrinsic was used outside a shader body",
+  "call it only inside a colorize/composite/generate body lambda",
+)
 
 /**
  * `mirageTime` — the standard, name-gated animation clock (MirageCompiler.kt's STD_TIME). A top-level

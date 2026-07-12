@@ -76,11 +76,22 @@ private fun hoist(module: ShaderModule): ShaderModule {
   val roots = buildList {
     add(module.returnExpr)
     fun collect(statements: List<Statement>) {
-      for (s in statements) when (s) {
-        is Assign -> add(s.value)
-        is Reassign -> add(s.value)
-        is EarlyReturn -> { add(s.condition); add(s.value) }
-        is IfBlock -> { add(s.condition); collect(s.body) }
+      for (s in statements) {
+        when (s) {
+          is Assign -> add(s.value)
+
+          is Reassign -> add(s.value)
+
+          is EarlyReturn -> {
+            add(s.condition)
+            add(s.value)
+          }
+
+          is IfBlock -> {
+            add(s.condition)
+            collect(s.body)
+          }
+        }
       }
     }
     collect(module.statements)
@@ -108,7 +119,11 @@ private fun hoist(module: ShaderModule): ShaderModule {
   }
 
   val newStatements = hoistAssigns + module.statements.map { substituteStatement(it, names) }
-  return ShaderModule(newStatements, substitute(module.returnExpr, names, self = null), module.helpers)
+  return ShaderModule(
+    newStatements,
+    substitute(module.returnExpr, names, self = null),
+    module.helpers,
+  )
 }
 
 /** Counts every structurally distinct liftable subtree; recurses through children regardless. */
@@ -123,17 +138,33 @@ private fun recordOrder(node: Expression, order: MutableMap<Expression, Int>) {
 }
 
 /** Replaces each key subtree with its `_tN` [VarRef], except [self] (a lifted subtree's own body). */
-private fun substitute(node: Expression, names: Map<Expression, String>, self: Expression?): Expression {
+private fun substitute(
+  node: Expression,
+  names: Map<Expression, String>,
+  self: Expression?,
+): Expression {
   if (node !== self) names[node]?.let { return VarRef(it, node.type) }
   return withChildren(node) { substitute(it, names, self) }
 }
 
-private fun substituteStatement(node: Statement, names: Map<Expression, String>): Statement = when (node) {
-  is Assign -> Assign(node.name, substitute(node.value, names, self = null))
-  is Reassign -> Reassign(node.name, substitute(node.value, names, self = null))
-  is EarlyReturn -> EarlyReturn(substitute(node.condition, names, self = null), substitute(node.value, names, self = null))
-  is IfBlock -> IfBlock(substitute(node.condition, names, self = null), node.body.map { substituteStatement(it, names) })
-}
+private fun substituteStatement(node: Statement, names: Map<Expression, String>): Statement =
+  when (node) {
+    is Assign -> Assign(node.name, substitute(node.value, names, self = null))
+
+    is Reassign -> Reassign(node.name, substitute(node.value, names, self = null))
+
+    is EarlyReturn -> EarlyReturn(
+      substitute(node.condition, names, self = null),
+      substitute(node.value, names, self = null),
+    )
+
+    is IfBlock -> IfBlock(
+      substitute(node.condition, names, self = null),
+      node.body.map {
+        substituteStatement(it, names)
+      },
+    )
+  }
 
 /** Trivial leaves and position-dependent nodes (`content.eval`, mutable locals) are never lifted. */
 private fun isLiftable(node: Expression): Boolean = when (node) {
@@ -160,48 +191,89 @@ private fun children(node: Expression): List<Expression> = when (node) {
 private fun nodeCount(node: Expression): Int = 1 + children(node).sumOf { nodeCount(it) }
 
 /** Rebuilds [node] with each child mapped through [transform], preserving its type. */
-private fun withChildren(node: Expression, transform: (Expression) -> Expression): Expression = when (node) {
-  is Literal, is Argument, is UniformRef, is StandardUniform, is VarRef -> node
-  is Unary -> node.copy(operand = transform(node.operand))
-  is Binary -> node.copy(left = transform(node.left), right = transform(node.right))
-  is Comparison -> node.copy(left = transform(node.left), right = transform(node.right))
-  is Swizzle -> node.copy(base = transform(node.base))
-  is SampleContent -> node.copy(coord = transform(node.coord))
-  is Select -> node.copy(condition = transform(node.condition), ifTrue = transform(node.ifTrue), ifFalse = transform(node.ifFalse))
-  is Call -> node.copy(args = node.args.map(transform))
-}
+private fun withChildren(node: Expression, transform: (Expression) -> Expression): Expression =
+  when (node) {
+    is Literal, is Argument, is UniformRef, is StandardUniform, is VarRef -> node
+
+    is Unary -> node.copy(operand = transform(node.operand))
+
+    is Binary -> node.copy(left = transform(node.left), right = transform(node.right))
+
+    is Comparison -> node.copy(left = transform(node.left), right = transform(node.right))
+
+    is Swizzle -> node.copy(base = transform(node.base))
+
+    is SampleContent -> node.copy(coord = transform(node.coord))
+
+    is Select -> node.copy(
+      condition = transform(node.condition),
+      ifTrue = transform(node.ifTrue),
+      ifFalse = transform(node.ifFalse),
+    )
+
+    is Call -> node.copy(args = node.args.map(transform))
+  }
 
 private fun emitHelpers(helpers: List<HelperFunction>, uniformNames: List<String>): String =
   helpers.joinToString("") { helper ->
-    "${typeToken(helper.body.type)} ${helper.name}(${typeToken(helper.paramType)} ${helper.paramName}) " +
+    "${typeToken(
+      helper.body.type,
+    )} ${helper.name}(${typeToken(helper.paramType)} ${helper.paramName}) " +
       "{ return ${emit(helper.body, uniformNames)}; }\n"
   }
 
-private fun emitStatement(node: Statement, uniformNames: List<String>, indent: String): String = when (node) {
-  is Assign -> "$indent${typeToken(node.value.type)} ${node.name} = ${emit(node.value, uniformNames)};\n"
-  is Reassign -> "$indent${node.name} = ${emit(node.value, uniformNames)};\n"
-  is EarlyReturn ->
-    "$indent" + "if (${emit(node.condition, uniformNames)}) { return ${emit(node.value, uniformNames)}; }\n"
-  is IfBlock -> {
-    val innerIndent = "$indent    "
-    val body = node.body.joinToString("") { emitStatement(it, uniformNames, innerIndent) }
-    "$indent" + "if (${emit(node.condition, uniformNames)}) {\n" + body + "$indent}\n"
+private fun emitStatement(node: Statement, uniformNames: List<String>, indent: String): String =
+  when (node) {
+    is Assign -> "$indent${typeToken(
+      node.value.type,
+    )} ${node.name} = ${emit(node.value, uniformNames)};\n"
+
+    is Reassign -> "$indent${node.name} = ${emit(node.value, uniformNames)};\n"
+
+    is EarlyReturn ->
+      "$indent" +
+        "if (${emit(node.condition, uniformNames)}) { return ${emit(node.value, uniformNames)}; }\n"
+
+    is IfBlock -> {
+      val innerIndent = "$indent    "
+      val body = node.body.joinToString("") { emitStatement(it, uniformNames, innerIndent) }
+      "$indent" + "if (${emit(node.condition, uniformNames)}) {\n" + body + "$indent}\n"
+    }
   }
-}
 
 private fun emit(node: Expression, uniformNames: List<String>): String = when (node) {
   is Literal -> formatLiteral(node.value)
+
   is Argument -> node.name
+
   is UniformRef -> uniformNames[node.slot]
+
   is StandardUniform -> node.name
+
   is VarRef -> node.name
+
   is SampleContent -> "content.eval(${emit(node.coord, uniformNames)})"
+
   is Select ->
-    "(${emit(node.condition, uniformNames)} ? ${emit(node.ifTrue, uniformNames)} : ${emit(node.ifFalse, uniformNames)})"
+    "(${emit(
+      node.condition,
+      uniformNames,
+    )} ? ${emit(node.ifTrue, uniformNames)} : ${emit(node.ifFalse, uniformNames)})"
+
   is Unary -> "${node.operator}${emit(node.operand, uniformNames)}"
-  is Comparison -> "(${emit(node.left, uniformNames)} ${node.operator} ${emit(node.right, uniformNames)})"
-  is Binary -> "(${emit(node.left, uniformNames)} ${node.operator} ${emit(node.right, uniformNames)})"
+
+  is Comparison -> "(${emit(
+    node.left,
+    uniformNames,
+  )} ${node.operator} ${emit(node.right, uniformNames)})"
+
+  is Binary -> "(${emit(
+    node.left,
+    uniformNames,
+  )} ${node.operator} ${emit(node.right, uniformNames)})"
+
   is Swizzle -> "${emit(node.base, uniformNames)}.${node.components}"
+
   is Call -> emitCall(node, uniformNames)
 }
 
@@ -221,7 +293,13 @@ private fun emitCall(node: Call, uniformNames: List<String>): String {
 }
 
 /** GLSL float literals always carry a decimal point; whole values print e.g. `1.0`, not `1`. */
-private fun formatLiteral(v: Float): String = if (v == v.toLong().toFloat()) "${v.toLong()}.0" else v.toString()
+private fun formatLiteral(v: Float): String = if (v ==
+  v.toLong().toFloat()
+) {
+  "${v.toLong()}.0"
+} else {
+  v.toString()
+}
 
 private fun typeToken(type: ShaderType): String = when (type) {
   ShaderType.Float1 -> "float"

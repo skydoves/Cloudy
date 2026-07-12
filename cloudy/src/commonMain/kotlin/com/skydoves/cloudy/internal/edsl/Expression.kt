@@ -54,7 +54,8 @@ public sealed interface Expression {
 }
 
 /** A literal scalar constant, e.g. `0.5`, `SMOOTH_EDGE_PX`'s value inlined at each use. */
-internal data class Literal(val value: Float, override val type: ShaderType = ShaderType.Float1) : Expression
+internal data class Literal(val value: Float, override val type: ShaderType = ShaderType.Float1) :
+  Expression
 
 /** A reference to a [com.skydoves.cloudy.MirageParams] uniform handle, by declaration slot. */
 internal data class UniformRef(val slot: Int, override val type: ShaderType) : Expression
@@ -80,24 +81,42 @@ internal data class Binary(
 ) : Expression
 
 /** A unary operator node (`-x`). */
-internal data class Unary(val operator: String, val operand: Expression, override val type: ShaderType) : Expression
+internal data class Unary(
+  val operator: String,
+  val operand: Expression,
+  override val type: ShaderType,
+) : Expression
 
 /** A comparison node (`> < >= <= == !=`), always [ShaderType.Bool]. */
-internal data class Comparison(val operator: String, val left: Expression, val right: Expression) : Expression {
+internal data class Comparison(val operator: String, val left: Expression, val right: Expression) :
+  Expression {
   override val type: ShaderType get() = ShaderType.Bool
 }
 
 /** An intrinsic, type-constructor, or user-defined-function call, e.g. `mix(a, b, t)`, `half4(r, g, b, a)`. */
-internal data class Call(val functionName: String, val args: List<Expression>, override val type: ShaderType) : Expression
+internal data class Call(
+  val functionName: String,
+  val args: List<Expression>,
+  override val type: ShaderType,
+) : Expression
 
 /** A swizzle read, e.g. `.rgb`, `.a`, `.x`. */
-internal data class Swizzle(val base: Expression, val components: String, override val type: ShaderType) : Expression
+internal data class Swizzle(
+  val base: Expression,
+  val components: String,
+  override val type: ShaderType,
+) : Expression
 
 /**
  * A ternary select, e.g. `p.x >= 0.0 ? 1.0 : -1.0`. Kotlin has no ternary operator to overload, so the
  * eDSL surface is the [select] function; this node is what it builds.
  */
-internal data class Select(val condition: Expression, val ifTrue: Expression, val ifFalse: Expression, override val type: ShaderType) : Expression
+internal data class Select(
+  val condition: Expression,
+  val ifTrue: Expression,
+  val ifFalse: Expression,
+  override val type: ShaderType,
+) : Expression
 
 /**
  * A `content.eval(coord)` sample. A dedicated node rather than a [Call] because it is the one construct
@@ -144,7 +163,12 @@ internal data class IfBlock(val condition: Expression, val body: List<Statement>
  * into the emitted source ahead of the kernel/main it's used from. Single-expression body only — the
  * one shape every current kernel's helper functions need.
  */
-internal class HelperFunction(val name: String, val paramName: String, val paramType: ShaderType, val body: Expression)
+internal class HelperFunction(
+  val name: String,
+  val paramName: String,
+  val paramType: ShaderType,
+  val body: Expression,
+)
 
 /**
  * The completed trace of one kernel: the ordered [statements] leading up to [returnExpr], plus any

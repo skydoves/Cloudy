@@ -35,7 +35,8 @@ internal class ShaderLiteralsTest :
       val call = color(0xFF3366CCL).e.shouldBeInstanceOf<Call>()
       call.functionName shouldBe "half4"
       // 0x33=51, 0x66=102, 0xCC=204, 0xFF=255 over 255.
-      call.args.map { (it as Literal).value } shouldBe listOf(51f / 255f, 102f / 255f, 204f / 255f, 1f)
+      call.args.map { (it as Literal).value } shouldBe
+        listOf(51f / 255f, 102f / 255f, 204f / 255f, 1f)
     }
 
     test("offset/size emit a float2 constructor with the raw components") {

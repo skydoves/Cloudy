@@ -20,9 +20,57 @@ package com.skydoves.cloudy
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-// The body-lambda kernels below are authored in the mirage eDSL; a wildcard import pulls in its
-// intrinsics, operators, swizzles, and control-flow surface (guard / If / local / sampleContent).
-import com.skydoves.cloudy.internal.edsl.*
+import com.skydoves.cloudy.internal.edsl.Float2
+import com.skydoves.cloudy.internal.edsl.Half4
+import com.skydoves.cloudy.internal.edsl.If
+import com.skydoves.cloudy.internal.edsl.a
+import com.skydoves.cloudy.internal.edsl.abs
+import com.skydoves.cloudy.internal.edsl.and
+import com.skydoves.cloudy.internal.edsl.boxRoundedSDF
+import com.skydoves.cloudy.internal.edsl.clamp
+import com.skydoves.cloudy.internal.edsl.cos
+import com.skydoves.cloudy.internal.edsl.div
+import com.skydoves.cloudy.internal.edsl.dot
+import com.skydoves.cloudy.internal.edsl.exp
+import com.skydoves.cloudy.internal.edsl.float1
+import com.skydoves.cloudy.internal.edsl.float2
+import com.skydoves.cloudy.internal.edsl.float3
+import com.skydoves.cloudy.internal.edsl.float4
+import com.skydoves.cloudy.internal.edsl.floor
+import com.skydoves.cloudy.internal.edsl.foilHash
+import com.skydoves.cloudy.internal.edsl.fract
+import com.skydoves.cloudy.internal.edsl.greaterThan
+import com.skydoves.cloudy.internal.edsl.greaterThanEqual
+import com.skydoves.cloudy.internal.edsl.guard
+import com.skydoves.cloudy.internal.edsl.half
+import com.skydoves.cloudy.internal.edsl.half3
+import com.skydoves.cloudy.internal.edsl.half4
+import com.skydoves.cloudy.internal.edsl.length
+import com.skydoves.cloudy.internal.edsl.lensNormalDirection
+import com.skydoves.cloudy.internal.edsl.lessThanEqual
+import com.skydoves.cloudy.internal.edsl.local
+import com.skydoves.cloudy.internal.edsl.luma
+import com.skydoves.cloudy.internal.edsl.max
+import com.skydoves.cloudy.internal.edsl.min
+import com.skydoves.cloudy.internal.edsl.minus
+import com.skydoves.cloudy.internal.edsl.mirageTime
+import com.skydoves.cloudy.internal.edsl.mix
+import com.skydoves.cloudy.internal.edsl.normalize
+import com.skydoves.cloudy.internal.edsl.plus
+import com.skydoves.cloudy.internal.edsl.pow
+import com.skydoves.cloudy.internal.edsl.processColor
+import com.skydoves.cloudy.internal.edsl.rgb
+import com.skydoves.cloudy.internal.edsl.sampleContent
+import com.skydoves.cloudy.internal.edsl.signSelect
+import com.skydoves.cloudy.internal.edsl.sin
+import com.skydoves.cloudy.internal.edsl.smoothstep
+import com.skydoves.cloudy.internal.edsl.sqrt
+import com.skydoves.cloudy.internal.edsl.step
+import com.skydoves.cloudy.internal.edsl.times
+import com.skydoves.cloudy.internal.edsl.unaryMinus
+import com.skydoves.cloudy.internal.edsl.x
+import com.skydoves.cloudy.internal.edsl.xyz
+import com.skydoves.cloudy.internal.edsl.y
 
 /**
  * Bundled [MirageShader] presets — the catalog of ready-to-apply looks.
@@ -94,7 +142,9 @@ public object MirageShaders {
     val ringTerm = thick / max(1f - 0.6f * cosT, 1.0e-2f)
     val opdDrive = mix(cosT, ringTerm, chromaThickMix)
     val opd = opdDrive * chromaticGain + chromaOpdBase
-    val interf = float3(0.5f, 0.5f, 0.5f) + float3(0.5f, 0.5f, 0.5f) * cos(6.28318530718f * opd * chromaticKRGB.xyz)
+    val interf =
+      float3(0.5f, 0.5f, 0.5f) +
+        float3(0.5f, 0.5f, 0.5f) * cos(6.28318530718f * opd * chromaticKRGB.xyz)
     val metalRGB = float3(chromaticFloor) + (1f - chromaticFloor) * interf
     val sat = exp(-opd * chromaticWashout)
     val thinFilm = mix(float3(1f, 1f, 1f), metalRGB, clamp(sat, 0f, 1f))
@@ -132,7 +182,9 @@ public object MirageShaders {
    * so this can't simply live next to [chromatic] where it's used.
    */
   private val chromaticKernel: String =
-    MirageShader.composite("chromatic", { ChromaticParams(0f, 0f, floatArrayOf(0f, 0f, 0f, 0f), 0f, 0f, 0f, 0f) }, chromaticBody).agsl
+    MirageShader.composite("chromatic", {
+      ChromaticParams(0f, 0f, floatArrayOf(0f, 0f, 0f, 0f), 0f, 0f, 0f, 0f)
+    }, chromaticBody).agsl
 
   /**
    * The liquid-glass specular glint (moving focal hotspot + Blinn rim). A [CompositeShader] because it
@@ -309,7 +361,9 @@ public object MirageShaders {
         1f,
       )
       val opd = (0.5f + 0.5f * t) * chromaticGain
-      val film = float3(0.5f, 0.5f, 0.5f) + float3(0.5f, 0.5f, 0.5f) * cos(6.28318530718f * opd * float3(1f, 1.18f, 1.42f))
+      val film =
+        float3(0.5f, 0.5f, 0.5f) +
+          float3(0.5f, 0.5f, 0.5f) * cos(6.28318530718f * opd * float3(1f, 1.18f, 1.42f))
       val rainbow = mix(hsv, film, 0.4f)
 
       val cell = floor(pNorm * sparkleDensity)

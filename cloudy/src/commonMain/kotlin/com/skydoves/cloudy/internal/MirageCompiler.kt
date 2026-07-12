@@ -164,11 +164,12 @@ internal object MirageCompiler {
     }
   }
 
-  private fun forbiddenTokenException(token: String): MirageDiagnosticException = MirageDiagnosticException(
-    MirageDiagnosticCode.FORBIDDEN_TOKEN,
-    "mirage kernel uses forbidden token '$token': it does not compile as a runtime shader",
-    "no derivatives (fwidth/dFdx/dFdy), preprocessor (#), or raw frag-coord (sk_FragCoord) are available",
-  )
+  private fun forbiddenTokenException(token: String): MirageDiagnosticException =
+    MirageDiagnosticException(
+      MirageDiagnosticCode.FORBIDDEN_TOKEN,
+      "mirage kernel uses forbidden token '$token': it does not compile as a runtime shader",
+      "no derivatives (fwidth/dFdx/dFdy), preprocessor (#), or raw frag-coord (sk_FragCoord) are available",
+    )
 
   /**
    * True if [code] uses the GLSL identifier [name] as a whole token, not merely as a substring of some

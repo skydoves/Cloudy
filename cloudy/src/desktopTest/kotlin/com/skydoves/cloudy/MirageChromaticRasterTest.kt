@@ -317,8 +317,9 @@ private fun toOldBoxBevel(source: String): String {
   // Overwrite the two bevel temps' initializers with the box construction (soft-min interior dir + box
   // depth). A conditional needs a statement, so declare cDir up top and assign it here via a helper.
   val boxCDir = "(max(d2Box.x, d2Box.y) > 0.0 ? s2Box * normalize(max(d2Box, 0.0)) : " +
-    "normalize(float2(s2Box.x * clamp(0.5 + 0.5 * (d2Box.x - d2Box.y) / SEAM_BLEND_PX, 0.0, 1.0), " +
-    "s2Box.y * (1.0 - clamp(0.5 + 0.5 * (d2Box.x - d2Box.y) / SEAM_BLEND_PX, 0.0, 1.0))) + float2(0.0, 1.0e-4)))"
+    "normalize(float2(s2Box.x * clamp(0.5 + 0.5 * (d2Box.x - d2Box.y) / SEAM_BLEND_PX, 0.0, 1.0)," +
+    " s2Box.y * (1.0 - clamp(0.5 + 0.5 * (d2Box.x - d2Box.y) / SEAM_BLEND_PX, 0.0, 1.0))) + " +
+    "float2(0.0, 1.0e-4)))"
   return withPrelude
     .let { replaceInit(it, cDirName, boxCDir) }
     .let { replaceInit(it, nCosName, "(1.0 - tBox)") }

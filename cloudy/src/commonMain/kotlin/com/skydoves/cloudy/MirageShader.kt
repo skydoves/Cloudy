@@ -145,7 +145,13 @@ public sealed class MirageShader<P : MirageParams> protected constructor(
       paramsFactory: () -> P,
       body: P.(src: Half4) -> Half4,
     ): ColorizeShader<P> {
-      val kernel = emitColorizeKernel(traceBody(paramsFactory) { body(SRC_ARGUMENT) }, uniformNames(paramsFactory))
+      val kernel =
+        emitColorizeKernel(
+          traceBody(paramsFactory) {
+            body(SRC_ARGUMENT)
+          },
+          uniformNames(paramsFactory),
+        )
       return colorize(name, paramsFactory, agsl = kernel, sksl = kernel)
     }
 
@@ -160,7 +166,13 @@ public sealed class MirageShader<P : MirageParams> protected constructor(
       paramsFactory: () -> P,
       body: P.(xy: Float2) -> Half4,
     ): CompositeShader<P> {
-      val kernel = emitCompositeOrGenerateMain(traceBody(paramsFactory) { body(XY_ARGUMENT) }, uniformNames(paramsFactory))
+      val kernel =
+        emitCompositeOrGenerateMain(
+          traceBody(paramsFactory) {
+            body(XY_ARGUMENT)
+          },
+          uniformNames(paramsFactory),
+        )
       return composite(name, paramsFactory, agsl = kernel, sksl = kernel)
     }
 
@@ -174,7 +186,13 @@ public sealed class MirageShader<P : MirageParams> protected constructor(
       paramsFactory: () -> P,
       body: P.(xy: Float2) -> Half4,
     ): GeneratorShader<P> {
-      val kernel = emitCompositeOrGenerateMain(traceBody(paramsFactory) { body(XY_ARGUMENT) }, uniformNames(paramsFactory))
+      val kernel =
+        emitCompositeOrGenerateMain(
+          traceBody(paramsFactory) {
+            body(XY_ARGUMENT)
+          },
+          uniformNames(paramsFactory),
+        )
       return generate(name, paramsFactory, agsl = kernel, sksl = kernel)
     }
 
@@ -188,7 +206,10 @@ public sealed class MirageShader<P : MirageParams> protected constructor(
      * not any per-instance default, so a probe at its own defaults yields the same text as any live
      * instance would — which is why the five thin-film looks share one kernel program.
      */
-    private fun <P : MirageParams> traceBody(paramsFactory: () -> P, body: P.() -> Half4): ShaderModule {
+    private fun <P : MirageParams> traceBody(
+      paramsFactory: () -> P,
+      body: P.() -> Half4,
+    ): ShaderModule {
       val (result, ctx) = trace(paramsFactory(), body)
       return ShaderModule(ctx.statements.toList(), result.e, ctx.helpers.toList())
     }

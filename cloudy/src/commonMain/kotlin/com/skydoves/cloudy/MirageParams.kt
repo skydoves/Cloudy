@@ -169,7 +169,8 @@ public sealed interface UniformHandle {
 /** A scalar `float` uniform slot; a [Float1] expression inside a traced body. */
 @ExperimentalMirage
 public class UFloat internal constructor(override val slot: Int, public var value: Float) :
-  UniformHandle, Float1 {
+  UniformHandle,
+  Float1 {
   override val e: Expression get() = UniformRef(slot, ShaderType.Float1)
 
   public operator fun invoke(v: Float) {
@@ -180,7 +181,8 @@ public class UFloat internal constructor(override val slot: Int, public var valu
 /** A `float2` uniform slot carrying a coordinate or direction; a [Float2] expression in a body. */
 @ExperimentalMirage
 public class UOffset internal constructor(override val slot: Int, public var value: Offset) :
-  UniformHandle, Float2 {
+  UniformHandle,
+  Float2 {
   override val e: Expression get() = UniformRef(slot, ShaderType.Float2)
 
   public operator fun invoke(v: Offset) {
@@ -195,7 +197,8 @@ public class UOffset internal constructor(override val slot: Int, public var val
 /** A `float2` uniform slot carrying a size; a [Float2] expression in a body. */
 @ExperimentalMirage
 public class USize internal constructor(override val slot: Int, public var value: Size) :
-  UniformHandle, Float2 {
+  UniformHandle,
+  Float2 {
   override val e: Expression get() = UniformRef(slot, ShaderType.Float2)
 
   public operator fun invoke(v: Size) {
@@ -229,7 +232,8 @@ public class UVec3 internal constructor(override val slot: Int, public var value
 /** A `float4` uniform slot; a [Float4] expression in a body. The backing array is always length 4. */
 @ExperimentalMirage
 public class UVec4 internal constructor(override val slot: Int, public var value: FloatArray) :
-  UniformHandle, Float4 {
+  UniformHandle,
+  Float4 {
   override val e: Expression get() = UniformRef(slot, ShaderType.Float4)
 
   public operator fun invoke(v: FloatArray) {
@@ -256,7 +260,8 @@ public class UFloatArray internal constructor(
 /** A `layout(color) vec4` uniform slot; a [Half4] color expression in a body. */
 @ExperimentalMirage
 public class UColor internal constructor(override val slot: Int, public var value: Color) :
-  UniformHandle, Half4 {
+  UniformHandle,
+  Half4 {
   override val e: Expression get() = UniformRef(slot, ShaderType.Half4)
 
   public operator fun invoke(v: Color) {
