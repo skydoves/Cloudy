@@ -13,6 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@file:OptIn(ExperimentalMirage::class)
+
 package com.skydoves.cloudy
 
 import androidx.compose.ui.geometry.Offset
@@ -21,6 +23,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.TileMode
 import com.skydoves.cloudy.internal.UniformEntry
+import com.skydoves.cloudy.internal.edsl.Expression
+import com.skydoves.cloudy.internal.edsl.Float1
+import com.skydoves.cloudy.internal.edsl.Float2
+import com.skydoves.cloudy.internal.edsl.Float4
+import com.skydoves.cloudy.internal.edsl.Half4
+import com.skydoves.cloudy.internal.edsl.ShaderType
+import com.skydoves.cloudy.internal.edsl.UniformRef
 import kotlin.properties.PropertyDelegateProvider
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
@@ -38,8 +47,10 @@ import kotlin.reflect.KProperty
  * Lifetime: the engine creates one instance per node and reuses it — every param write happens on
  * the single draw-phase thread, so no synchronization and no per-frame allocation.
  *
- * A handle here is a plain typed slot, not a shader expression: it carries the per-draw value and
- * its binding slot, nothing more.
+ * A handle plays two roles from one object: at draw time it carries the per-draw value and its binding
+ * slot; inside a traced kernel body it *is* the shader expression that reads that uniform — the typed
+ * handles ([UFloat] etc.) implement the matching value interface ([Float1] etc.) and hand back a
+ * [UniformRef] node, so a body writes `shadow.rgb` with no lift/convert step.
  */
 @ExperimentalMirage
 public abstract class MirageParams {
@@ -155,19 +166,23 @@ public sealed interface UniformHandle {
   public val slot: Int
 }
 
-/** A scalar `float` uniform slot. */
+/** A scalar `float` uniform slot; a [Float1] expression inside a traced body. */
 @ExperimentalMirage
 public class UFloat internal constructor(override val slot: Int, public var value: Float) :
-  UniformHandle {
+  UniformHandle, Float1 {
+  override val e: Expression get() = UniformRef(slot, ShaderType.Float1)
+
   public operator fun invoke(v: Float) {
     value = v
   }
 }
 
-/** A `float2` uniform slot carrying a coordinate or direction. */
+/** A `float2` uniform slot carrying a coordinate or direction; a [Float2] expression in a body. */
 @ExperimentalMirage
 public class UOffset internal constructor(override val slot: Int, public var value: Offset) :
-  UniformHandle {
+  UniformHandle, Float2 {
+  override val e: Expression get() = UniformRef(slot, ShaderType.Float2)
+
   public operator fun invoke(v: Offset) {
     value = v
   }
@@ -177,10 +192,12 @@ public class UOffset internal constructor(override val slot: Int, public var val
   }
 }
 
-/** A `float2` uniform slot carrying a size. */
+/** A `float2` uniform slot carrying a size; a [Float2] expression in a body. */
 @ExperimentalMirage
 public class USize internal constructor(override val slot: Int, public var value: Size) :
-  UniformHandle {
+  UniformHandle, Float2 {
+  override val e: Expression get() = UniformRef(slot, ShaderType.Float2)
+
   public operator fun invoke(v: Size) {
     value = v
   }
@@ -209,10 +226,12 @@ public class UVec3 internal constructor(override val slot: Int, public var value
   }
 }
 
-/** A `float4` uniform slot. The backing array is always length 4. */
+/** A `float4` uniform slot; a [Float4] expression in a body. The backing array is always length 4. */
 @ExperimentalMirage
 public class UVec4 internal constructor(override val slot: Int, public var value: FloatArray) :
-  UniformHandle {
+  UniformHandle, Float4 {
+  override val e: Expression get() = UniformRef(slot, ShaderType.Float4)
+
   public operator fun invoke(v: FloatArray) {
     require(v.size == 4) { "UVec4 value must have size 4, was ${v.size}" }
     value = v.copyOf()
@@ -234,10 +253,12 @@ public class UFloatArray internal constructor(
   }
 }
 
-/** A `layout(color) vec4` uniform slot. */
+/** A `layout(color) vec4` uniform slot; a [Half4] color expression in a body. */
 @ExperimentalMirage
 public class UColor internal constructor(override val slot: Int, public var value: Color) :
-  UniformHandle {
+  UniformHandle, Half4 {
+  override val e: Expression get() = UniformRef(slot, ShaderType.Half4)
+
   public operator fun invoke(v: Color) {
     value = v
   }

@@ -25,10 +25,12 @@ package com.skydoves.cloudy.internal.edsl
  * name the hand-written kernels read (`shadow`, `highlight`, `amount`, ...).
  */
 internal fun emitColorizeKernel(module: ShaderModule, uniformNames: List<String>): String =
-  emitHelpers(module.helpers, uniformNames) +
-    "half4 kernel(float2 p, half4 src) {\n" +
-    emitBody(module, uniformNames, indent = "    ") +
-    "}"
+  hoist(module).let { hoisted ->
+    emitHelpers(hoisted.helpers, uniformNames) +
+      "half4 kernel(float2 p, half4 src) {\n" +
+      emitBody(hoisted, uniformNames, indent = "    ") +
+      "}"
+  }
 
 /**
  * Prints a [ShaderModule] to a Composite/Generate `main(float2 xy)` body — the shape both categories
@@ -36,14 +38,138 @@ internal fun emitColorizeKernel(module: ShaderModule, uniformNames: List<String>
  * traced expressions rather than synthesized by a wrapper (unlike Colorize).
  */
 internal fun emitCompositeOrGenerateMain(module: ShaderModule, uniformNames: List<String>): String =
-  emitHelpers(module.helpers, uniformNames) +
-    "half4 main(float2 xy) {\n" +
-    emitBody(module, uniformNames, indent = "    ") +
-    "}"
+  hoist(module).let { hoisted ->
+    emitHelpers(hoisted.helpers, uniformNames) +
+      "half4 main(float2 xy) {\n" +
+      emitBody(hoisted, uniformNames, indent = "    ") +
+      "}"
+  }
 
 private fun emitBody(module: ShaderModule, uniformNames: List<String>, indent: String): String {
   val statements = module.statements.joinToString("") { emitStatement(it, uniformNames, indent) }
   return statements + "$indent return ${emit(module.returnExpr, uniformNames)};\n"
+}
+
+/**
+ * Common-subexpression hoisting. A fully-inlined trace repeats `lensSize * 0.5`, `max(halfDim.x, 1.0)`
+ * and the like dozens of times, and the nesting depth alone overruns SkSL's parser (`exceeded max
+ * parse depth`) — so this is a correctness pass, not a cosmetic one. It walks the whole forest
+ * (return value + every statement, into nested `if` bodies), counts each **structurally equal**
+ * subtree, and lifts every one that appears twice or more into a `_tN` local declared once at the top,
+ * replacing its occurrences with a [VarRef].
+ *
+ * Deterministic by construction (same tree in → same names out), which the Chromatic five-look test
+ * needs: it asserts every look emits byte-identical source, and each look re-runs this pass.
+ *
+ * A subtree is liftable only when it is position-independent — it must contain no [SampleContent] (a
+ * `content.eval` tap stays exactly where the author wrote it; identical taps are never merged) and no
+ * [VarRef] (a mutable `local`, which is only valid after its own assignment, not at the top). Trivial
+ * leaves ([Literal] / [Argument] / [UniformRef] / [StandardUniform] / [VarRef]) are never worth a name.
+ *
+ * Lifting a subtree to the top can move it *above* an [EarlyReturn] guard it originally sat behind, so
+ * it is now computed even for pixels the guard would have skipped. That is safe here because the
+ * intrinsics are total (a bevel `normalize`/`pow` on an out-of-lens pixel just yields a discarded
+ * value — the guard still returns its own result), and the raster-parity tests exercise the guarded
+ * out-of-lens region. A future kernel whose guard protects a genuinely undefined operation would need
+ * that guard kept as real control flow rather than folded into a lifted expression.
+ */
+private fun hoist(module: ShaderModule): ShaderModule {
+  val roots = buildList {
+    add(module.returnExpr)
+    fun collect(statements: List<Statement>) {
+      for (s in statements) when (s) {
+        is Assign -> add(s.value)
+        is Reassign -> add(s.value)
+        is EarlyReturn -> { add(s.condition); add(s.value) }
+        is IfBlock -> { add(s.condition); collect(s.body) }
+      }
+    }
+    collect(module.statements)
+  }
+
+  val counts = mutableMapOf<Expression, Int>()
+  for (root in roots) countSubtrees(root, counts)
+
+  // Liftable subtrees, ordered smallest-first so a lifted subtree's own lifted children are declared
+  // ahead of it (a smaller subtree strictly contained in a larger one has a lower node count).
+  val order = mutableMapOf<Expression, Int>() // first-encounter index, the deterministic tie-break
+  for (root in roots) recordOrder(root, order)
+  val lifted = counts.entries
+    .filter { it.value >= 2 && isLiftable(it.key) }
+    .map { it.key }
+    .sortedWith(compareBy({ nodeCount(it) }, { order[it] ?: Int.MAX_VALUE }))
+
+  if (lifted.isEmpty()) return module
+
+  val names = lifted.mapIndexed { i, expr -> expr to "_t$i" }.toMap()
+
+  // Each lifted subtree's initializer substitutes its *nested* lifted subtrees (but not itself).
+  val hoistAssigns = lifted.map { expr ->
+    Assign(names.getValue(expr), substitute(expr, names, self = expr))
+  }
+
+  val newStatements = hoistAssigns + module.statements.map { substituteStatement(it, names) }
+  return ShaderModule(newStatements, substitute(module.returnExpr, names, self = null), module.helpers)
+}
+
+/** Counts every structurally distinct liftable subtree; recurses through children regardless. */
+private fun countSubtrees(node: Expression, counts: MutableMap<Expression, Int>) {
+  if (isLiftable(node)) counts[node] = (counts[node] ?: 0) + 1
+  for (child in children(node)) countSubtrees(child, counts)
+}
+
+private fun recordOrder(node: Expression, order: MutableMap<Expression, Int>) {
+  if (isLiftable(node) && node !in order) order[node] = order.size
+  for (child in children(node)) recordOrder(child, order)
+}
+
+/** Replaces each key subtree with its `_tN` [VarRef], except [self] (a lifted subtree's own body). */
+private fun substitute(node: Expression, names: Map<Expression, String>, self: Expression?): Expression {
+  if (node !== self) names[node]?.let { return VarRef(it, node.type) }
+  return withChildren(node) { substitute(it, names, self) }
+}
+
+private fun substituteStatement(node: Statement, names: Map<Expression, String>): Statement = when (node) {
+  is Assign -> Assign(node.name, substitute(node.value, names, self = null))
+  is Reassign -> Reassign(node.name, substitute(node.value, names, self = null))
+  is EarlyReturn -> EarlyReturn(substitute(node.condition, names, self = null), substitute(node.value, names, self = null))
+  is IfBlock -> IfBlock(substitute(node.condition, names, self = null), node.body.map { substituteStatement(it, names) })
+}
+
+/** Trivial leaves and position-dependent nodes (`content.eval`, mutable locals) are never lifted. */
+private fun isLiftable(node: Expression): Boolean = when (node) {
+  is Literal, is Argument, is UniformRef, is StandardUniform, is VarRef -> false
+  else -> !containsPositionDependent(node)
+}
+
+private fun containsPositionDependent(node: Expression): Boolean = when (node) {
+  is SampleContent, is VarRef -> true
+  else -> children(node).any { containsPositionDependent(it) }
+}
+
+private fun children(node: Expression): List<Expression> = when (node) {
+  is Literal, is Argument, is UniformRef, is StandardUniform, is VarRef -> emptyList()
+  is Unary -> listOf(node.operand)
+  is Binary -> listOf(node.left, node.right)
+  is Comparison -> listOf(node.left, node.right)
+  is Swizzle -> listOf(node.base)
+  is SampleContent -> listOf(node.coord)
+  is Select -> listOf(node.condition, node.ifTrue, node.ifFalse)
+  is Call -> node.args
+}
+
+private fun nodeCount(node: Expression): Int = 1 + children(node).sumOf { nodeCount(it) }
+
+/** Rebuilds [node] with each child mapped through [transform], preserving its type. */
+private fun withChildren(node: Expression, transform: (Expression) -> Expression): Expression = when (node) {
+  is Literal, is Argument, is UniformRef, is StandardUniform, is VarRef -> node
+  is Unary -> node.copy(operand = transform(node.operand))
+  is Binary -> node.copy(left = transform(node.left), right = transform(node.right))
+  is Comparison -> node.copy(left = transform(node.left), right = transform(node.right))
+  is Swizzle -> node.copy(base = transform(node.base))
+  is SampleContent -> node.copy(coord = transform(node.coord))
+  is Select -> node.copy(condition = transform(node.condition), ifTrue = transform(node.ifTrue), ifFalse = transform(node.ifFalse))
+  is Call -> node.copy(args = node.args.map(transform))
 }
 
 private fun emitHelpers(helpers: List<HelperFunction>, uniformNames: List<String>): String =

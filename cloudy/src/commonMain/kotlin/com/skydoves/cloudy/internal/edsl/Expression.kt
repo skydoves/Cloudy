@@ -15,12 +15,20 @@
  */
 package com.skydoves.cloudy.internal.edsl
 
+import com.skydoves.cloudy.ExperimentalMirage
+
 /**
  * A shader value's dialect-neutral type. Carries precision as an attribute (not a separate node kind)
  * so `RuntimeEffectEmitter` prints `half`/`float` while a future GLSL ES 3.0 emitter prints
  * `mediump`/`highp` from the same [Expression] tree.
+ *
+ * Public (though `@ExperimentalMirage`, so it stays out of the committed ABI dump) only because the
+ * body-lambda value types ([Float1] etc.) expose their backing node via a public `.e: Expression`,
+ * and that node's [type] must be reachable through it. Kotlin interface members cannot be `internal`,
+ * so once `.e` is public its whole type graph is too — see [Float1]'s KDoc.
  */
-internal enum class ShaderType(val components: Int, val isHalf: Boolean) {
+@ExperimentalMirage
+public enum class ShaderType(internal val components: Int, internal val isHalf: Boolean) {
   Float1(1, false),
   Float2(2, false),
   Float3(3, false),
@@ -35,9 +43,14 @@ internal enum class ShaderType(val components: Int, val isHalf: Boolean) {
  * A node in the traced expression tree for a Colorize/Generate/Composite kernel body. Plain classes,
  * not value classes: a polymorphic AST boxes on every use as the [Expression] supertype regardless, so
  * a value-class wrapper buys nothing here (see mirage-edsl-design.md §5.1).
+ *
+ * Public (but `@ExperimentalMirage`) so the value types can carry it through a public `.e`; every
+ * concrete node stays `internal`, so the only thing a caller can do with an [Expression] is hand it
+ * back to an intrinsic — the tree shape is not part of the surface.
  */
-internal sealed interface Expression {
-  val type: ShaderType
+@ExperimentalMirage
+public sealed interface Expression {
+  public val type: ShaderType
 }
 
 /** A literal scalar constant, e.g. `0.5`, `SMOOTH_EDGE_PX`'s value inlined at each use. */

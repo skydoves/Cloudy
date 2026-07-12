@@ -272,65 +272,69 @@ private fun renderRidgeProbe(
 }
 
 /**
- * Rewrites the chromatic superellipse bevel block in [source] to a box-SDF construction
+ * Rewrites the chromatic superellipse bevel field in [source] to a box-SDF construction
  * (`depthIn = max(-sdf, 0)` depth normalized by minHalf + a soft-min interior direction). Rendering
  * this contrasting field lets the guard assert the box construction dumps more diagonal energy, so the
- * comparison cannot pass vacuously. Anchored on the bevel block's own source markers.
+ * comparison cannot pass vacuously.
+ *
+ * The eDSL emitter now hoists every shared subexpression into a flat, size-ordered `_tN` list rather
+ * than authoring-ordered `let` locals, so the superellipse computation is no longer a contiguous
+ * block to excise. Instead this locates the two temps that feed the bevel normal — `cDir` (the tangent
+ * direction) and `n_cos` (`1 - depth`) — by the distinctive shape of their initializers, then
+ * overwrites those two declarations with a box construction (recomputing the geometry from the
+ * uniforms, which are in scope). The temps the old superellipse init referenced are left as unused
+ * declarations; the shader compiler drops them.
  */
-/**
- * Finds the emitted local name a `let(readableName, ...)` call produced for [readableName] (e.g.
- * `sdf` -> `sdf_3`): the eDSL emitter (MirageShaderScope's `freshName`) suffixes every traced local
- * with a deterministic-but-arbitrary `_<n>`, so the box-SDF replacement block below — which reads
- * `sdf`/`minHalf`/`halfDim`/`r`/`p` from the surrounding trace — must resolve each name from the
- * actual source rather than assume the hand-written kernel's unsuffixed spelling.
- */
-private fun emittedName(source: String, readableName: String): String {
-  val match = Regex("""\b${Regex.escape(readableName)}(_\d+)?\b(?= = )""").find(source)
-    ?: error("no declaration of '$readableName' found — update toOldBoxBevel")
-  return match.value
-}
-
 private fun toOldBoxBevel(source: String): String {
-  val p = emittedName(source, "p")
-  val sdf = emittedName(source, "sdf")
-  val halfDim = emittedName(source, "halfDim")
-  val r = emittedName(source, "r")
-  val minHalf = emittedName(source, "minHalf")
+  // cDir: hoisting lifts the `float2(1.0E-4, 1.0E-4)` epsilon into its own temp, so chain from that
+  // epsilon → the `(dir + eps)` temp → the `normalize(...)` temp. cLightVec's normalize takes the bare
+  // `iLight` (no epsilon), so this path is unambiguous.
+  val epsName = tempWhoseInit(source, Regex("""^float2\(1\.0E-4, 1\.0E-4\)$"""))
+  val cDirArg = tempWhoseInit(source, Regex("""\+ ${Regex.escape(epsName)}\)$"""))
+  val cDirName = tempWhoseInit(source, Regex("""^normalize\(${Regex.escape(cDirArg)}\)$"""))
+  // n_cos = `1 - t` where `t = clamp(pow(..., 0.25), 0, 1)`; the `pow(_, 0.25)` (= 1/SE_POW) is the
+  // superellipse's fingerprint, so chain from it to the clamp to the `(1.0 - clamp)` that names n_cos.
+  val fName = tempWhoseInit(source, Regex("""^pow\([^,]+, 0\.25\)$"""))
+  val tName = tempWhoseInit(source, Regex("""^clamp\(${Regex.escape(fName)}, 0\.0, 1\.0\)$"""))
+  val nCosName = tempWhoseInit(source, Regex("""^\(1\.0 - ${Regex.escape(tName)}\)$"""))
 
-  // Anchored on the declaration of the superellipse block's first (`q`) and last (`n_cos`) locals.
-  // Everything the box-SDF replacement must NOT leave dangling is whatever the kept tail references
-  // by name — `cN` reads `cDir` and `n_cos`, `cosT`/`ringTerm`/etc. chain off `cN`/`cL` — so the
-  // replacement keeps the original emitted names for `cDir` and `n_cos` (renaming them, unlike the
-  // hand-written kernel's `cDir`/`n_cos`, would leave every downstream reference unresolved).
-  val qName = emittedName(source, "q")
-  val cDirName = emittedName(source, "cDir")
-  val nCosName = emittedName(source, "n_cos")
-  val startAnchor = "float2 $qName ="
-  val endAnchor = "float $nCosName ="
-  val start = source.indexOf(startAnchor)
-  val end = source.indexOf(endAnchor, start)
-  require(start >= 0 && end > start) {
-    "superellipse block markers not found — update toOldBoxBevel"
-  }
-  val lineEnd = source.indexOf('\n', end).let { if (it < 0) source.length else it + 1 }
-  val head = source.substring(0, start)
-  val tail = source.substring(lineEnd)
-  val boxBlock = """
-    float2 d2 = abs($p) - $halfDim + float2($r);
-    float2 s2 = float2($p.x >= 0.0 ? 1.0 : -1.0, $p.y >= 0.0 ? 1.0 : -1.0);
-    float2 $cDirName;
-    if (max(d2.x, d2.y) > 0.0) {
-        $cDirName = s2 * normalize(max(d2, 0.0));
-    } else {
-        float w = clamp(0.5 + 0.5 * (d2.x - d2.y) / SEAM_BLEND_PX, 0.0, 1.0);
-        $cDirName = normalize(float2(s2.x * w, s2.y * (1.0 - w)) + float2(0.0, 1.0e-4));
-    }
-    float depthIn = max(-$sdf, 0.0);
-    float t       = clamp(depthIn / max($minHalf, 1.0), 0.0, 1.0);
-    float $nCosName   = 1.0 - t;
-  """.trimIndent()
-  return head + boxBlock + "\n" + tail
+  // Recompute the lens geometry from the uniforms (all in scope) so the box block needs no other temp.
+  val prelude = """
+    float2 pBox = xy - lensCenter;
+    float2 halfDimBox = lensSize * 0.5;
+    float rBox = min(cornerRadius, min(halfDimBox.x, halfDimBox.y));
+    float sdfBox = boxRoundedSDF(pBox, halfDimBox, rBox);
+    float2 d2Box = abs(pBox) - halfDimBox + float2(rBox);
+    float2 s2Box = float2(pBox.x >= 0.0 ? 1.0 : -1.0, pBox.y >= 0.0 ? 1.0 : -1.0);
+    float depthInBox = max(-sdfBox, 0.0);
+    float tBox = clamp(depthInBox / max(min(halfDimBox.x, halfDimBox.y), 1.0), 0.0, 1.0);
+  """.trimIndent().prependIndent("        ")
+
+  // Insert the prelude just after `main(...) {` so its box geometry precedes every `_tN` use.
+  val open = source.indexOf('{', source.indexOf("half4 main(")) + 1
+  val withPrelude = source.substring(0, open) + "\n" + prelude + source.substring(open)
+
+  // Overwrite the two bevel temps' initializers with the box construction (soft-min interior dir + box
+  // depth). A conditional needs a statement, so declare cDir up top and assign it here via a helper.
+  val boxCDir = "(max(d2Box.x, d2Box.y) > 0.0 ? s2Box * normalize(max(d2Box, 0.0)) : " +
+    "normalize(float2(s2Box.x * clamp(0.5 + 0.5 * (d2Box.x - d2Box.y) / SEAM_BLEND_PX, 0.0, 1.0), " +
+    "s2Box.y * (1.0 - clamp(0.5 + 0.5 * (d2Box.x - d2Box.y) / SEAM_BLEND_PX, 0.0, 1.0))) + float2(0.0, 1.0e-4)))"
+  return withPrelude
+    .let { replaceInit(it, cDirName, boxCDir) }
+    .let { replaceInit(it, nCosName, "(1.0 - tBox)") }
 }
+
+/** The temp name declared as `<type> <name> = <init>;` whose `<init>` matches [initPattern]. */
+private fun tempWhoseInit(source: String, initPattern: Regex): String {
+  val decl = Regex("""\b(_t\d+) = ([^;]+);""").findAll(source)
+    .firstOrNull { initPattern.containsMatchIn(it.groupValues[2].trim()) }
+    ?: error("no temp with init matching /$initPattern/ found — update toOldBoxBevel")
+  return decl.groupValues[1]
+}
+
+/** Rewrites the RHS of temp [name]'s declaration to [init], keeping its declared type and name. */
+private fun replaceInit(source: String, name: String, init: String): String =
+  source.replace(Regex("""(\b${Regex.escape(name)}) = [^;]+;"""), "$1 = $init;")
 
 /**
  * Broad diagonal-ridge metric. The box-bevel X is a *wide smooth ridge* whose luma gradient points
