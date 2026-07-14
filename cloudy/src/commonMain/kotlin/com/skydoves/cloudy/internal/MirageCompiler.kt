@@ -22,8 +22,8 @@ import com.skydoves.cloudy.FilterShader
 import com.skydoves.cloudy.GeneratorShader
 import com.skydoves.cloudy.MirageParams
 import com.skydoves.cloudy.MirageShader
-import com.skydoves.cloudy.internal.edsl.MirageDiagnosticCode
-import com.skydoves.cloudy.internal.edsl.MirageDiagnosticException
+import com.skydoves.cloudy.edsl.MirageDiagnosticCode
+import com.skydoves.cloudy.edsl.MirageDiagnosticException
 
 /**
  * Lowers an authored [MirageShader] into a per-dialect [CompiledProgram]. Pure and side-effect-free: it
@@ -300,7 +300,7 @@ internal object MirageCompiler {
 
   /**
    * The exact call form a content read takes in every kernel body (hand-written or eDSL-emitted, see
-   * [com.skydoves.cloudy.internal.edsl.sampleContent]) — matched literally rather than a bare
+   * [com.skydoves.cloudy.edsl.sampleContent]) — matched literally rather than a bare
    * [CONTENT_TOKEN] substring so an unrelated uniform name like `contentOpacity` does not trip the
    * Colorize/Generate content-access lint.
    */

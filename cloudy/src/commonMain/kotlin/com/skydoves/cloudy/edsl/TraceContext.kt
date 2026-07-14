@@ -15,7 +15,7 @@
  */
 @file:OptIn(ExperimentalMirage::class, ExperimentalAtomicApi::class)
 
-package com.skydoves.cloudy.internal.edsl
+package com.skydoves.cloudy.edsl
 
 import com.skydoves.cloudy.ExperimentalMirage
 import kotlin.concurrent.atomics.AtomicReference

@@ -18,14 +18,14 @@
 package com.skydoves.cloudy
 
 import com.skydoves.cloudy.internal.ShaderCategory
-import com.skydoves.cloudy.internal.edsl.Argument
-import com.skydoves.cloudy.internal.edsl.Float2
-import com.skydoves.cloudy.internal.edsl.Half4
-import com.skydoves.cloudy.internal.edsl.ShaderModule
-import com.skydoves.cloudy.internal.edsl.ShaderType
-import com.skydoves.cloudy.internal.edsl.emitColorizeKernel
-import com.skydoves.cloudy.internal.edsl.emitCompositeOrGenerateMain
-import com.skydoves.cloudy.internal.edsl.trace
+import com.skydoves.cloudy.edsl.Argument
+import com.skydoves.cloudy.edsl.Float2
+import com.skydoves.cloudy.edsl.Half4
+import com.skydoves.cloudy.edsl.ShaderModule
+import com.skydoves.cloudy.edsl.ShaderType
+import com.skydoves.cloudy.edsl.emitColorizeKernel
+import com.skydoves.cloudy.edsl.emitCompositeOrGenerateMain
+import com.skydoves.cloudy.edsl.trace
 
 /**
  * A named mirage shader: a shader effect paired with the [MirageParams] subclass that declares its

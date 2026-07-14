@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.skydoves.cloudy.internal.edsl
+package com.skydoves.cloudy.edsl
 
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
@@ -38,7 +38,7 @@ internal class MirageReservedNamesTest :
       requireNotNull(dir) { "could not locate the repo root (settings.gradle.kts) from user.dir" }
       val source = File(
         dir,
-        "cloudy/src/commonMain/kotlin/com/skydoves/cloudy/internal/edsl/ShaderValues.kt",
+        "cloudy/src/commonMain/kotlin/com/skydoves/cloudy/edsl/ShaderValues.kt",
       )
       require(source.exists()) { "ShaderValues.kt not found at ${source.absolutePath}" }
 

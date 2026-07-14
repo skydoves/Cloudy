@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.skydoves.cloudy.internal.edsl
+package com.skydoves.cloudy.edsl
 
 /**
  * Prints a [ShaderModule] to a Colorize `kernel(float2 p, half4 src)` body. One printer for both AGSL

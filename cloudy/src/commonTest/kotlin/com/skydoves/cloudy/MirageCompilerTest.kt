@@ -26,7 +26,7 @@ import com.skydoves.cloudy.internal.FOIL_KERNEL_AGSL
 import com.skydoves.cloudy.internal.MirageCompiler
 import com.skydoves.cloudy.internal.SPECULAR_KERNEL_AGSL
 import com.skydoves.cloudy.internal.ShaderCategory
-import com.skydoves.cloudy.internal.edsl.MirageDiagnosticException
+import com.skydoves.cloudy.edsl.MirageDiagnosticException
 import io.kotest.assertions.throwables.shouldNotThrowAny
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
