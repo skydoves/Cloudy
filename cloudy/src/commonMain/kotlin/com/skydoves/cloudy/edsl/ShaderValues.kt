@@ -717,14 +717,17 @@ public operator fun Float.times(o: Float2): Float2 =
 public operator fun Float2.minus(o: Float): Float2 =
   Float2(Binary("-", e, Literal(o), ShaderType.Float2))
 
+/** `max(float2, float2)` — component-wise max (`max(res, float2(1.0))`, the resolution floor). */
 @ExperimentalMirage
 public fun max(a: Float2, b: Float2): Float2 =
   Float2(Call("max", listOf(a.e, b.e), ShaderType.Float2))
 
+/** `min(float1, float)` — scalar min (`min(nLen, 24.0)`, the refraction-offset length clamp). */
 @ExperimentalMirage
 public fun min(a: Float1, b: Float): Float1 =
   Float1(Call("min", listOf(a.e, Literal(b)), ShaderType.Float1))
 
+/** `max(half1, float)` — the droplet-brightness floor (`max(0.0, sin(...) - st.y)` in `DropLayer2`). */
 @ExperimentalMirage
 public fun max(a: Half1, b: Float): Half1 =
   Half1(Call("max", listOf(a.e, Literal(b)), ShaderType.Half1))
@@ -739,10 +742,20 @@ public fun clamp(a: Float2, lo: Float2, hi: Float2): Float2 =
 public fun clamp(a: Float2, lo: Float, hi: Float): Float2 =
   Float2(Call("clamp", listOf(a.e, Literal(lo), Literal(hi)), ShaderType.Float2))
 
-/** `clamp(half1, float, float)` — the mask-read channel clamp (`clamp(float(wipeMask.eval(...).r), 0, 1)`). */
+/**
+ * `clamp(float(half1), float, float)` — the mask-read channel clamp
+ * (`clamp(float(wipeMask.eval(...).r), 0, 1)`). The `half` read is cast to `float` so the call
+ * resolves against SkSL/AGSL's `clamp($genType, float, float)` overload instead of relying on
+ * implicit `half`→`float` promotion; this mirrors the original hand-written kernel's explicit cast.
+ */
 @ExperimentalMirage
-public fun clamp(a: Half1, lo: Float, hi: Float): Float1 =
-  Float1(Call("clamp", listOf(a.e, Literal(lo), Literal(hi)), ShaderType.Float1))
+public fun clamp(a: Half1, lo: Float, hi: Float): Float1 = Float1(
+  Call(
+    "clamp",
+    listOf(Call("float", listOf(a.e), ShaderType.Float1), Literal(lo), Literal(hi)),
+    ShaderType.Float1,
+  ),
+)
 
 /** `mix(float, float, float1)` — bare-float endpoints with a value blend factor (`mix(3.0, 6.0, amount)`). */
 @ExperimentalMirage
@@ -781,18 +794,24 @@ public fun float3(x: Float1, y: Float1, z: Float1): Float3 =
 public fun half(v: Float): Half1 = Half1(Call("half", listOf(Literal(v)), ShaderType.Half1))
 
 // Swizzles the drop-field math reads.
+
+/** `.yx` on a `float2` — component swap (`(st - p) * a.yx`, the anisotropic drop-distance stretch). */
 @ExperimentalMirage
 public val Float2.yx: Float2 get() = Float2(Swizzle(e, "yx", ShaderType.Float2))
 
+/** `.y` on a `float3` — the green lane of a hash triple (`p3.y` in `N13`). */
 @ExperimentalMirage
 public val Float3.y: Float1 get() = Float1(Swizzle(e, "y", ShaderType.Float1))
 
+/** `.z` on a `float3` — the blue lane of a hash triple (`p3.z` / `n.z` in `N13`/`DropLayer2`). */
 @ExperimentalMirage
 public val Float3.z: Float1 get() = Float1(Swizzle(e, "z", ShaderType.Float1))
 
+/** `.xy` on a `float3` — the first two hash lanes (`n.xy` seeding the static-drop offset). */
 @ExperimentalMirage
 public val Float3.xy: Float2 get() = Float2(Swizzle(e, "xy", ShaderType.Float2))
 
+/** `.yzx` on a `float3` — the rotated-lane self-dot term (`p3.yzx + 19.19` in `N13`). */
 @ExperimentalMirage
 public val Float3.yzx: Float3 get() = Float3(Swizzle(e, "yzx", ShaderType.Float3))
 
