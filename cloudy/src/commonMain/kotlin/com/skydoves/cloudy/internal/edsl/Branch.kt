@@ -116,7 +116,8 @@ public fun <T : ShaderValue> When(block: (@MirageWhenDsl WhenScope<T>).() -> T):
 @MirageWhenDsl
 @ExperimentalMirage
 public class WhenScope<T : ShaderValue> internal constructor() {
-  private val cases = mutableListOf<Pair<Expression, Triple<List<Statement>, Expression, ShaderType>>>()
+  private val cases =
+    mutableListOf<Pair<Expression, Triple<List<Statement>, Expression, ShaderType>>>()
   private var otherwiseCase: Triple<List<Statement>, Expression, ShaderType>? = null
 
   /**
@@ -153,7 +154,8 @@ public class WhenScope<T : ShaderValue> internal constructor() {
   internal fun lower(): T {
     val trace = activeTrace()
     val temp = trace.freshName()
-    val (otherStmts, otherValue, type) = otherwiseCase ?: error("When lowered without an otherwise arm")
+    val (otherStmts, otherValue, type) = otherwiseCase
+      ?: error("When lowered without an otherwise arm")
 
     for ((_, arm) in cases) {
       if (arm.third != type) {
@@ -172,7 +174,8 @@ public class WhenScope<T : ShaderValue> internal constructor() {
     }
 
     trace.statements += DeclareLocal(temp, type)
-    trace.statements += elseBody // the outermost IfBlock (or, with no cases, the bare otherwise reassign)
+    // The outermost IfBlock, or (with no cases) the bare otherwise write.
+    trace.statements += elseBody
     return wrapNode(type, VarRef(temp, type)) as T
   }
 }

@@ -108,22 +108,21 @@ public fun <A, R> shaderFunction(
   param: ShaderValueType<A>,
   returns: ShaderValueType<R>,
   body: (A) -> R,
-): PropertyDelegateProvider<Any?, ShaderFunction1<A, R>> =
-  PropertyDelegateProvider { _, property ->
-    val name = reservedGuard(property.name)
-    ShaderFunction1 { a ->
-      val node = defineHelper(
-        name = name,
-        params = listOf("p0" to param.shaderType),
-        returnType = returns.shaderType,
-        args = listOf(param.unwrap(a)),
-      ) {
-        val result = body(param.wrap(Argument("p0", param.shaderType)))
-        checkReturnType(name, returns.shaderType, returns.unwrap(result))
-      }
-      returns.wrap(node)
+): PropertyDelegateProvider<Any?, ShaderFunction1<A, R>> = PropertyDelegateProvider { _, property ->
+  val name = reservedGuard(property.name)
+  ShaderFunction1 { a ->
+    val node = defineHelper(
+      name = name,
+      params = listOf("p0" to param.shaderType),
+      returnType = returns.shaderType,
+      args = listOf(param.unwrap(a)),
+    ) {
+      val result = body(param.wrap(Argument("p0", param.shaderType)))
+      checkReturnType(name, returns.shaderType, returns.unwrap(result))
     }
+    returns.wrap(node)
   }
+}
 
 @ExperimentalMirage
 public fun <A, B, R> shaderFunction(

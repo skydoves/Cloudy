@@ -266,7 +266,9 @@ private fun emitStatement(node: Statement, uniformNames: List<String>, indent: S
       if (node.elseBody.isEmpty()) {
         "$head\n"
       } else {
-        val elseBody = node.elseBody.joinToString("") { emitStatement(it, uniformNames, innerIndent) }
+        val elseBody = node.elseBody.joinToString("") {
+          emitStatement(it, uniformNames, innerIndent)
+        }
         "$head else {\n" + elseBody + "$indent}\n"
       }
     }

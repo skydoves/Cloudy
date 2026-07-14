@@ -92,7 +92,6 @@ internal class MirageBranchTest :
             float3(0f, 0f, 1f)
           }
           half4(0f) // unreachable: the arm-type mismatch above throws during the trace
-
         }
       }
       ex.code shouldBe MirageDiagnosticCode.BRANCH_TYPE_MISMATCH

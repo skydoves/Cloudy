@@ -359,7 +359,9 @@ public var Half4.a: Half1
 
 /** The backing local name a write-swizzle targets, or a loud failure if the value is not a mutable local. */
 private fun localName(node: Expression, channel: String): String = (node as? VarRef)?.name
-  ?: error("cannot write .$channel of a computed half4 — write-swizzle needs a `var x by local(...)`")
+  ?: error(
+    "cannot write .$channel of a computed half4 — write-swizzle needs a `var x by local(...)`",
+  )
 
 @ExperimentalMirage
 public fun float1(v: Float): Float1 = Float1(Literal(v, ShaderType.Float1))
