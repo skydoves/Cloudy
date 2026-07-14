@@ -173,7 +173,7 @@ private fun isLiftable(node: Expression): Boolean = when (node) {
 }
 
 private fun containsPositionDependent(node: Expression): Boolean = when (node) {
-  is SampleContent, is VarRef -> true
+  is SampleContent, is SampleTexture, is VarRef -> true
   else -> children(node).any { containsPositionDependent(it) }
 }
 
@@ -184,6 +184,7 @@ private fun children(node: Expression): List<Expression> = when (node) {
   is Comparison -> listOf(node.left, node.right)
   is Swizzle -> listOf(node.base)
   is SampleContent -> listOf(node.coord)
+  is SampleTexture -> listOf(node.texture, node.coord)
   is Select -> listOf(node.condition, node.ifTrue, node.ifFalse)
   is Call -> node.args
 }
@@ -205,6 +206,8 @@ private fun withChildren(node: Expression, transform: (Expression) -> Expression
 
     is SampleContent -> node.copy(coord = transform(node.coord))
 
+    is SampleTexture -> node.copy(texture = transform(node.texture), coord = transform(node.coord))
+
     is Select -> node.copy(
       condition = transform(node.condition),
       ifTrue = transform(node.ifTrue),
@@ -216,10 +219,14 @@ private fun withChildren(node: Expression, transform: (Expression) -> Expression
 
 private fun emitHelpers(helpers: List<HelperFunction>, uniformNames: List<String>): String =
   helpers.joinToString("") { helper ->
-    "${typeToken(
-      helper.body.type,
-    )} ${helper.name}(${typeToken(helper.paramType)} ${helper.paramName}) " +
-      "{ return ${emit(helper.body, uniformNames)}; }\n"
+    val params = helper.params.joinToString(", ") { (name, type) -> "${typeToken(type)} $name" }
+    val signature = "${typeToken(helper.returnType)} ${helper.name}($params)"
+    if (helper.body.isEmpty()) {
+      "$signature { return ${emit(helper.returnExpr, uniformNames)}; }\n"
+    } else {
+      val body = helper.body.joinToString("") { emitStatement(it, uniformNames, "    ") }
+      "$signature {\n" + body + "    return ${emit(helper.returnExpr, uniformNames)};\n}\n"
+    }
   }
 
 private fun emitStatement(node: Statement, uniformNames: List<String>, indent: String): String =
@@ -253,6 +260,9 @@ private fun emit(node: Expression, uniformNames: List<String>): String = when (n
   is VarRef -> node.name
 
   is SampleContent -> "content.eval(${emit(node.coord, uniformNames)})"
+
+  is SampleTexture ->
+    "${emit(node.texture, uniformNames)}.eval(${emit(node.coord, uniformNames)})"
 
   is Select ->
     "(${emit(

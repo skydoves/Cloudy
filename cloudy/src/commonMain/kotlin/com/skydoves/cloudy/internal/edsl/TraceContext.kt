@@ -47,6 +47,27 @@ internal class TraceContext {
     if (helpers.none { it.name == helper.name }) helpers += helper
   }
 
+  fun hasHelper(name: String): Boolean = helpers.any { it.name == name }
+
+  /**
+   * Traces a multi-statement helper body once, returning the statements it recorded and its returned
+   * expression. Runs [block] against *this* trace (so intrinsics inside the helper — including calls to
+   * *other* helpers — find the open trace and register on it), then splices out the statements [block]
+   * appended so they land in the helper's own [HelperFunction.body], not the main kernel body. Mirrors
+   * [ifBlock]'s splice, but yields the captured statements to the caller instead of re-wrapping them.
+   *
+   * A helper calling another helper registers that callee on this trace *before* the caller finishes
+   * tracing (its intrinsic runs mid-[block]), so the shared [helpers] list ends up dependency-first —
+   * every helper is appended after its callees, which is exactly the GLSL "declared before use" order.
+   */
+  fun <R> traceHelper(block: () -> R): Pair<List<Statement>, R> {
+    val start = statements.size
+    val result = block()
+    val body = statements.subList(start, statements.size).toList()
+    statements.subList(start, statements.size).clear()
+    return body to result
+  }
+
   /**
    * Runs [block], then folds every statement it appended into one [IfBlock] guarded by [condition] —
    * see the class KDoc for why this in-place splice, not a child scope, is what keeps a nested
@@ -108,6 +129,16 @@ internal fun activeTrace(): TraceContext = currentTrace.load() ?: throw MirageDi
 @ExperimentalMirage
 public val mirageTime: Float1 get() = Float1(StandardUniform("mirageTime", ShaderType.Float1))
 
+/**
+ * `mirageResolution` — the standard, name-gated render resolution (MirageCompiler.kt's STD_RESOLUTION),
+ * a `float2` of the target size in px. Like [mirageTime]: a top-level value that only mints a
+ * [StandardUniform] node, so referencing it is what makes the compiler emit the `uniform float2`
+ * declaration; needs no open trace.
+ */
+@ExperimentalMirage
+public val mirageResolution: Float2 get() =
+  Float2(StandardUniform("mirageResolution", ShaderType.Float2))
+
 /** `if (<condition>) return <value>;` — Foil's lens-bounds early-out is this shape exactly. */
 @ExperimentalMirage
 public fun guard(condition: UBool, value: () -> Half4) {
@@ -142,6 +173,74 @@ public class LocalHalf4 internal constructor(private val name: String) {
   public operator fun setValue(thisRef: Any?, property: KProperty<*>, value: Half4) {
     activeTrace().statements += Reassign(name, value.e)
   }
+}
+
+/**
+ * `var uv by local(initial)` for a `float2` — the mutable-local form the RainyWindow helpers need for
+ * their sequential in-place updates (`uv.y += t`, `x *= 0.7`, ... rewritten as full reassignment). Same
+ * shape as [local] over [Half4]; the getter always reads the one source variable, a set never renames.
+ */
+@ExperimentalMirage
+public fun local(initial: Float2): LocalFloat2 {
+  val name = activeTrace().freshName()
+  activeTrace().statements += Assign(name, initial.e)
+  return LocalFloat2(name)
+}
+
+/** The delegate backing `var v by local(float2)`; see [local]. */
+@ExperimentalMirage
+public class LocalFloat2 internal constructor(private val name: String) {
+  public operator fun getValue(thisRef: Any?, property: KProperty<*>): Float2 =
+    Float2(VarRef(name, ShaderType.Float2))
+
+  public operator fun setValue(thisRef: Any?, property: KProperty<*>, value: Float2) {
+    activeTrace().statements += Reassign(name, value.e)
+  }
+}
+
+/** `var x by local(initial)` for a `float` scalar — see [local] over [Float2]. */
+@ExperimentalMirage
+public fun local(initial: Float1): LocalFloat1 {
+  val name = activeTrace().freshName()
+  activeTrace().statements += Assign(name, initial.e)
+  return LocalFloat1(name)
+}
+
+/** The delegate backing `var x by local(float1)`; see [local]. */
+@ExperimentalMirage
+public class LocalFloat1 internal constructor(private val name: String) {
+  public operator fun getValue(thisRef: Any?, property: KProperty<*>): Float1 =
+    Float1(VarRef(name, ShaderType.Float1))
+
+  public operator fun setValue(thisRef: Any?, property: KProperty<*>, value: Float1) {
+    activeTrace().statements += Reassign(name, value.e)
+  }
+}
+
+/**
+ * Registers an N-param, statement-body helper function once (deduped by [name]) and returns the
+ * [Expression] a call to it produces. The library-facing counterpart to [foilHash]'s single-expression
+ * registration: [traceBody] runs against fresh [Argument] handles the caller builds for [params],
+ * declaring mutable [local]s and calling other helpers as needed, and returns the helper's final
+ * expression; everything it records under [TraceContext.traceHelper] becomes the helper's own body.
+ *
+ * The caller passes the [args] the call site supplies and the [returnType]; a `internal fun N13(...)`
+ * wrapper in the kernel file wraps the returned node in its value type.
+ */
+@ExperimentalMirage
+internal fun defineHelper(
+  name: String,
+  params: List<Pair<String, ShaderType>>,
+  returnType: ShaderType,
+  args: List<Expression>,
+  traceBody: () -> Expression,
+): Expression {
+  val trace = activeTrace()
+  if (!trace.hasHelper(name)) {
+    val (statements, returnExpr) = trace.traceHelper(traceBody)
+    trace.addHelper(HelperFunction(name, params, returnType, statements, returnExpr))
+  }
+  return Call(name, args, returnType)
 }
 
 /** `sampleContent(coord)` — the `content.eval(coord)` sample point, Composite-only. */

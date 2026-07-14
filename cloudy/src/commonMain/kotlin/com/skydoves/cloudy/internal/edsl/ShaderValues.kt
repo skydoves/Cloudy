@@ -21,6 +21,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import com.skydoves.cloudy.ExperimentalMirage
+import com.skydoves.cloudy.UTexture
 
 /**
  * The typed values a mirage kernel body works with — a `float2` position, a `half4` color, etc. Public
@@ -571,9 +572,10 @@ public fun foilHash(c: Float2): Float1 {
   activeTrace().addHelper(
     HelperFunction(
       name = "foilHash",
-      paramName = "c",
-      paramType = ShaderType.Float2,
-      body = fract(
+      params = listOf("c" to ShaderType.Float2),
+      returnType = ShaderType.Float1,
+      body = emptyList(),
+      returnExpr = fract(
         sin(dot(Float2(Argument("c", ShaderType.Float2)), float2(127.1f, 311.7f))) * 43758.5453f,
       ).e,
     ),
@@ -631,3 +633,124 @@ public fun size(s: Size): Float2 =
  */
 @ExperimentalMirage
 public fun mix(a: Half4, b: Color, t: Float1): Half4 = mix(a, color(b), t)
+
+/**
+ * `<texture>.eval(coord)` — samples an arbitrary `uniform shader` texture child (RainyWindow's
+ * `wipeMask` finger-wipe mask), the texture counterpart of [sampleContent]. Position-dependent: each
+ * tap stays where written (the four bilinear taps of a mask read are never CSE-merged) — see
+ * [SampleTexture].
+ */
+@ExperimentalMirage
+public fun UTexture.eval(coord: Float2): Half4 =
+  Half4(SampleTexture(UniformRef(slot, ShaderType.Half4), coord.e))
+
+// --- Builtins / operators / swizzles the RainyWindow ("Heartfelt") port needs, added one-per-line in
+// the same factory style as the block above. Each mirrors an AGSL/SkSL builtin or GLSL operator the
+// hand-written kernel spells out. ---
+
+/** `mod(x, y)` — GLSL floating modulo (`x - y * floor(x/y)`), a real AGSL/SkSL builtin. */
+@ExperimentalMirage
+public fun mod(a: Float1, b: Float): Float1 =
+  Float1(Call("mod", listOf(a.e, Literal(b)), ShaderType.Float1))
+
+/** `float * float2` — GLSL scalar-broadcast on the left (`0.5 * res`). */
+@ExperimentalMirage
+public operator fun Float.times(o: Float2): Float2 =
+  Float2(Binary("*", Literal(this), o.e, ShaderType.Float2))
+
+/** `float2 - float` — GLSL scalar-broadcast subtract (`res - 0.5`). */
+@ExperimentalMirage
+public operator fun Float2.minus(o: Float): Float2 =
+  Float2(Binary("-", e, Literal(o), ShaderType.Float2))
+
+@ExperimentalMirage
+public fun max(a: Float2, b: Float2): Float2 =
+  Float2(Call("max", listOf(a.e, b.e), ShaderType.Float2))
+
+@ExperimentalMirage
+public fun min(a: Float1, b: Float): Float1 =
+  Float1(Call("min", listOf(a.e, Literal(b)), ShaderType.Float1))
+
+@ExperimentalMirage
+public fun max(a: Half1, b: Float): Half1 =
+  Half1(Call("max", listOf(a.e, Literal(b)), ShaderType.Half1))
+
+/** `clamp` over `float2` with `float2` bounds (`clamp(tap, float2(0.5), res - 0.5)`). */
+@ExperimentalMirage
+public fun clamp(a: Float2, lo: Float2, hi: Float2): Float2 =
+  Float2(Call("clamp", listOf(a.e, lo.e, hi.e), ShaderType.Float2))
+
+/** `clamp` over `float2` with scalar bounds (`clamp(xy / res, 0.0, 1.0)`). */
+@ExperimentalMirage
+public fun clamp(a: Float2, lo: Float, hi: Float): Float2 =
+  Float2(Call("clamp", listOf(a.e, Literal(lo), Literal(hi)), ShaderType.Float2))
+
+/** `clamp(half1, float, float)` — the mask-read channel clamp (`clamp(float(wipeMask.eval(...).r), 0, 1)`). */
+@ExperimentalMirage
+public fun clamp(a: Half1, lo: Float, hi: Float): Float1 =
+  Float1(Call("clamp", listOf(a.e, Literal(lo), Literal(hi)), ShaderType.Float1))
+
+/** `mix(float, float, float1)` — bare-float endpoints with a value blend factor (`mix(3.0, 6.0, amount)`). */
+@ExperimentalMirage
+public fun mix(a: Float, b: Float, t: Float1): Float1 =
+  Float1(Call("mix", listOf(Literal(a), Literal(b), t.e), ShaderType.Float1))
+
+/** `half4 + half4` — the 5-tap box-blur accumulation (`sharpBg + content.eval(...) + ...`). */
+@ExperimentalMirage
+public operator fun Half4.plus(o: Half4): Half4 = Half4(Binary("+", e, o.e, ShaderType.Half4))
+
+/** `mix(half4, half4, half1)` — blend by a `half` factor (`mix(sharpBg, blur, half(foggy))`). */
+@ExperimentalMirage
+public fun mix(a: Half4, b: Half4, t: Half1): Half4 =
+  Half4(Call("mix", listOf(a.e, b.e, t.e), ShaderType.Half4))
+
+/** `half4 * half1` — normalizing the blur sum (`blur *= half(1.0 / 5.0)`). */
+@ExperimentalMirage
+public operator fun Half4.times(o: Half1): Half4 = Half4(Binary("*", e, o.e, ShaderType.Half4))
+
+/** `half1 * half1` — `half(foggy) * half(hazeStrength)`. */
+@ExperimentalMirage
+public operator fun Half1.times(o: Half1): Half1 = Half1(Binary("*", e, o.e, ShaderType.Half1))
+
+/** `half3(r, g, b)` from bare floats — the haze constant `half3(0.86, 0.90, 0.94)`. */
+@ExperimentalMirage
+public fun half3(r: Float, g: Float, b: Float): Half3 =
+  Half3(Call("half3", listOf(Literal(r), Literal(g), Literal(b)), ShaderType.Half3))
+
+/** `float3(x, y, z)` from three scalar expressions (`float3(p, p, p)`, the hash lane spread). */
+@ExperimentalMirage
+public fun float3(x: Float1, y: Float1, z: Float1): Float3 =
+  Float3(Call("float3", listOf(x.e, y.e, z.e), ShaderType.Float3))
+
+/** `half(v)` from a bare Kotlin float (`half(1.0 / 5.0)`, the box-blur normalizer). */
+@ExperimentalMirage
+public fun half(v: Float): Half1 = Half1(Call("half", listOf(Literal(v)), ShaderType.Half1))
+
+// Swizzles the drop-field math reads.
+@ExperimentalMirage
+public val Float2.yx: Float2 get() = Float2(Swizzle(e, "yx", ShaderType.Float2))
+
+@ExperimentalMirage
+public val Float3.y: Float1 get() = Float1(Swizzle(e, "y", ShaderType.Float1))
+
+@ExperimentalMirage
+public val Float3.z: Float1 get() = Float1(Swizzle(e, "z", ShaderType.Float1))
+
+@ExperimentalMirage
+public val Float3.xy: Float2 get() = Float2(Swizzle(e, "xy", ShaderType.Float2))
+
+@ExperimentalMirage
+public val Float3.yzx: Float3 get() = Float3(Swizzle(e, "yzx", ShaderType.Float3))
+
+/** `.r` on a `half4` — the wipe-mask alpha/red channel read. */
+@ExperimentalMirage
+public val Half4.r: Half1 get() = Half1(Swizzle(e, "r", ShaderType.Half1))
+
+/** `float3 + float` scalar-broadcast (`p3.yzx + 19.19`). */
+@ExperimentalMirage
+public operator fun Float3.plus(o: Float): Float3 =
+  Float3(Binary("+", e, Literal(o), ShaderType.Float3))
+
+/** `float3 + float1` scalar-broadcast (`p3 += dot(...)`, adding a scalar to every lane). */
+@ExperimentalMirage
+public operator fun Float3.plus(o: Float1): Float3 = Float3(Binary("+", e, o.e, ShaderType.Float3))

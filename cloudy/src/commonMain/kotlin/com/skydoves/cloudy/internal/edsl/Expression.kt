@@ -129,6 +129,17 @@ internal data class SampleContent(val coord: Expression) : Expression {
   override val type: ShaderType get() = ShaderType.Half4
 }
 
+/**
+ * A `<texture>.eval(coord)` sample of an arbitrary `uniform shader` texture child (RainyWindow's
+ * `wipeMask`), parallel to [SampleContent] but over a named [UniformRef] rather than the content
+ * sampler. Position-dependent for the same reason [SampleContent] is: each tap must stay where the
+ * author wrote it (the four bilinear taps of a mask read must not be CSE-merged), so [hoist] treats it
+ * as un-liftable.
+ */
+internal data class SampleTexture(val texture: Expression, val coord: Expression) : Expression {
+  override val type: ShaderType get() = ShaderType.Half4
+}
+
 /** A reference to a local variable bound by a preceding [Assign]/[Reassign] statement. */
 internal data class VarRef(val name: String, override val type: ShaderType) : Expression
 
@@ -159,15 +170,23 @@ internal data class EarlyReturn(val condition: Expression, val value: Expression
 internal data class IfBlock(val condition: Expression, val body: List<Statement>) : Statement
 
 /**
- * A user-defined helper function traced alongside the kernel body (e.g. Foil's `foilHash`), spliced
- * into the emitted source ahead of the kernel/main it's used from. Single-expression body only — the
- * one shape every current kernel's helper functions need.
+ * A user-defined helper function traced alongside the kernel body (e.g. Foil's `foilHash`, RainyWindow's
+ * `DropLayer2`), spliced into the emitted source ahead of the kernel/main it's used from.
+ *
+ * A helper is a real emitted GLSL function, not a macro inline: it has [params] (N of them, each a
+ * `name: type`), an ordered [body] of statements building explicit locals, and a [returnExpr]. The
+ * body's statements already carry their own author-given local names, so the kernel-body hoist (CSE)
+ * does not descend into them — a helper is declared once and called, its internals are its own scope.
+ *
+ * A single-expression helper (Foil's `foilHash`) is just the degenerate case: empty [body], the whole
+ * expression in [returnExpr].
  */
 internal class HelperFunction(
   val name: String,
-  val paramName: String,
-  val paramType: ShaderType,
-  val body: Expression,
+  val params: List<Pair<String, ShaderType>>,
+  val returnType: ShaderType,
+  val body: List<Statement>,
+  val returnExpr: Expression,
 )
 
 /**

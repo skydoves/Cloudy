@@ -38,7 +38,7 @@ internal object MirageReservedNames {
    */
   val BUILTIN_FUNCTIONS: Set<String> = setOf(
     "abs", "clamp", "cos", "dot", "exp", "floor", "fract", "half", "half3", "half4",
-    "float2", "float3", "float4", "length", "max", "min", "mirage_luma", "mix",
+    "float2", "float3", "float4", "length", "max", "min", "mirage_luma", "mix", "mod",
     "normalize", "pow", "sin", "smoothstep", "sqrt", "step", "foilHash",
   )
 
