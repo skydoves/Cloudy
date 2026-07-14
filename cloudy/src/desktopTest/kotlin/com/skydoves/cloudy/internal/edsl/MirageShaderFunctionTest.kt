@@ -43,6 +43,40 @@ internal class MirageShaderFunctionTest :
       kernel shouldContain "sdCircle(xy)"
     }
 
+    test("nested shaderFunction calls emit dependency-first (callee declared before caller)") {
+      // 3-level nesting mirroring RainyWindow's drops -> dropLayer2 -> n13:
+      // a 5-param helper calls a 2-param helper, which calls a 1-param helper.
+      val kernel = MirageShader.generate("nested", ::EmptyParams) { xy ->
+        val leaf by shaderFunction(Float1Type, Float1Type) { p -> p * 2f }
+        val mid by shaderFunction(Float2Type, Float1Type, Float1Type) { uv, t ->
+          leaf(uv.x) + t
+        }
+        val top by shaderFunction(
+          Float2Type,
+          Float1Type,
+          Float1Type,
+          Float1Type,
+          Float1Type,
+          Float1Type,
+        ) { uv, t, l0, l1, l2 ->
+          mid(uv, t) + l0 + l1 + l2
+        }
+        val d = top(xy, float1(1f), float1(2f), float1(3f), float1(4f))
+        half4(half3(float3(d, d, d)), half(1f))
+      }.agsl
+
+      kernel shouldContain "float leaf(float p0)"
+      kernel shouldContain "float mid(float2 p0, float p1)"
+      kernel shouldContain "float top(float2 p0, float p1, float p2, float p3, float p4)"
+
+      // Dependency-first: each callee's declaration precedes its caller's declaration.
+      val leafAt = kernel.indexOf("float leaf(")
+      val midAt = kernel.indexOf("float mid(")
+      val topAt = kernel.indexOf("float top(")
+      (leafAt in 0 until midAt) shouldBe true
+      (midAt in 0 until topAt) shouldBe true
+    }
+
     test("a shaderFunction named after a builtin fails with RESERVED_IDENTIFIER") {
       val ex = shouldThrow<MirageDiagnosticException> {
         MirageShader.generate("reservedFn", ::EmptyParams) { xy ->

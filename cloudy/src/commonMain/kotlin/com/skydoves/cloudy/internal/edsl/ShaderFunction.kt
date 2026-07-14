@@ -77,6 +77,20 @@ public class ShaderFunction3<A, B, C, R> internal constructor(private val call: 
   public operator fun getValue(thisRef: Any?, property: KProperty<*>): (A, B, C) -> R = call
 }
 
+@ExperimentalMirage
+public class ShaderFunction4<A, B, C, D, R> internal constructor(
+  private val call: (A, B, C, D) -> R,
+) {
+  public operator fun getValue(thisRef: Any?, property: KProperty<*>): (A, B, C, D) -> R = call
+}
+
+@ExperimentalMirage
+public class ShaderFunction5<A, B, C, D, E, R> internal constructor(
+  private val call: (A, B, C, D, E) -> R,
+) {
+  public operator fun getValue(thisRef: Any?, property: KProperty<*>): (A, B, C, D, E) -> R = call
+}
+
 /**
  * Captures the property name of `val <name> by shaderFunction(...) { ... }` and, on first call, traces
  * the body into a user-defined [HelperFunction] named after the property (deduped by [defineHelper]).
@@ -162,6 +176,85 @@ public fun <A, B, C, R> shaderFunction(
           param0.wrap(Argument("p0", param0.shaderType)),
           param1.wrap(Argument("p1", param1.shaderType)),
           param2.wrap(Argument("p2", param2.shaderType)),
+        )
+        checkReturnType(name, returns.shaderType, returns.unwrap(result))
+      }
+      returns.wrap(node)
+    }
+  }
+
+@ExperimentalMirage
+public fun <A, B, C, D, R> shaderFunction(
+  param0: ShaderValueType<A>,
+  param1: ShaderValueType<B>,
+  param2: ShaderValueType<C>,
+  param3: ShaderValueType<D>,
+  returns: ShaderValueType<R>,
+  body: (A, B, C, D) -> R,
+): PropertyDelegateProvider<Any?, ShaderFunction4<A, B, C, D, R>> =
+  PropertyDelegateProvider { _, property ->
+    val name = reservedGuard(property.name)
+    ShaderFunction4 { a, b, c, d ->
+      val node = defineHelper(
+        name = name,
+        params = listOf(
+          "p0" to param0.shaderType,
+          "p1" to param1.shaderType,
+          "p2" to param2.shaderType,
+          "p3" to param3.shaderType,
+        ),
+        returnType = returns.shaderType,
+        args = listOf(param0.unwrap(a), param1.unwrap(b), param2.unwrap(c), param3.unwrap(d)),
+      ) {
+        val result = body(
+          param0.wrap(Argument("p0", param0.shaderType)),
+          param1.wrap(Argument("p1", param1.shaderType)),
+          param2.wrap(Argument("p2", param2.shaderType)),
+          param3.wrap(Argument("p3", param3.shaderType)),
+        )
+        checkReturnType(name, returns.shaderType, returns.unwrap(result))
+      }
+      returns.wrap(node)
+    }
+  }
+
+@ExperimentalMirage
+public fun <A, B, C, D, E, R> shaderFunction(
+  param0: ShaderValueType<A>,
+  param1: ShaderValueType<B>,
+  param2: ShaderValueType<C>,
+  param3: ShaderValueType<D>,
+  param4: ShaderValueType<E>,
+  returns: ShaderValueType<R>,
+  body: (A, B, C, D, E) -> R,
+): PropertyDelegateProvider<Any?, ShaderFunction5<A, B, C, D, E, R>> =
+  PropertyDelegateProvider { _, property ->
+    val name = reservedGuard(property.name)
+    ShaderFunction5 { a, b, c, d, e ->
+      val node = defineHelper(
+        name = name,
+        params = listOf(
+          "p0" to param0.shaderType,
+          "p1" to param1.shaderType,
+          "p2" to param2.shaderType,
+          "p3" to param3.shaderType,
+          "p4" to param4.shaderType,
+        ),
+        returnType = returns.shaderType,
+        args = listOf(
+          param0.unwrap(a),
+          param1.unwrap(b),
+          param2.unwrap(c),
+          param3.unwrap(d),
+          param4.unwrap(e),
+        ),
+      ) {
+        val result = body(
+          param0.wrap(Argument("p0", param0.shaderType)),
+          param1.wrap(Argument("p1", param1.shaderType)),
+          param2.wrap(Argument("p2", param2.shaderType)),
+          param3.wrap(Argument("p3", param3.shaderType)),
+          param4.wrap(Argument("p4", param4.shaderType)),
         )
         checkReturnType(name, returns.shaderType, returns.unwrap(result))
       }
