@@ -77,6 +77,7 @@ public class ShaderFunction3<A, B, C, R> internal constructor(private val call: 
   public operator fun getValue(thisRef: Any?, property: KProperty<*>): (A, B, C) -> R = call
 }
 
+/** The 4-parameter arity of [ShaderFunction1]; see its docs for the delegate contract. */
 @ExperimentalMirage
 public class ShaderFunction4<A, B, C, D, R> internal constructor(
   private val call: (A, B, C, D) -> R,
@@ -84,6 +85,10 @@ public class ShaderFunction4<A, B, C, D, R> internal constructor(
   public operator fun getValue(thisRef: Any?, property: KProperty<*>): (A, B, C, D) -> R = call
 }
 
+/**
+ * The 5-parameter arity of [ShaderFunction1]; see its docs for the delegate contract. This is the widest
+ * arity, enough to author RainyWindow's `drops(uv, t, l0, l1, l2)`-style helpers.
+ */
 @ExperimentalMirage
 public class ShaderFunction5<A, B, C, D, E, R> internal constructor(
   private val call: (A, B, C, D, E) -> R,
@@ -182,6 +187,7 @@ public fun <A, B, C, R> shaderFunction(
     }
   }
 
+/** The 4-parameter arity of the 1-param [shaderFunction] overload; same tracing contract. */
 @ExperimentalMirage
 public fun <A, B, C, D, R> shaderFunction(
   param0: ShaderValueType<A>,
@@ -217,6 +223,10 @@ public fun <A, B, C, D, R> shaderFunction(
     }
   }
 
+/**
+ * The 5-parameter arity of the 1-param [shaderFunction] overload; same tracing contract. The widest arity,
+ * enough to author a RainyWindow `drops(uv, t, l0, l1, l2)`-style helper.
+ */
 @ExperimentalMirage
 public fun <A, B, C, D, E, R> shaderFunction(
   param0: ShaderValueType<A>,
