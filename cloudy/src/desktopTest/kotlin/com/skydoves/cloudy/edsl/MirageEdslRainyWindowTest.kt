@@ -64,11 +64,7 @@ private fun buildEdslRainyWindowShader(): Shader {
   )
 }
 
-/**
- * The pre-eDSL kernel text, the golden reference for parity. A verbatim copy of the `RAINY_WINDOW_KERNEL`
- * string that lived in the `can-it-be-done-in-compose-multiplatform` repo's `RainyWindowOptic.kt` before
- * its eDSL port (commit `8d91459^`) — not a fresh transcription of the upstream "Heartfelt" shader.
- */
+/** The pre-eDSL kernel text (the `RAINY_WINDOW_KERNEL` string), the golden reference for parity. */
 private fun handRolledRainyWindowShader(): Shader {
   val source = """
     uniform float2 mirageResolution;
