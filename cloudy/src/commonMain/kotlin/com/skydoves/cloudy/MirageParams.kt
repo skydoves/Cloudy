@@ -22,7 +22,6 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.TileMode
-import com.skydoves.cloudy.internal.UniformEntry
 import com.skydoves.cloudy.edsl.Expression
 import com.skydoves.cloudy.edsl.Float1
 import com.skydoves.cloudy.edsl.Float2
@@ -30,6 +29,7 @@ import com.skydoves.cloudy.edsl.Float4
 import com.skydoves.cloudy.edsl.Half4
 import com.skydoves.cloudy.edsl.ShaderType
 import com.skydoves.cloudy.edsl.UniformRef
+import com.skydoves.cloudy.internal.UniformEntry
 import kotlin.properties.PropertyDelegateProvider
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty

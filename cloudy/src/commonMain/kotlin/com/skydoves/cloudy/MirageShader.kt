@@ -17,7 +17,6 @@
 
 package com.skydoves.cloudy
 
-import com.skydoves.cloudy.internal.ShaderCategory
 import com.skydoves.cloudy.edsl.Argument
 import com.skydoves.cloudy.edsl.Float2
 import com.skydoves.cloudy.edsl.Half4
@@ -26,6 +25,7 @@ import com.skydoves.cloudy.edsl.ShaderType
 import com.skydoves.cloudy.edsl.emitColorizeKernel
 import com.skydoves.cloudy.edsl.emitCompositeOrGenerateMain
 import com.skydoves.cloudy.edsl.trace
+import com.skydoves.cloudy.internal.ShaderCategory
 
 /**
  * A named mirage shader: a shader effect paired with the [MirageParams] subclass that declares its

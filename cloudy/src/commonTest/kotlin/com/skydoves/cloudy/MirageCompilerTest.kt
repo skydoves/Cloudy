@@ -18,6 +18,7 @@
 package com.skydoves.cloudy
 
 import androidx.compose.ui.graphics.Color
+import com.skydoves.cloudy.edsl.MirageDiagnosticException
 import com.skydoves.cloudy.internal.CHROMATIC_KERNEL_AGSL
 import com.skydoves.cloudy.internal.DUOTONE_KERNEL_AGSL
 import com.skydoves.cloudy.internal.DUOTONE_KERNEL_SKSL
@@ -26,7 +27,6 @@ import com.skydoves.cloudy.internal.FOIL_KERNEL_AGSL
 import com.skydoves.cloudy.internal.MirageCompiler
 import com.skydoves.cloudy.internal.SPECULAR_KERNEL_AGSL
 import com.skydoves.cloudy.internal.ShaderCategory
-import com.skydoves.cloudy.edsl.MirageDiagnosticException
 import io.kotest.assertions.throwables.shouldNotThrowAny
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
