@@ -150,6 +150,13 @@ internal sealed interface Statement
 internal data class Assign(val name: String, val value: Expression) : Statement
 
 /**
+ * `<type> <name>;` — an uninitialized local declaration. The one shape [branch]/[When] need: a temp
+ * declared once at the branch site, then written by a [Reassign] in *every* arm (each arm must assign it,
+ * so it is always defined when read). Distinct from [Assign], which both declares and initializes.
+ */
+internal data class DeclareLocal(val name: String, val declaredType: ShaderType) : Statement
+
+/**
  * `<name> = <value>;` — updates a var previously introduced by [Assign] (e.g. Specular's mutable
  * `pixel`, which the `content.eval` fallback and the highlight block both write). The [VarRef] used to
  * build [value] and the reassigned [name] refer to the same local; the emitter does not re-declare it.
@@ -167,7 +174,35 @@ internal data class EarlyReturn(val condition: Expression, val value: Expression
  * computes and folds into `pixel` via a [Reassign] inside [body]. Distinct from [EarlyReturn]: this one
  * doesn't exit the kernel, its statements just don't run when the guard is false.
  */
-internal data class IfBlock(val condition: Expression, val body: List<Statement>) : Statement
+internal data class IfBlock(
+  val condition: Expression,
+  val body: List<Statement>,
+  val elseBody: List<Statement> = emptyList(),
+) : Statement
+
+/**
+ * An ES2-safe bounded loop, emitted as a `for` with a **constant** iteration bound and an inner dynamic
+ * `break` (KorGE's `FOR_0_UNTIL_FIXED_BREAK` pattern):
+ *
+ * ```glsl
+ * for (int _i = 0; _i < <maxIterations>; _i++) {
+ *   float <indexName> = float(_i);
+ *   if (<indexName> >= <count>) break;   // the real (possibly dynamic) upper bound
+ *   <body>
+ * }
+ * ```
+ *
+ * ES2's four loop rules (constant init/compare/increment + an unmodified index) are met **by
+ * construction** because [maxIterations] is a Kotlin `Int` constant — the dynamic [count] never touches
+ * the `for` header, only the guarded `break`. The index is a `float` at the surface ([indexName]) but an
+ * `int` counter underneath, so no `Int1` value type is needed.
+ */
+internal data class LoopStatement(
+  val count: Expression,
+  val maxIterations: Int,
+  val indexName: String,
+  val body: List<Statement>,
+) : Statement
 
 /**
  * A user-defined helper function traced alongside the kernel body (e.g. Foil's `foilHash`, RainyWindow's

@@ -74,11 +74,25 @@ internal class TraceContext {
    * reassignment landing inside the emitted `if`.
    */
   fun ifBlock(condition: Expression, block: () -> Unit) {
+    statements += IfBlock(condition, splice(block))
+  }
+
+  /**
+   * Records a bounded [LoopStatement]: runs [block] **once** at trace time (the surface [loop] passes it
+   * a `float(_i)` index expression, not a live counter — the body is emitted, not unrolled) and folds the
+   * statements it appended into the loop body, mirroring [ifBlock]'s in-place splice.
+   */
+  fun loop(count: Expression, maxIterations: Int, indexName: String, block: () -> Unit) {
+    statements += LoopStatement(count, maxIterations, indexName, splice(block))
+  }
+
+  /** Runs [block], then removes and returns the statements it appended (the [ifBlock]/[loop] splice). */
+  private fun splice(block: () -> Unit): List<Statement> {
     val start = statements.size
     block()
     val body = statements.subList(start, statements.size).toList()
     statements.subList(start, statements.size).clear()
-    statements += IfBlock(condition, body)
+    return body
   }
 }
 
@@ -164,7 +178,12 @@ public fun local(initial: Half4): LocalHalf4 {
   return LocalHalf4(name)
 }
 
-/** The delegate backing `var x by local(...)`; see [local]. */
+/**
+ * The delegate backing `var x by local(...)`; see [local]. The getter returns a plain [Half4] (so a
+ * whole-value reassignment `pixel = half4(...)` stays valid — the property type is [Half4], not a
+ * subtype); *channel* writes (`pixel.rgb = ...`) go through the [rgb]/[a] write-swizzle setters on
+ * [Half4], which resolve the backing var name from the value's own `VarRef` node.
+ */
 @ExperimentalMirage
 public class LocalHalf4 internal constructor(private val name: String) {
   public operator fun getValue(thisRef: Any?, property: KProperty<*>): Half4 =
@@ -246,3 +265,31 @@ internal fun defineHelper(
 /** `sampleContent(coord)` — the `content.eval(coord)` sample point, Composite-only. */
 @ExperimentalMirage
 public fun sampleContent(coord: Float2): Half4 = Half4(SampleContent(coord.e))
+
+/**
+ * Static loop unroll: runs [body] [times] times *at trace time* with a Kotlin `Int` index, so each pass
+ * records another copy of the body's statements — there is no GLSL `for`, the loop is fully unrolled into
+ * inline statements. The index is a compile-time constant, so `tapOffsets[i]` and `xy + float2(i, 0)`
+ * work as ordinary Kotlin. IR and emitter are untouched: this only replays the body.
+ */
+@ExperimentalMirage
+public fun unroll(times: Int, body: (Int) -> Unit) {
+  activeTrace() // fail loudly outside a body, before the (possibly empty) loop runs nothing
+  for (i in 0 until times) body(i)
+}
+
+/**
+ * ES2-safe dynamic-bound loop: emits a real GLSL `for` whose header bound is the Kotlin `Int`
+ * [maxIterations] (constant, so ES2's loop rules hold), with an inner `if (index >= count) break` for the
+ * dynamic [count]. [body] runs **once** at trace time against a `float(_i)` index expression — its
+ * recorded statements become the loop body (not unrolled). Use for a variable sample count with a fixed
+ * ceiling (SDF marching, adaptive blur); use [unroll] when the count is a compile-time constant.
+ */
+@ExperimentalMirage
+public fun loop(count: Float1, maxIterations: Int, body: (index: Float1) -> Unit) {
+  val trace = activeTrace()
+  val indexName = trace.freshName()
+  trace.loop(count.e, maxIterations, indexName) {
+    body(Float1(VarRef(indexName, ShaderType.Float1)))
+  }
+}

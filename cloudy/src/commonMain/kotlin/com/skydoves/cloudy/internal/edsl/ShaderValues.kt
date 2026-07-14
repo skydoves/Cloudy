@@ -39,10 +39,38 @@ import com.skydoves.cloudy.UTexture
  * [e] is public because interface members cannot be `internal` in Kotlin — but the only concrete
  * [Expression] a caller can obtain is opaque (all node types are `internal`), so exposing it does not
  * widen the authoring surface, it only lets a handle satisfy the interface.
+ *
+ * The one member every mirage value type carries — its backing [Expression] node. A shared supertype so
+ * a generic consumer ([branch]/[When]/[otherwise], which take an arbitrary value type `T`) can reach the
+ * node without a per-type cast. Value-neutral: it adds no authoring surface (the node is opaque), it only
+ * unifies the `.e` the eight leaves already declare identically.
  */
 @ExperimentalMirage
-public interface Float1 {
+public interface ShaderValue {
   public val e: Expression
+}
+
+/**
+ * Wraps [node] in the leaf value type matching [type] — the inverse of reading `.e`, keyed on the node's
+ * own [ShaderType]. Lets a generic consumer ([branch]/[When]) hand back a `VarRef(_temp)` as a value of
+ * the type the arms produced without knowing which leaf it is; the returned leaf implements the arms'
+ * common interface `T`, so the consumer's `as T` cast holds. [ShaderType.Bool] has no value leaf (a
+ * [UBool] is only ever built by a comparison), so it is not a valid branch-arm result type.
+ */
+internal fun wrapNode(type: ShaderType, node: Expression): ShaderValue = when (type) {
+  ShaderType.Float1 -> Float1(node)
+  ShaderType.Float2 -> Float2(node)
+  ShaderType.Float3 -> Float3(node)
+  ShaderType.Float4 -> Float4(node)
+  ShaderType.Half1 -> Half1(node)
+  ShaderType.Half3 -> Half3(node)
+  ShaderType.Half4 -> Half4(node)
+  ShaderType.Bool -> error("a branch/When arm cannot produce a bool value")
+}
+
+@ExperimentalMirage
+public interface Float1 : ShaderValue {
+  override val e: Expression
 
   @ExperimentalMirage
   public companion object {
@@ -51,8 +79,8 @@ public interface Float1 {
 }
 
 @ExperimentalMirage
-public interface Float2 {
-  public val e: Expression
+public interface Float2 : ShaderValue {
+  override val e: Expression
 
   @ExperimentalMirage
   public companion object {
@@ -61,8 +89,8 @@ public interface Float2 {
 }
 
 @ExperimentalMirage
-public interface Float3 {
-  public val e: Expression
+public interface Float3 : ShaderValue {
+  override val e: Expression
 
   @ExperimentalMirage
   public companion object {
@@ -71,8 +99,8 @@ public interface Float3 {
 }
 
 @ExperimentalMirage
-public interface Float4 {
-  public val e: Expression
+public interface Float4 : ShaderValue {
+  override val e: Expression
 
   @ExperimentalMirage
   public companion object {
@@ -81,8 +109,8 @@ public interface Float4 {
 }
 
 @ExperimentalMirage
-public interface Half1 {
-  public val e: Expression
+public interface Half1 : ShaderValue {
+  override val e: Expression
 
   @ExperimentalMirage
   public companion object {
@@ -91,8 +119,8 @@ public interface Half1 {
 }
 
 @ExperimentalMirage
-public interface Half3 {
-  public val e: Expression
+public interface Half3 : ShaderValue {
+  override val e: Expression
 
   @ExperimentalMirage
   public companion object {
@@ -101,8 +129,8 @@ public interface Half3 {
 }
 
 @ExperimentalMirage
-public interface Half4 {
-  public val e: Expression
+public interface Half4 : ShaderValue {
+  override val e: Expression
 
   @ExperimentalMirage
   public companion object {
@@ -112,8 +140,8 @@ public interface Half4 {
 
 /** A boolean value — the result of a comparison, consumed only by [guard] / [If]. */
 @ExperimentalMirage
-public interface UBool {
-  public val e: Expression
+public interface UBool : ShaderValue {
+  override val e: Expression
 
   @ExperimentalMirage
   public companion object {
@@ -302,12 +330,36 @@ public val Float3.x: Float1 get() = Float1(Swizzle(e, "x", ShaderType.Float1))
 @ExperimentalMirage
 public val Float4.xyz: Float3 get() = Float3(Swizzle(e, "xyz", ShaderType.Float3))
 
-/** `.rgb` on a `half4` narrows to `half3`; `.a` narrows to a scalar. */
+/**
+ * `.rgb` on a `half4`: read narrows to `half3`, and — on a `var pixel by local(...)` — *write* lowers to
+ * `pixel.rgb = ...;` in place, exactly as the GLSL original writes a channel (instead of rebuilding the
+ * whole `half4(processColor(pixel.rgb, ...), pixel.a)`).
+ *
+ * Only `plus` is defined on [Half3], never `plusAssign`, so `pixel.rgb += x` lowers as get→plus→set — one
+ * `.rgb =` write — automatically; defining `plusAssign` alongside `plus` would be a compile error (Kotlin
+ * rejects the assign-operator ambiguity), so it must never be added.
+ *
+ * The write only makes sense on a mutable local (a value whose node is a [VarRef]); writing a channel of a
+ * computed `half4` has no target, so [localName] fails loudly there. The target `"$name.rgb"` prints
+ * verbatim; the hoist leaves it alone (a [VarRef] is un-liftable) and only lifts the assigned value's CSEs.
+ */
 @ExperimentalMirage
-public val Half4.rgb: Half3 get() = Half3(Swizzle(e, "rgb", ShaderType.Half3))
+public var Half4.rgb: Half3
+  get() = Half3(Swizzle(e, "rgb", ShaderType.Half3))
+  set(value) {
+    activeTrace().statements += Reassign("${localName(e, "rgb")}.rgb", value.e)
+  }
 
 @ExperimentalMirage
-public val Half4.a: Half1 get() = Half1(Swizzle(e, "a", ShaderType.Half1))
+public var Half4.a: Half1
+  get() = Half1(Swizzle(e, "a", ShaderType.Half1))
+  set(value) {
+    activeTrace().statements += Reassign("${localName(e, "a")}.a", value.e)
+  }
+
+/** The backing local name a write-swizzle targets, or a loud failure if the value is not a mutable local. */
+private fun localName(node: Expression, channel: String): String = (node as? VarRef)?.name
+  ?: error("cannot write .$channel of a computed half4 — write-swizzle needs a `var x by local(...)`")
 
 @ExperimentalMirage
 public fun float1(v: Float): Float1 = Float1(Literal(v, ShaderType.Float1))

@@ -80,6 +80,8 @@ private fun hoist(module: ShaderModule): ShaderModule {
         when (s) {
           is Assign -> add(s.value)
 
+          is DeclareLocal -> Unit
+
           is Reassign -> add(s.value)
 
           is EarlyReturn -> {
@@ -89,6 +91,12 @@ private fun hoist(module: ShaderModule): ShaderModule {
 
           is IfBlock -> {
             add(s.condition)
+            collect(s.body)
+            collect(s.elseBody)
+          }
+
+          is LoopStatement -> {
+            add(s.count)
             collect(s.body)
           }
         }
@@ -151,6 +159,8 @@ private fun substituteStatement(node: Statement, names: Map<Expression, String>)
   when (node) {
     is Assign -> Assign(node.name, substitute(node.value, names, self = null))
 
+    is DeclareLocal -> node
+
     is Reassign -> Reassign(node.name, substitute(node.value, names, self = null))
 
     is EarlyReturn -> EarlyReturn(
@@ -160,9 +170,15 @@ private fun substituteStatement(node: Statement, names: Map<Expression, String>)
 
     is IfBlock -> IfBlock(
       substitute(node.condition, names, self = null),
-      node.body.map {
-        substituteStatement(it, names)
-      },
+      node.body.map { substituteStatement(it, names) },
+      node.elseBody.map { substituteStatement(it, names) },
+    )
+
+    is LoopStatement -> LoopStatement(
+      substitute(node.count, names, self = null),
+      node.maxIterations,
+      node.indexName,
+      node.body.map { substituteStatement(it, names) },
     )
   }
 
@@ -235,6 +251,8 @@ private fun emitStatement(node: Statement, uniformNames: List<String>, indent: S
       node.value.type,
     )} ${node.name} = ${emit(node.value, uniformNames)};\n"
 
+    is DeclareLocal -> "$indent${typeToken(node.declaredType)} ${node.name};\n"
+
     is Reassign -> "$indent${node.name} = ${emit(node.value, uniformNames)};\n"
 
     is EarlyReturn ->
@@ -244,7 +262,22 @@ private fun emitStatement(node: Statement, uniformNames: List<String>, indent: S
     is IfBlock -> {
       val innerIndent = "$indent    "
       val body = node.body.joinToString("") { emitStatement(it, uniformNames, innerIndent) }
-      "$indent" + "if (${emit(node.condition, uniformNames)}) {\n" + body + "$indent}\n"
+      val head = "$indent" + "if (${emit(node.condition, uniformNames)}) {\n" + body + "$indent}"
+      if (node.elseBody.isEmpty()) {
+        "$head\n"
+      } else {
+        val elseBody = node.elseBody.joinToString("") { emitStatement(it, uniformNames, innerIndent) }
+        "$head else {\n" + elseBody + "$indent}\n"
+      }
+    }
+
+    is LoopStatement -> {
+      val innerIndent = "$indent    "
+      val body = node.body.joinToString("") { emitStatement(it, uniformNames, innerIndent) }
+      "$indent" + "for (int _i = 0; _i < ${node.maxIterations}; _i++) {\n" +
+        "$innerIndent" + "float ${node.indexName} = float(_i);\n" +
+        "$innerIndent" + "if (${node.indexName} >= ${emit(node.count, uniformNames)}) break;\n" +
+        body + "$indent}\n"
     }
   }
 
