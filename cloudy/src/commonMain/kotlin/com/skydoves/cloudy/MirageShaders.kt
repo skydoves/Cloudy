@@ -13,19 +13,64 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@file:OptIn(ExperimentalMirage::class)
+
 package com.skydoves.cloudy
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import com.skydoves.cloudy.internal.CHROMATIC_KERNEL_AGSL
-import com.skydoves.cloudy.internal.CHROMATIC_KERNEL_SKSL
-import com.skydoves.cloudy.internal.DUOTONE_KERNEL_AGSL
-import com.skydoves.cloudy.internal.DUOTONE_KERNEL_SKSL
-import com.skydoves.cloudy.internal.FOIL_KERNEL_AGSL
-import com.skydoves.cloudy.internal.FOIL_KERNEL_SKSL
-import com.skydoves.cloudy.internal.SPECULAR_KERNEL_AGSL
-import com.skydoves.cloudy.internal.SPECULAR_KERNEL_SKSL
+import com.skydoves.cloudy.edsl.Float2
+import com.skydoves.cloudy.edsl.Half4
+import com.skydoves.cloudy.edsl.If
+import com.skydoves.cloudy.edsl.a
+import com.skydoves.cloudy.edsl.abs
+import com.skydoves.cloudy.edsl.and
+import com.skydoves.cloudy.edsl.boxRoundedSDF
+import com.skydoves.cloudy.edsl.clamp
+import com.skydoves.cloudy.edsl.cos
+import com.skydoves.cloudy.edsl.div
+import com.skydoves.cloudy.edsl.dot
+import com.skydoves.cloudy.edsl.exp
+import com.skydoves.cloudy.edsl.float1
+import com.skydoves.cloudy.edsl.float2
+import com.skydoves.cloudy.edsl.float3
+import com.skydoves.cloudy.edsl.float4
+import com.skydoves.cloudy.edsl.floor
+import com.skydoves.cloudy.edsl.foilHash
+import com.skydoves.cloudy.edsl.fract
+import com.skydoves.cloudy.edsl.greaterThan
+import com.skydoves.cloudy.edsl.greaterThanEqual
+import com.skydoves.cloudy.edsl.guard
+import com.skydoves.cloudy.edsl.half
+import com.skydoves.cloudy.edsl.half3
+import com.skydoves.cloudy.edsl.half4
+import com.skydoves.cloudy.edsl.length
+import com.skydoves.cloudy.edsl.lensNormalDirection
+import com.skydoves.cloudy.edsl.lessThanEqual
+import com.skydoves.cloudy.edsl.local
+import com.skydoves.cloudy.edsl.luma
+import com.skydoves.cloudy.edsl.max
+import com.skydoves.cloudy.edsl.min
+import com.skydoves.cloudy.edsl.minus
+import com.skydoves.cloudy.edsl.mirageTime
+import com.skydoves.cloudy.edsl.mix
+import com.skydoves.cloudy.edsl.normalize
+import com.skydoves.cloudy.edsl.plus
+import com.skydoves.cloudy.edsl.pow
+import com.skydoves.cloudy.edsl.processColor
+import com.skydoves.cloudy.edsl.rgb
+import com.skydoves.cloudy.edsl.sampleContent
+import com.skydoves.cloudy.edsl.signSelect
+import com.skydoves.cloudy.edsl.sin
+import com.skydoves.cloudy.edsl.smoothstep
+import com.skydoves.cloudy.edsl.sqrt
+import com.skydoves.cloudy.edsl.step
+import com.skydoves.cloudy.edsl.times
+import com.skydoves.cloudy.edsl.unaryMinus
+import com.skydoves.cloudy.edsl.x
+import com.skydoves.cloudy.edsl.xyz
+import com.skydoves.cloudy.edsl.y
 
 /**
  * Bundled [MirageShader] presets — the catalog of ready-to-apply looks.
@@ -51,17 +96,191 @@ import com.skydoves.cloudy.internal.SPECULAR_KERNEL_SKSL
 public object MirageShaders {
 
   /**
+   * The Chromatic thin-film body: a superellipse-bevel Newton's-rings tint, alpha-branch blended
+   * (multiply on transparent, screen glow on opaque), masked to the lens. Held as a lambda so
+   * [chromaticKernel] can trace + emit it once and every look shares that one kernel text; the body
+   * depends only on the uniform *schema* (slots), never on a look's default values.
+   *
+   * Declared first (above [chromaticKernel], its sole reader): a Kotlin `object` initializes its
+   * properties top-to-bottom, so a `val` read before its own declaration sees an uninitialized field.
+   */
+  private val chromaticBody: ChromaticParams.(Float2) -> Half4 = { xy ->
+    val smoothEdgePx = 1.5f // SMOOTH_EDGE_PX
+    val chromaOpdBase = 0.10f
+    val chromaThickMix = 0.55f
+    val chromaRimPow = 3.0f
+    val chromaSePow = 4.0f
+
+    val halfDim = lensSize * 0.5f
+    val r = min(cornerRadius, min(halfDim.x, halfDim.y))
+    val p = xy - lensCenter
+    val sdf = boxRoundedSDF(p, halfDim, r)
+
+    guard(sdf greaterThan smoothEdgePx) { sampleContent(xy) }
+
+    var pixel by local(sampleContent(xy))
+
+    val minHalf = min(halfDim.x, halfDim.y)
+    val cLightVec = normalize(iLight)
+    val q = abs(p) / float2(max(halfDim.x, 1f), max(halfDim.y, 1f))
+    val s2 = float2(signSelect(p.x), signSelect(p.y))
+    val f = pow(pow(q.x, chromaSePow) + pow(q.y, chromaSePow), 1f / chromaSePow)
+    val cDir = normalize(
+      s2 * float2(
+        chromaSePow * pow(q.x, chromaSePow - 1f) / max(halfDim.x, 1f),
+        chromaSePow * pow(q.y, chromaSePow - 1f) / max(halfDim.y, 1f),
+      ) + float2(1.0e-4f, 1.0e-4f),
+    )
+    val t = clamp(f, 0f, 1f)
+    val nCos = 1f - t
+    val nSin = sqrt(max(1f - nCos * nCos, 0f))
+    val cN = normalize(float3(cDir * nCos, nSin + 1.0e-3f))
+    val cL = normalize(float3(cLightVec, 0.55f))
+
+    val cosT = clamp(dot(cN, cL), 0f, 1f)
+    val thick = 1f - nCos
+    val ringTerm = thick / max(1f - 0.6f * cosT, 1.0e-2f)
+    val opdDrive = mix(cosT, ringTerm, chromaThickMix)
+    val opd = opdDrive * chromaticGain + chromaOpdBase
+    val interf =
+      float3(0.5f, 0.5f, 0.5f) +
+        float3(0.5f, 0.5f, 0.5f) * cos(6.28318530718f * opd * chromaticKRGB.xyz)
+    val metalRGB = float3(chromaticFloor) + (1f - chromaticFloor) * interf
+    val sat = exp(-opd * chromaticWashout)
+    val thinFilm = mix(float3(1f, 1f, 1f), metalRGB, clamp(sat, 0f, 1f))
+    val rimBoost = chromaticRimBoost * pow(clamp(thick, 0f, 1f), chromaRimPow)
+    val chromaRGB = mix(thinFilm, float3(1f, 1f, 1f), clamp(rimBoost, 0f, 1f))
+
+    val cFocal = cLightVec * (minHalf * 0.55f)
+    val cPoolR = max(minHalf * chromaticPoolFrac, 1f)
+    val cPool = 1f - smoothstep(0f, cPoolR, length(p - cFocal))
+    val poolNorm = clamp(cPool * cPool, 0f, 1f)
+    val chroma = chromaticIntensity * mix(1f, poolNorm, clamp(chromaticModulate, 0f, 1f))
+
+    val cChroma = half(clamp(chroma, 0f, 1f))
+    val cChromaRGB = half3(chromaRGB) * cChroma
+    val cOnWhite = half3(chromaRGB)
+    val pixelBeforeBlend = pixel
+    val cOnSrc = half3(1f) - (half3(1f) - pixelBeforeBlend.rgb) * (half3(1f) - cChromaRGB)
+    pixel = half4(mix(cOnWhite, cOnSrc, pixelBeforeBlend.a), max(pixelBeforeBlend.a, cChroma))
+
+    val alpha = 1f - smoothstep(-smoothEdgePx * 0.5f, smoothEdgePx * 0.5f, sdf)
+    val bg = sampleContent(xy)
+    mix(bg, pixel, alpha)
+  }
+
+  /**
+   * The Chromatic kernel text, emitted **once** from [chromaticBody] and shared by every named look
+   * ([Chromatic], [OilSlick], [SoapBubble], [MetallicFoil], [Pearl]) — the kernel source depends only
+   * on the params *schema* (uniform slots), never on a look's default values, so all five looks
+   * compile to one GPU program (the raster tests assert `oil.source == soap.source == ...`). Tracing
+   * the body once and reusing the string keeps that guarantee free of any emit-determinism assumption.
+   *
+   * Declared first in this object: [chromatic] (called while initializing [Chromatic]/[OilSlick]/etc.
+   * below) reads this eagerly, and a Kotlin `object`'s properties initialize top-to-bottom — a `val`
+   * declared after its first reader sees an uninitialized backing field (an NPE, not a compile error),
+   * so this can't simply live next to [chromatic] where it's used.
+   */
+  private val chromaticKernel: String =
+    MirageShader.composite("chromatic", {
+      ChromaticParams(0f, 0f, floatArrayOf(0f, 0f, 0f, 0f), 0f, 0f, 0f, 0f)
+    }, chromaticBody).agsl
+
+  /**
    * The liquid-glass specular glint (moving focal hotspot + Blinn rim). A [CompositeShader] because it
    * shares intermediates (SDF, bevel normal) across the refraction and specular terms. Its defaults
    * are the `GlowTuning` values, so applying it over the default lens framing reproduces the built-in
    * `liquidGlass` glint bit-for-bit.
+   *
+   * Authored as an eDSL body lambda — a mutable `pixel` ([local]) reassigned from a `content.eval`
+   * fallback and again inside a non-exiting [If], a `&&`-gated highlight, and multiple
+   * [sampleContent] taps.
    */
-  public val Specular: CompositeShader<SpecularParams> = MirageShader.composite(
-    name = "specular",
-    paramsFactory = ::SpecularParams,
-    agsl = SPECULAR_KERNEL_AGSL,
-    sksl = SPECULAR_KERNEL_SKSL,
-  )
+  public val Specular: CompositeShader<SpecularParams> =
+    MirageShader.composite("specular", ::SpecularParams) { xy ->
+      val smoothEdgePx = 1.5f // SMOOTH_EDGE_PX, the preamble's shared edge-blend constant
+      val specSePow = 4.0f // SPEC_SE_POW
+
+      val halfDim = lensSize * 0.5f
+      val r = min(cornerRadius, min(halfDim.x, halfDim.y))
+      val p = xy - lensCenter
+      val sdf = boxRoundedSDF(p, halfDim, r)
+
+      guard(sdf greaterThan smoothEdgePx) { sampleContent(xy) }
+
+      val normal = lensNormalDirection(p, halfDim, r)
+
+      // The `{ ... }` scratch block computing sampleXY: its locals (minDim/depth/curvature/bend) are
+      // scoped to that block in the source but never read outside it, so tracing them as ordinary
+      // vals here is observationally identical — nothing after this reads them.
+      val minDim = min(halfDim.x, halfDim.y)
+      val depth = clamp(-sdf / (minDim * 0.25f), 0f, 1f)
+      val curvature = 1f - depth
+      val bend = 1f - sqrt(1f - curvature * curvature)
+      val sampleXY = xy - normal * (bend * 0.25f * minDim)
+
+      var pixel by local(sampleContent(sampleXY))
+      If(pixel.a lessThanEqual 0f) { pixel = sampleContent(xy) }
+      pixel = half4(processColor(pixel.rgb, 1f, 1f, float4(0f, 0f, 0f, 0f)), pixel.a)
+
+      val edge = float1(0.2f)
+
+      If((edge greaterThan 0f) and (specStrength greaterThan 0f)) {
+        val lightVec = normalize(iLight)
+        val minHalf = min(halfDim.x, halfDim.y)
+        val q = abs(p) / float2(max(halfDim.x, 1f), max(halfDim.y, 1f))
+        val s2 = float2(signSelect(p.x), signSelect(p.y))
+        val seF = pow(pow(q.x, specSePow) + pow(q.y, specSePow), 1f / specSePow)
+        val specDir2 = normalize(
+          s2 * float2(
+            specSePow * pow(q.x, specSePow - 1f) / max(halfDim.x, 1f),
+            specSePow * pow(q.y, specSePow - 1f) / max(halfDim.y, 1f),
+          ) + float2(1.0e-4f, 1.0e-4f),
+        )
+
+        val t = clamp(seF / max(specDomeFrac, 1.0e-2f), 0f, 1f)
+        val nCos = 1f - t
+        val nSin = sqrt(max(1f - nCos * nCos, 0f))
+        val nn = normalize(float3(specDir2 * nCos, nSin + 1.0e-3f))
+
+        val ll = normalize(float3(lightVec, specLightZ))
+        val vv = float3(0f, 0f, 1f)
+
+        val focal = lightVec * (minHalf * specFocalK)
+        val poolR = max(minHalf * specPoolFrac, 1f)
+        val poolD = length(p - focal)
+        val pool = 1f - smoothstep(0f, poolR, poolD)
+        val inside = 1f - smoothstep(-6f, 0f, sdf)
+        val focalPool = pool * pool * specStrength * specPoolGain * inside
+
+        val ndl = max(dot(nn, ll), 0f)
+        val bodySheen = pow(ndl, specBodyPower) * specStrength * specBodyGain
+
+        val hh = normalize(ll + vv)
+        val rimBand = smoothstep(-max(specWidthPx, 1f), 0f, sdf)
+        val glint = pow(max(dot(nn, hh), 0f), specPower) * specStrength
+        val rim = glint * rimBand
+
+        val lb = normalize(float3(-lightVec, specLightZ))
+        val back = pow(max(dot(nn, lb), 0f), specPower) * specStrength * rimBand * 0.25f
+
+        val hp = fract((p / minHalf) * 0.5f + 0.5f)
+        val dn = fract(sin(dot(hp, float2(12.9898f, 78.233f))) * 43758.5453f) - 0.5f
+
+        val body = focalPool + bodySheen + dn * (1f / 255f) * specStrength
+        val rimMix = clamp(specRimMix, 0f, 1f)
+        val highlight = body * (1f - rimMix) + (rim + back) * rimMix
+
+        pixel = half4(
+          pixel.rgb + (half3(1f) - pixel.rgb) * clamp(highlight, 0f, 1f),
+          pixel.a,
+        )
+      }
+
+      val alpha = 1f - smoothstep(-smoothEdgePx * 0.5f, smoothEdgePx * 0.5f, sdf)
+      val bg = sampleContent(xy)
+      mix(bg, pixel, alpha)
+    }
 
   /** The default thin-film iridescence look — the [chromatic] factory at its defaults. */
   public val Chromatic: CompositeShader<ChromaticParams> = chromatic()
@@ -110,27 +329,75 @@ public object MirageShaders {
   /**
    * A foil overlay — a content-free [GeneratorShader] (glare + flowing rainbow + anti-aliased sparkle)
    * drawn over the content. Declare it via `overlay(MirageShaders.Foil)` so it composites on top of any
-   * filter result; its `mirageTime` reference lets the clock drive the sparkle shimmer.
+   * filter result; its [mirageTime] reference lets the clock drive the sparkle shimmer.
+   *
+   * Authored as an eDSL body lambda — a Generate `main(float2 xy)` with an early-return [guard] and a
+   * user-defined helper ([foilHash]).
    */
-  public val Foil: GeneratorShader<FoilParams> = MirageShader.generate(
-    name = "foil",
-    paramsFactory = ::FoilParams,
-    agsl = FOIL_KERNEL_AGSL,
-    sksl = FOIL_KERNEL_SKSL,
-  )
+  public val Foil: GeneratorShader<FoilParams> =
+    MirageShader.generate("foil", ::FoilParams) { xy ->
+      val smoothEdgePx = 1.5f // SMOOTH_EDGE_PX
+
+      val halfDim = lensSize * 0.5f
+      val r = min(cornerRadius, min(halfDim.x, halfDim.y))
+      val p = xy - lensCenter
+      val sdf = boxRoundedSDF(p, halfDim, r)
+
+      guard(sdf greaterThan smoothEdgePx) { half4(0f) }
+
+      val minHalf = min(halfDim.x, halfDim.y)
+      val cLightVec = normalize(iLight)
+      val pNorm = p / minHalf
+      val t = clamp(max(-sdf, 0f) / max(minHalf, 1f), 0f, 1f)
+
+      val along = dot(pNorm, cLightVec)
+      val glare = smoothstep(0.2f, 1f, along) * (1f - t)
+      val dome = (1f - smoothstep(0f, 1f, length(pNorm))) * 0.5f
+
+      val hueF = fract(along * foilBands + foilPhase + 0.05f * mirageTime)
+      val hsv = clamp(
+        abs(fract(float3(hueF) + float3(0f, 2f / 3f, 1f / 3f)) * 6f - 3f) - 1f,
+        0f,
+        1f,
+      )
+      val opd = (0.5f + 0.5f * t) * chromaticGain
+      val film =
+        float3(0.5f, 0.5f, 0.5f) +
+          float3(0.5f, 0.5f, 0.5f) * cos(6.28318530718f * opd * float3(1f, 1.18f, 1.42f))
+      val rainbow = mix(hsv, film, 0.4f)
+
+      val cell = floor(pNorm * sparkleDensity)
+      val h = foilHash(cell)
+      val cellUv = fract(pNorm * sparkleDensity) - float2(0.5f, 0.5f)
+      val d = length(cellUv)
+      val aa = clamp(sparkleDensity / max(minHalf, 1f), 0.02f, 0.25f)
+      val dot0 = 1f - smoothstep(0.18f - aa, 0.18f + aa, d)
+      val twinkle = 0.5f + 0.5f * sin(6.2831853f * (h + 0.3f * mirageTime))
+      val spark = step(0.78f, h) * dot0 * twinkle * sparkleAmplitude
+
+      val lum = clamp(glare + dome, 0f, 1f)
+      val rgb = rainbow * lum + float3(spark)
+      val a = clamp(lum + spark, 0f, 1f)
+      val mask = 1f - smoothstep(-smoothEdgePx * 0.5f, smoothEdgePx * 0.5f, sdf)
+
+      half4(half3(rgb) * half(mask), half(a * mask))
+    }
 
   /**
    * A point-wise duotone grade: maps luminance onto a [shadow][DuotoneParams.shadow] →
    * [highlight][DuotoneParams.highlight] gradient and cross-fades by [amount][DuotoneParams.amount].
    * A [ColorizeShader], so it fuses cheaply and needs no lens framing. The defaults are a warm
    * split-tone (deep indigo shadows, cream highlights).
+   *
+   * Authored as an eDSL body lambda (a point-wise `kernel(float2 p, half4 src)`), emitted once and
+   * reused for both dialects (AGSL and SkSL share this authoring surface).
    */
-  public val Duotone: ColorizeShader<DuotoneParams> = MirageShader.colorize(
-    name = "duotone",
-    paramsFactory = ::DuotoneParams,
-    agsl = DUOTONE_KERNEL_AGSL,
-    sksl = DUOTONE_KERNEL_SKSL,
-  )
+  public val Duotone: ColorizeShader<DuotoneParams> =
+    MirageShader.colorize("duotone", ::DuotoneParams) { src ->
+      val g = luma(src.rgb)
+      val dz = mix(shadow.rgb, highlight.rgb, g)
+      half4(mix(src.rgb, dz, amount), src.a)
+    }
 
   /**
    * Builds a thin-film (Newton's-rings) iridescence [CompositeShader] from its per-look parameters. It
@@ -169,8 +436,8 @@ public object MirageShaders {
         rimBoost = rimBoost,
       )
     },
-    agsl = CHROMATIC_KERNEL_AGSL,
-    sksl = CHROMATIC_KERNEL_SKSL,
+    agsl = chromaticKernel,
+    sksl = chromaticKernel,
   )
 }
 

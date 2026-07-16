@@ -13,8 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@file:OptIn(ExperimentalMirage::class)
+
 package com.skydoves.cloudy
 
+import com.skydoves.cloudy.edsl.Argument
+import com.skydoves.cloudy.edsl.Float2
+import com.skydoves.cloudy.edsl.Half4
+import com.skydoves.cloudy.edsl.ShaderModule
+import com.skydoves.cloudy.edsl.ShaderType
+import com.skydoves.cloudy.edsl.emitColorizeKernel
+import com.skydoves.cloudy.edsl.emitCompositeOrGenerateMain
+import com.skydoves.cloudy.edsl.trace
 import com.skydoves.cloudy.internal.ShaderCategory
 
 /**
@@ -121,6 +131,94 @@ public sealed class MirageShader<P : MirageParams> protected constructor(
       agsl: String,
       sksl: String,
     ): GeneratorShader<P> = GeneratorShader(name, paramsFactory, agsl, sksl)
+
+    /**
+     * Creates a [ColorizeShader] from a **traced body lambda** instead of two hand-written dialect
+     * strings. The body runs once at construction with the shader's [MirageParams] as receiver (so it
+     * reads uniform handles bare) and `src` as the sampled pixel; its final expression is the returned
+     * color. AGSL is a public-runtime-effect-restricted profile of SkSL, so the traced source compiles
+     * unchanged under either dialect; the emitter prints it once and hands it to the string [colorize]
+     * overload, so codegen, caching, and equality are unchanged.
+     */
+    public fun <P : MirageParams> colorize(
+      name: String,
+      paramsFactory: () -> P,
+      body: P.(src: Half4) -> Half4,
+    ): ColorizeShader<P> {
+      val kernel =
+        emitColorizeKernel(
+          traceBody(paramsFactory) {
+            body(SRC_ARGUMENT)
+          },
+          uniformNames(paramsFactory),
+        )
+      return colorize(name, paramsFactory, agsl = kernel, sksl = kernel)
+    }
+
+    /**
+     * Creates a [CompositeShader] from a **traced body lambda**. The body runs once with the shader's
+     * [MirageParams] as receiver and the fragment position `xy`; it samples content freely via
+     * `sampleContent(...)` and returns the final color. See [colorize] (body overload) for the trace →
+     * single-kernel-text pipeline.
+     */
+    public fun <P : MirageParams> composite(
+      name: String,
+      paramsFactory: () -> P,
+      body: P.(xy: Float2) -> Half4,
+    ): CompositeShader<P> {
+      val kernel =
+        emitCompositeOrGenerateMain(
+          traceBody(paramsFactory) {
+            body(XY_ARGUMENT)
+          },
+          uniformNames(paramsFactory),
+        )
+      return composite(name, paramsFactory, agsl = kernel, sksl = kernel)
+    }
+
+    /**
+     * Creates a [GeneratorShader] from a **traced body lambda**. The body synthesizes pixels from
+     * uniforms and `xy` only — there is no content sampler, so referencing content is a compile error.
+     * See [colorize] (body overload) for the trace → single-kernel-text pipeline.
+     */
+    public fun <P : MirageParams> generate(
+      name: String,
+      paramsFactory: () -> P,
+      body: P.(xy: Float2) -> Half4,
+    ): GeneratorShader<P> {
+      val kernel =
+        emitCompositeOrGenerateMain(
+          traceBody(paramsFactory) {
+            body(XY_ARGUMENT)
+          },
+          uniformNames(paramsFactory),
+        )
+      return generate(name, paramsFactory, agsl = kernel, sksl = kernel)
+    }
+
+    /** The uniform identifiers, in declaration (= bind) order, of a probe minted from [paramsFactory]. */
+    private fun <P : MirageParams> uniformNames(paramsFactory: () -> P): List<String> =
+      paramsFactory().schemaEntries.map { it.name }
+
+    /**
+     * Runs [body] against a fresh probe [MirageParams] under one [trace], returning the recorded
+     * kernel. The probe is discarded; the emitted source depends only on the uniform *schema* (slots),
+     * not any per-instance default, so a probe at its own defaults yields the same text as any live
+     * instance would — which is why the five thin-film looks share one kernel program.
+     */
+    private fun <P : MirageParams> traceBody(
+      paramsFactory: () -> P,
+      body: P.() -> Half4,
+    ): ShaderModule {
+      val (result, ctx) = trace(paramsFactory(), body)
+      return ShaderModule(ctx.statements.toList(), result.e, ctx.helpers.toList())
+    }
+
+    /** The `src` pixel argument a Colorize body receives. */
+    private val SRC_ARGUMENT: Half4 get() = Half4(Argument("src", ShaderType.Half4))
+
+    /** The `xy` fragment-position argument a Composite/Generate body receives. */
+    private val XY_ARGUMENT: Float2 get() = Float2(Argument("xy", ShaderType.Float2))
 
     /**
      * Creates a raw [FilterShader] — an escape hatch with **no codegen**.

@@ -35,6 +35,14 @@ package com.skydoves.cloudy.internal
  * code change.
  */
 
+/**
+ * The names of the helper functions the preamble text above defines. A user-authored `shaderFunction`
+ * that reused one of these would silently shadow the preamble helper, so [MirageReservedNames] pulls
+ * them in from this single source rather than re-listing the strings.
+ */
+internal val PREAMBLE_HELPER_NAMES: Set<String> =
+  setOf("boxRoundedSDF", "lensNormalDirection", "toBrightness", "processColor")
+
 /** AGSL lens helpers + shared consts a Composite / Generate kernel may call. */
 internal const val MIRAGE_PREAMBLE_HELPERS_AGSL: String = """
 const float SMOOTH_EDGE_PX = 1.5;

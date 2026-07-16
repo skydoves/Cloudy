@@ -18,13 +18,13 @@
 package com.skydoves.cloudy
 
 import androidx.compose.ui.graphics.Color
+import com.skydoves.cloudy.edsl.MirageDiagnosticException
 import com.skydoves.cloudy.internal.CHROMATIC_KERNEL_AGSL
 import com.skydoves.cloudy.internal.DUOTONE_KERNEL_AGSL
 import com.skydoves.cloudy.internal.DUOTONE_KERNEL_SKSL
 import com.skydoves.cloudy.internal.Dialect
 import com.skydoves.cloudy.internal.FOIL_KERNEL_AGSL
 import com.skydoves.cloudy.internal.MirageCompiler
-import com.skydoves.cloudy.internal.MirageLintException
 import com.skydoves.cloudy.internal.SPECULAR_KERNEL_AGSL
 import com.skydoves.cloudy.internal.ShaderCategory
 import io.kotest.assertions.throwables.shouldNotThrowAny
@@ -198,6 +198,24 @@ internal class MirageCompilerTest :
         program.usesDensity.shouldBe(false)
       }
 
+      // Regression: `code.contains("mirageTime")` used to match inside an unrelated identifier like
+      // `mirageTimeScale`, wrongly declaring the uniform and — since usesTime also drives redraw
+      // scheduling — leaving an unwanted per-frame invalidation loop running for a kernel that never
+      // reads the clock.
+      test("a uniform name that merely contains a standard uniform's name does not trigger it") {
+        val kernel = """
+          half4 main(float2 xy) { return half4(half(mirageTimeScale), 0.0, 0.0, 1.0); }
+        """.trimIndent()
+
+        val program = MirageCompiler.compile(
+          MirageShader.generate("shadowed", ::EmptyParams, kernel, kernel),
+          Dialect.Agsl,
+        )
+
+        program.usesTime.shouldBe(false)
+        program.source.shouldNotContain("uniform float mirageTime;")
+      }
+
       // Android's RuntimeShader throws IllegalArgumentException if the node binds a standard uniform
       // the shader never declared, so a kernel that names no standard uniform must report every uses*
       // flag false and the node must bind none.
@@ -256,14 +274,14 @@ internal class MirageCompilerTest :
 
     context("lint rejects tokens that cannot compile") {
       test("fwidth is rejected") {
-        val e = shouldThrow<MirageLintException> {
+        val e = shouldThrow<MirageDiagnosticException> {
           MirageCompiler.lint("half4 main() { return half4(fwidth(x)); }", ShaderCategory.Composite)
         }
         e.message.shouldContain("fwidth")
       }
 
       test("a #version directive is rejected") {
-        val e = shouldThrow<MirageLintException> {
+        val e = shouldThrow<MirageDiagnosticException> {
           MirageCompiler.lint(
             "#version 300 es\nhalf4 main() { return half4(0.0); }",
             ShaderCategory.Composite,
@@ -273,18 +291,29 @@ internal class MirageCompilerTest :
       }
 
       test("dFdx / sk_FragCoord are rejected") {
-        shouldThrow<MirageLintException> {
+        shouldThrow<MirageDiagnosticException> {
           MirageCompiler.lint("float d = dFdx(x);", ShaderCategory.Composite)
         }
-        shouldThrow<MirageLintException> {
+        shouldThrow<MirageDiagnosticException> {
           MirageCompiler.lint("float2 c = sk_FragCoord.xy;", ShaderCategory.Composite)
+        }
+      }
+
+      // Regression: a substring match on `dFdx` used to reject a kernel that merely names a uniform
+      // like `dFdxScale`, even though it never calls the (unavailable) derivative function.
+      test("a name that merely contains a forbidden builtin's name is not rejected") {
+        shouldNotThrowAny {
+          MirageCompiler.lint(
+            "half4 main() { return half4(half(dFdxScale)); }",
+            ShaderCategory.Composite,
+          )
         }
       }
     }
 
     context("lint enforces the content-access category contract") {
       test("a Colorize kernel that references content is rejected") {
-        val e = shouldThrow<MirageLintException> {
+        val e = shouldThrow<MirageDiagnosticException> {
           MirageCompiler.lint(
             "half4 kernel(float2 p, half4 src) { return content.eval(p); }",
             ShaderCategory.Colorize,
@@ -295,7 +324,7 @@ internal class MirageCompilerTest :
       }
 
       test("a Generate kernel that references content is rejected") {
-        val e = shouldThrow<MirageLintException> {
+        val e = shouldThrow<MirageDiagnosticException> {
           MirageCompiler.lint(
             "half4 main(float2 xy) { return content.eval(xy); }",
             ShaderCategory.Generate,
@@ -309,6 +338,23 @@ internal class MirageCompilerTest :
           MirageCompiler.lint(
             "half4 main(float2 xy) { return content.eval(xy); }",
             ShaderCategory.Composite,
+          )
+        }
+      }
+
+      // Regression: `code.contains("content")` used to match a uniform name like `contentOpacity`,
+      // wrongly rejecting a Colorize/Generate kernel that never actually samples content.
+      test(
+        "a uniform name that merely contains 'content' does not trip the Colorize/Generate lint",
+      ) {
+        shouldNotThrowAny {
+          MirageCompiler.lint(
+            "half4 kernel(float2 p, half4 src) { return src * half(contentOpacity); }",
+            ShaderCategory.Colorize,
+          )
+          MirageCompiler.lint(
+            "half4 main(float2 xy) { return half4(half(contentOpacity)); }",
+            ShaderCategory.Generate,
           )
         }
       }
