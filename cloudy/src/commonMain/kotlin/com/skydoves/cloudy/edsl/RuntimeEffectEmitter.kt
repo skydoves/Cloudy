@@ -184,7 +184,7 @@ private fun substituteStatement(node: Statement, names: Map<Expression, String>)
 
 /** Trivial leaves and position-dependent nodes (`content.eval`, mutable locals) are never lifted. */
 private fun isLiftable(node: Expression): Boolean = when (node) {
-  is Literal, is Argument, is UniformRef, is StandardUniform, is VarRef -> false
+  is Literal, is Argument, is UniformRef, is UniformIndexRef, is StandardUniform, is VarRef -> false
   else -> !containsPositionDependent(node)
 }
 
@@ -194,14 +194,23 @@ private fun containsPositionDependent(node: Expression): Boolean = when (node) {
 }
 
 private fun children(node: Expression): List<Expression> = when (node) {
-  is Literal, is Argument, is UniformRef, is StandardUniform, is VarRef -> emptyList()
+  is Literal, is Argument, is UniformRef, is UniformIndexRef, is StandardUniform, is VarRef ->
+    emptyList()
+
   is Unary -> listOf(node.operand)
+
   is Binary -> listOf(node.left, node.right)
+
   is Comparison -> listOf(node.left, node.right)
+
   is Swizzle -> listOf(node.base)
+
   is SampleContent -> listOf(node.coord)
+
   is SampleTexture -> listOf(node.texture, node.coord)
+
   is Select -> listOf(node.condition, node.ifTrue, node.ifFalse)
+
   is Call -> node.args
 }
 
@@ -210,7 +219,8 @@ private fun nodeCount(node: Expression): Int = 1 + children(node).sumOf { nodeCo
 /** Rebuilds [node] with each child mapped through [transform], preserving its type. */
 private fun withChildren(node: Expression, transform: (Expression) -> Expression): Expression =
   when (node) {
-    is Literal, is Argument, is UniformRef, is StandardUniform, is VarRef -> node
+    is Literal, is Argument, is UniformRef, is UniformIndexRef, is StandardUniform, is VarRef ->
+      node
 
     is Unary -> node.copy(operand = transform(node.operand))
 
@@ -289,6 +299,8 @@ private fun emit(node: Expression, uniformNames: List<String>): String = when (n
   is Argument -> node.name
 
   is UniformRef -> uniformNames[node.slot]
+
+  is UniformIndexRef -> "${uniformNames[node.slot]}[${node.index}]"
 
   is StandardUniform -> node.name
 

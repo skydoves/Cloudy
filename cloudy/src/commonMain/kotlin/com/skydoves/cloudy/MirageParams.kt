@@ -246,14 +246,26 @@ public class UVec4 internal constructor(override val slot: Int, public var value
   }
 }
 
-/** A fixed-length `float[N]` uniform slot. */
+/**
+ * A fixed-length `float[N]` uniform slot. Inside a traced body, each element reads as a [Float1] via
+ * the constant-index `get` operator (`weights[3]`) declared in the eDSL surface
+ * ([com.skydoves.cloudy.edsl] ShaderValues.kt).
+ */
 @ExperimentalMirage
-public class UFloatArray internal constructor(
-  override val slot: Int,
-  public var value: FloatArray,
-) : UniformHandle {
+public class UFloatArray internal constructor(override val slot: Int, value: FloatArray) :
+  UniformHandle {
+  /** The declared `N` in `float[N]` — fixed at declaration; a later write cannot resize it. */
+  public val size: Int = value.size
+
+  /** The current elements. Every write is length-checked against [size] and stored as a copy. */
+  public var value: FloatArray = value
+    set(v) {
+      require(v.size == size) { "UFloatArray value must have size $size, was ${v.size}" }
+      field = v.copyOf()
+    }
+
   public operator fun invoke(v: FloatArray) {
-    value = v.copyOf()
+    value = v
   }
 }
 
