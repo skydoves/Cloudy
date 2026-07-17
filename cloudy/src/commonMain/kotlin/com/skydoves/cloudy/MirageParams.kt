@@ -252,16 +252,20 @@ public class UVec4 internal constructor(override val slot: Int, public var value
  * ([com.skydoves.cloudy.edsl] ShaderValues.kt).
  */
 @ExperimentalMirage
-public class UFloatArray internal constructor(
-  override val slot: Int,
-  public var value: FloatArray,
-) : UniformHandle {
-  /** The declared `N` in `float[N]` — fixed at declaration; a later [invoke] cannot resize it. */
+public class UFloatArray internal constructor(override val slot: Int, value: FloatArray) :
+  UniformHandle {
+  /** The declared `N` in `float[N]` — fixed at declaration; a later write cannot resize it. */
   public val size: Int = value.size
 
+  /** The current elements. Every write is length-checked against [size] and stored as a copy. */
+  public var value: FloatArray = value
+    set(v) {
+      require(v.size == size) { "UFloatArray value must have size $size, was ${v.size}" }
+      field = v.copyOf()
+    }
+
   public operator fun invoke(v: FloatArray) {
-    require(v.size == size) { "UFloatArray value must have size $size, was ${v.size}" }
-    value = v.copyOf()
+    value = v
   }
 }
 

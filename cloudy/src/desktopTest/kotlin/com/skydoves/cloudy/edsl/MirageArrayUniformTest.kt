@@ -73,6 +73,10 @@ internal class MirageArrayUniformTest :
       shouldThrow<IllegalArgumentException> {
         ArrayWeightParams().weights(floatArrayOf(1f, 2f))
       }
+      // The property setter enforces the same invariant, so a direct write cannot bypass it.
+      shouldThrow<IllegalArgumentException> {
+        ArrayWeightParams().weights.value = floatArrayOf(1f, 2f)
+      }
     }
 
     test("the compiled program declares the array and rasterizes like a hand-written kernel") {
