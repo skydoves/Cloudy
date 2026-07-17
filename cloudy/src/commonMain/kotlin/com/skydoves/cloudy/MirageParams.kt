@@ -252,7 +252,11 @@ public class UFloatArray internal constructor(
   override val slot: Int,
   public var value: FloatArray,
 ) : UniformHandle {
+  /** The declared `N` in `float[N]` — fixed at declaration; a later [invoke] cannot resize it. */
+  public val size: Int = value.size
+
   public operator fun invoke(v: FloatArray) {
+    require(v.size == size) { "UFloatArray value must have size $size, was ${v.size}" }
     value = v.copyOf()
   }
 }
