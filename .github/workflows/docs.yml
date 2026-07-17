@@ -8,6 +8,7 @@ on:
     paths:
       - 'docs/**'
       - 'cloudy/**'
+      - 'buildSrc/**'
       - '.github/workflows/docs.yml'
   workflow_dispatch:
 

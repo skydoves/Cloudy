@@ -61,7 +61,7 @@ If you're using Version Catalog, you can configure the dependency by adding it t
 ```toml
 [versions]
 #...
-cloudy = "0.7.1"
+cloudy = "1.0.0-alpha01"
 
 [libraries]
 #...
@@ -73,7 +73,7 @@ Add the dependency below to your **module**'s `build.gradle.kts` file:
 
 ```gradle
 dependencies {
-    implementation("com.github.skydoves:cloudy:0.7.1")
+    implementation("com.github.skydoves:cloudy:1.0.0-alpha01")
     
     // if you're using Version Catalog
     implementation(libs.compose.cloudy)
