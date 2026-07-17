@@ -61,6 +61,16 @@ internal data class Literal(val value: Float, override val type: ShaderType = Sh
 internal data class UniformRef(val slot: Int, override val type: ShaderType) : Expression
 
 /**
+ * A constant-index element read of a `float[N]` uniform, e.g. `weights[3]`. The index is a Kotlin
+ * `Int` fixed at trace time, so the emitted subscript is always a constant — the one array-access
+ * shape AGSL/SkSL's ES2-restricted profile accepts unconditionally. Element type is always `float`
+ * ([com.skydoves.cloudy.UFloatArray] is the only array uniform kind).
+ */
+internal data class UniformIndexRef(val slot: Int, val index: Int) : Expression {
+  override val type: ShaderType get() = ShaderType.Float1
+}
+
+/**
  * A reference to a standard, name-gated uniform the compiler declares on demand (`mirageTime` /
  * `mirageResolution` / `mirageDensity`) — see MirageCompiler.kt's STD_* constants. Not a [UniformRef]
  * because it has no [com.skydoves.cloudy.MirageParams] slot; referencing this node is itself what

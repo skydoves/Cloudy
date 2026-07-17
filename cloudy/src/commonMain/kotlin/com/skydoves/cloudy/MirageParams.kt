@@ -246,7 +246,11 @@ public class UVec4 internal constructor(override val slot: Int, public var value
   }
 }
 
-/** A fixed-length `float[N]` uniform slot. */
+/**
+ * A fixed-length `float[N]` uniform slot. Inside a traced body, each element reads as a [Float1] via
+ * the constant-index `get` operator (`weights[3]`) declared in the eDSL surface
+ * ([com.skydoves.cloudy.edsl] ShaderValues.kt).
+ */
 @ExperimentalMirage
 public class UFloatArray internal constructor(
   override val slot: Int,

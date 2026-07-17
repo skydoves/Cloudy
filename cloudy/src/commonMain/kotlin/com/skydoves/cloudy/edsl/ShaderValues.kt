@@ -21,6 +21,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import com.skydoves.cloudy.ExperimentalMirage
+import com.skydoves.cloudy.UFloatArray
 import com.skydoves.cloudy.UTexture
 
 /**
@@ -697,6 +698,20 @@ public fun mix(a: Half4, b: Color, t: Float1): Half4 = mix(a, color(b), t)
 @ExperimentalMirage
 public fun UTexture.eval(coord: Float2): Half4 =
   Half4(SampleTexture(UniformRef(slot, ShaderType.Half4), coord.e))
+
+/**
+ * `<array>[index]` — reads one element of a `float[N]` uniform as a [Float1] (`weights[3]`). The index
+ * is a Kotlin `Int`, so it is baked into the source as a constant — the array-access shape AGSL/SkSL's
+ * ES2-restricted profile always accepts. Pair with [unroll] to walk all elements (its trace-time `Int`
+ * index makes every subscript constant). A *dynamic* subscript ([loop]'s [Float1] index) is deliberately
+ * unsupported: ES2 constant-index-expression rules make it dialect-dependent, so a kernel that needs one
+ * stays a raw-string kernel. Bounds are checked against the declared [UFloatArray.size] at trace time.
+ */
+@ExperimentalMirage
+public operator fun UFloatArray.get(index: Int): Float1 {
+  require(index in 0 until size) { "index $index out of bounds for float[$size]" }
+  return Float1(UniformIndexRef(slot, index))
+}
 
 // --- Builtins / operators / swizzles the RainyWindow ("Heartfelt") port needs, added one-per-line in
 // the same factory style as the block above. Each mirrors an AGSL/SkSL builtin or GLSL operator the
