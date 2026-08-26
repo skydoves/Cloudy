@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.unit.IntOffset
@@ -101,9 +102,16 @@ internal class BackdropClearBlurrer {
   private var cachedProgressiveEffect: ComposeRenderEffect? = null
   private var cachedProgressiveKey: ProgressiveKey? = null
 
-  // The last full sky snapshot and the version it was captured at (coalescing key).
+  // The last sky snapshot and the version it was captured at (coalescing key).
   private var snapshot: ImageBitmap? = null
   private var cachedContentVersion: Long = -1L
+
+  // The intermediate layer the sky is blitted into before snapshotting, when the capture is
+  // downscaled, plus the scale [snapshot] was actually taken at (1 = full resolution). The src rect
+  // below is expressed in SNAPSHOT pixels, so it must divide by the scale the bitmap really has, not
+  // the scale this frame would like — a failed capture leaves an older bitmap in place.
+  private var scaledLayer: GraphicsLayer? = null
+  private var snapshotScale: Int = 1
 
   // In-flight capture coalescing: never cancel a running capture; queue the newest version instead.
   private var isCapturing: Boolean = false
@@ -138,8 +146,9 @@ internal class BackdropClearBlurrer {
     // the hop was pure latency that let a fast fling stay a frame (or more) behind the content.
     // captureInline falls back to the coalesced async path only if the snapshot impl unexpectedly
     // suspends (it does not on API 31+).
-    if (contentVersion != cachedContentVersion) {
-      captureInline(node, layer, contentVersion)
+    val captureScale = captureScaleFor(radius, progressive)
+    if (contentVersion != cachedContentVersion || captureScale != snapshotScale) {
+      captureInline(node, layer, contentVersion, captureScale)
     }
 
     val bitmap = snapshot
@@ -150,11 +159,17 @@ internal class BackdropClearBlurrer {
       return
     }
 
-    // Sample the node region out of the full snapshot, clamped so an edge node stays in bounds.
-    val srcW = width.coerceAtMost(bitmap.width)
-    val srcH = height.coerceAtMost(bitmap.height)
-    val srcX = offset.x.toInt().coerceIn(0, (bitmap.width - srcW).coerceAtLeast(0))
-    val srcY = offset.y.toInt().coerceIn(0, (bitmap.height - srcH).coerceAtLeast(0))
+    // Sample the node region out of the snapshot, clamped so an edge node stays in bounds. The
+    // snapshot may be downscaled, so the node's sky-space offset/size are converted to snapshot
+    // pixels first; `dstSize` below stays the node size, which scales the region back up. At
+    // scale 1 (`snapshotScale == 1`) every term here is the identity of the full-resolution math.
+    val s = snapshotScale
+    val wantW = (width + s - 1) / s
+    val wantH = (height + s - 1) / s
+    val srcW = wantW.coerceAtMost(bitmap.width).coerceAtLeast(1)
+    val srcH = wantH.coerceAtMost(bitmap.height).coerceAtLeast(1)
+    val srcX = (offset.x.toInt() / s).coerceIn(0, (bitmap.width - srcW).coerceAtLeast(0))
+    val srcY = (offset.y.toInt() / s).coerceIn(0, (bitmap.height - srcH).coerceAtLeast(0))
 
     // radius 0 is passthrough (no blur): draw the sampled bitmap region straight into the node. Still a
     // bitmap draw (drawImage), never `drawLayer(sky.backgroundLayer)`, so it stays acyclic / capture-safe.
@@ -303,9 +318,21 @@ internal class BackdropClearBlurrer {
   // suspends, so the capture is driven to completion inline within this draw. If it ever DID suspend
   // (it never does on this path), the driver leaves cachedContentVersion behind and the async
   // [requestCapture] takes over on the next frame, so correctness is preserved either way.
-  private fun captureInline(node: EffectNode, layer: GraphicsLayer, contentVersion: Long) {
+  private fun ContentDrawScope.captureInline(
+    node: EffectNode,
+    layer: GraphicsLayer,
+    contentVersion: Long,
+    scale: Int,
+  ) {
+    // At scale > 1 the sky is blitted into a smaller layer first and THAT is snapshotted, so the
+    // hardware bitmap `Bitmap.createBitmap(Picture)` allocates is scale^2 smaller. The blit is an
+    // extra pass the full-resolution path does not pay, and it is still a large net win: measured on
+    // a 1080x2400 sky, blit-to-quarter plus snapshot costs 2.88 ms against 10.40 ms for snapshotting
+    // full resolution (SkyCaptureBenchmark), and the per-capture bitmap drops 9.89 MB -> 0.62 MB.
+    val source = if (scale > 1) downscaleSource(node, layer, scale) ?: layer else layer
+    val effectiveScale = if (source === layer) 1 else scale
     val bitmap = try {
-      layer.captureImageBitmapOrNull()
+      source.captureImageBitmapOrNull()
     } catch (e: CancellationException) {
       throw e
     } catch (e: Exception) {
@@ -316,11 +343,63 @@ internal class BackdropClearBlurrer {
     if (bitmap != null) {
       // Synchronous capture landed: adopt it this frame.
       snapshot = bitmap
+      snapshotScale = effectiveScale
       cachedContentVersion = contentVersion
     } else {
       // The snapshot impl suspended (not expected on API 31+): fall back to the coalesced async path.
       requestCapture(node, layer, contentVersion)
     }
+  }
+
+  /**
+   * Blits [layer] into a reusable [scale]-times-smaller layer and returns it, or `null` when the sky
+   * has no size yet (the caller then snapshots full resolution).
+   *
+   * `toImageBitmap()` takes no region or scale argument and the sky recorder has to keep recording at
+   * full size — other overlays sample the same layer — so an intermediate layer is the only place the
+   * downscale can happen. `drawLayer` here does NOT reintroduce the issue-112 cycle: the sky's display
+   * list is recorded under `Sky.capturing`, so it holds no overlay layers, and this layer is only ever
+   * consumed by `toImageBitmap()` — nothing in the on-screen tree references it, so a full-tree
+   * `prepareTreeImpl` re-walk never reaches it.
+   */
+  private fun ContentDrawScope.downscaleSource(
+    node: EffectNode,
+    layer: GraphicsLayer,
+    scale: Int,
+  ): GraphicsLayer? {
+    val sourceSize = layer.size
+    if (sourceSize.width <= 0 || sourceSize.height <= 0) return null
+    val target = IntSize(
+      (sourceSize.width / scale).coerceAtLeast(1),
+      (sourceSize.height / scale).coerceAtLeast(1),
+    )
+    val dst = scaledLayer ?: node.graphicsContext().createGraphicsLayer().also { scaledLayer = it }
+    dst.record(target) {
+      scale(1f / scale, 1f / scale, pivot = Offset.Zero) {
+        drawLayer(layer)
+      }
+    }
+    return dst
+  }
+
+  /**
+   * Resolves how far the capture may be downscaled for this draw. The blur destroys detail above
+   * ~1/radius, so a downscale the blur then hides is free; the factor stays at or below radius/4,
+   * conservatively inside that bound.
+   *
+   * Two cases must stay at full resolution, because the snapshot is not only a blur source:
+   *  - `radius == 0` draws the snapshot straight into the node (passthrough / scrim over-draw), so a
+   *    downscale would be plainly visible as a soft backdrop.
+   *  - progressive mixes the SHARP snapshot in as a `BitmapShader` where the fade reaches 0, so
+   *    downscaling would soften exactly the half that is supposed to stay crisp — and would diverge
+   *    from the API < 31 CPU path the progressive shader is written to match.
+   */
+  private fun captureScaleFor(radius: Int, progressive: CloudyProgressive): Int = when {
+    radius <= 0 -> 1
+    progressive != CloudyProgressive.None -> 1
+    radius >= 16 -> 4
+    radius >= 8 -> 2
+    else -> 1
   }
 
   private fun requestCapture(node: EffectNode, layer: GraphicsLayer, contentVersion: Long) {
@@ -333,7 +412,9 @@ internal class BackdropClearBlurrer {
       try {
         // toImageBitmap() rasterizes the sky layer to a detached bitmap (a Picture-backed hardware
         // bitmap on API 31+): reference-free pixels, the whole point of this path.
+        // The fallback snapshots the sky layer directly, so it is always full resolution.
         snapshot = layer.toImageBitmap()
+        snapshotScale = 1
         cachedContentVersion = contentVersion
         if (node.isAttached) node.invalidate()
       } catch (e: CancellationException) {
@@ -379,9 +460,12 @@ internal class BackdropClearBlurrer {
     isCapturing = false
     queuedVersion = -1L
     snapshot = null
+    snapshotScale = 1
     cachedContentVersion = -1L
     blurLayer?.let { node.graphicsContext().releaseGraphicsLayer(it) }
     blurLayer = null
+    scaledLayer?.let { node.graphicsContext().releaseGraphicsLayer(it) }
+    scaledLayer = null
     cachedBlurEffect = null
     cachedBlurRadius = -1f
     progressiveShader = null
