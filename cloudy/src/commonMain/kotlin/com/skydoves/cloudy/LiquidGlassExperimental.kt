@@ -82,4 +82,5 @@ public expect fun Modifier.liquidGlassTuned(
   glowRimMix: Float = 0.6f,
   glowWidthPx: Float = 12.0f,
   enabled: Boolean = true,
+  zoom: Float = LiquidGlassDefaults.ZOOM,
 ): Modifier

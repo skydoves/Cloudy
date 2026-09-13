@@ -159,6 +159,7 @@ public final class com/skydoves/cloudy/LiquidGlassDefaults {
 	public static final field MIN_ANDROID_API_FULL I
 	public static final field REFRACTION F
 	public static final field SATURATION F
+	public static final field ZOOM F
 	public final fun getGlow ()Lcom/skydoves/cloudy/LiquidGlassGlow;
 	public final fun getLENS_SIZE-NH-jbRc ()J
 	public final fun getLIGHT_DIR-F1C5BW0 ()J
@@ -198,7 +199,8 @@ public final class com/skydoves/cloudy/LiquidGlassShaderSource {
 }
 
 public final class com/skydoves/cloudy/LiquidGlass_skikoKt {
-	public static final fun liquidGlass--orAQqo (Landroidx/compose/ui/Modifier;JJFFFFFFJFLcom/skydoves/cloudy/LiquidGlassLight;Lcom/skydoves/cloudy/LiquidGlassGlow;ZLandroidx/compose/runtime/Composer;III)Landroidx/compose/ui/Modifier;
+	public static final synthetic fun liquidGlass--orAQqo (Landroidx/compose/ui/Modifier;JJFFFFFFJFLcom/skydoves/cloudy/LiquidGlassLight;Lcom/skydoves/cloudy/LiquidGlassGlow;ZLandroidx/compose/runtime/Composer;III)Landroidx/compose/ui/Modifier;
+	public static final fun liquidGlass-gA7x3C4 (Landroidx/compose/ui/Modifier;JJFFFFFFJFLcom/skydoves/cloudy/LiquidGlassLight;Lcom/skydoves/cloudy/LiquidGlassGlow;ZFLandroidx/compose/runtime/Composer;III)Landroidx/compose/ui/Modifier;
 }
 
 public final class com/skydoves/cloudy/PlatformBitmap {
