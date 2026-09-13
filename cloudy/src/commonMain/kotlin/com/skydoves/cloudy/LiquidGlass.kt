@@ -150,6 +150,10 @@ internal fun LiquidGlassGlow.toTuning(): GlowTuning =
  * Default values for the Liquid Glass effect.
  */
 public object LiquidGlassDefaults {
+
+  /** Selects a subtle 1.03x zoom on Android API 23-32 and 1x on shader platforms. */
+  public const val ZOOM: Float = 0f
+
   /** Default lens size in pixels. */
   public val LENS_SIZE: Size = Size(350f, 350f)
 
@@ -239,7 +243,7 @@ public object LiquidGlassDefaults {
  * | Platform | Implementation | Features |
  * |----------|----------------|----------|
  * | Android API 33+ | RuntimeShader (AGSL) | Full effect |
- * | Android API 23-32 | Fallback | Saturation + edge (no refraction/dispersion) |
+ * | Android API 23-32 | Fallback | Zoom + color overlays + edge (no refraction/dispersion) |
  * | iOS/macOS/Desktop | Skia RuntimeEffect (SKSL) | Full effect |
  *
  * ## Example Usage
@@ -321,6 +325,13 @@ public object LiquidGlassDefaults {
  *
  * @param enabled If false, disables the effect and returns the original modifier.
  *
+ * @param zoom Magnification of the content inside the lens, pivoted on [lensCenter].
+ *   [LiquidGlassDefaults.ZOOM] (0) selects 1.03 on Android API 23-32 and 1 on shader platforms.
+ *   Pass 1 to disable magnification, or a positive finite value to override it on any platform.
+ *   Values below 1 zoom out and may expose transparent pixels outside the content bounds.
+ *   The lens outline and lighting are not scaled. This modifier transforms its own content;
+ *   place foreground controls outside that content layer to keep them unscaled.
+ *
  * @return A [Modifier] with the Liquid Glass effect applied.
  *
  * @see LiquidGlassDefaults
@@ -342,4 +353,34 @@ public expect fun Modifier.liquidGlass(
   light: LiquidGlassLight = LiquidGlassDefaults.Light,
   glow: LiquidGlassGlow = LiquidGlassDefaults.Glow,
   enabled: Boolean = true,
+  zoom: Float = LiquidGlassDefaults.ZOOM,
 ): Modifier
+
+/** Keeps the pre-zoom entry point available to already compiled callers. */
+@Deprecated(message = "Binary compatibility", level = DeprecationLevel.HIDDEN)
+@Composable
+public expect fun Modifier.liquidGlass(
+  lensCenter: Offset,
+  lensSize: Size = LiquidGlassDefaults.LENS_SIZE,
+  cornerRadius: Float = LiquidGlassDefaults.CORNER_RADIUS,
+  refraction: Float = LiquidGlassDefaults.REFRACTION,
+  curve: Float = LiquidGlassDefaults.CURVE,
+  dispersion: Float = LiquidGlassDefaults.DISPERSION,
+  saturation: Float = LiquidGlassDefaults.SATURATION,
+  contrast: Float = LiquidGlassDefaults.CONTRAST,
+  tint: Color = LiquidGlassDefaults.TINT,
+  edge: Float = LiquidGlassDefaults.EDGE,
+  light: LiquidGlassLight = LiquidGlassDefaults.Light,
+  glow: LiquidGlassGlow = LiquidGlassDefaults.Glow,
+  enabled: Boolean = true,
+): Modifier
+
+/** Resolves the public auto sentinel before it reaches a canvas transform or shader uniform. */
+internal fun resolveLiquidGlassZoom(zoom: Float, fallback: Boolean): Float {
+  require(zoom.isFinite() && zoom >= 0f) { "zoom must be finite and >= 0, but was $zoom" }
+  return if (zoom == LiquidGlassDefaults.ZOOM) {
+    if (fallback) 1.03f else 1f
+  } else {
+    zoom
+  }
+}

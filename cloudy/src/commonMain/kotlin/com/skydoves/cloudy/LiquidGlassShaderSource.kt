@@ -41,6 +41,7 @@ uniform float2 lensCenter;
 uniform float2 lensSize;
 uniform float cornerRadius;
 uniform float refraction;
+uniform float zoom;
 uniform float curve;
 uniform float dispersion;
 uniform float saturation;
@@ -97,6 +98,11 @@ half3 processColor(half3 src, float vibrancy, float intensity, float4 overlay) {
     return mix(adjusted, half3(overlay.rgb), overlay.a);
 }
 
+// Transform sample coordinates only; SDF, normals, and lighting stay in lens space.
+float2 zoomSample(float2 xy) {
+    return zoom == 1.0 ? xy : lensCenter + (xy - lensCenter) / zoom;
+}
+
 half4 main(float2 xy) {
     float2 halfDim = lensSize * 0.5;
     float r = min(cornerRadius, min(halfDim.x, halfDim.y));
@@ -127,9 +133,9 @@ half4 main(float2 xy) {
         float2 normP = p / halfDim;
         float2 shift = dispersion * normP * normP * normP * min(halfDim.x, halfDim.y) * 0.1;
 
-        float2 xyR = sampleXY - shift;
-        float2 xyG = sampleXY;
-        float2 xyB = sampleXY + shift;
+        float2 xyR = zoomSample(sampleXY - shift);
+        float2 xyG = zoomSample(sampleXY);
+        float2 xyB = zoomSample(sampleXY + shift);
 
         float sdfR = boxRoundedSDF(xyR - lensCenter, halfDim, r);
         float sdfB = boxRoundedSDF(xyB - lensCenter, halfDim, r);
@@ -140,11 +146,11 @@ half4 main(float2 xy) {
 
         pixel = half4(rVal.r, gVal.g, bVal.b, gVal.a);
     } else {
-        pixel = content.eval(sampleXY);
+        pixel = content.eval(zoomSample(sampleXY));
     }
 
-    // Handle fully transparent samples
-    if (pixel.a <= 0.0) {
+    // Preserve the legacy transparent-sample fallback only when magnification is off.
+    if (zoom == 1.0 && pixel.a <= 0.0) {
         pixel = content.eval(xy);
     }
 
@@ -236,6 +242,7 @@ uniform float2 lensCenter;
 uniform float2 lensSize;
 uniform float cornerRadius;
 uniform float refraction;
+uniform float zoom;
 uniform float curve;
 uniform float dispersion;
 uniform float saturation;
@@ -292,6 +299,11 @@ half3 processColor(half3 src, float vibrancy, float intensity, float4 overlay) {
     return mix(adjusted, half3(overlay.rgb), overlay.a);
 }
 
+// Transform sample coordinates only; SDF, normals, and lighting stay in lens space.
+float2 zoomSample(float2 xy) {
+    return zoom == 1.0 ? xy : lensCenter + (xy - lensCenter) / zoom;
+}
+
 half4 main(float2 xy) {
     float2 halfDim = lensSize * 0.5;
     float r = min(cornerRadius, min(halfDim.x, halfDim.y));
@@ -322,9 +334,9 @@ half4 main(float2 xy) {
         float2 normP = p / halfDim;
         float2 shift = dispersion * normP * normP * normP * min(halfDim.x, halfDim.y) * 0.1;
 
-        float2 xyR = sampleXY - shift;
-        float2 xyG = sampleXY;
-        float2 xyB = sampleXY + shift;
+        float2 xyR = zoomSample(sampleXY - shift);
+        float2 xyG = zoomSample(sampleXY);
+        float2 xyB = zoomSample(sampleXY + shift);
 
         float sdfR = boxRoundedSDF(xyR - lensCenter, halfDim, r);
         float sdfB = boxRoundedSDF(xyB - lensCenter, halfDim, r);
@@ -335,11 +347,11 @@ half4 main(float2 xy) {
 
         pixel = half4(rVal.r, gVal.g, bVal.b, gVal.a);
     } else {
-        pixel = content.eval(sampleXY);
+        pixel = content.eval(zoomSample(sampleXY));
     }
 
-    // Handle fully transparent samples
-    if (pixel.a <= 0.0) {
+    // Preserve the legacy transparent-sample fallback only when magnification is off.
+    if (zoom == 1.0 && pixel.a <= 0.0) {
         pixel = content.eval(xy);
     }
 

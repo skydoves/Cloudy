@@ -23,16 +23,20 @@ import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.platform.LocalInspectionMode
 
 /**
@@ -58,6 +62,7 @@ public actual fun Modifier.liquidGlass(
   light: LiquidGlassLight,
   glow: LiquidGlassGlow,
   enabled: Boolean,
+  zoom: Float,
 ): Modifier = liquidGlassImpl(
   lensCenter = lensCenter,
   lensSize = lensSize,
@@ -73,6 +78,41 @@ public actual fun Modifier.liquidGlass(
   // Widen the two public knobs to the full tuning (extras at defaults) for the single uniform path.
   tuning = glow.toTuning(),
   enabled = enabled,
+  zoom = zoom,
+)
+
+/** Keeps the pre-zoom entry point available to already compiled callers. */
+@Deprecated(message = "Binary compatibility", level = DeprecationLevel.HIDDEN)
+@Composable
+public actual fun Modifier.liquidGlass(
+  lensCenter: Offset,
+  lensSize: Size,
+  cornerRadius: Float,
+  refraction: Float,
+  curve: Float,
+  dispersion: Float,
+  saturation: Float,
+  contrast: Float,
+  tint: Color,
+  edge: Float,
+  light: LiquidGlassLight,
+  glow: LiquidGlassGlow,
+  enabled: Boolean,
+): Modifier = liquidGlass(
+  lensCenter = lensCenter,
+  lensSize = lensSize,
+  cornerRadius = cornerRadius,
+  refraction = refraction,
+  curve = curve,
+  dispersion = dispersion,
+  saturation = saturation,
+  contrast = contrast,
+  tint = tint,
+  edge = edge,
+  light = light,
+  glow = glow,
+  enabled = enabled,
+  zoom = LiquidGlassDefaults.ZOOM,
 )
 
 @ExperimentalLiquidGlassMotion
@@ -94,6 +134,7 @@ public actual fun Modifier.liquidGlassTuned(
   glowRimMix: Float,
   glowWidthPx: Float,
   enabled: Boolean,
+  zoom: Float,
 ): Modifier = liquidGlassImpl(
   lensCenter = lensCenter,
   lensSize = lensSize,
@@ -113,6 +154,48 @@ public actual fun Modifier.liquidGlassTuned(
     widthPx = glowWidthPx,
   ),
   enabled = enabled,
+  zoom = zoom,
+)
+
+/** Preserves the entry point used by previously compiled callers. */
+@Deprecated(message = "Binary compatibility", level = DeprecationLevel.HIDDEN)
+@ExperimentalLiquidGlassMotion
+@Composable
+public actual fun Modifier.liquidGlassTuned(
+  lensCenter: Offset,
+  lensSize: Size,
+  cornerRadius: Float,
+  refraction: Float,
+  curve: Float,
+  dispersion: Float,
+  saturation: Float,
+  contrast: Float,
+  tint: Color,
+  edge: Float,
+  light: LiquidGlassLight,
+  glowIntensity: Float,
+  glowSharpness: Float,
+  glowRimMix: Float,
+  glowWidthPx: Float,
+  enabled: Boolean,
+): Modifier = liquidGlassTuned(
+  lensCenter = lensCenter,
+  lensSize = lensSize,
+  cornerRadius = cornerRadius,
+  refraction = refraction,
+  curve = curve,
+  dispersion = dispersion,
+  saturation = saturation,
+  contrast = contrast,
+  tint = tint,
+  edge = edge,
+  light = light,
+  glowIntensity = glowIntensity,
+  glowSharpness = glowSharpness,
+  glowRimMix = glowRimMix,
+  glowWidthPx = glowWidthPx,
+  enabled = enabled,
+  zoom = LiquidGlassDefaults.ZOOM,
 )
 
 /**
@@ -134,7 +217,13 @@ private fun Modifier.liquidGlassImpl(
   light: LiquidGlassLight,
   tuning: GlowTuning,
   enabled: Boolean,
+  zoom: Float,
 ): Modifier {
+  val resolvedZoom = resolveLiquidGlassZoom(
+    zoom,
+    fallback =
+    Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU,
+  )
   require(lensSize.width > 0f) { "lensSize.width must be > 0, but was ${lensSize.width}" }
   require(lensSize.height > 0f) { "lensSize.height must be > 0, but was ${lensSize.height}" }
   require(cornerRadius >= 0f) { "cornerRadius must be >= 0, but was $cornerRadius" }
@@ -156,6 +245,7 @@ private fun Modifier.liquidGlassImpl(
   // RuntimeShader requires API 33+.
   return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
     liquidGlassApi33(
+      zoom = resolvedZoom,
       lensCenter = lensCenter,
       lensSize = lensSize,
       cornerRadius = cornerRadius,
@@ -172,6 +262,7 @@ private fun Modifier.liquidGlassImpl(
   } else {
     // Fallback (< API 33): no shader, so light/glow tuning is not forwarded (no specular uniforms).
     liquidGlassFallback(
+      zoom = resolvedZoom,
       lensCenter = lensCenter,
       lensSize = lensSize,
       cornerRadius = cornerRadius,
@@ -186,6 +277,7 @@ private fun Modifier.liquidGlassImpl(
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @Composable
 private fun Modifier.liquidGlassApi33(
+  zoom: Float,
   lensCenter: Offset,
   lensSize: Size,
   cornerRadius: Float,
@@ -222,6 +314,7 @@ private fun Modifier.liquidGlassApi33(
       shader.setFloatUniform("lensCenter", lensCenter.x, lensCenter.y)
       shader.setFloatUniform("lensSize", lensSize.width, lensSize.height)
       shader.setFloatUniform("cornerRadius", cornerRadius)
+      shader.setFloatUniform("zoom", zoom)
       shader.setFloatUniform("refraction", refraction)
       shader.setFloatUniform("curve", curve)
       shader.setFloatUniform("dispersion", dispersion)
@@ -257,13 +350,14 @@ private fun Modifier.liquidGlassApi33(
 /**
  * Fallback implementation for Android < 33.
  *
- * Provides a graceful degradation with saturation, contrast, tint, and edge effects.
+ * Provides lens-centered magnification with approximate color overlays, tint, and edge effects.
  * The lens refraction/distortion effect is not available without RuntimeShader (API 33+).
  *
  * For blur effects, use [Modifier.cloudy] separately.
  */
 @Composable
 private fun Modifier.liquidGlassFallback(
+  zoom: Float,
   lensCenter: Offset,
   lensSize: Size,
   cornerRadius: Float,
@@ -271,62 +365,82 @@ private fun Modifier.liquidGlassFallback(
   contrast: Float,
   tint: Color,
   edge: Float,
-): Modifier = this.drawWithContent {
-  drawContent()
+): Modifier {
+  // No layer allocation/recording when callers opt out of magnification.
+  val contentLayer = if (zoom != 1f) rememberGraphicsLayer() else null
+  return this.drawWithCache {
+    val halfWidth = lensSize.width / 2f
+    val halfHeight = lensSize.height / 2f
+    val lensLeft = lensCenter.x - halfWidth
+    val lensTop = lensCenter.y - halfHeight
+    val clampedCornerRadius = cornerRadius.coerceAtMost(minOf(halfWidth, halfHeight))
 
-  val halfWidth = lensSize.width / 2f
-  val halfHeight = lensSize.height / 2f
-  val lensLeft = lensCenter.x - halfWidth
-  val lensTop = lensCenter.y - halfHeight
-  val clampedCornerRadius = cornerRadius.coerceAtMost(minOf(halfWidth, halfHeight))
+    val lensPath = Path().apply {
+      addRoundRect(
+        RoundRect(
+          left = lensLeft,
+          top = lensTop,
+          right = lensLeft + lensSize.width,
+          bottom = lensTop + lensSize.height,
+          cornerRadius = CornerRadius(clampedCornerRadius, clampedCornerRadius),
+        ),
+      )
+    }
 
-  val lensPath = Path().apply {
-    addRoundRect(
-      RoundRect(
-        left = lensLeft,
-        top = lensTop,
-        right = lensLeft + lensSize.width,
-        bottom = lensTop + lensSize.height,
-        cornerRadius = CornerRadius(clampedCornerRadius, clampedCornerRadius),
-      ),
-    )
-  }
+    onDrawWithContent {
+      if (contentLayer == null) {
+        drawContent()
+      } else {
+        // Record once, replay disjoint regions: drawing a scaled copy over the original would
+        // double-composite translucent content and leave unscaled pixels visible through it.
+        contentLayer.record { this@onDrawWithContent.drawContent() }
+        clipPath(lensPath, clipOp = ClipOp.Difference) {
+          drawLayer(contentLayer)
+        }
+        clipPath(lensPath) {
+          scale(scale = zoom, pivot = lensCenter) {
+            drawLayer(contentLayer)
+          }
+        }
+      }
 
-  if (saturation != 1f || contrast != 1f) {
-    clipPath(lensPath) {
-      // Approximation only: without a shader we can't re-render content through a color filter, so
-      // simulate it with an overlay. Absolute deviation from 1.0 handles over/under in both cases.
-      val saturationDelta = kotlin.math.abs(1f - saturation).coerceIn(0f, 1f)
-      val contrastDelta = kotlin.math.abs(1f - contrast).coerceIn(0f, 1f)
-      val overlayAlpha = 0.3f * (saturationDelta + contrastDelta)
-      if (overlayAlpha > 0f) {
-        drawRect(
-          color = Color.Gray.copy(alpha = overlayAlpha.coerceIn(0f, 0.5f)),
-          topLeft = Offset(lensLeft, lensTop),
-          size = lensSize,
+      if (saturation != 1f || contrast != 1f) {
+        clipPath(lensPath) {
+          // Approximation only: without a shader we can't re-render content through a color filter, so
+          // simulate it with an overlay. Absolute deviation from 1.0 handles over/under in both cases.
+          val saturationDelta = kotlin.math.abs(1f - saturation).coerceIn(0f, 1f)
+          val contrastDelta = kotlin.math.abs(1f - contrast).coerceIn(0f, 1f)
+          val overlayAlpha = 0.3f * (saturationDelta + contrastDelta)
+          if (overlayAlpha > 0f) {
+            drawRect(
+              color = Color.Gray.copy(alpha = overlayAlpha.coerceIn(0f, 0.5f)),
+              topLeft = Offset(lensLeft, lensTop),
+              size = lensSize,
+            )
+          }
+        }
+      }
+
+      if (tint != Color.Transparent && tint.alpha > 0f) {
+        clipPath(lensPath) {
+          drawRect(
+            color = tint,
+            topLeft = Offset(lensLeft, lensTop),
+            size = lensSize,
+          )
+        }
+      }
+
+      if (edge > 0f) {
+        val strokeWidth = edge * 20f // scale edge value to a reasonable stroke width
+        val edgeColor = Color.White.copy(alpha = (edge * 0.5f).coerceIn(0f, 0.8f))
+
+        drawPath(
+          path = lensPath,
+          color = edgeColor,
+          style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidth),
         )
       }
     }
-  }
-
-  if (tint != Color.Transparent && tint.alpha > 0f) {
-    clipPath(lensPath) {
-      drawRect(
-        color = tint,
-        topLeft = Offset(lensLeft, lensTop),
-        size = lensSize,
-      )
-    }
-  }
-
-  if (edge > 0f) {
-    val strokeWidth = edge * 20f // scale edge value to a reasonable stroke width
-    val edgeColor = Color.White.copy(alpha = (edge * 0.5f).coerceIn(0f, 0.8f))
-
-    drawPath(
-      path = lensPath,
-      color = edgeColor,
-      style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidth),
-    )
   }
 }

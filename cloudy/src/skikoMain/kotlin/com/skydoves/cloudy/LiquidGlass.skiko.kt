@@ -50,6 +50,7 @@ public actual fun Modifier.liquidGlass(
   light: LiquidGlassLight,
   glow: LiquidGlassGlow,
   enabled: Boolean,
+  zoom: Float,
 ): Modifier = liquidGlassImpl(
   lensCenter = lensCenter,
   lensSize = lensSize,
@@ -65,6 +66,41 @@ public actual fun Modifier.liquidGlass(
   // Widen the two public knobs to the full tuning (extras at defaults) for the single uniform path.
   tuning = glow.toTuning(),
   enabled = enabled,
+  zoom = zoom,
+)
+
+/** Keeps the pre-zoom entry point available to already compiled callers. */
+@Deprecated(message = "Binary compatibility", level = DeprecationLevel.HIDDEN)
+@Composable
+public actual fun Modifier.liquidGlass(
+  lensCenter: Offset,
+  lensSize: Size,
+  cornerRadius: Float,
+  refraction: Float,
+  curve: Float,
+  dispersion: Float,
+  saturation: Float,
+  contrast: Float,
+  tint: Color,
+  edge: Float,
+  light: LiquidGlassLight,
+  glow: LiquidGlassGlow,
+  enabled: Boolean,
+): Modifier = liquidGlass(
+  lensCenter = lensCenter,
+  lensSize = lensSize,
+  cornerRadius = cornerRadius,
+  refraction = refraction,
+  curve = curve,
+  dispersion = dispersion,
+  saturation = saturation,
+  contrast = contrast,
+  tint = tint,
+  edge = edge,
+  light = light,
+  glow = glow,
+  enabled = enabled,
+  zoom = LiquidGlassDefaults.ZOOM,
 )
 
 @ExperimentalLiquidGlassMotion
@@ -86,6 +122,7 @@ public actual fun Modifier.liquidGlassTuned(
   glowRimMix: Float,
   glowWidthPx: Float,
   enabled: Boolean,
+  zoom: Float,
 ): Modifier = liquidGlassImpl(
   lensCenter = lensCenter,
   lensSize = lensSize,
@@ -105,6 +142,48 @@ public actual fun Modifier.liquidGlassTuned(
     widthPx = glowWidthPx,
   ),
   enabled = enabled,
+  zoom = zoom,
+)
+
+/** Preserves the entry point used by previously compiled callers. */
+@Deprecated(message = "Binary compatibility", level = DeprecationLevel.HIDDEN)
+@ExperimentalLiquidGlassMotion
+@Composable
+public actual fun Modifier.liquidGlassTuned(
+  lensCenter: Offset,
+  lensSize: Size,
+  cornerRadius: Float,
+  refraction: Float,
+  curve: Float,
+  dispersion: Float,
+  saturation: Float,
+  contrast: Float,
+  tint: Color,
+  edge: Float,
+  light: LiquidGlassLight,
+  glowIntensity: Float,
+  glowSharpness: Float,
+  glowRimMix: Float,
+  glowWidthPx: Float,
+  enabled: Boolean,
+): Modifier = liquidGlassTuned(
+  lensCenter = lensCenter,
+  lensSize = lensSize,
+  cornerRadius = cornerRadius,
+  refraction = refraction,
+  curve = curve,
+  dispersion = dispersion,
+  saturation = saturation,
+  contrast = contrast,
+  tint = tint,
+  edge = edge,
+  light = light,
+  glowIntensity = glowIntensity,
+  glowSharpness = glowSharpness,
+  glowRimMix = glowRimMix,
+  glowWidthPx = glowWidthPx,
+  enabled = enabled,
+  zoom = LiquidGlassDefaults.ZOOM,
 )
 
 /**
@@ -126,7 +205,9 @@ private fun Modifier.liquidGlassImpl(
   light: LiquidGlassLight,
   tuning: GlowTuning,
   enabled: Boolean,
+  zoom: Float,
 ): Modifier {
+  val resolvedZoom = resolveLiquidGlassZoom(zoom, fallback = false)
   require(lensSize.width > 0f) { "lensSize.width must be > 0, but was ${lensSize.width}" }
   require(lensSize.height > 0f) { "lensSize.height must be > 0, but was ${lensSize.height}" }
   require(cornerRadius >= 0f) { "cornerRadius must be >= 0, but was $cornerRadius" }
@@ -168,6 +249,7 @@ private fun Modifier.liquidGlassImpl(
       shaderBuilder.uniform("lensCenter", lensCenter.x, lensCenter.y)
       shaderBuilder.uniform("lensSize", lensSize.width, lensSize.height)
       shaderBuilder.uniform("cornerRadius", cornerRadius)
+      shaderBuilder.uniform("zoom", resolvedZoom)
       shaderBuilder.uniform("refraction", refraction)
       shaderBuilder.uniform("curve", curve)
       shaderBuilder.uniform("dispersion", dispersion)

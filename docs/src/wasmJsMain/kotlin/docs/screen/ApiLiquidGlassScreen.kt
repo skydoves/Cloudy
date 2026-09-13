@@ -88,6 +88,7 @@ fun ApiLiquidGlassScreen() {
           light: LiquidGlassLight = LiquidGlassDefaults.Light,
           glow: LiquidGlassGlow = LiquidGlassDefaults.Glow,
           enabled: Boolean = true,
+          zoom: Float = LiquidGlassDefaults.ZOOM,
         ): Modifier
       """,
     )
@@ -285,6 +286,11 @@ private fun LiquidGlassParameterTable() {
       "LiquidGlassGlow",
       "Glint tuning: intensity (brightness) and sharpness (focus).",
     )
+    LiquidGlassParamRow(
+      "zoom",
+      "Float",
+      "Lens-centered magnification. 0 = auto (1.03x on Android 23–32, 1x elsewhere); 1 = no zoom.",
+    )
     LiquidGlassParamRow("enabled", "Boolean", "If false, disables the effect.")
   }
 }
@@ -431,7 +437,11 @@ private fun LiquidGlassPlatformTable() {
     }
 
     LiquidGlassPlatformRow("Android 33+", "RuntimeShader (AGSL)", "Full effect")
-    LiquidGlassPlatformRow("Android 23-32", "Fallback", "Saturation + edge only")
+    LiquidGlassPlatformRow(
+      "Android 23–32",
+      "Fallback",
+      "Zoom + tint + edge + shape (no lens refraction)",
+    )
     LiquidGlassPlatformRow("iOS", "Skia RuntimeEffect (SKSL)", "Full effect")
     LiquidGlassPlatformRow("macOS", "Skia RuntimeEffect (SKSL)", "Full effect")
     LiquidGlassPlatformRow("Desktop (JVM)", "Skia RuntimeEffect (SKSL)", "Full effect")
