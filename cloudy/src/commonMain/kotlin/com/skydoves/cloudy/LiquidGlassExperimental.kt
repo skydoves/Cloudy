@@ -84,3 +84,26 @@ public expect fun Modifier.liquidGlassTuned(
   enabled: Boolean = true,
   zoom: Float = LiquidGlassDefaults.ZOOM,
 ): Modifier
+
+/** Preserves the entry point used by previously compiled callers. */
+@Deprecated(message = "Binary compatibility", level = DeprecationLevel.HIDDEN)
+@ExperimentalLiquidGlassMotion
+@Composable
+public expect fun Modifier.liquidGlassTuned(
+  lensCenter: Offset,
+  lensSize: Size = LiquidGlassDefaults.LENS_SIZE,
+  cornerRadius: Float = LiquidGlassDefaults.CORNER_RADIUS,
+  refraction: Float = LiquidGlassDefaults.REFRACTION,
+  curve: Float = LiquidGlassDefaults.CURVE,
+  dispersion: Float = LiquidGlassDefaults.DISPERSION,
+  saturation: Float = LiquidGlassDefaults.SATURATION,
+  contrast: Float = LiquidGlassDefaults.CONTRAST,
+  tint: Color = LiquidGlassDefaults.TINT,
+  edge: Float = LiquidGlassDefaults.EDGE,
+  light: LiquidGlassLight = LiquidGlassDefaults.Light,
+  glowIntensity: Float = LiquidGlassDefaults.GLOW_INTENSITY,
+  glowSharpness: Float = LiquidGlassDefaults.GLOW_SHARPNESS,
+  glowRimMix: Float = 0.6f,
+  glowWidthPx: Float = 12.0f,
+  enabled: Boolean = true,
+): Modifier

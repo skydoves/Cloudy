@@ -157,6 +157,47 @@ public actual fun Modifier.liquidGlassTuned(
   zoom = zoom,
 )
 
+/** Preserves the entry point used by previously compiled callers. */
+@Deprecated(message = "Binary compatibility", level = DeprecationLevel.HIDDEN)
+@ExperimentalLiquidGlassMotion
+@Composable
+public actual fun Modifier.liquidGlassTuned(
+  lensCenter: Offset,
+  lensSize: Size,
+  cornerRadius: Float,
+  refraction: Float,
+  curve: Float,
+  dispersion: Float,
+  saturation: Float,
+  contrast: Float,
+  tint: Color,
+  edge: Float,
+  light: LiquidGlassLight,
+  glowIntensity: Float,
+  glowSharpness: Float,
+  glowRimMix: Float,
+  glowWidthPx: Float,
+  enabled: Boolean,
+): Modifier = liquidGlassTuned(
+  lensCenter = lensCenter,
+  lensSize = lensSize,
+  cornerRadius = cornerRadius,
+  refraction = refraction,
+  curve = curve,
+  dispersion = dispersion,
+  saturation = saturation,
+  contrast = contrast,
+  tint = tint,
+  edge = edge,
+  light = light,
+  glowIntensity = glowIntensity,
+  glowSharpness = glowSharpness,
+  glowRimMix = glowRimMix,
+  glowWidthPx = glowWidthPx,
+  enabled = enabled,
+  zoom = LiquidGlassDefaults.ZOOM,
+)
+
 /**
  * Single entry point shared by [liquidGlass] and [liquidGlassTuned]. Takes the full internal
  * [GlowTuning] so there is exactly one uniform-writing code path (in [liquidGlassApi33]).
