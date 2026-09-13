@@ -624,8 +624,8 @@ private fun MirageDemo() {
               }
             }
             .mirage(enabled = enabled) {
-              // Each preset carries its own MirageLensParams subclass, so the filter() call
-              // (and its type-inferred params block) must be repeated per branch rather than
+              // Each preset carries its own MirageLensUniforms subclass, so the filter() call
+              // (and its type-inferred uniforms block) must be repeated per branch rather than
               // hoisted behind a shared `val shader = when (...) { ... }`.
               when (preset) {
                 MiragePresetOption.Specular -> filter(MirageShaders.Specular) {

@@ -28,7 +28,7 @@ import com.skydoves.cloudy.edsl.trace
 import com.skydoves.cloudy.internal.ShaderCategory
 
 /**
- * A named mirage shader: a shader effect paired with the [MirageParams] subclass that declares its
+ * A named mirage shader: a shader effect paired with the [ShaderUniforms] subclass that declares its
  * uniforms. A shader is the authored front end — its kernel plus its uniform schema — that the
  * compiler later lowers into a per-dialect [CompiledProgram][com.skydoves.cloudy.internal.CompiledProgram].
  *
@@ -37,28 +37,28 @@ import com.skydoves.cloudy.internal.ShaderCategory
  * breaking callers.
  *
  * ## Reuse and cache identity
- * [equals] / [hashCode] are keyed on `(name, kernel sources, category)` — the [paramsFactory] is
+ * [equals] / [hashCode] are keyed on `(name, kernel sources, category)` — the [uniformsFactory] is
  * **excluded** because it is a lambda (never structurally comparable) and it only *mints* a fresh
- * params instance; two shaders with identical name, sources, and category compile to the same GPU
+ * uniforms instance; two shaders with identical name, sources, and category compile to the same GPU
  * program and so must compare equal for source-hash cache keys and dedup. This also lets a shader be
  * hoisted into a top-level `val` and reused across recompositions without reallocating the effect.
  *
  * The equality contract is declared abstract here and implemented per concrete subtype: each subtype
  * supplies its own kernel sources (and, for the [FilterShader] family, its [ShaderCategory]), so the
  * comparable tuple only becomes concrete at the leaf. This is intentionally **not** a `data class`:
- * it holds a function-typed field ([paramsFactory]) for which a generated structural `equals` would be
+ * it holds a function-typed field ([uniformsFactory]) for which a generated structural `equals` would be
  * meaningless, and an `internal` constructor keeps the generated-component / `copy` ABI from freezing
  * the field set.
  *
- * @param P The [MirageParams] subclass declaring this shader's uniforms.
+ * @param P The [ShaderUniforms] subclass declaring this shader's uniforms.
  * @property name Stable identifier used in cache keys and diagnostics.
- * @property paramsFactory Mints a fresh params instance per node (one per draw target, reused across
+ * @property uniformsFactory Mints a fresh uniforms instance per node (one per draw target, reused across
  *   draws). Excluded from [equals] / [hashCode] — see above.
  */
 @ExperimentalMirage
-public sealed class MirageShader<P : MirageParams> protected constructor(
+public sealed class MirageShader<P : ShaderUniforms> protected constructor(
   public val name: String,
-  internal val paramsFactory: () -> P,
+  internal val uniformsFactory: () -> P,
 ) {
   /**
    * Declared abstract, not final: the comparable tuple (name + sources + category) is only complete
@@ -82,16 +82,16 @@ public sealed class MirageShader<P : MirageParams> protected constructor(
      * pixel to a new color without reading its neighbours (tint, curves, grade).
      *
      * @param name Stable identifier for cache keys / diagnostics.
-     * @param paramsFactory Mints the shader's [MirageParams]; see [MirageShader.paramsFactory].
+     * @param uniformsFactory Mints the shader's [ShaderUniforms]; see [MirageShader.uniformsFactory].
      * @param agsl The Android (AGSL) `kernel` body.
      * @param sksl The Skia (SKSL) `kernel` body for iOS / macOS / Desktop / Wasm.
      */
-    public fun <P : MirageParams> colorize(
+    public fun <P : ShaderUniforms> colorize(
       name: String,
-      paramsFactory: () -> P,
+      uniformsFactory: () -> P,
       agsl: String,
       sksl: String,
-    ): ColorizeShader<P> = ColorizeShader(name, paramsFactory, agsl, sksl)
+    ): ColorizeShader<P> = ColorizeShader(name, uniformsFactory, agsl, sksl)
 
     /**
      * Creates a [CompositeShader] — a free-access composite kernel.
@@ -102,16 +102,16 @@ public sealed class MirageShader<P : MirageParams> protected constructor(
      * chromatic thin-film).
      *
      * @param name Stable identifier for cache keys / diagnostics.
-     * @param paramsFactory Mints the shader's [MirageParams]; see [MirageShader.paramsFactory].
+     * @param uniformsFactory Mints the shader's [ShaderUniforms]; see [MirageShader.uniformsFactory].
      * @param agsl The Android (AGSL) `main` body.
      * @param sksl The Skia (SKSL) `main` body for the skiko platforms.
      */
-    public fun <P : MirageParams> composite(
+    public fun <P : ShaderUniforms> composite(
       name: String,
-      paramsFactory: () -> P,
+      uniformsFactory: () -> P,
       agsl: String,
       sksl: String,
-    ): CompositeShader<P> = CompositeShader(name, paramsFactory, agsl, sksl)
+    ): CompositeShader<P> = CompositeShader(name, uniformsFactory, agsl, sksl)
 
     /**
      * Creates a [GeneratorShader] — a content-free generator for an overlay.
@@ -121,59 +121,59 @@ public sealed class MirageShader<P : MirageParams> protected constructor(
      * type system keeps it out of the content-filtering path.
      *
      * @param name Stable identifier for cache keys / diagnostics.
-     * @param paramsFactory Mints the shader's [MirageParams]; see [MirageShader.paramsFactory].
+     * @param uniformsFactory Mints the shader's [ShaderUniforms]; see [MirageShader.uniformsFactory].
      * @param agsl The Android (AGSL) `main` body.
      * @param sksl The Skia (SKSL) `main` body for the skiko platforms.
      */
-    public fun <P : MirageParams> generate(
+    public fun <P : ShaderUniforms> generate(
       name: String,
-      paramsFactory: () -> P,
+      uniformsFactory: () -> P,
       agsl: String,
       sksl: String,
-    ): GeneratorShader<P> = GeneratorShader(name, paramsFactory, agsl, sksl)
+    ): GeneratorShader<P> = GeneratorShader(name, uniformsFactory, agsl, sksl)
 
     /**
      * Creates a [ColorizeShader] from a **traced body lambda** instead of two hand-written dialect
-     * strings. The body runs once at construction with the shader's [MirageParams] as receiver (so it
+     * strings. The body runs once at construction with the shader's [ShaderUniforms] as receiver (so it
      * reads uniform handles bare) and `src` as the sampled pixel; its final expression is the returned
      * color. AGSL is a public-runtime-effect-restricted profile of SkSL, so the traced source compiles
      * unchanged under either dialect; the emitter prints it once and hands it to the string [colorize]
      * overload, so codegen, caching, and equality are unchanged.
      */
-    public fun <P : MirageParams> colorize(
+    public fun <P : ShaderUniforms> colorize(
       name: String,
-      paramsFactory: () -> P,
+      uniformsFactory: () -> P,
       body: P.(src: Half4) -> Half4,
     ): ColorizeShader<P> {
       val kernel =
         emitColorizeKernel(
-          traceBody(paramsFactory) {
+          traceBody(uniformsFactory) {
             body(SRC_ARGUMENT)
           },
-          uniformNames(paramsFactory),
+          uniformNames(uniformsFactory),
         )
-      return colorize(name, paramsFactory, agsl = kernel, sksl = kernel)
+      return colorize(name, uniformsFactory, agsl = kernel, sksl = kernel)
     }
 
     /**
      * Creates a [CompositeShader] from a **traced body lambda**. The body runs once with the shader's
-     * [MirageParams] as receiver and the fragment position `xy`; it samples content freely via
+     * [ShaderUniforms] as receiver and the fragment position `xy`; it samples content freely via
      * `sampleContent(...)` and returns the final color. See [colorize] (body overload) for the trace →
      * single-kernel-text pipeline.
      */
-    public fun <P : MirageParams> composite(
+    public fun <P : ShaderUniforms> composite(
       name: String,
-      paramsFactory: () -> P,
+      uniformsFactory: () -> P,
       body: P.(xy: Float2) -> Half4,
     ): CompositeShader<P> {
       val kernel =
         emitCompositeOrGenerateMain(
-          traceBody(paramsFactory) {
+          traceBody(uniformsFactory) {
             body(XY_ARGUMENT)
           },
-          uniformNames(paramsFactory),
+          uniformNames(uniformsFactory),
         )
-      return composite(name, paramsFactory, agsl = kernel, sksl = kernel)
+      return composite(name, uniformsFactory, agsl = kernel, sksl = kernel)
     }
 
     /**
@@ -181,36 +181,36 @@ public sealed class MirageShader<P : MirageParams> protected constructor(
      * uniforms and `xy` only — there is no content sampler, so referencing content is a compile error.
      * See [colorize] (body overload) for the trace → single-kernel-text pipeline.
      */
-    public fun <P : MirageParams> generate(
+    public fun <P : ShaderUniforms> generate(
       name: String,
-      paramsFactory: () -> P,
+      uniformsFactory: () -> P,
       body: P.(xy: Float2) -> Half4,
     ): GeneratorShader<P> {
       val kernel =
         emitCompositeOrGenerateMain(
-          traceBody(paramsFactory) {
+          traceBody(uniformsFactory) {
             body(XY_ARGUMENT)
           },
-          uniformNames(paramsFactory),
+          uniformNames(uniformsFactory),
         )
-      return generate(name, paramsFactory, agsl = kernel, sksl = kernel)
+      return generate(name, uniformsFactory, agsl = kernel, sksl = kernel)
     }
 
-    /** The uniform identifiers, in declaration (= bind) order, of a probe minted from [paramsFactory]. */
-    private fun <P : MirageParams> uniformNames(paramsFactory: () -> P): List<String> =
-      paramsFactory().schemaEntries.map { it.name }
+    /** The uniform identifiers, in declaration (= bind) order, of a probe minted from [uniformsFactory]. */
+    private fun <P : ShaderUniforms> uniformNames(uniformsFactory: () -> P): List<String> =
+      uniformsFactory().schemaEntries.map { it.name }
 
     /**
-     * Runs [body] against a fresh probe [MirageParams] under one [trace], returning the recorded
+     * Runs [body] against a fresh probe [ShaderUniforms] under one [trace], returning the recorded
      * kernel. The probe is discarded; the emitted source depends only on the uniform *schema* (slots),
      * not any per-instance default, so a probe at its own defaults yields the same text as any live
      * instance would — which is why the five thin-film looks share one kernel program.
      */
-    private fun <P : MirageParams> traceBody(
-      paramsFactory: () -> P,
+    private fun <P : ShaderUniforms> traceBody(
+      uniformsFactory: () -> P,
       body: P.() -> Half4,
     ): ShaderModule {
-      val (result, ctx) = trace(paramsFactory(), body)
+      val (result, ctx) = trace(uniformsFactory(), body)
       return ShaderModule(ctx.statements.toList(), result.e, ctx.helpers.toList())
     }
 
@@ -228,16 +228,16 @@ public sealed class MirageShader<P : MirageParams> protected constructor(
      * [Composite][ShaderCategory.Composite] category, since a raw kernel is assumed to access content.
      *
      * @param name Stable identifier for cache keys / diagnostics.
-     * @param paramsFactory Mints the shader's [MirageParams]; see [MirageShader.paramsFactory].
+     * @param uniformsFactory Mints the shader's [ShaderUniforms]; see [MirageShader.uniformsFactory].
      * @param agsl The complete Android (AGSL) shader body, uniform declarations included.
      * @param sksl The complete Skia (SKSL) shader body for the skiko platforms.
      */
-    public fun <P : MirageParams> raw(
+    public fun <P : ShaderUniforms> raw(
       name: String,
-      paramsFactory: () -> P,
+      uniformsFactory: () -> P,
       agsl: String,
       sksl: String,
-    ): FilterShader<P> = CompositeShader(name, paramsFactory, agsl, sksl, skipLint = true)
+    ): FilterShader<P> = CompositeShader(name, uniformsFactory, agsl, sksl, skipLint = true)
   }
 }
 
@@ -259,19 +259,19 @@ public sealed class MirageShader<P : MirageParams> protected constructor(
  *   uniforms + body), so this flag is part of the cache-key identity below.
  */
 @ExperimentalMirage
-public sealed class FilterShader<P : MirageParams> protected constructor(
+public sealed class FilterShader<P : ShaderUniforms> protected constructor(
   name: String,
-  paramsFactory: () -> P,
+  uniformsFactory: () -> P,
   internal val agsl: String,
   internal val sksl: String,
   internal val category: ShaderCategory,
   internal val skipLint: Boolean = false,
-) : MirageShader<P>(name, paramsFactory) {
+) : MirageShader<P>(name, uniformsFactory) {
 
   /**
    * The comparable tuple is complete for every filter subtype at this level (all hold name + sources
    * + category + skipLint), so the equality contract is implemented once here rather than per leaf.
-   * paramsFactory is excluded on purpose: it is a lambda and only feeds params into the program
+   * uniformsFactory is excluded on purpose: it is a lambda and only feeds uniforms into the program
    * identified by the sources - two shaders with equal name/sources/category/skipLint compile to the
    * same GPU program.
    */
@@ -303,12 +303,12 @@ public sealed class FilterShader<P : MirageParams> protected constructor(
  * wraps it with the uniform declarations and the content-sampling `main`. Build via [MirageShader.colorize].
  */
 @ExperimentalMirage
-public class ColorizeShader<P : MirageParams> internal constructor(
+public class ColorizeShader<P : ShaderUniforms> internal constructor(
   name: String,
-  paramsFactory: () -> P,
+  uniformsFactory: () -> P,
   agsl: String,
   sksl: String,
-) : FilterShader<P>(name, paramsFactory, agsl, sksl, ShaderCategory.Colorize)
+) : FilterShader<P>(name, uniformsFactory, agsl, sksl, ShaderCategory.Colorize)
 
 /**
  * A free-access composite kernel. The author writes `half4 main(float2 xy)` directly; codegen
@@ -317,13 +317,13 @@ public class ColorizeShader<P : MirageParams> internal constructor(
  * no-codegen escape hatch).
  */
 @ExperimentalMirage
-public class CompositeShader<P : MirageParams> internal constructor(
+public class CompositeShader<P : ShaderUniforms> internal constructor(
   name: String,
-  paramsFactory: () -> P,
+  uniformsFactory: () -> P,
   agsl: String,
   sksl: String,
   skipLint: Boolean = false,
-) : FilterShader<P>(name, paramsFactory, agsl, sksl, ShaderCategory.Composite, skipLint)
+) : FilterShader<P>(name, uniformsFactory, agsl, sksl, ShaderCategory.Composite, skipLint)
 
 /**
  * A content-free generator for an overlay (declared via [MirageScope.overlay]). The
@@ -336,16 +336,16 @@ public class CompositeShader<P : MirageParams> internal constructor(
  * @property sksl The Skia (SKSL) `main` body for the skiko platforms.
  */
 @ExperimentalMirage
-public class GeneratorShader<P : MirageParams> internal constructor(
+public class GeneratorShader<P : ShaderUniforms> internal constructor(
   name: String,
-  paramsFactory: () -> P,
+  uniformsFactory: () -> P,
   internal val agsl: String,
   internal val sksl: String,
-) : MirageShader<P>(name, paramsFactory) {
+) : MirageShader<P>(name, uniformsFactory) {
 
   /**
    * Category is fixed (Generate) for every instance, so it is not part of the comparable tuple - the
-   * (name, agsl, sksl) triple already distinguishes generators. paramsFactory excluded as elsewhere.
+   * (name, agsl, sksl) triple already distinguishes generators. uniformsFactory excluded as elsewhere.
    */
   override fun equals(other: Any?): Boolean = this === other ||
     (

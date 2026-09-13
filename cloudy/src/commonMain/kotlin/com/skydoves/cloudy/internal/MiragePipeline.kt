@@ -22,9 +22,9 @@ import com.skydoves.cloudy.CloudyProgressive
 import com.skydoves.cloudy.ExperimentalMirage
 import com.skydoves.cloudy.FilterShader
 import com.skydoves.cloudy.GeneratorShader
-import com.skydoves.cloudy.MirageParams
 import com.skydoves.cloudy.MirageScope
 import com.skydoves.cloudy.MirageShader
+import com.skydoves.cloudy.ShaderUniforms
 
 /** The shading language the current platform runs (Android = AGSL, every skiko target = SKSL). */
 internal expect fun currentDialect(): Dialect
@@ -50,21 +50,21 @@ internal const val TIME_WRAP_SECONDS = 3600f
 internal sealed class Stage {
 
   /**
-   * A content-transforming shader filter — applied as a content-bound render effect. [params] is the
-   * single params instance the node mints once and reuses every draw (no per-draw allocation);
-   * [paramsBlock] is the caller's per-draw uniform block, re-run each draw against [params].
+   * A content-transforming shader filter — applied as a content-bound render effect. [uniforms] is the
+   * single uniforms instance the node mints once and reuses every draw (no per-draw allocation);
+   * [uniformsBlock] is the caller's per-draw uniform block, re-run each draw against [uniforms].
    */
   class ProgramFilter(
     val shader: FilterShader<*>,
-    val params: MirageParams,
-    val paramsBlock: (MirageParams.() -> Unit)?,
+    val uniforms: ShaderUniforms,
+    val uniformsBlock: (ShaderUniforms.() -> Unit)?,
   ) : Stage()
 
   /** A content-free overlay generator — drawn over the content with [blendMode]. */
   class Overlay(
     val shader: GeneratorShader<*>,
-    val params: MirageParams,
-    val paramsBlock: (MirageParams.() -> Unit)?,
+    val uniforms: ShaderUniforms,
+    val uniformsBlock: (ShaderUniforms.() -> Unit)?,
     val blendMode: BlendMode,
   ) : Stage()
 
@@ -78,7 +78,7 @@ internal sealed class Stage {
 
 /**
  * Builds the immutable stage list for a pipeline by running the caller's `pipeline` block once. Each
- * `filter`/`overlay` call mints the shader's params instance (via its `paramsFactory`) and captures
+ * `filter`/`overlay` call mints the shader's uniforms instance (via its `uniformsFactory`) and captures
  * the per-draw block; the built [stages] are what the node draws through.
  */
 @OptIn(ExperimentalMirage::class)
@@ -87,23 +87,27 @@ internal class MiragePipelineBuilder : MirageScope {
   val stages: MutableList<Stage> = mutableListOf()
 
   @Suppress("UNCHECKED_CAST")
-  override fun <P : MirageParams> filter(shader: FilterShader<P>, params: (P.() -> Unit)?) {
-    // paramsFactory mints a P; the block is P.() -> Unit. Both are erased to MirageParams for storage
+  override fun <P : ShaderUniforms> filter(shader: FilterShader<P>, uniforms: (P.() -> Unit)?) {
+    // uniformsFactory mints a P; the block is P.() -> Unit. Both are erased to ShaderUniforms for storage
     // and re-cast at the (type-safe by construction) call site — the instance came from this shader.
     stages +=
-      Stage.ProgramFilter(shader, shader.paramsFactory(), params as (MirageParams.() -> Unit)?)
+      Stage.ProgramFilter(
+        shader,
+        shader.uniformsFactory(),
+        uniforms as (ShaderUniforms.() -> Unit)?,
+      )
   }
 
   @Suppress("UNCHECKED_CAST")
-  override fun <P : MirageParams> overlay(
+  override fun <P : ShaderUniforms> overlay(
     shader: GeneratorShader<P>,
     blendMode: BlendMode,
-    params: (P.() -> Unit)?,
+    uniforms: (P.() -> Unit)?,
   ) {
     stages += Stage.Overlay(
       shader,
-      shader.paramsFactory(),
-      params as (MirageParams.() -> Unit)?,
+      shader.uniformsFactory(),
+      uniforms as (ShaderUniforms.() -> Unit)?,
       blendMode,
     )
   }
@@ -140,7 +144,7 @@ internal fun mirageElement(
 
 /**
  * True when two stage lists describe the same pipeline structure: same length and, in order, the same
- * stage kind, shader, and (for overlays) blend mode. The per-draw params blocks are deliberately not
+ * stage kind, shader, and (for overlays) blend mode. The per-draw uniforms blocks are deliberately not
  * compared — this is the "would the same programs and layer stack be built?" test that decides whether
  * [EffectNode.update] can take the cheap blocks-only path. Kept beside [EffectElement.equals], which
  * runs the identical comparison to decide element equality.

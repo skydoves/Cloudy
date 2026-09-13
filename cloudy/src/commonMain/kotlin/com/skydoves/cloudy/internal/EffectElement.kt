@@ -27,7 +27,7 @@ import com.skydoves.cloudy.Sky
 /**
  * Element that reconciles an [EffectNode]. Equatable on the stage-0 [sky] (the backdrop's [Sky], or
  * null for a content source), [clock], [enabled], the pipeline's ordered stage structure, the
- * per-program-stage params-block identities, the [postProcess] (by value), and the [effectKey].
+ * per-program-stage uniforms-block identities, the [postProcess] (by value), and the [effectKey].
  *
  * ## effectKey
  * The [effect] instance is not compared directly (a fresh `MirageEffect`/`BlurStrategy` each
@@ -36,12 +36,12 @@ import com.skydoves.cloudy.Sky
  * `(cpuBlurEnabled, scrimTint)` — so a real config change makes the element unequal *and* recreates
  * the node's effect via [EffectNode.update]'s structural path.
  *
- * ## params-block identity
- * Program stages' params blocks are compared by reference (`===`), like Compose's own
+ * ## uniforms-block identity
+ * Program stages' uniforms blocks are compared by reference (`===`), like Compose's own
  * `clickable`/`graphicsLayer` treat their lambda parameters, so a recomposition that re-creates them
  * (e.g. to feed a freshly measured lens center) is *not* equal and [update] runs to adopt them.
  * [update] takes a cheap path when only the blocks changed. Blur's [Stage.PlatformFilter] has no
- * params block, so it contributes nothing to this loop.
+ * uniforms block, so it contributes nothing to this loop.
  */
 @OptIn(ExperimentalMirage::class)
 internal class EffectElement(
@@ -84,7 +84,7 @@ internal class EffectElement(
     if (onStateChanged !== other.onStateChanged) return false
     if (!sameStructure(stages, other.stages)) return false
     for (i in stages.indices) {
-      if (paramsBlockOf(stages[i]) !== paramsBlockOf(other.stages[i])) return false
+      if (uniformsBlockOf(stages[i]) !== uniformsBlockOf(other.stages[i])) return false
       // Blur radius/progressive are draw-time keys (excluded from sameStructure so an update stays on
       // the cheap path), but a change must still make the element unequal so update() runs at all and
       // the node adopts the new stages — mirroring the old cloudy element's data-class radius equality.
@@ -112,16 +112,16 @@ internal class EffectElement(
 
         is Stage.PlatformFilter -> Unit
       }
-      result = 31 * result + (paramsBlockOf(stage)?.hashCode() ?: 0)
+      result = 31 * result + (uniformsBlockOf(stage)?.hashCode() ?: 0)
       result = 31 * result + (drawKeyOf(stage)?.hashCode() ?: 0)
     }
     return result
   }
 }
 
-private fun paramsBlockOf(stage: Stage): Any? = when (stage) {
-  is Stage.ProgramFilter -> stage.paramsBlock
-  is Stage.Overlay -> stage.paramsBlock
+private fun uniformsBlockOf(stage: Stage): Any? = when (stage) {
+  is Stage.ProgramFilter -> stage.uniformsBlock
+  is Stage.Overlay -> stage.uniformsBlock
   is Stage.PlatformFilter -> null
 }
 

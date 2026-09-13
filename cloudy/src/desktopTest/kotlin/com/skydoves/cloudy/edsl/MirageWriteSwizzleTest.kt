@@ -18,14 +18,14 @@
 package com.skydoves.cloudy.edsl
 
 import com.skydoves.cloudy.ExperimentalMirage
-import com.skydoves.cloudy.MirageParams
 import com.skydoves.cloudy.MirageShader
+import com.skydoves.cloudy.ShaderUniforms
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.string.shouldContain
 
-/** A uniform-free probe params for synthetic F4/F6/F7 test kernels. */
+/** A uniform-free probe schema for synthetic F4/F6/F7 test kernels. */
 @ExperimentalMirage
-internal class EmptyParams : MirageParams()
+internal class EmptyUniforms : ShaderUniforms()
 
 /**
  * F4 write-swizzle: assigning `pixel.rgb` / `pixel.a` on a `var pixel by local(...)` emits an in-place
@@ -35,7 +35,7 @@ internal class MirageWriteSwizzleTest :
   FunSpec({
 
     test("pixel.rgb and pixel.a writes emit in-place channel assignments") {
-      val kernel = MirageShader.generate("writeSwizzle", ::EmptyParams) { xy ->
+      val kernel = MirageShader.generate("writeSwizzle", ::EmptyUniforms) { xy ->
         var pixel by local(half4(half3(0.2f, 0.4f, 0.6f), half(1f)))
         pixel.rgb = mix(pixel.rgb, half3(1f, 1f, 1f), half(0.5f))
         pixel.a = half(0.25f)
@@ -47,7 +47,7 @@ internal class MirageWriteSwizzleTest :
     }
 
     test("pixel.rgb += lowers through plus to a single .rgb write (no plusAssign)") {
-      val kernel = MirageShader.generate("writeSwizzlePlus", ::EmptyParams) { xy ->
+      val kernel = MirageShader.generate("writeSwizzlePlus", ::EmptyUniforms) { xy ->
         var pixel by local(half4(half3(0.1f, 0.1f, 0.1f), half(1f)))
         pixel.rgb += half3(0.2f, 0.2f, 0.2f)
         pixel

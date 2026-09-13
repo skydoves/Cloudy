@@ -16,7 +16,7 @@
 package com.skydoves.cloudy
 
 /**
- * Marks the open shader-effect API ([Modifier.mirage], [MirageShader], [MirageParams], [MirageScope],
+ * Marks the open shader-effect API ([Modifier.mirage], [MirageShader], [ShaderUniforms], [MirageScope],
  * [MirageShaders]) as experimental.
  *
  * This API lets callers author arbitrary AGSL / SKSL shaders and bind their typed uniforms, so its

@@ -20,14 +20,14 @@ package com.skydoves.cloudy.internal
 import com.skydoves.cloudy.ExperimentalMirage
 import com.skydoves.cloudy.FilterShader
 import com.skydoves.cloudy.GeneratorShader
-import com.skydoves.cloudy.MirageParams
 import com.skydoves.cloudy.MirageShader
+import com.skydoves.cloudy.ShaderUniforms
 import com.skydoves.cloudy.edsl.MirageDiagnosticCode
 import com.skydoves.cloudy.edsl.MirageDiagnosticException
 
 /**
  * Lowers an authored [MirageShader] into a per-dialect [CompiledProgram]. Pure and side-effect-free: it
- * touches no GPU, Compose-UI, or Node type, only strings and the schema captured from a probe params
+ * touches no GPU, Compose-UI, or Node type, only strings and the schema captured from a probe uniforms
  * instance. That purity is the point of this layer - every codegen decision is unit-testable off any
  * device.
  *
@@ -46,16 +46,16 @@ import com.skydoves.cloudy.edsl.MirageDiagnosticException
 internal object MirageCompiler {
 
   /**
-   * Builds the [UniformSchema] for a shader by minting one probe params instance from [paramsFactory]
+   * Builds the [UniformSchema] for a shader by minting one probe uniforms instance from [uniformsFactory]
    * and reading the slots its `by uniform(...)` delegates registered (declaration order = bind order).
    * The probe is discarded; the engine mints its own per-node instance for actual draws.
    */
-  fun schemaOf(paramsFactory: () -> MirageParams): UniformSchema =
-    UniformSchema(paramsFactory().schemaEntries)
+  fun schemaOf(uniformsFactory: () -> ShaderUniforms): UniformSchema =
+    UniformSchema(uniformsFactory().schemaEntries)
 
   /** Lowers [shader] into a ready-to-run program for [dialect]. */
   fun compile(shader: MirageShader<*>, dialect: Dialect): CompiledProgram {
-    val schema = schemaOf(shader.paramsFactory)
+    val schema = schemaOf(shader.uniformsFactory)
     val category = categoryOf(shader)
     val kernel = kernelOf(shader, dialect)
 

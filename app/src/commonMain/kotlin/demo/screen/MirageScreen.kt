@@ -60,12 +60,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.skydoves.cloudy.ChromaticParams
+import com.skydoves.cloudy.ChromaticUniforms
 import com.skydoves.cloudy.CompositeShader
-import com.skydoves.cloudy.MirageLensParams
+import com.skydoves.cloudy.MirageLensUniforms
 import com.skydoves.cloudy.MirageScope
 import com.skydoves.cloudy.MirageShaders
-import com.skydoves.cloudy.SpecularParams
+import com.skydoves.cloudy.SpecularUniforms
 import com.skydoves.cloudy.mirage
 import com.skydoves.cloudy.rememberGyroLightSource
 import com.skydoves.landscapist.ImageOptions
@@ -74,14 +74,14 @@ import demo.component.CollapsingAppBarScaffold
 import demo.component.MaxWidthContainer
 import demo.model.MockUtil
 import demo.shader.DropletMap
-import demo.shader.RainyWindowParams
 import demo.shader.RainyWindowShader
+import demo.shader.RainyWindowUniforms
 import demo.theme.Dimens
 
 /**
  * The look applied by the demo's chips. Each pick keeps a fully typed shader reference so the per-draw
- * params block can set that shader's own subclass uniform (e.g. `specStrength`, `chromaticIntensity`,
- * `rainAmount`) with no unchecked cast, which an erased `FilterShader<out MirageLensParams>` would
+ * uniforms block can set that shader's own subclass uniform (e.g. `specStrength`, `chromaticIntensity`,
+ * `rainAmount`) with no unchecked cast, which an erased `FilterShader<out MirageLensUniforms>` would
  * require. A pick declares its stage into the [MirageScope] via [declare], driving the shared strength
  * slider ([strength] `0..1`) into whichever param reads as "how strong" for that look.
  */
@@ -89,12 +89,12 @@ private sealed interface MiragePick {
   val label: String
 
   /** Declares this pick's filter stage, applying the shared lens [framing] and the [strength] slider. */
-  fun MirageScope.declare(framing: MirageLensParams.() -> Unit, strength: Float)
+  fun MirageScope.declare(framing: MirageLensUniforms.() -> Unit, strength: Float)
 
   /** The liquid-glass specular glint; strength drives its peak highlight (`specStrength`, default 0.7). */
   data object Specular : MiragePick {
     override val label = "Specular"
-    override fun MirageScope.declare(framing: MirageLensParams.() -> Unit, strength: Float) {
+    override fun MirageScope.declare(framing: MirageLensUniforms.() -> Unit, strength: Float) {
       filter(MirageShaders.Specular) {
         framing()
         specStrength(strength)
@@ -104,13 +104,13 @@ private sealed interface MiragePick {
 
   /**
    * A thin-film iridescence look; strength drives its overall `chromaticIntensity` (default 0.6). Holds
-   * the concrete [shader] so the block keeps `ChromaticParams` typed across all five named variants.
+   * the concrete [shader] so the block keeps `ChromaticUniforms` typed across all five named variants.
    */
   data class Chromatic(
     override val label: String,
-    private val shader: CompositeShader<ChromaticParams>,
+    private val shader: CompositeShader<ChromaticUniforms>,
   ) : MiragePick {
-    override fun MirageScope.declare(framing: MirageLensParams.() -> Unit, strength: Float) {
+    override fun MirageScope.declare(framing: MirageLensUniforms.() -> Unit, strength: Float) {
       filter(shader) {
         framing()
         chromaticIntensity(strength)
@@ -125,7 +125,7 @@ private sealed interface MiragePick {
    */
   data class RainyWindow(private val dropletMap: ImageBitmap) : MiragePick {
     override val label = "Rainy Window"
-    override fun MirageScope.declare(framing: MirageLensParams.() -> Unit, strength: Float) {
+    override fun MirageScope.declare(framing: MirageLensUniforms.() -> Unit, strength: Float) {
       filter(RainyWindowShader.RainyWindow) {
         dropletMap(this@RainyWindow.dropletMap)
         rainAmount(strength)
@@ -155,7 +155,7 @@ private val BASE_PICKS: List<MiragePick> = listOf(
  * - **MirageShader catalog:** chips swap between the bundled looks and a demo-authored [RainyWindowShader]
  *   proving any app can author a shader through the public API with no core change.
  * - **Strength slider:** one `0..1` slider feeds each look's "how strong" uniform (`specStrength` /
- *   `chromaticIntensity` / `rainAmount`) from the per-draw params block, so sliding re-renders live
+ *   `chromaticIntensity` / `rainAmount`) from the per-draw uniforms block, so sliding re-renders live
  *   (the block identity is part of the node's element equality, so it updates cheaply).
  * - **Full-bleed lens:** a toggle grows the lens to the whole pane, so the bevel/rim terms hug the
  *   pane edges. The rainy-window look is full-bleed regardless (it is content-shaped, not lens-shaped).
@@ -163,7 +163,7 @@ private val BASE_PICKS: List<MiragePick> = listOf(
  *   `filter(MirageShaders.OilSlick)` stage; the pipeline orders it correctly regardless of declaration.
  *
  * The lens center/size are seeded from the pane via `onSizeChanged` and passed into each shader's
- * `lensCenter` / `lensSize` uniforms in the per-draw params block.
+ * `lensCenter` / `lensSize` uniforms in the per-draw uniforms block.
  *
  * The gyro toggle keeps [rememberGyroLightSource] wired (registering the sensor), but the shader's
  * `iLight` stays at its default direction — the motion holder's direction is not part of the public
@@ -188,14 +188,14 @@ fun MirageScreen(onBackClick: () -> Unit) {
   // Keeps the sensor path exercised; the direction holder is not read into iLight (see the KDoc).
   rememberGyroLightSource(enabled = gyroEnabled)
 
-  // Sets the shared lens framing (center + size + corner) into any lens-shaped shader's params. When
+  // Sets the shared lens framing (center + size + corner) into any lens-shaped shader's uniforms. When
   // full-bleed is on, the lens covers the whole pane (center = pane center, size = pane size) with a
   // square corner, so the bevel/rim terms fall on the pane edges. Read the seeded values into locals
-  // so the params-receiver's `lensCenter` handle does not shadow them.
+  // so the uniforms-receiver's `lensCenter` handle does not shadow them.
   val center = lensCenter
   val pane = paneSize
   val bleed = fullBleed
-  val lensFraming: MirageLensParams.() -> Unit = {
+  val lensFraming: MirageLensUniforms.() -> Unit = {
     if (bleed && pane != Size.Zero) {
       lensCenter(Offset(pane.width / 2f, pane.height / 2f))
       lensSize(pane)

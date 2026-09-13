@@ -107,12 +107,12 @@ internal class TraceContext {
 private val currentTrace = AtomicReference<TraceContext?>(null)
 
 /**
- * Installs a fresh [TraceContext], runs [body] with [params] as receiver so the body reads its uniform
+ * Installs a fresh [TraceContext], runs [body] with [uniforms] as receiver so the body reads its uniform
  * handles bare, and returns the body's result paired with the recorded trace. The [check] fails loudly
  * if a trace is already open (a nested or concurrent shader construction), which would otherwise
  * interleave two bodies' statements into one list.
  */
-internal fun <P, R> trace(params: P, body: P.() -> R): Pair<R, TraceContext> {
+internal fun <P, R> trace(uniforms: P, body: P.() -> R): Pair<R, TraceContext> {
   val ctx = TraceContext()
   if (!currentTrace.compareAndSet(null, ctx)) {
     throw MirageDiagnosticException(
@@ -122,7 +122,7 @@ internal fun <P, R> trace(params: P, body: P.() -> R): Pair<R, TraceContext> {
     )
   }
   try {
-    return params.body() to ctx
+    return uniforms.body() to ctx
   } finally {
     currentTrace.store(null)
   }
@@ -155,13 +155,13 @@ public val mirageResolution: Float2 get() =
 
 /** `if (<condition>) return <value>;` — Foil's lens-bounds early-out is this shape exactly. */
 @ExperimentalMirage
-public fun guard(condition: UBool, value: () -> Half4) {
+public fun guard(condition: Bool, value: () -> Half4) {
   activeTrace().statements += EarlyReturn(condition.e, value().e)
 }
 
 /** `if (<condition>) { <block> }` — Specular's highlight block; see [TraceContext.ifBlock]. */
 @ExperimentalMirage
-public fun If(condition: UBool, block: () -> Unit) {
+public fun If(condition: Bool, block: () -> Unit) {
   activeTrace().ifBlock(condition.e, block)
 }
 

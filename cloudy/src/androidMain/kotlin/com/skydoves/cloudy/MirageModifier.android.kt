@@ -24,7 +24,7 @@ import androidx.compose.ui.Modifier
  * be built on this band is skipped at draw time by the node (its `MirageProgramCache.obtain` returns
  * `null`): above API 33 every stage runs as AGSL; on API 23-32 an unsupported stage is a pass-through.
  * When the whole pipeline renders nothing and a [MirageFallback.Content] was supplied, the shared body
- * swaps in that fallback instead. The node reads its params blocks in the draw phase, so a pipeline never
+ * swaps in that fallback instead. The node reads its uniforms blocks in the draw phase, so a pipeline never
  * forces recomposition.
  */
 @ExperimentalMirage

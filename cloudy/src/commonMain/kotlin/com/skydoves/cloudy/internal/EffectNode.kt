@@ -376,8 +376,8 @@ internal class EffectNode(
 
     val glesBlit = blitProgram.backend.prepareGlesBlit(
       blitProgram,
-      blitStage.params,
-      blitStage.paramsBlock,
+      blitStage.uniforms,
+      blitStage.uniformsBlock,
       width,
       height,
       density,

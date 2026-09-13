@@ -88,7 +88,7 @@ fun ApiMirageScreen() {
     CodeBlock(
       code = """
         // Applies an ordered shader pipeline to the content it modifies. Node-based (not @Composable):
-        // the pipeline block runs once to fix the stages; each stage's params block re-runs per draw.
+        // the pipeline block runs once to fix the stages; each stage's uniforms block re-runs per draw.
         @ExperimentalMirage
         fun Modifier.mirage(
           clock: MirageClock = MirageClock.Auto,
@@ -99,13 +99,13 @@ fun ApiMirageScreen() {
         // Declared inside the pipeline block:
         interface MirageScope {
           // Content-transforming stage; chains in declared order (content -> f1 -> f2 -> screen).
-          fun <P : MirageParams> filter(shader: FilterShader<P>, params: (P.() -> Unit)? = null)
+          fun <P : ShaderUniforms> filter(shader: FilterShader<P>, uniforms: (P.() -> Unit)? = null)
 
           // Overlay drawn over the filtered result; composites in declared order.
-          fun <P : MirageParams> overlay(
+          fun <P : ShaderUniforms> overlay(
             shader: GeneratorShader<P>,
             blendMode: BlendMode = BlendMode.SrcOver,
-            params: (P.() -> Unit)? = null,
+            uniforms: (P.() -> Unit)? = null,
           )
         }
       """,
@@ -126,7 +126,7 @@ fun ApiMirageScreen() {
       text = "Declare one filter stage with a preset. Lens-shaped presets (Specular, the " +
         "thin-film family, Foil) read a shared lens framing: lensCenter defaults to the " +
         "content origin (Offset.Zero), so seed it with the pane center for a centered lens. " +
-        "The params block runs per draw, so reading snapshot state inside it invalidates only " +
+        "The uniforms block runs per draw, so reading snapshot state inside it invalidates only " +
         "the draw — never a recomposition.",
       style = DocsTheme.typography.body,
       color = DocsTheme.colors.onSurfaceVariant,
@@ -177,7 +177,7 @@ fun ApiMirageScreen() {
     Callout(
       text = "The five thin-film looks (Chromatic, OilSlick, SoapBubble, MetallicFoil, Pearl) " +
         "are one GPU program at different uniform defaults, so switching between them never " +
-        "recompiles. Applying a lens-shaped preset with no params block reproduces the " +
+        "recompiles. Applying a lens-shaped preset with no uniforms block reproduces the " +
         "built-in liquid-glass framing.",
       type = CalloutType.INFO,
     )
@@ -243,7 +243,7 @@ fun ApiMirageScreen() {
         @OptIn(ExperimentalMirage::class)
         @Composable
         fun ChainedPoster(center: Offset) {
-          val framing: MirageLensParams.() -> Unit = {
+          val framing: MirageLensUniforms.() -> Unit = {
             lensCenter(center)
             lensSize(Size(350f, 350f))
             cornerRadius(50f)
@@ -272,7 +272,7 @@ fun ApiMirageScreen() {
     Spacer(modifier = Modifier.height(12.dp))
 
     Text(
-      text = "A shader is a kernel plus a MirageParams subclass. Declare uniforms with by " +
+      text = "A shader is a kernel plus a ShaderUniforms subclass. Declare uniforms with by " +
         "uniform(...) / by uniformColor(...) — the property name is the shader uniform " +
         "identifier, and declaration order is the binding order. MirageShader.composite " +
         "authors a full half4 main(float2 xy) that samples the content through the " +
@@ -287,11 +287,11 @@ fun ApiMirageScreen() {
     CodeBlock(
       code = """
         @OptIn(ExperimentalMirage::class)
-        class TintVignetteParams : MirageParams() {
+        class TintVignetteUniforms : ShaderUniforms() {
           // Property name == shader uniform identifier; declaration order == binding order.
-          val tint: UColor by uniformColor(Color(0xFF5C6BC0))
-          val amount: UFloat by uniform(0.4f)
-          val vignette: UFloat by uniform(0.6f)
+          val tint: UniformColor by uniformColor(Color(0xFF5C6BC0))
+          val amount: UniformFloat by uniform(0.4f)
+          val vignette: UniformFloat by uniform(0.6f)
         }
 
         // A composite shader authors the whole main(); it may sample the content freely via content.eval.
@@ -299,7 +299,7 @@ fun ApiMirageScreen() {
         @OptIn(ExperimentalMirage::class)
         val TintVignette = MirageShader.composite(
           name = "tint-vignette",
-          paramsFactory = ::TintVignetteParams,
+          uniformsFactory = ::TintVignetteUniforms,
           agsl = TINT_VIGNETTE_KERNEL,
           sksl = TINT_VIGNETTE_KERNEL,
         )
@@ -365,9 +365,9 @@ fun ApiMirageScreen() {
     Text(
       text = """
         • The shader path needs Android API 33+; Skia targets (iOS, macOS, Desktop, Web) run the full effect.
-        • The pipeline block runs once (its stage list is the node's equality key); each stage's params block runs per draw.
+        • The pipeline block runs once (its stage list is the node's equality key); each stage's uniforms block runs per draw.
         • Compiled programs are cached process-wide by shader source, so reusing a shader or toggling enabled never recompiles.
-        • Preset defaults live in the params, not as shader constants, so every value is animatable and changing one never recompiles.
+        • Preset defaults live in the uniforms, not as shader constants, so every value is animatable and changing one never recompiles.
         • enabled = false bypasses the whole pipeline and passes the content through unmodified.
       """.trimIndent(),
       style = DocsTheme.typography.body,

@@ -75,7 +75,7 @@ import com.skydoves.cloudy.edsl.y
 /**
  * Bundled [MirageShader] presets — the catalog of ready-to-apply looks.
  *
- * A preset is a kernel plus a default parameter set: the visual look lives entirely in the params'
+ * A preset is a kernel plus a default parameter set: the visual look lives entirely in the uniforms'
  * declared defaults, never as a hard-coded shader constant, so every value is animatable and value
  * changes never recompile (the program cache is keyed on the kernel source, not the uniform values).
  * The named thin-film looks ([Chromatic] / [OilSlick] / [SoapBubble] / [MetallicFoil] / [Pearl]) are
@@ -83,11 +83,11 @@ import com.skydoves.cloudy.edsl.y
  *
  * Each value is a process-wide singleton, so applying one in a pipeline never reallocates the shader.
  *
- * Shared lens geometry ([MirageLensParams.lensCenter] / [lensSize][MirageLensParams.lensSize])
+ * Shared lens geometry ([MirageLensUniforms.lensCenter] / [lensSize][MirageLensUniforms.lensSize])
  * defaults to **auto framing**: left unspecified, it resolves at bind time to the node's center and
- * full size, so a preset applied with no `params` block covers the node it decorates — content or
+ * full size, so a preset applied with no `uniforms` block covers the node it decorates — content or
  * backdrop — instead of pinning a fixed lens at the origin. [cornerRadius]
- * [MirageLensParams.cornerRadius] and the specular light ([MirageLensParams.iLight]) keep the built-in
+ * [MirageLensUniforms.cornerRadius] and the specular light ([MirageLensUniforms.iLight]) keep the built-in
  * liquid-glass values. Override any of them per draw from a `filter { … }` / `overlay { … }` block
  * (e.g. a pointer-tracked `lensCenter` with a fixed `lensSize` for an interactive lens, or feed
  * `iLight` a `rememberGyroLightSource` direction for motion lighting).
@@ -104,7 +104,7 @@ public object MirageShaders {
    * Declared first (above [chromaticKernel], its sole reader): a Kotlin `object` initializes its
    * properties top-to-bottom, so a `val` read before its own declaration sees an uninitialized field.
    */
-  private val chromaticBody: ChromaticParams.(Float2) -> Half4 = { xy ->
+  private val chromaticBody: ChromaticUniforms.(Float2) -> Half4 = { xy ->
     val smoothEdgePx = 1.5f // SMOOTH_EDGE_PX
     val chromaOpdBase = 0.10f
     val chromaThickMix = 0.55f
@@ -172,7 +172,7 @@ public object MirageShaders {
   /**
    * The Chromatic kernel text, emitted **once** from [chromaticBody] and shared by every named look
    * ([Chromatic], [OilSlick], [SoapBubble], [MetallicFoil], [Pearl]) — the kernel source depends only
-   * on the params *schema* (uniform slots), never on a look's default values, so all five looks
+   * on the uniforms *schema* (uniform slots), never on a look's default values, so all five looks
    * compile to one GPU program (the raster tests assert `oil.source == soap.source == ...`). Tracing
    * the body once and reusing the string keeps that guarantee free of any emit-determinism assumption.
    *
@@ -183,7 +183,7 @@ public object MirageShaders {
    */
   private val chromaticKernel: String =
     MirageShader.composite("chromatic", {
-      ChromaticParams(0f, 0f, floatArrayOf(0f, 0f, 0f, 0f), 0f, 0f, 0f, 0f)
+      ChromaticUniforms(0f, 0f, floatArrayOf(0f, 0f, 0f, 0f), 0f, 0f, 0f, 0f)
     }, chromaticBody).agsl
 
   /**
@@ -196,8 +196,8 @@ public object MirageShaders {
    * fallback and again inside a non-exiting [If], a `&&`-gated highlight, and multiple
    * [sampleContent] taps.
    */
-  public val Specular: CompositeShader<SpecularParams> =
-    MirageShader.composite("specular", ::SpecularParams) { xy ->
+  public val Specular: CompositeShader<SpecularUniforms> =
+    MirageShader.composite("specular", ::SpecularUniforms) { xy ->
       val smoothEdgePx = 1.5f // SMOOTH_EDGE_PX, the preamble's shared edge-blend constant
       val specSePow = 4.0f // SPEC_SE_POW
 
@@ -283,13 +283,13 @@ public object MirageShaders {
     }
 
   /** The default thin-film iridescence look — the [chromatic] factory at its defaults. */
-  public val Chromatic: CompositeShader<ChromaticParams> = chromatic()
+  public val Chromatic: CompositeShader<ChromaticUniforms> = chromatic()
 
   /**
    * Oil-slick: high band count, wide RGB spread, near-zero metal floor — a saturated, dark-based
    * rainbow with little wash-out.
    */
-  public val OilSlick: CompositeShader<ChromaticParams> = chromatic(
+  public val OilSlick: CompositeShader<ChromaticUniforms> = chromatic(
     gain = 5.5f,
     krgb = floatArrayOf(1f, 1.30f, 1.72f, 0f),
     floor = 0.05f,
@@ -298,7 +298,7 @@ public object MirageShaders {
   )
 
   /** Soap-bubble: few, wide bands with a high floor and strong wash-out — pale, pastel iridescence. */
-  public val SoapBubble: CompositeShader<ChromaticParams> = chromatic(
+  public val SoapBubble: CompositeShader<ChromaticUniforms> = chromatic(
     gain = 1.7f,
     krgb = floatArrayOf(1f, 1.11f, 1.26f, 0f),
     floor = 0.22f,
@@ -307,7 +307,7 @@ public object MirageShaders {
   )
 
   /** Metallic foil: dark floor + a Fresnel rim boost toward white at the edge — a sharp metallic sheen. */
-  public val MetallicFoil: CompositeShader<ChromaticParams> = chromatic(
+  public val MetallicFoil: CompositeShader<ChromaticUniforms> = chromatic(
     gain = 3.6f,
     krgb = floatArrayOf(1f, 1.26f, 1.62f, 0f),
     floor = 0.03f,
@@ -317,7 +317,7 @@ public object MirageShaders {
   )
 
   /** Pearl: high floor + strong wash-out + a rim boost — a soft, luminous, low-saturation lustre. */
-  public val Pearl: CompositeShader<ChromaticParams> = chromatic(
+  public val Pearl: CompositeShader<ChromaticUniforms> = chromatic(
     gain = 2.4f,
     krgb = floatArrayOf(1f, 1.07f, 1.18f, 0f),
     floor = 0.46f,
@@ -334,8 +334,8 @@ public object MirageShaders {
    * Authored as an eDSL body lambda — a Generate `main(float2 xy)` with an early-return [guard] and a
    * user-defined helper ([foilHash]).
    */
-  public val Foil: GeneratorShader<FoilParams> =
-    MirageShader.generate("foil", ::FoilParams) { xy ->
+  public val Foil: GeneratorShader<FoilUniforms> =
+    MirageShader.generate("foil", ::FoilUniforms) { xy ->
       val smoothEdgePx = 1.5f // SMOOTH_EDGE_PX
 
       val halfDim = lensSize * 0.5f
@@ -384,16 +384,16 @@ public object MirageShaders {
     }
 
   /**
-   * A point-wise duotone grade: maps luminance onto a [shadow][DuotoneParams.shadow] →
-   * [highlight][DuotoneParams.highlight] gradient and cross-fades by [amount][DuotoneParams.amount].
+   * A point-wise duotone grade: maps luminance onto a [shadow][DuotoneUniforms.shadow] →
+   * [highlight][DuotoneUniforms.highlight] gradient and cross-fades by [amount][DuotoneUniforms.amount].
    * A [ColorizeShader], so it fuses cheaply and needs no lens framing. The defaults are a warm
    * split-tone (deep indigo shadows, cream highlights).
    *
    * Authored as an eDSL body lambda (a point-wise `kernel(float2 p, half4 src)`), emitted once and
    * reused for both dialects (AGSL and SkSL share this authoring surface).
    */
-  public val Duotone: ColorizeShader<DuotoneParams> =
-    MirageShader.colorize("duotone", ::DuotoneParams) { src ->
+  public val Duotone: ColorizeShader<DuotoneUniforms> =
+    MirageShader.colorize("duotone", ::DuotoneUniforms) { src ->
       val g = luma(src.rgb)
       val dz = mix(shadow.rgb, highlight.rgb, g)
       half4(mix(src.rgb, dz, amount), src.a)
@@ -423,10 +423,10 @@ public object MirageShaders {
     washout: Float = 0.16f,
     modulate: Float = 1f,
     rimBoost: Float = 0f,
-  ): CompositeShader<ChromaticParams> = MirageShader.composite(
+  ): CompositeShader<ChromaticUniforms> = MirageShader.composite(
     name = "chromatic",
-    paramsFactory = {
-      ChromaticParams(
+    uniformsFactory = {
+      ChromaticUniforms(
         intensity = intensity,
         gain = gain,
         krgb = krgb,
@@ -460,35 +460,35 @@ public object MirageShaders {
  * @property iLight the specular light direction (unnormalized). Default `(-1, -1)`.
  */
 @ExperimentalMirage
-public abstract class MirageLensParams : MirageParams() {
-  public val lensCenter: UOffset by uniform(Offset.Unspecified)
-  public val lensSize: USize by uniform(Size.Unspecified)
-  public val cornerRadius: UFloat by uniform(50f)
-  public val iLight: UOffset by uniform(Offset(-1f, -1f))
+public abstract class MirageLensUniforms : ShaderUniforms() {
+  public val lensCenter: UniformOffset by uniform(Offset.Unspecified)
+  public val lensSize: UniformSize by uniform(Size.Unspecified)
+  public val cornerRadius: UniformFloat by uniform(50f)
+  public val iLight: UniformOffset by uniform(Offset(-1f, -1f))
 }
 
 /**
- * Params for [MirageShaders.Specular]. The 11 `spec*` defaults are the `GlowTuning` values (= the
+ * Uniforms for [MirageShaders.Specular]. The 11 `spec*` defaults are the `GlowTuning` values (= the
  * built-in `liquidGlass` glint), so the schema defines the look: changing a default here changes the
  * visual result.
  */
 @ExperimentalMirage
-public class SpecularParams : MirageLensParams() {
-  public val specStrength: UFloat by uniform(0.7f)
-  public val specPower: UFloat by uniform(10.0f)
-  public val specRimMix: UFloat by uniform(0.4f)
-  public val specWidthPx: UFloat by uniform(12.0f)
-  public val specLightZ: UFloat by uniform(0.55f)
-  public val specDomeFrac: UFloat by uniform(1.15f)
-  public val specBodyPower: UFloat by uniform(2.5f)
-  public val specBodyGain: UFloat by uniform(0.6f)
-  public val specFocalK: UFloat by uniform(0.55f)
-  public val specPoolFrac: UFloat by uniform(0.7f)
-  public val specPoolGain: UFloat by uniform(1.3f)
+public class SpecularUniforms : MirageLensUniforms() {
+  public val specStrength: UniformFloat by uniform(0.7f)
+  public val specPower: UniformFloat by uniform(10.0f)
+  public val specRimMix: UniformFloat by uniform(0.4f)
+  public val specWidthPx: UniformFloat by uniform(12.0f)
+  public val specLightZ: UniformFloat by uniform(0.55f)
+  public val specDomeFrac: UniformFloat by uniform(1.15f)
+  public val specBodyPower: UniformFloat by uniform(2.5f)
+  public val specBodyGain: UniformFloat by uniform(0.6f)
+  public val specFocalK: UniformFloat by uniform(0.55f)
+  public val specPoolFrac: UniformFloat by uniform(0.7f)
+  public val specPoolGain: UniformFloat by uniform(1.3f)
 }
 
 /**
- * Params for the thin-film [chromatic][MirageShaders.chromatic] presets. Built with per-look defaults
+ * Uniforms for the thin-film [chromatic][MirageShaders.chromatic] presets. Built with per-look defaults
  * so one kernel expresses every named look; the constructor arguments define each [MirageShaders] look
  * (e.g. [MirageShaders.OilSlick]'s `gain == 5.5`).
  *
@@ -496,14 +496,14 @@ public class SpecularParams : MirageLensParams() {
  * write arity that matches the declared size; the `.w` component is unused.
  *
  * `chromaticPoolFrac` scales the light focal pool radius as a fraction of the lens' half-min
- * dimension (the same basis as [SpecularParams.specPoolFrac]). The default `0.7` matches the
+ * dimension (the same basis as [SpecularUniforms.specPoolFrac]). The default `0.7` matches the
  * specular pool; raise it (e.g. `1.5`–`2`) so the pool spans a wide lens whose short side would
  * otherwise confine the rainbow to a small patch. It shapes the pool that
- * [chromaticModulate][ChromaticParams.chromaticModulate] blends in, so it has no effect at
+ * [chromaticModulate][ChromaticUniforms.chromaticModulate] blends in, so it has no effect at
  * `modulate = 0`.
  */
 @ExperimentalMirage
-public class ChromaticParams internal constructor(
+public class ChromaticUniforms internal constructor(
   intensity: Float,
   gain: Float,
   krgb: FloatArray,
@@ -511,29 +511,29 @@ public class ChromaticParams internal constructor(
   washout: Float,
   modulate: Float,
   rimBoost: Float,
-) : MirageLensParams() {
-  public val chromaticIntensity: UFloat by uniform(intensity)
-  public val chromaticGain: UFloat by uniform(gain)
-  public val chromaticKRGB: UVec4 by uniform4(krgb)
-  public val chromaticFloor: UFloat by uniform(floor)
-  public val chromaticWashout: UFloat by uniform(washout)
-  public val chromaticModulate: UFloat by uniform(modulate)
-  public val chromaticRimBoost: UFloat by uniform(rimBoost)
-  public val chromaticPoolFrac: UFloat by uniform(0.7f)
+) : MirageLensUniforms() {
+  public val chromaticIntensity: UniformFloat by uniform(intensity)
+  public val chromaticGain: UniformFloat by uniform(gain)
+  public val chromaticKRGB: UniformVec4 by uniform4(krgb)
+  public val chromaticFloor: UniformFloat by uniform(floor)
+  public val chromaticWashout: UniformFloat by uniform(washout)
+  public val chromaticModulate: UniformFloat by uniform(modulate)
+  public val chromaticRimBoost: UniformFloat by uniform(rimBoost)
+  public val chromaticPoolFrac: UniformFloat by uniform(0.7f)
 }
 
-/** Params for [MirageShaders.Foil] — the 5 foil/sparkle uniforms plus the shared lens framing. */
+/** Uniforms for [MirageShaders.Foil] — the 5 foil/sparkle uniforms plus the shared lens framing. */
 @ExperimentalMirage
-public class FoilParams : MirageLensParams() {
-  public val foilBands: UFloat by uniform(5f)
-  public val foilPhase: UFloat by uniform(0f)
-  public val chromaticGain: UFloat by uniform(3.6f)
-  public val sparkleDensity: UFloat by uniform(16f)
-  public val sparkleAmplitude: UFloat by uniform(0.3f)
+public class FoilUniforms : MirageLensUniforms() {
+  public val foilBands: UniformFloat by uniform(5f)
+  public val foilPhase: UniformFloat by uniform(0f)
+  public val chromaticGain: UniformFloat by uniform(3.6f)
+  public val sparkleDensity: UniformFloat by uniform(16f)
+  public val sparkleAmplitude: UniformFloat by uniform(0.3f)
 }
 
 /**
- * Params for [MirageShaders.Duotone] — the two grade endpoints plus the blend amount. Point-wise, so
+ * Uniforms for [MirageShaders.Duotone] — the two grade endpoints plus the blend amount. Point-wise, so
  * it carries no lens framing.
  *
  * @property shadow the color mapped to the darkest luminance. Default a deep indigo.
@@ -541,8 +541,8 @@ public class FoilParams : MirageLensParams() {
  * @property amount `0..1` cross-fade from the original toward the graded duotone. Default `1`.
  */
 @ExperimentalMirage
-public class DuotoneParams : MirageParams() {
-  public val shadow: UColor by uniformColor(Color(0xFF1B1B3A))
-  public val highlight: UColor by uniformColor(Color(0xFFFFE8C7))
-  public val amount: UFloat by uniform(1f)
+public class DuotoneUniforms : ShaderUniforms() {
+  public val shadow: UniformColor by uniformColor(Color(0xFF1B1B3A))
+  public val highlight: UniformColor by uniformColor(Color(0xFFFFE8C7))
+  public val amount: UniformFloat by uniform(1f)
 }

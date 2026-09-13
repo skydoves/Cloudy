@@ -33,7 +33,7 @@ internal class MirageShaderFunctionTest :
   FunSpec({
 
     test("a user shaderFunction is emitted as a named GLSL function the kernel calls") {
-      val kernel = MirageShader.generate("rings", ::EmptyParams) { xy ->
+      val kernel = MirageShader.generate("rings", ::EmptyUniforms) { xy ->
         val sdCircle by shaderFunction(Float2Type, Float1Type) { p -> length(p) - 0.5f }
         val d = sdCircle(xy)
         half4(half3(float3(d, d, d)), half(1f))
@@ -46,7 +46,7 @@ internal class MirageShaderFunctionTest :
     test("nested shaderFunction calls emit dependency-first (callee declared before caller)") {
       // 3-level nesting mirroring RainyWindow's drops -> dropLayer2 -> n13:
       // a 5-param helper calls a 2-param helper, which calls a 1-param helper.
-      val kernel = MirageShader.generate("nested", ::EmptyParams) { xy ->
+      val kernel = MirageShader.generate("nested", ::EmptyUniforms) { xy ->
         val leaf by shaderFunction(Float1Type, Float1Type) { p -> p * 2f }
         val mid by shaderFunction(Float2Type, Float1Type, Float1Type) { uv, t ->
           leaf(uv.x) + t
@@ -79,7 +79,7 @@ internal class MirageShaderFunctionTest :
 
     test("a shaderFunction named after a builtin fails with RESERVED_IDENTIFIER") {
       val ex = shouldThrow<MirageDiagnosticException> {
-        MirageShader.generate("reservedFn", ::EmptyParams) { xy ->
+        MirageShader.generate("reservedFn", ::EmptyUniforms) { xy ->
           val mix by shaderFunction(Float2Type, Float1Type) { p -> length(p) }
           half4(half3(float3(mix(xy), mix(xy), mix(xy))), half(1f))
         }

@@ -19,15 +19,15 @@ package com.skydoves.cloudy.internal
 
 import com.skydoves.cloudy.ExperimentalMirage
 import com.skydoves.cloudy.MirageClock
-import com.skydoves.cloudy.MirageParams
 import com.skydoves.cloudy.MirageScope
 import com.skydoves.cloudy.MirageShaders
+import com.skydoves.cloudy.ShaderUniforms
 import com.skydoves.cloudy.Sky
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 
 /**
- * [EffectElement] equality must include the per-stage params-block identity, so a recomposition that
+ * [EffectElement] equality must include the per-stage uniforms-block identity, so a recomposition that
  * re-creates the block (e.g. to feed a freshly measured lens center or an animated uniform) produces
  * an *unequal* element and Compose calls `update()` to adopt it. If equality excluded the blocks, the
  * node would freeze on whatever block it first captured and never see a later-seeded lens center.
@@ -39,7 +39,7 @@ import io.kotest.matchers.shouldBe
 internal class MirageElementEqualityTest :
   FunSpec({
 
-    fun element(block: (MirageParams.() -> Unit)?): EffectElement =
+    fun element(block: (ShaderUniforms.() -> Unit)?): EffectElement =
       mirageElement(sky = null, MirageClock.Auto, enabled = true) {
         filter(MirageShaders.OilSlick, block)
       }
@@ -54,7 +54,7 @@ internal class MirageElementEqualityTest :
     }
 
     test("the same block instance yields equal elements (no needless update)") {
-      val block: MirageParams.() -> Unit = { }
+      val block: ShaderUniforms.() -> Unit = { }
       val first = element(block)
       val second = element(block)
 
@@ -62,7 +62,7 @@ internal class MirageElementEqualityTest :
       first.hashCode().shouldBe(second.hashCode())
     }
 
-    test("a null block equals another null block (params-less pipelines reconcile)") {
+    test("a null block equals another null block (uniforms-less pipelines reconcile)") {
       val first = element(null)
       val second = element(null)
 
@@ -73,7 +73,7 @@ internal class MirageElementEqualityTest :
       // OilSlick and Pearl are .equals-equal shaders (same kernel), so with a shared block instance the
       // elements ARE equal here. The look difference between them lives in the schema defaults reached
       // at draw time, not in element identity.
-      val block: MirageParams.() -> Unit = { }
+      val block: ShaderUniforms.() -> Unit = { }
       val oil = mirageElement(sky = null, MirageClock.Auto, enabled = true) {
         filter(MirageShaders.OilSlick, block)
       }
@@ -88,7 +88,7 @@ internal class MirageElementEqualityTest :
       // The merged node carries its stage-0 source in the equality key: a content-source pipeline (null
       // sky) must reconcile distinctly from an otherwise-identical backdrop pipeline, or Compose would keep the
       // wrong source. Backdrop carries a Sky, a content source carries none, so their keys differ.
-      val block: MirageParams.() -> Unit = { }
+      val block: ShaderUniforms.() -> Unit = { }
       val pipeline: MirageScope.() -> Unit = { filter(MirageShaders.OilSlick, block) }
       val contentSource = mirageElement(sky = null, MirageClock.Auto, enabled = true, pipeline)
       val backdrop = mirageElement(Sky(), MirageClock.Auto, enabled = true, pipeline)

@@ -44,16 +44,16 @@ import kotlin.reflect.KProperty
  * uniform binding order — the delegate registers slots eagerly in `provideDelegate`, so the slot
  * index equals the source order with no reflection (KMP-safe).
  *
- * Lifetime: the engine creates one instance per node and reuses it — every param write happens on
+ * Lifetime: the engine creates one instance per node and reuses it — every uniform write happens on
  * the single draw-phase thread, so no synchronization and no per-frame allocation.
  *
  * A handle plays two roles from one object: at draw time it carries the per-draw value and its binding
  * slot; inside a traced kernel body it *is* the shader expression that reads that uniform — the typed
- * handles ([UFloat] etc.) implement the matching value interface ([Float1] etc.) and hand back a
+ * handles ([UniformFloat] etc.) implement the matching value interface ([Float1] etc.) and hand back a
  * [UniformRef] node, so a body writes `shadow.rgb` with no lift/convert step.
  */
 @ExperimentalMirage
-public abstract class MirageParams {
+public abstract class ShaderUniforms {
 
   private val registered: MutableList<UniformEntry> = mutableListOf()
 
@@ -71,56 +71,56 @@ public abstract class MirageParams {
   internal val handles: List<UniformHandle>
     get() = registeredHandles
 
-  /** Declares a `uniform float`. Handle: [UFloat]. */
-  protected fun uniform(default: Float): UniformProvider<UFloat> =
-    registerHandle("float", default) { UFloat(it, default) }
+  /** Declares a `uniform float`. Handle: [UniformFloat]. */
+  protected fun uniform(default: Float): UniformProvider<UniformFloat> =
+    registerHandle("float", default) { UniformFloat(it, default) }
 
-  /** Declares a `uniform float2` for a coordinate or direction (y-down local px). Handle: [UOffset]. */
-  protected fun uniform(default: Offset): UniformProvider<UOffset> =
-    registerHandle("float2", default) { UOffset(it, default) }
+  /** Declares a `uniform float2` for a coordinate or direction (y-down local px). Handle: [UniformOffset]. */
+  protected fun uniform(default: Offset): UniformProvider<UniformOffset> =
+    registerHandle("float2", default) { UniformOffset(it, default) }
 
-  /** Declares a `uniform float2` for a size. Handle: [USize]. */
-  protected fun uniform(default: Size): UniformProvider<USize> =
-    registerHandle("float2", default) { USize(it, default) }
+  /** Declares a `uniform float2` for a size. Handle: [UniformSize]. */
+  protected fun uniform(default: Size): UniformProvider<UniformSize> =
+    registerHandle("float2", default) { UniformSize(it, default) }
 
-  /** Declares a `uniform int` (Android `setIntUniform` / skiko `uniform(Int)`). Handle: [UInt1]. */
-  protected fun uniform(default: Int): UniformProvider<UInt1> =
-    registerHandle("int", default) { UInt1(it, default) }
+  /** Declares a `uniform int` (Android `setIntUniform` / skiko `uniform(Int)`). Handle: [UniformInt1]. */
+  protected fun uniform(default: Int): UniformProvider<UniformInt1> =
+    registerHandle("int", default) { UniformInt1(it, default) }
 
-  /** Declares a `uniform float3`. Handle: [UVec3]. */
-  protected fun uniform3(default: FloatArray): UniformProvider<UVec3> {
+  /** Declares a `uniform float3`. Handle: [UniformVec3]. */
+  protected fun uniform3(default: FloatArray): UniformProvider<UniformVec3> {
     require(default.size == 3) { "uniform3 default must have size 3, was ${default.size}" }
-    return registerHandle("float3", default) { UVec3(it, default.copyOf()) }
+    return registerHandle("float3", default) { UniformVec3(it, default.copyOf()) }
   }
 
-  /** Declares a `uniform float4`. Handle: [UVec4]. */
-  protected fun uniform4(default: FloatArray): UniformProvider<UVec4> {
+  /** Declares a `uniform float4`. Handle: [UniformVec4]. */
+  protected fun uniform4(default: FloatArray): UniformProvider<UniformVec4> {
     require(default.size == 4) { "uniform4 default must have size 4, was ${default.size}" }
-    return registerHandle("float4", default) { UVec4(it, default.copyOf()) }
+    return registerHandle("float4", default) { UniformVec4(it, default.copyOf()) }
   }
 
-  /** Declares a fixed-length `uniform float[N]` where `N == default.size`. Handle: [UFloatArray]. */
-  protected fun uniform(default: FloatArray): UniformProvider<UFloatArray> =
-    registerHandle("float[${default.size}]", default) { UFloatArray(it, default.copyOf()) }
+  /** Declares a fixed-length `uniform float[N]` where `N == default.size`. Handle: [UniformFloatArray]. */
+  protected fun uniform(default: FloatArray): UniformProvider<UniformFloatArray> =
+    registerHandle("float[${default.size}]", default) { UniformFloatArray(it, default.copyOf()) }
 
   /**
    * Declares a `layout(color) uniform vec4`. Android converts to the working color space via
    * `setColorUniform` (official guarantee); skiko writes sRGB unpremultiplied `float4` directly.
-   * Handle: [UColor].
+   * Handle: [UniformColor].
    */
-  protected fun uniformColor(default: Color): UniformProvider<UColor> =
-    registerHandle("float4", default, isColor = true) { UColor(it, default) }
+  protected fun uniformColor(default: Color): UniformProvider<UniformColor> =
+    registerHandle("float4", default, isColor = true) { UniformColor(it, default) }
 
   /**
    * Declares a `uniform shader` texture child (noise / mask / displacement map). Android binds a
    * `BitmapShader` via `setInputShader`; skiko binds `Image.makeShader`. Unlike SwiftUI's one-image
-   * limit, any number of textures may be declared. Handle: [UTexture].
+   * limit, any number of textures may be declared. Handle: [UniformTexture].
    */
   protected fun texture(
     default: ImageBitmap? = null,
     tileMode: TileMode = TileMode.Clamp,
-  ): UniformProvider<UTexture> =
-    registerHandle("shader", default, isTexture = true) { UTexture(it, default, tileMode) }
+  ): UniformProvider<UniformTexture> =
+    registerHandle("shader", default, isTexture = true) { UniformTexture(it, default, tileMode) }
 
   /**
    * Provider whose slot index is the current registration size at delegate time, so the handle and
@@ -148,12 +148,12 @@ public abstract class MirageParams {
 @ExperimentalMirage
 public class UniformProvider<H : Any> internal constructor(
   private val register: (name: String) -> H,
-) : PropertyDelegateProvider<MirageParams, ReadOnlyProperty<MirageParams, H>> {
+) : PropertyDelegateProvider<ShaderUniforms, ReadOnlyProperty<ShaderUniforms, H>> {
 
   override fun provideDelegate(
-    thisRef: MirageParams,
+    thisRef: ShaderUniforms,
     property: KProperty<*>,
-  ): ReadOnlyProperty<MirageParams, H> {
+  ): ReadOnlyProperty<ShaderUniforms, H> {
     val handle = register(property.name)
     return ReadOnlyProperty { _, _ -> handle }
   }
@@ -162,13 +162,13 @@ public class UniformProvider<H : Any> internal constructor(
 /** Common contract of a uniform handle: a typed slot reference into the per-draw param buffer. */
 @ExperimentalMirage
 public sealed interface UniformHandle {
-  /** The binding slot index, equal to the declaration order in [MirageParams]. */
+  /** The binding slot index, equal to the declaration order in [ShaderUniforms]. */
   public val slot: Int
 }
 
 /** A scalar `float` uniform slot; a [Float1] expression inside a traced body. */
 @ExperimentalMirage
-public class UFloat internal constructor(override val slot: Int, public var value: Float) :
+public class UniformFloat internal constructor(override val slot: Int, public var value: Float) :
   UniformHandle,
   Float1 {
   override val e: Expression get() = UniformRef(slot, ShaderType.Float1)
@@ -180,7 +180,7 @@ public class UFloat internal constructor(override val slot: Int, public var valu
 
 /** A `float2` uniform slot carrying a coordinate or direction; a [Float2] expression in a body. */
 @ExperimentalMirage
-public class UOffset internal constructor(override val slot: Int, public var value: Offset) :
+public class UniformOffset internal constructor(override val slot: Int, public var value: Offset) :
   UniformHandle,
   Float2 {
   override val e: Expression get() = UniformRef(slot, ShaderType.Float2)
@@ -196,7 +196,7 @@ public class UOffset internal constructor(override val slot: Int, public var val
 
 /** A `float2` uniform slot carrying a size; a [Float2] expression in a body. */
 @ExperimentalMirage
-public class USize internal constructor(override val slot: Int, public var value: Size) :
+public class UniformSize internal constructor(override val slot: Int, public var value: Size) :
   UniformHandle,
   Float2 {
   override val e: Expression get() = UniformRef(slot, ShaderType.Float2)
@@ -208,7 +208,7 @@ public class USize internal constructor(override val slot: Int, public var value
 
 /** An `int` uniform slot. */
 @ExperimentalMirage
-public class UInt1 internal constructor(override val slot: Int, public var value: Int) :
+public class UniformInt1 internal constructor(override val slot: Int, public var value: Int) :
   UniformHandle {
   public operator fun invoke(v: Int) {
     value = v
@@ -217,10 +217,12 @@ public class UInt1 internal constructor(override val slot: Int, public var value
 
 /** A `float3` uniform slot. The backing array is always length 3. */
 @ExperimentalMirage
-public class UVec3 internal constructor(override val slot: Int, public var value: FloatArray) :
-  UniformHandle {
+public class UniformVec3 internal constructor(
+  override val slot: Int,
+  public var value: FloatArray,
+) : UniformHandle {
   public operator fun invoke(v: FloatArray) {
-    require(v.size == 3) { "UVec3 value must have size 3, was ${v.size}" }
+    require(v.size == 3) { "UniformVec3 value must have size 3, was ${v.size}" }
     value = v.copyOf()
   }
 
@@ -231,13 +233,15 @@ public class UVec3 internal constructor(override val slot: Int, public var value
 
 /** A `float4` uniform slot; a [Float4] expression in a body. The backing array is always length 4. */
 @ExperimentalMirage
-public class UVec4 internal constructor(override val slot: Int, public var value: FloatArray) :
-  UniformHandle,
+public class UniformVec4 internal constructor(
+  override val slot: Int,
+  public var value: FloatArray,
+) : UniformHandle,
   Float4 {
   override val e: Expression get() = UniformRef(slot, ShaderType.Float4)
 
   public operator fun invoke(v: FloatArray) {
-    require(v.size == 4) { "UVec4 value must have size 4, was ${v.size}" }
+    require(v.size == 4) { "UniformVec4 value must have size 4, was ${v.size}" }
     value = v.copyOf()
   }
 
@@ -252,7 +256,7 @@ public class UVec4 internal constructor(override val slot: Int, public var value
  * ([com.skydoves.cloudy.edsl] ShaderValues.kt).
  */
 @ExperimentalMirage
-public class UFloatArray internal constructor(override val slot: Int, value: FloatArray) :
+public class UniformFloatArray internal constructor(override val slot: Int, value: FloatArray) :
   UniformHandle {
   /** The declared `N` in `float[N]` — fixed at declaration; a later write cannot resize it. */
   public val size: Int = value.size
@@ -260,7 +264,7 @@ public class UFloatArray internal constructor(override val slot: Int, value: Flo
   /** The current elements. Every write is length-checked against [size] and stored as a copy. */
   public var value: FloatArray = value
     set(v) {
-      require(v.size == size) { "UFloatArray value must have size $size, was ${v.size}" }
+      require(v.size == size) { "UniformFloatArray value must have size $size, was ${v.size}" }
       field = v.copyOf()
     }
 
@@ -271,7 +275,7 @@ public class UFloatArray internal constructor(override val slot: Int, value: Flo
 
 /** A `layout(color) vec4` uniform slot; a [Half4] color expression in a body. */
 @ExperimentalMirage
-public class UColor internal constructor(override val slot: Int, public var value: Color) :
+public class UniformColor internal constructor(override val slot: Int, public var value: Color) :
   UniformHandle,
   Half4 {
   override val e: Expression get() = UniformRef(slot, ShaderType.Half4)
@@ -283,7 +287,7 @@ public class UColor internal constructor(override val slot: Int, public var valu
 
 /** A `uniform shader` texture-child slot, carrying its bitmap and tile mode. */
 @ExperimentalMirage
-public class UTexture internal constructor(
+public class UniformTexture internal constructor(
   override val slot: Int,
   public var value: ImageBitmap?,
   public var tileMode: TileMode,

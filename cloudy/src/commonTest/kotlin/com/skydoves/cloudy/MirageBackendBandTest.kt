@@ -19,7 +19,7 @@ import com.skydoves.cloudy.internal.MirageBackendBand
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 
-/** Band ladder: the SDK->backend boundaries that gate which mirage path an optic takes. */
+/** Band ladder: the SDK->backend boundaries that gate which mirage path a shader takes. */
 internal class MirageBackendBandTest :
   FunSpec({
 

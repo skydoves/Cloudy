@@ -39,7 +39,7 @@ internal class MirageLoopTest :
   FunSpec({
 
     test("unroll inlines the body n times with no for header") {
-      val kernel = MirageShader.composite("unrollBlur", ::EmptyParams) { xy ->
+      val kernel = MirageShader.composite("unrollBlur", ::EmptyUniforms) { xy ->
         var acc by local(half4(0f))
         unroll(3) { i ->
           acc = acc + sampleContent(xy + float2(i.toFloat(), 0f))
@@ -53,7 +53,7 @@ internal class MirageLoopTest :
     }
 
     test("loop emits an ES2-safe for with a constant bound and an inner break") {
-      val kernel = MirageShader.composite("dynLoop", ::EmptyParams) { xy ->
+      val kernel = MirageShader.composite("dynLoop", ::EmptyUniforms) { xy ->
         var acc by local(half4(0f))
         loop(count = float1(4f), maxIterations = 8) { index ->
           acc = acc + sampleContent(xy + float2(index, float1(0f)))
@@ -75,7 +75,7 @@ internal class MirageLoopTest :
   })
 
 private fun edslUnrollShader(): Shader {
-  val kernel = MirageShader.composite("unrollBlurRaster", ::EmptyParams) { xy ->
+  val kernel = MirageShader.composite("unrollBlurRaster", ::EmptyUniforms) { xy ->
     var acc by local(half4(0f))
     unroll(3) { i ->
       acc = acc + sampleContent(xy + float2(i.toFloat() * 2f, 0f))

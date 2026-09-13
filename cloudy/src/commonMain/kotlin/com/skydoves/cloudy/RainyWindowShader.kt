@@ -69,13 +69,13 @@ import com.skydoves.cloudy.edsl.z
 /**
  * Rain on steamed glass: running refracting raindrops + condensation you wipe clear with a finger.
  * The drop field is the "Heartfelt" shader by Martijn Steinrucken (BigWings), ported to the mirage
- * eDSL. A full-bleed [CompositeShader]: it samples the content freely and reads a [wipeMask][RainyWindowParams.wipeMask]
+ * eDSL. A full-bleed [CompositeShader]: it samples the content freely and reads a [wipeMask][RainyWindowUniforms.wipeMask]
  * texture child for the finger-wipe fog mask.
  */
 @ExperimentalMirage
-public object RainyWindowOptic {
-  public val RainyWindow: CompositeShader<RainyWindowParams> =
-    MirageShader.composite("rainyWindow", ::RainyWindowParams) { xy ->
+public object RainyWindowShader {
+  public val RainyWindow: CompositeShader<RainyWindowUniforms> =
+    MirageShader.composite("rainyWindow", ::RainyWindowUniforms) { xy ->
       val res = mirageResolution
       val amount = clamp(rainAmount, 0f, 1f)
 
@@ -154,15 +154,15 @@ public object RainyWindowOptic {
 
 /** Shader uniforms (property name == uniform id). [wipeMask] is the finger-wipe fog mask. */
 @ExperimentalMirage
-public class RainyWindowParams : MirageParams() {
-  public val wipeMask: UTexture by texture(default = null, tileMode = TileMode.Clamp)
-  public val maskSize: UFloat by uniform(256f)
-  public val introProgress: UFloat by uniform(1f)
-  public val rainAmount: UFloat by uniform(0.6f)
-  public val blurRadius: UFloat by uniform(9f)
-  public val fogAmount: UFloat by uniform(1f)
-  public val hazeStrength: UFloat by uniform(0.55f)
-  public val dropScale: UFloat by uniform(1f)
+public class RainyWindowUniforms : ShaderUniforms() {
+  public val wipeMask: UniformTexture by texture(default = null, tileMode = TileMode.Clamp)
+  public val maskSize: UniformFloat by uniform(256f)
+  public val introProgress: UniformFloat by uniform(1f)
+  public val rainAmount: UniformFloat by uniform(0.6f)
+  public val blurRadius: UniformFloat by uniform(9f)
+  public val fogAmount: UniformFloat by uniform(1f)
+  public val hazeStrength: UniformFloat by uniform(0.55f)
+  public val dropScale: UniformFloat by uniform(1f)
 }
 
 // --- The six "Heartfelt" helper functions, traced once and spliced ahead of main. Registration order

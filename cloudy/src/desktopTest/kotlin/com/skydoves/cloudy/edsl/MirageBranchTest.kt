@@ -39,7 +39,7 @@ internal class MirageBranchTest :
   FunSpec({
 
     test("branch...Else emits an if/else that writes one temp on both paths") {
-      val kernel = MirageShader.generate("branch2", ::EmptyParams) { xy ->
+      val kernel = MirageShader.generate("branch2", ::EmptyUniforms) { xy ->
         val tint = branch(xy.x greaterThan 16f) {
           half3(1f, 0f, 0f)
         } Else {
@@ -53,7 +53,7 @@ internal class MirageBranchTest :
     }
 
     test("When emits nested if/else for n cases + otherwise, first-match-wins order") {
-      val kernel = MirageShader.generate("whenN", ::EmptyParams) { xy ->
+      val kernel = MirageShader.generate("whenN", ::EmptyUniforms) { xy ->
         val zone = When {
           (xy.x greaterThan 24f) then { half3(1f, 0f, 0f) }
           (xy.x greaterThan 8f) then { half3(0f, 1f, 0f) }
@@ -69,7 +69,7 @@ internal class MirageBranchTest :
 
     test("a When without otherwise fails with WHEN_WITHOUT_OTHERWISE") {
       val ex = shouldThrow<MirageDiagnosticException> {
-        MirageShader.generate("noOtherwise", ::EmptyParams) { xy ->
+        MirageShader.generate("noOtherwise", ::EmptyUniforms) { xy ->
           val zone = When {
             (xy.x greaterThan 8f) then { half3(1f, 0f, 0f) }
             // No otherwise — the block ends in a stray value instead.
@@ -83,7 +83,7 @@ internal class MirageBranchTest :
 
     test("branch arms of different types fail with BRANCH_TYPE_MISMATCH") {
       val ex = shouldThrow<MirageDiagnosticException> {
-        MirageShader.generate("mismatch", ::EmptyParams) { xy ->
+        MirageShader.generate("mismatch", ::EmptyUniforms) { xy ->
           // Arms return different value types (Half3 vs Float3): Kotlin infers T = ShaderValue, and the
           // trace-time arm-type check rejects the disagreement before the result is wrapped.
           branch<ShaderValue>(xy.x greaterThan 8f) {
@@ -106,7 +106,7 @@ internal class MirageBranchTest :
   })
 
 private fun edslWhenShader(): Shader {
-  val kernel = MirageShader.generate("whenRaster", ::EmptyParams) { xy ->
+  val kernel = MirageShader.generate("whenRaster", ::EmptyUniforms) { xy ->
     val zone = When {
       (xy.x greaterThan 24f) then { half3(1f, 0f, 0f) }
       (xy.x greaterThan 8f) then { half3(0f, 1f, 0f) }

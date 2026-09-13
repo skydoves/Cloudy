@@ -68,7 +68,7 @@ internal class GlesRoundtripBenchmark(private val case: Case) {
   private lateinit var content: Bitmap
 
   private fun setUp() {
-    compiled = MirageCompiler.compile(case.optic, Dialect.GlslEs)
+    compiled = MirageCompiler.compile(case.shader, Dialect.GlslEs)
     program = GlProgram(MirageGlslEs.translate(compiled.source))
     content = gradientContent(case.width, case.height)
   }
@@ -81,15 +81,15 @@ internal class GlesRoundtripBenchmark(private val case: Case) {
       // is negligible next to the GL roundtrip and the sink is what render() replays on the GL thread.
       val (sink, writes) = program.uniformSink()
       bindSchemaDefaults(sink, compiled)
-      if (case.optic === MirageShaders.Chromatic) frameLens(sink, case.width, case.height)
+      if (case.shader === MirageShaders.Chromatic) frameLens(sink, case.width, case.height)
       // render() is suspend (GlEnv pins it to its GL-thread dispatcher); runBlocking drives it from the
       // non-suspend measure block. Its cost is negligible next to the GL roundtrip this measures.
       runBlocking { program.render(content, writes) }
     }
   }
 
-  /** One case: which optic and at what content size (the size the readback copy scales with). */
-  data class Case(val name: String, val optic: MirageShader<*>, val width: Int, val height: Int) {
+  /** One case: which shader and at what content size (the size the readback copy scales with). */
+  data class Case(val name: String, val shader: MirageShader<*>, val width: Int, val height: Int) {
     override fun toString(): String = name // Parameterized uses this for the test name.
   }
 
@@ -137,7 +137,7 @@ private fun bindSchemaDefaults(sink: UniformSink, compiled: CompiledProgram) {
       is Size -> sink.float2(entry.name, d.width, d.height)
       is FloatArray -> sink.floatArray(entry.name, d)
       is Int -> sink.int(entry.name, d)
-      else -> {} // textures / null: unused by these optics
+      else -> {} // textures / null: unused by these shaders
     }
   }
 }

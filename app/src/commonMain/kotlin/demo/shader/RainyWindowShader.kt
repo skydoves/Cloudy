@@ -19,14 +19,14 @@ package demo.shader
 
 import androidx.compose.ui.graphics.TileMode
 import com.skydoves.cloudy.CompositeShader
-import com.skydoves.cloudy.MirageParams
 import com.skydoves.cloudy.MirageShader
-import com.skydoves.cloudy.UFloat
-import com.skydoves.cloudy.UTexture
+import com.skydoves.cloudy.ShaderUniforms
+import com.skydoves.cloudy.UniformFloat
+import com.skydoves.cloudy.UniformTexture
 
 /**
  * A demo-authored shader that proves the open mirage API: any consumer can author a composite kernel
- * plus a [MirageParams] subclass — here even a *texture-backed* one — and apply it through
+ * plus a [ShaderUniforms] subclass — here even a *texture-backed* one — and apply it through
  * `Modifier.mirage { }` with no library change. "Rain on a window": a light blur of the background
  * reads as misted glass, wiped sharp where droplets sit, and each droplet refracts a warped, brighter
  * view of what is behind it (the paraboloid-lens "inverted world in the drop"). `mirageTime` drives a
@@ -52,9 +52,9 @@ import com.skydoves.cloudy.UTexture
 public object RainyWindowShader {
 
   /** The rainy-window composite shader. Full-bleed by design — see the demo screen's framing note. */
-  public val RainyWindow: CompositeShader<RainyWindowParams> = MirageShader.composite(
+  public val RainyWindow: CompositeShader<RainyWindowUniforms> = MirageShader.composite(
     name = "rainyWindow",
-    paramsFactory = ::RainyWindowParams,
+    uniformsFactory = ::RainyWindowUniforms,
     agsl = RAINY_WINDOW_KERNEL,
     sksl = RAINY_WINDOW_KERNEL,
   )
@@ -74,11 +74,11 @@ public object RainyWindowShader {
  * @property dropScale texture repeats across the screen; larger `dropScale` = smaller drops on screen
  *   (more repeats). Default `1.6` (a comfortable drop size on a phone pane).
  */
-public class RainyWindowParams : MirageParams() {
-  public val dropletMap: UTexture by texture(default = null, tileMode = TileMode.Repeated)
-  public val rainAmount: UFloat by uniform(0.35f)
-  public val blurRadius: UFloat by uniform(1.6f)
-  public val dropScale: UFloat by uniform(1.6f)
+public class RainyWindowUniforms : ShaderUniforms() {
+  public val dropletMap: UniformTexture by texture(default = null, tileMode = TileMode.Repeated)
+  public val rainAmount: UniformFloat by uniform(0.35f)
+  public val blurRadius: UniformFloat by uniform(1.6f)
+  public val dropScale: UniformFloat by uniform(1.6f)
 }
 
 /**

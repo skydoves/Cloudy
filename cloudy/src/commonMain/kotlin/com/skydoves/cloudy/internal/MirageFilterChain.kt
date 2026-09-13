@@ -31,7 +31,7 @@ import com.skydoves.cloudy.ExperimentalMirage
  * so they are extracted here rather than duplicated (Pure Fabrication: the algorithm is neither source,
  * it is the shared stage-chain machinery).
  *
- * It holds no clock, no Sky, and no params ownership: the caller supplies the already-resolved
+ * It holds no clock, no Sky, and no uniforms ownership: the caller supplies the already-resolved
  * [Stage.ProgramFilter] → [CachedProgram] pairs, the per-stage uniform [bind], and the stage-0 source. This
  * keeps the chain lifecycle-free — its only state is the reusable layer pool, released on detach.
  *
@@ -61,7 +61,7 @@ internal class MirageFilterChain {
    *   calling node — passed in because the chain is a plain collaborator, not a `Modifier.Node`).
    * @param applicable already-resolved (`obtain != null`) filter stages in declared order.
    * @param bind writes a stage's per-draw uniforms into its program (called before the effect is set,
-   *   so the effect captures the current uniforms). The caller keeps clock/params ownership.
+   *   so the effect captures the current uniforms). The caller keeps clock/uniforms ownership.
    * @param recordSource records the stage-0 input — the self content for a node, or the offset Sky
    *   region for a backdrop node.
    */

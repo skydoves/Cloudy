@@ -55,7 +55,7 @@ internal class UniformEntry(
 )
 
 /**
- * The ordered uniform declarations of a shader's params, captured from `by uniform(...)` delegate
+ * The ordered uniform declarations of a shader's uniforms, captured from `by uniform(...)` delegate
  * registration. Registration order equals declaration order equals uniform binding order, so the
  * list index is the deterministic bind slot.
  */
@@ -78,7 +78,7 @@ internal class UniformSchema(val entries: List<UniformEntry>) {
  * @property category The codegen category this program was emitted from.
  * @property isRaw Whether the shader is a raw escape-hatch ([com.skydoves.cloudy.MirageShader.raw]) whose
  *   source is authored verbatim. The GLSL ES backend cannot mechanically translate a raw AGSL body
- *   (it has no known assembled structure), so a raw optic is declined on that band.
+ *   (it has no known assembled structure), so a raw shader is declined on that band.
  */
 internal class CompiledProgram(
   val source: String,
