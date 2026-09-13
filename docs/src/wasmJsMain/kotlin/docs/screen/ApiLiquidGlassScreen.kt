@@ -437,7 +437,11 @@ private fun LiquidGlassPlatformTable() {
     }
 
     LiquidGlassPlatformRow("Android 33+", "RuntimeShader (AGSL)", "Full effect")
-    LiquidGlassPlatformRow("Android 23-32", "Fallback", "Saturation + edge only")
+    LiquidGlassPlatformRow(
+      "Android 23–32",
+      "Fallback",
+      "Zoom + tint + edge + shape (no lens refraction)",
+    )
     LiquidGlassPlatformRow("iOS", "Skia RuntimeEffect (SKSL)", "Full effect")
     LiquidGlassPlatformRow("macOS", "Skia RuntimeEffect (SKSL)", "Full effect")
     LiquidGlassPlatformRow("Desktop (JVM)", "Skia RuntimeEffect (SKSL)", "Full effect")

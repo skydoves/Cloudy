@@ -431,7 +431,7 @@ You can customize the liquid glass effect with various parameters:
 
 ### Parameters
 
-| Parameter | Default | Description | Fallback (Android 32-) |
+| Parameter | Default | Description | Fallback (Android 23–32) |
 |-----------|---------|-------------|------------------------|
 | `lensCenter` | - | Center position of the glass lens (required) | Yes |
 | `lensSize` | 350x350 | Size of the lens in pixels | Yes |
@@ -457,7 +457,7 @@ You can customize the liquid glass effect with various parameters:
 | Platform | Implementation | Features |
 |----------|----------------|----------|
 | Android 33+ | RuntimeShader (AGSL) | Full effect |
-| Android 32- | Fallback | Zoom + tint + edge + shape (no lens refraction) |
+| Android 23–32 | Fallback | Zoom + tint + edge + shape (no lens refraction) |
 | iOS | Skia RuntimeEffect | Full effect |
 | macOS | Skia RuntimeEffect | Full effect |
 | Desktop (JVM) | Skia RuntimeEffect | Full effect |
