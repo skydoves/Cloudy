@@ -446,15 +446,18 @@ You can customize the liquid glass effect with various parameters:
 | `light` | Fixed | Specular light source (see [Motion-driven light sources](#motion-driven-light-sources)) | No (requires API 33+) |
 | `glow` | `LiquidGlassDefaults.Glow` | Perceptual glint tuning: brightness (`intensity`) and focus (`sharpness`). Use `LiquidGlassDefaults.NoGlow` to remove the glint | No (requires API 33+) |
 | `enabled` | true | Enable/disable the effect | Yes |
+| `zoom` | `0f` (auto) | Lens-centered magnification: auto is 1.03x on Android 23–32, 1x elsewhere; positive finite values override it | Yes |
 
-> **Note:** On Android 32 and below, the lens refraction effect is not available since it requires `RuntimeShader` (API 33+). The fallback draws a visible lens shape with tint, edge lighting, and color adjustments. For blur effects, use `Modifier.cloudy()` separately.
+> **Note:** On Android 32 and below, the lens refraction effect is not available since it requires `RuntimeShader` (API 33+). The fallback magnifies the content inside the lens by 1.03x and adds tint, edge lighting, and approximate color adjustments. Pass `zoom = 1f` to keep the previous unscaled fallback appearance. For blur effects, use `Modifier.cloudy()` separately.
+
+`zoom` scales the content seen inside the lens around `lensCenter`; it does not scale the lens outline or lighting. Values below 1 zoom out and may expose transparent pixels outside the content bounds. Like the other lens effects, it transforms the modifier's own content, so keep foreground labels and controls in a separate layer if they should stay unscaled.
 
 ### Platform Support (Liquid Glass)
 
 | Platform | Implementation | Features |
 |----------|----------------|----------|
 | Android 33+ | RuntimeShader (AGSL) | Full effect |
-| Android 32- | Fallback | Tint + edge + shape (no lens refraction) |
+| Android 32- | Fallback | Zoom + tint + edge + shape (no lens refraction) |
 | iOS | Skia RuntimeEffect | Full effect |
 | macOS | Skia RuntimeEffect | Full effect |
 | Desktop (JVM) | Skia RuntimeEffect | Full effect |

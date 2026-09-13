@@ -17,6 +17,7 @@
 
 package demo.screen
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
@@ -39,6 +40,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -51,6 +53,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
@@ -94,6 +97,9 @@ fun LiquidGlassDemoScreen(onBackClick: () -> Unit) {
   var saturation by remember { mutableFloatStateOf(1.0f) }
   var dispersion by remember { mutableFloatStateOf(0.0f) }
 
+  var zoom by remember { mutableFloatStateOf(LiquidGlassDefaults.ZOOM) }
+  var testPattern by remember { mutableStateOf(false) }
+
   // Lens position
   var lensCenter by remember { mutableStateOf(Offset.Zero) }
 
@@ -131,6 +137,33 @@ fun LiquidGlassDemoScreen(onBackClick: () -> Unit) {
               color = MaterialTheme.colorScheme.onSurface,
             )
 
+            Row(verticalAlignment = Alignment.CenterVertically) {
+              Text("Zoom", fontWeight = FontWeight.Medium)
+              listOf(
+                "Auto" to 0f,
+                "1x" to 1f,
+                "1.03x" to 1.03f,
+                "1.2x" to 1.2f,
+              ).forEach { (label, value) ->
+                TextButton(onClick = { zoom = value }) {
+                  Text(
+                    label,
+                    fontWeight = if (zoom ==
+                      value
+                    ) {
+                      FontWeight.Bold
+                    } else {
+                      FontWeight.Normal
+                    },
+                  )
+                }
+              }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+              Text("Test pattern", modifier = Modifier.weight(1f))
+              Switch(checked = testPattern, onCheckedChange = { testPattern = it })
+            }
+
             Spacer(modifier = Modifier.height(Dimens.contentPadding))
 
             Box(
@@ -154,7 +187,7 @@ fun LiquidGlassDemoScreen(onBackClick: () -> Unit) {
                   )
                 }
                 // Cloudy blur - independent modifier with full Cloudy API
-                .cloudy(radius = blurRadius)
+                .cloudy(radius = if (testPattern) 0 else blurRadius)
                 // Liquid Glass lens effect - separate from blur
                 .liquidGlass(
                   lensCenter = lensCenter,
@@ -165,16 +198,21 @@ fun LiquidGlassDemoScreen(onBackClick: () -> Unit) {
                   edge = edge,
                   saturation = saturation,
                   dispersion = dispersion,
+                  zoom = zoom,
                   light = if (gyroEnabled) gyroLight else LiquidGlassDefaults.Light,
                 ),
             ) {
-              CoilImage(
-                modifier = Modifier.fillMaxSize(),
-                imageModel = { poster.image },
-                imageOptions = ImageOptions(
-                  contentScale = ContentScale.Crop,
-                ),
-              )
+              if (testPattern) {
+                GlassZoomPattern()
+              } else {
+                CoilImage(
+                  modifier = Modifier.fillMaxSize(),
+                  imageModel = { poster.image },
+                  imageOptions = ImageOptions(
+                    contentScale = ContentScale.Crop,
+                  ),
+                )
+              }
             }
           }
         }
@@ -370,5 +408,32 @@ private fun ParameterSlider(
       modifier = Modifier.width(48.dp),
       textAlign = TextAlign.End,
     )
+  }
+}
+
+/** Local pattern makes small magnification visible without a network image or blur. */
+@Composable
+private fun GlassZoomPattern() {
+  Canvas(modifier = Modifier.fillMaxSize()) {
+    drawRect(Color(0xFF10243A))
+    val cell = size.width / 12f
+    for (column in 0..12) {
+      drawLine(
+        color = Color(0xFF71BDD9),
+        start = Offset(column * cell, 0f),
+        end = Offset(column * cell, size.height),
+        strokeWidth = 2f,
+      )
+    }
+    for (row in 0..(size.height / cell).toInt()) {
+      drawLine(
+        color = Color(0xFF71BDD9),
+        start = Offset(0f, row * cell),
+        end = Offset(size.width, row * cell),
+        strokeWidth = 2f,
+      )
+    }
+    drawCircle(Color(0xFFFFBC55), radius = cell * 0.35f, center = center - Offset(cell, 0f))
+    drawCircle(Color(0xFFFF6D84), radius = cell * 0.35f, center = center + Offset(cell, 0f))
   }
 }

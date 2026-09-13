@@ -88,6 +88,7 @@ fun ApiLiquidGlassScreen() {
           light: LiquidGlassLight = LiquidGlassDefaults.Light,
           glow: LiquidGlassGlow = LiquidGlassDefaults.Glow,
           enabled: Boolean = true,
+          zoom: Float = LiquidGlassDefaults.ZOOM,
         ): Modifier
       """,
     )
@@ -284,6 +285,11 @@ private fun LiquidGlassParameterTable() {
       "glow",
       "LiquidGlassGlow",
       "Glint tuning: intensity (brightness) and sharpness (focus).",
+    )
+    LiquidGlassParamRow(
+      "zoom",
+      "Float",
+      "Lens-centered magnification. 0 = auto (1.03x on Android 23–32, 1x elsewhere); 1 = no zoom.",
     )
     LiquidGlassParamRow("enabled", "Boolean", "If false, disables the effect.")
   }
