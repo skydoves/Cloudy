@@ -45,7 +45,8 @@ Cloudy ships four independent effects you can mix and match on any composable �
   - [Mirage](#mirage)
 - **Part II — Going further**
   - [Motion-driven light sources](#motion-driven-light-sources)
-  - [Authoring your own Mirage optic](#authoring-your-own-mirage-optic)
+  - [Authoring your own Mirage shader](#authoring-your-own-mirage-shader)
+  - [Mirage naming migration](#mirage-naming-migration)
   - [Blur effect with network images](#blur-effect-with-network-images)
 - [Acknowledgements](#acknowledgements)
 - [License](#license)
@@ -464,7 +465,7 @@ You can customize the liquid glass effect with various parameters:
 
 ## Mirage
 
-`Modifier.mirage { }` applies an **open shader-effect plan** to any composable: one modifier runs a plan of typed `Optic`s — either the bundled looks or optics you author yourself — against the content it wraps. It ships a family of thin-film / specular presets, and because an optic is just a kernel plus a typed uniform schema, consumers can add new effects without any library change.
+`Modifier.mirage { }` applies an **open shader-effect plan** to any composable: one modifier runs a plan of typed `MirageShader`s — either the bundled looks or shaders you author yourself — against the content it wraps. It ships a family of thin-film / specular presets, and because a shader is just a kernel plus a typed uniform schema, consumers can add new effects without any library change.
 
 Mirage is behind an experimental opt-in and is excluded from the stable ABI while its surface settles:
 
@@ -476,7 +477,7 @@ fun Poster() { /* ... */ }
 
 ### Basic Usage
 
-Apply a preset by declaring a `filter` in the plan. Lens-shaped optics read a `lensCenter` (in the content's local pixels); it defaults to the content origin, so seed the pane center for a centered lens:
+Apply a preset by declaring a `filter` in the plan. Lens-shaped shaders read a `lensCenter` (in the content's local pixels); it defaults to the content origin, so seed the pane center for a centered lens:
 
 ```kotlin
 var lensCenter by remember { mutableStateOf(Offset.Zero) }
@@ -485,7 +486,7 @@ Box(
   modifier = Modifier
     .onSizeChanged { lensCenter = Offset(it.width / 2f, it.height / 2f) }
     .mirage {
-      filter(MirageOptics.Specular) {
+      filter(MirageShaders.Specular) {
         lensCenter(lensCenter)
         lensSize(Size(520f, 520f))
         cornerRadius(120f)
@@ -498,7 +499,7 @@ Box(
 
 ### Presets
 
-The bundled optics live in `MirageOptics`:
+The bundled shaders live in `MirageShaders`:
 
 | Preset | Kind | Look |
 |--------|------|------|
@@ -515,7 +516,7 @@ The five thin-film looks (`Chromatic` and friends) are one kernel expressed at d
 
 ### Clock
 
-`Modifier.mirage(clock = …)` controls the `mirageTime` uniform that time-driven optics (e.g. `Foil`'s sparkle) read:
+`Modifier.mirage(clock = …)` controls the `mirageTime` uniform that time-driven shaders (e.g. `Foil`'s sparkle) read:
 
 - `MirageClock.Auto` (default) — advances `mirageTime` from the frame loop.
 - `MirageClock.Paused` — freezes it at the last value.
@@ -527,8 +528,8 @@ An `overlay` composites a content-free generator on top of the filtered result u
 
 ```kotlin
 Modifier.mirage {
-  filter(MirageOptics.OilSlick) { lensCenter(center); lensSize(size); cornerRadius(120f) }
-  overlay(MirageOptics.Foil) { lensCenter(center); lensSize(size); cornerRadius(120f) }
+  filter(MirageShaders.OilSlick) { lensCenter(center); lensSize(size); cornerRadius(120f) }
+  overlay(MirageShaders.Foil) { lensCenter(center); lensSize(size); cornerRadius(120f) }
 }
 ```
 
@@ -540,11 +541,11 @@ Modifier.mirage {
 | Android 32- | — | Each stage is skipped; content passes through unchanged |
 | iOS / macOS / Desktop (JVM) / WASM | Skia RuntimeEffect (SKSL) | Full effect |
 
-> Want to write your own preset instead of using the bundled ones? See [Authoring your own Mirage optic](#authoring-your-own-mirage-optic) in Part II.
+> Want to write your own preset instead of using the bundled ones? See [Authoring your own Mirage shader](#authoring-your-own-mirage-shader) in Part II.
 
 # Part II — Going further
 
-The topics below extend an effect from Part I — an opt-in motion source for Liquid Glass, writing a custom Mirage optic, and using Cloudy with a network image loader. Read these once the basics above are working.
+The topics below extend an effect from Part I — an opt-in motion source for Liquid Glass, writing a custom Mirage shader, and using Cloudy with a network image loader. Read these once the basics above are working.
 
 ## Motion-driven light sources
 
@@ -600,20 +601,20 @@ The rotations are read as lambdas (deferred reads) so per-frame updates invalida
 
 The `glow` parameter tunes the specular glint with two perceptual knobs: `intensity` (brightness) and `sharpness` (focus). Build one with the `LiquidGlassGlow(intensity = …, sharpness = …)` factory, or use `LiquidGlassDefaults.NoGlow` to switch the glint off. The full set of shader tunables — `glowRimMix` and `glowWidthPx`, alongside `glowIntensity` / `glowSharpness` — lives on the experimental `Modifier.liquidGlassTuned` overload, intended for live experimentation rather than the committed API surface.
 
-## Authoring your own Mirage optic
+## Authoring your own Mirage shader
 
 *Extends: [Mirage](#mirage)*
 
-An optic is a kernel plus a `MirageParams` subclass whose property names are the shader uniform identifiers. A `composite` optic authors a full `half4 main(float2 xy)` and samples the content through the compiler-provided `content` shader:
+A shader is a kernel plus a `ShaderUniforms` subclass whose property names are the shader uniform identifiers. A `composite` shader authors a full `half4 main(float2 xy)` and samples the content through the compiler-provided `content` shader:
 
 ```kotlin
-class VignetteParams : MirageParams() {
+class VignetteUniforms : ShaderUniforms() {
   val strength by uniform(0.6f)
 }
 
-val Vignette = Optic.composite(
+val Vignette = MirageShader.composite(
   name = "vignette",
-  paramsFactory = ::VignetteParams,
+  uniformsFactory = ::VignetteUniforms,
   agsl = VIGNETTE_SRC,
   sksl = VIGNETTE_SRC, // AGSL and SKSL are the same text here
 )
@@ -631,7 +632,24 @@ half4 main(float2 xy) {
 
 Apply it exactly like a preset: `Modifier.mirage { filter(Vignette) { strength(0.8f) } }`.
 
-The other factories are `Optic.colorize` (a point-wise `half4 kernel(float2 p, half4 src)` that never reaches `content` directly), `Optic.generate` (a content-free overlay), and `Optic.raw` (an escape hatch that emits your source verbatim). The compiler declares the standard uniforms (`mirageResolution` / `mirageTime` / `mirageDensity`) only when the kernel references them, and rejects kernels that use derivative builtins, preprocessor directives, or the raw fragment-coord builtin (none of which compile as a runtime shader).
+The other factories are `MirageShader.colorize` (a point-wise `half4 kernel(float2 p, half4 src)` that never reaches `content` directly), `MirageShader.generate` (a content-free overlay), and `MirageShader.raw` (an escape hatch that emits your source verbatim). The compiler declares the standard uniforms (`mirageResolution` / `mirageTime` / `mirageDensity`) only when the kernel references them, and rejects kernels that use derivative builtins, preprocessor directives, or the raw fragment-coord builtin (none of which compile as a runtime shader).
+
+## Mirage naming migration
+
+The experimental Mirage API now uses shader and uniform terminology. Update imports and call sites, then recompile consumers.
+
+| Previous name | Current name |
+| --- | --- |
+| `MirageOptics` | `MirageShaders` |
+| `RainyWindowOptic` | `RainyWindowShader` |
+| `MirageParams`, preset `*Params` | `ShaderUniforms`, preset `*Uniforms` |
+| `paramsFactory`, modifier `params` argument | `uniformsFactory`, `uniforms` |
+| `UFloat`, `UOffset`, `USize` | `UniformFloat`, `UniformOffset`, `UniformSize` |
+| `UInt1`, `UVec3`, `UVec4` | `UniformInt1`, `UniformVec3`, `UniformVec4` |
+| `UFloatArray`, `UColor`, `UTexture` | `UniformFloatArray`, `UniformColor`, `UniformTexture` |
+| `UBool` | `Bool` |
+
+`UniformInt1` retains the scalar suffix and represents a signed integer. `Bool` represents a shader expression; the `Uniform` prefix is reserved for uniform handles. `lensCenter` and `lensSize` retain their names.
 
 ## Blur effect with network images
 
