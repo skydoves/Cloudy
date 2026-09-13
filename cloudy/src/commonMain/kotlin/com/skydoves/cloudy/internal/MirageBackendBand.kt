@@ -16,7 +16,7 @@
 package com.skydoves.cloudy.internal
 
 /**
- * Which Android backend an optic runs on, chosen once per program build from the running SDK level.
+ * Which Android backend a shader runs on, chosen once per program build from the running SDK level.
  * A pure function of the SDK int (no framework types), so [resolve] is unit-testable off-device; the
  * android backend actual maps each band to a [Dialect] and a concrete program (or `null` = no-op).
  *
@@ -30,8 +30,8 @@ internal enum class MirageBackendBand {
   Gles,
 
   /**
-   * API 23-28 : no runtime shader available. A Colorize optic is reproduced with a `ColorMatrix`
-   * grade; any other optic is a no-op (the caller may draw a user-supplied fallback instead).
+   * API 23-28 : no runtime shader available. A Colorize shader is reproduced with a `ColorMatrix`
+   * grade; any other shader is a no-op (the caller may draw a user-supplied fallback instead).
    */
   ColorGrade,
 

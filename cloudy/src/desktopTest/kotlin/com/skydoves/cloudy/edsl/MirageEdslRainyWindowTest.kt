@@ -18,7 +18,7 @@
 package com.skydoves.cloudy.edsl
 
 import com.skydoves.cloudy.ExperimentalMirage
-import com.skydoves.cloudy.RainyWindowOptic
+import com.skydoves.cloudy.RainyWindowShader
 import com.skydoves.cloudy.internal.Dialect
 import com.skydoves.cloudy.internal.MirageProgramCache
 import io.kotest.core.spec.style.FunSpec
@@ -31,7 +31,7 @@ import org.jetbrains.skia.Shader
 private const val RASTER = 64
 
 /**
- * Raster-parity gate for [RainyWindowOptic.RainyWindow] — the "Heartfelt" rain-on-glass kernel ported
+ * Raster-parity gate for [RainyWindowShader.RainyWindow] — the "Heartfelt" rain-on-glass kernel ported
  * through the eDSL. It is the widest port so far: six helper functions (three single-expression, three
  * statement-body with mutable locals), a `mirageResolution` standard uniform, and a bilinear `wipeMask`
  * texture read via [SampleTexture] (four un-merged taps). Proves the eDSL-traced + program-cache-compiled
@@ -58,7 +58,7 @@ internal class MirageEdslRainyWindowTest :
 
 private fun buildEdslRainyWindowShader(): Shader {
   val cached =
-    MirageProgramCache.obtain(RainyWindowOptic.RainyWindow, Dialect.Sksl).shouldNotBeNull()
+    MirageProgramCache.obtain(RainyWindowShader.RainyWindow, Dialect.Sksl).shouldNotBeNull()
   return bindRainyWindowUniforms(
     RuntimeShaderBuilder(RuntimeEffect.makeForShader(cached.compiled.source)),
   )

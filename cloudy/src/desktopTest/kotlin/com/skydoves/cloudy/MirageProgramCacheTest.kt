@@ -35,8 +35,8 @@ import io.kotest.matchers.types.shouldNotBeSameInstanceAs
 private fun gainDefaultOf(program: CachedProgram): Float =
   program.compiled.schema.entries.first { it.name == "chromaticGain" }.default as Float
 
-/** Params for the Duotone Colorize shader: two colors plus a blend amount. */
-private class CacheDuotoneParams : MirageParams() {
+/** Uniforms for the Duotone Colorize shader: two colors plus a blend amount. */
+private class CacheDuotoneUniforms : ShaderUniforms() {
   val shadow by uniformColor(Color(0xFF1B1B3A))
   val highlight by uniformColor(Color(0xFFFFC371))
   val amount by uniform(1f)
@@ -59,7 +59,7 @@ internal class MirageProgramCacheTest :
     test("obtain compiles a backend program on skiko") {
       val shader = MirageShader.colorize(
         name = "duotone",
-        paramsFactory = ::CacheDuotoneParams,
+        uniformsFactory = ::CacheDuotoneUniforms,
         agsl = DUOTONE_KERNEL_AGSL,
         sksl = DUOTONE_KERNEL_SKSL,
       )
@@ -77,13 +77,13 @@ internal class MirageProgramCacheTest :
       // to byte-identical source and must hit the same backend cache slot.
       val first = MirageShader.colorize(
         name = "duotone",
-        paramsFactory = ::CacheDuotoneParams,
+        uniformsFactory = ::CacheDuotoneUniforms,
         agsl = DUOTONE_KERNEL_AGSL,
         sksl = DUOTONE_KERNEL_SKSL,
       )
       val second = MirageShader.colorize(
         name = "duotone",
-        paramsFactory = ::CacheDuotoneParams,
+        uniformsFactory = ::CacheDuotoneUniforms,
         agsl = DUOTONE_KERNEL_AGSL,
         sksl = DUOTONE_KERNEL_SKSL,
       )
@@ -98,7 +98,7 @@ internal class MirageProgramCacheTest :
       b.shouldNotBeSameInstanceAs(a)
     }
 
-    // OilSlick and Pearl are the same chromatic kernel at different ChromaticParams defaults, so they
+    // OilSlick and Pearl are the same chromatic kernel at different ChromaticUniforms defaults, so they
     // share one backend but must keep separate schemas: a cache hit must return this shader's own
     // CachedProgram, not the first-compiled one, or every same-source shader would render identically.
     test("same-source shaders keep their own schema defaults over a shared backend") {

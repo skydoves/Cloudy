@@ -23,17 +23,17 @@ import androidx.compose.ui.geometry.isUnspecified
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import com.skydoves.cloudy.ExperimentalMirage
-import com.skydoves.cloudy.MirageLensParams
-import com.skydoves.cloudy.MirageParams
-import com.skydoves.cloudy.UColor
-import com.skydoves.cloudy.UFloat
-import com.skydoves.cloudy.UFloatArray
-import com.skydoves.cloudy.UInt1
-import com.skydoves.cloudy.UOffset
-import com.skydoves.cloudy.USize
-import com.skydoves.cloudy.UTexture
-import com.skydoves.cloudy.UVec3
-import com.skydoves.cloudy.UVec4
+import com.skydoves.cloudy.MirageLensUniforms
+import com.skydoves.cloudy.ShaderUniforms
+import com.skydoves.cloudy.UniformColor
+import com.skydoves.cloudy.UniformFloat
+import com.skydoves.cloudy.UniformFloatArray
+import com.skydoves.cloudy.UniformInt1
+import com.skydoves.cloudy.UniformOffset
+import com.skydoves.cloudy.UniformSize
+import com.skydoves.cloudy.UniformTexture
+import com.skydoves.cloudy.UniformVec3
+import com.skydoves.cloudy.UniformVec4
 
 /**
  * Standard uniform names the compiler emits on demand. A node binds each one only when the compiled
@@ -48,20 +48,20 @@ internal const val STD_TIME = "mirageTime"
 internal const val STD_DENSITY = "mirageDensity"
 
 /**
- * Resets each handle to its declared default, runs the caller's per-draw [paramsBlock], then pushes
+ * Resets each handle to its declared default, runs the caller's per-draw [uniformsBlock], then pushes
  * the standard uniforms + every schema slot through the sink in declaration order. A pure function of
- * (cached, params, block, w, h, density, time) — no clock, no lifecycle — so both mirage nodes share
+ * (cached, uniforms, block, w, h, density, time) — no clock, no lifecycle — so both mirage nodes share
  * it as the `bind` closure they hand to [MirageFilterChain].
  *
- * The shared [MirageLensParams] framing auto-resolves here: a `lensCenter` / `lensSize` still
- * unspecified after [paramsBlock] binds as the node's center / full size (the only place both the
+ * The shared [MirageLensUniforms] framing auto-resolves here: a `lensCenter` / `lensSize` still
+ * unspecified after [uniformsBlock] binds as the node's center / full size (the only place both the
  * final values and the canvas size are in scope). Only those two handles get the substitution — every
  * other Offset/Size uniform must be specified.
  */
 internal fun bindUniforms(
   cached: CachedProgram,
-  params: MirageParams,
-  paramsBlock: (MirageParams.() -> Unit)?,
+  uniforms: ShaderUniforms,
+  uniformsBlock: (ShaderUniforms.() -> Unit)?,
   width: Float,
   height: Float,
   density: Float,
@@ -69,8 +69,8 @@ internal fun bindUniforms(
 ): Unit = bindUniformsInto(
   cached.backend.uniformSink(),
   cached,
-  params,
-  paramsBlock,
+  uniforms,
+  uniformsBlock,
   width,
   height,
   density,
@@ -85,8 +85,8 @@ internal fun bindUniforms(
 internal fun bindUniformsInto(
   sink: UniformSink,
   cached: CachedProgram,
-  params: MirageParams,
-  paramsBlock: (MirageParams.() -> Unit)?,
+  uniforms: ShaderUniforms,
+  uniformsBlock: (ShaderUniforms.() -> Unit)?,
   width: Float,
   height: Float,
   density: Float,
@@ -94,8 +94,8 @@ internal fun bindUniformsInto(
 ) {
   // Reset to defaults so a value written on a previous draw does not leak when this draw's block
   // leaves it unset — the schema's declared default is the single source of truth per draw.
-  resetToDefaults(params, cached.compiled.schema)
-  paramsBlock?.invoke(params)
+  resetToDefaults(uniforms, cached.compiled.schema)
+  uniformsBlock?.invoke(uniforms)
 
   // Standard uniforms first, each gated on whether the compiled kernel declared it: Android's
   // RuntimeShader throws on a write to an undeclared uniform name.
@@ -106,76 +106,76 @@ internal fun bindUniformsInto(
 
   // Non-null only for lens-shaped shaders; identity-compared below against this specific instance's
   // lensCenter/lensSize handles.
-  val lensParams = params as? MirageLensParams
+  val lensUniforms = uniforms as? MirageLensUniforms
 
-  // Schema uniforms in declaration (= bind) order: the params' live handles and the compiled schema
+  // Schema uniforms in declaration (= bind) order: the uniforms' live handles and the compiled schema
   // entries share the same slot index, so entries[handle.slot] names each write.
   val entries = cached.compiled.schema.entries
-  for (handle in params.handles) {
+  for (handle in uniforms.handles) {
     val name = entries[handle.slot].name
     when (handle) {
-      is UFloat -> sink.float(name, handle.value)
+      is UniformFloat -> sink.float(name, handle.value)
 
-      is UOffset -> {
+      is UniformOffset -> {
         // Identity (not type) match: an unrelated Offset uniform on a custom shader must never fall
         // into the auto-frame substitution just because it happens to be left Unspecified too.
         val value = handle.value
-        if (value.isUnspecified && handle === lensParams?.lensCenter) {
+        if (value.isUnspecified && handle === lensUniforms?.lensCenter) {
           sink.float2(name, width * 0.5f, height * 0.5f)
         } else {
           sink.float2(name, value.x, value.y)
         }
       }
 
-      is USize -> {
+      is UniformSize -> {
         val value = handle.value
-        if (value.isUnspecified && handle === lensParams?.lensSize) {
+        if (value.isUnspecified && handle === lensUniforms?.lensSize) {
           sink.float2(name, width, height)
         } else {
           sink.float2(name, value.width, value.height)
         }
       }
 
-      is UInt1 -> sink.int(name, handle.value)
+      is UniformInt1 -> sink.int(name, handle.value)
 
-      is UVec3 -> sink.floatArray(name, handle.value)
+      is UniformVec3 -> sink.floatArray(name, handle.value)
 
-      is UVec4 -> sink.floatArray(name, handle.value)
+      is UniformVec4 -> sink.floatArray(name, handle.value)
 
-      is UFloatArray -> sink.floatArray(name, handle.value)
+      is UniformFloatArray -> sink.floatArray(name, handle.value)
 
-      is UColor -> sink.color(name, handle.value)
+      is UniformColor -> sink.color(name, handle.value)
 
-      is UTexture -> sink.texture(name, handle.value, handle.tileMode)
+      is UniformTexture -> sink.texture(name, handle.value, handle.tileMode)
     }
   }
 }
 
 /**
- * Resets each handle on [params] back to the declared default from its schema entry, so an unset
+ * Resets each handle on [uniforms] back to the declared default from its schema entry, so an unset
  * uniform this draw re-uses its default rather than a stale prior-draw value.
  */
-internal fun resetToDefaults(params: MirageParams, schema: UniformSchema) {
-  for (handle in params.handles) {
+internal fun resetToDefaults(uniforms: ShaderUniforms, schema: UniformSchema) {
+  for (handle in uniforms.handles) {
     val default = schema.entries[handle.slot].default
     when (handle) {
-      is UFloat -> handle.value = default as Float
+      is UniformFloat -> handle.value = default as Float
 
-      is UOffset -> handle.value = default as Offset
+      is UniformOffset -> handle.value = default as Offset
 
-      is USize -> handle.value = default as Size
+      is UniformSize -> handle.value = default as Size
 
-      is UInt1 -> handle.value = default as Int
+      is UniformInt1 -> handle.value = default as Int
 
-      is UVec3 -> handle.value = (default as FloatArray).copyOf()
+      is UniformVec3 -> handle.value = (default as FloatArray).copyOf()
 
-      is UVec4 -> handle.value = (default as FloatArray).copyOf()
+      is UniformVec4 -> handle.value = (default as FloatArray).copyOf()
 
-      is UFloatArray -> handle.value = (default as FloatArray).copyOf()
+      is UniformFloatArray -> handle.value = (default as FloatArray).copyOf()
 
-      is UColor -> handle.value = default as Color
+      is UniformColor -> handle.value = default as Color
 
-      is UTexture -> {
+      is UniformTexture -> {
         @Suppress("UNCHECKED_CAST")
         handle.value = default as ImageBitmap?
       }

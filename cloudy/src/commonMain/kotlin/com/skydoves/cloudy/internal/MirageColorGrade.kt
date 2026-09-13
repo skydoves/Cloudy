@@ -19,15 +19,15 @@ package com.skydoves.cloudy.internal
 
 import androidx.compose.ui.graphics.Color
 import com.skydoves.cloudy.ExperimentalMirage
-import com.skydoves.cloudy.MirageParams
-import com.skydoves.cloudy.UColor
-import com.skydoves.cloudy.UFloat
+import com.skydoves.cloudy.ShaderUniforms
+import com.skydoves.cloudy.UniformColor
+import com.skydoves.cloudy.UniformFloat
 
 /*
- * Below API 33 there is no `RuntimeShader`, so a lens optic cannot run. The one built-in Colorize
- * optic — Duotone — is nonetheless a **pure affine transform of the source pixel**, so it can be
+ * Below API 33 there is no `RuntimeShader`, so a lens shader cannot run. The one built-in Colorize
+ * shader — Duotone — is nonetheless a **pure affine transform of the source pixel**, so it can be
  * reproduced exactly with a 4x5 color matrix (the thing a `ColorMatrixColorFilter` runs, available on
- * every API). This file derives that matrix from the optic's schema defaults; the Android ColorGrade
+ * every API). This file derives that matrix from the shader's schema defaults; the Android ColorGrade
  * backend turns it into a `ColorMatrixColorFilter`.
  *
  * ## Why this is exact
@@ -51,7 +51,7 @@ import com.skydoves.cloudy.UFloat
 /** BT.709 luma weights — must match the `dot(src.rgb, half3(...))` in the Duotone kernel. */
 private val LUMA = floatArrayOf(0.2126f, 0.7152f, 0.0722f)
 
-/** Schema-entry names of the Duotone params. A Colorize optic with exactly these is reproducible. */
+/** Schema-entry names of the Duotone uniforms. A Colorize shader with exactly these is reproducible. */
 private const val NAME_SHADOW = "shadow"
 private const val NAME_HIGHLIGHT = "highlight"
 private const val NAME_AMOUNT = "amount"
@@ -59,7 +59,7 @@ private const val NAME_AMOUNT = "amount"
 /**
  * Whether [compiled] is a reproducible affine Duotone Colorize (category Colorize + `shadow`/
  * `highlight` color uniforms + a `float amount`). Only then can the ColorGrade band stand in for it
- * below API 33; any other optic's kernel is not affine and stays a no-op.
+ * below API 33; any other shader's kernel is not affine and stays a no-op.
  */
 internal fun isColorGradeReproducible(compiled: CompiledProgram): Boolean {
   if (compiled.category != ShaderCategory.Colorize) return false
@@ -72,20 +72,20 @@ internal fun isColorGradeReproducible(compiled: CompiledProgram): Boolean {
 /**
  * Builds the 4x5 row-major color matrix (android.graphics.ColorMatrix layout: rows R,G,B,A; cols
  * R,G,B,A,offset — offset column in 0..255 scale) reproducing the Duotone grade from the **current**
- * `shadow`/`highlight`/`amount` values in [params] (per-draw, so a `filter(Duotone){ shadow(Red) }`
+ * `shadow`/`highlight`/`amount` values in [uniforms] (per-draw, so a `filter(Duotone){ shadow(Red) }`
  * override is honored, matching 33+/skiko). Falls back to the schema default for any value the draw's
- * block left unset — the params were reset to defaults before the block ran.
+ * block left unset — the uniforms were reset to defaults before the block ran.
  */
-internal fun colorGradeMatrixOf(compiled: CompiledProgram, params: MirageParams): FloatArray {
+internal fun colorGradeMatrixOf(compiled: CompiledProgram, uniforms: ShaderUniforms): FloatArray {
   val entries = compiled.schema.entries
   var shadow = Color(0f, 0f, 0f)
   var highlight = Color(1f, 1f, 1f)
   var amount = 1f
-  for (handle in params.handles) {
+  for (handle in uniforms.handles) {
     when (entries[handle.slot].name) {
-      NAME_SHADOW -> (handle as? UColor)?.let { shadow = it.value }
-      NAME_HIGHLIGHT -> (handle as? UColor)?.let { highlight = it.value }
-      NAME_AMOUNT -> (handle as? UFloat)?.let { amount = it.value }
+      NAME_SHADOW -> (handle as? UniformColor)?.let { shadow = it.value }
+      NAME_HIGHLIGHT -> (handle as? UniformColor)?.let { highlight = it.value }
+      NAME_AMOUNT -> (handle as? UniformFloat)?.let { amount = it.value }
     }
   }
   return duotoneMatrix(shadow, highlight, amount)

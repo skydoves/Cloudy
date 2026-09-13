@@ -34,15 +34,15 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotContain
 
-/** Params for the Duotone demo Colorize shader: two colors plus a blend amount. */
-private class CompilerDuotoneParams : MirageParams() {
+/** Uniforms for the Duotone demo Colorize shader: two colors plus a blend amount. */
+private class CompilerDuotoneUniforms : ShaderUniforms() {
   val shadow by uniformColor(Color(0xFF1B1B3A))
   val highlight by uniformColor(Color(0xFFFFC371))
   val amount by uniform(1f)
 }
 
-/** Empty params, for kernels that declare no schema uniforms. */
-private class EmptyParams : MirageParams()
+/** Empty uniforms, for kernels that declare no schema uniforms. */
+private class EmptyUniforms : ShaderUniforms()
 
 /**
  * Unit tests for [MirageCompiler] — the pure, device-free codegen layer.
@@ -59,7 +59,7 @@ internal class MirageCompilerTest :
       test("wraps the kernel in a content-sampling main") {
         val shader = MirageShader.colorize(
           name = "duotone",
-          paramsFactory = ::CompilerDuotoneParams,
+          uniformsFactory = ::CompilerDuotoneUniforms,
           agsl = DUOTONE_KERNEL_AGSL,
           sksl = DUOTONE_KERNEL_SKSL,
         )
@@ -78,7 +78,7 @@ internal class MirageCompilerTest :
       test("emits one declaration per schema entry in declaration order") {
         val shader = MirageShader.colorize(
           name = "duotone",
-          paramsFactory = ::CompilerDuotoneParams,
+          uniformsFactory = ::CompilerDuotoneUniforms,
           agsl = DUOTONE_KERNEL_AGSL,
           sksl = DUOTONE_KERNEL_SKSL,
         )
@@ -96,7 +96,7 @@ internal class MirageCompilerTest :
       test("does not prepend the lens preamble (point-wise kernels need no helpers)") {
         val shader = MirageShader.colorize(
           name = "duotone",
-          paramsFactory = ::CompilerDuotoneParams,
+          uniformsFactory = ::CompilerDuotoneUniforms,
           agsl = DUOTONE_KERNEL_AGSL,
           sksl = DUOTONE_KERNEL_SKSL,
         )
@@ -115,7 +115,7 @@ internal class MirageCompilerTest :
         """.trimIndent()
         val shader = MirageShader.composite(
           name = "c",
-          paramsFactory = ::EmptyParams,
+          uniformsFactory = ::EmptyUniforms,
           agsl = kernel,
           sksl = kernel,
         )
@@ -141,7 +141,7 @@ internal class MirageCompilerTest :
         """.trimIndent()
         val shader = MirageShader.generate(
           name = "g",
-          paramsFactory = ::EmptyParams,
+          uniformsFactory = ::EmptyUniforms,
           agsl = kernel,
           sksl = kernel,
         )
@@ -165,11 +165,11 @@ internal class MirageCompilerTest :
         """.trimIndent()
 
         val timed = MirageCompiler.compile(
-          MirageShader.generate("t", ::EmptyParams, withTime, withTime),
+          MirageShader.generate("t", ::EmptyUniforms, withTime, withTime),
           Dialect.Agsl,
         )
         val untimed = MirageCompiler.compile(
-          MirageShader.generate("u", ::EmptyParams, withoutTime, withoutTime),
+          MirageShader.generate("u", ::EmptyUniforms, withoutTime, withoutTime),
           Dialect.Agsl,
         )
 
@@ -188,7 +188,7 @@ internal class MirageCompilerTest :
         """.trimIndent()
 
         val program = MirageCompiler.compile(
-          MirageShader.generate("r", ::EmptyParams, kernel, kernel),
+          MirageShader.generate("r", ::EmptyUniforms, kernel, kernel),
           Dialect.Agsl,
         )
 
@@ -208,7 +208,7 @@ internal class MirageCompilerTest :
         """.trimIndent()
 
         val program = MirageCompiler.compile(
-          MirageShader.generate("shadowed", ::EmptyParams, kernel, kernel),
+          MirageShader.generate("shadowed", ::EmptyUniforms, kernel, kernel),
           Dialect.Agsl,
         )
 
@@ -222,7 +222,7 @@ internal class MirageCompilerTest :
       test("a kernel that names no standard uniform reports every uses* flag false") {
         val shader = MirageShader.colorize(
           name = "duotone",
-          paramsFactory = ::CompilerDuotoneParams,
+          uniformsFactory = ::CompilerDuotoneUniforms,
           agsl = DUOTONE_KERNEL_AGSL,
           sksl = DUOTONE_KERNEL_SKSL,
         )
@@ -246,7 +246,7 @@ internal class MirageCompilerTest :
         """.trimIndent()
         val shader = MirageShader.raw(
           name = "raw",
-          paramsFactory = ::EmptyParams,
+          uniformsFactory = ::EmptyUniforms,
           agsl = fullSource,
           sksl = fullSource,
         )
@@ -266,7 +266,7 @@ internal class MirageCompilerTest :
         val fullSource = """
           half4 main(float2 xy) { float e = fwidth(xy.x); return half4(half(e)); }
         """.trimIndent()
-        val shader = MirageShader.raw("raw", ::EmptyParams, fullSource, fullSource)
+        val shader = MirageShader.raw("raw", ::EmptyUniforms, fullSource, fullSource)
 
         shouldNotThrowAny { MirageCompiler.compile(shader, Dialect.Agsl) }
       }

@@ -18,8 +18,8 @@
 package com.skydoves.cloudy.edsl
 
 import com.skydoves.cloudy.ExperimentalMirage
-import com.skydoves.cloudy.MirageParams
 import com.skydoves.cloudy.MirageShader
+import com.skydoves.cloudy.ShaderUniforms
 import com.skydoves.cloudy.internal.Dialect
 import com.skydoves.cloudy.internal.MirageProgramCache
 import io.kotest.assertions.throwables.shouldThrow
@@ -35,12 +35,12 @@ private const val RASTER = 32
 
 private val WEIGHTS = floatArrayOf(0.4f, 0.3f, 0.2f, 0.1f)
 
-private class ArrayWeightParams : MirageParams() {
+private class ArrayWeightUniforms : ShaderUniforms() {
   val weights by uniform(WEIGHTS)
 }
 
 /**
- * Constant-index reads of a `float[N]` uniform ([UFloatArray.get]). The subscript is a Kotlin `Int`
+ * Constant-index reads of a `float[N]` uniform ([UniformFloatArray.get]). The subscript is a Kotlin `Int`
  * baked in at trace time, so [unroll] walks the whole array with every access constant — checked on
  * the emitted text, proven end-to-end by compiling the full assembled source (array declaration
  * included) through the real skiko [RuntimeEffect] against a hand-written equivalent, and guarded by
@@ -50,7 +50,7 @@ internal class MirageArrayUniformTest :
   FunSpec({
 
     test("unroll reads each element with a constant subscript") {
-      val kernel = MirageShader.composite("arrayRead", ::ArrayWeightParams) { xy ->
+      val kernel = MirageShader.composite("arrayRead", ::ArrayWeightUniforms) { xy ->
         var acc by local(half4(0f))
         unroll(4) { i ->
           acc = acc + sampleContent(xy + float2(i.toFloat() * 2f, 0f)) * half(weights[i])
@@ -63,7 +63,7 @@ internal class MirageArrayUniformTest :
 
     test("an out-of-bounds index fails at trace time") {
       shouldThrow<IllegalArgumentException> {
-        MirageShader.composite("arrayOob", ::ArrayWeightParams) { xy ->
+        MirageShader.composite("arrayOob", ::ArrayWeightUniforms) { xy ->
           sampleContent(xy) * half(weights[4])
         }
       }
@@ -71,16 +71,16 @@ internal class MirageArrayUniformTest :
 
     test("assigning a value of the wrong length fails loudly") {
       shouldThrow<IllegalArgumentException> {
-        ArrayWeightParams().weights(floatArrayOf(1f, 2f))
+        ArrayWeightUniforms().weights(floatArrayOf(1f, 2f))
       }
       // The property setter enforces the same invariant, so a direct write cannot bypass it.
       shouldThrow<IllegalArgumentException> {
-        ArrayWeightParams().weights.value = floatArrayOf(1f, 2f)
+        ArrayWeightUniforms().weights.value = floatArrayOf(1f, 2f)
       }
     }
 
     test("the compiled program declares the array and rasterizes like a hand-written kernel") {
-      val shader = MirageShader.composite("arrayRaster", ::ArrayWeightParams) { xy ->
+      val shader = MirageShader.composite("arrayRaster", ::ArrayWeightUniforms) { xy ->
         var acc by local(half4(0f))
         unroll(4) { i ->
           acc = acc + sampleContent(xy + float2(i.toFloat() * 2f, 0f)) * half(weights[i])

@@ -25,8 +25,8 @@ import io.kotest.matchers.shouldBe
 /**
  * Pins the [MirageShaders] preset defaults.
  *
- * Each preset's look lives entirely in its params' declared defaults, so these are the values a visual
- * regression would move. This test mints a fresh params instance from each shader's `paramsFactory` and
+ * Each preset's look lives entirely in its uniforms' declared defaults, so these are the values a visual
+ * regression would move. This test mints a fresh uniforms instance from each shader's `uniformsFactory` and
  * asserts the handle defaults in lockstep over the typed schema.
  *
  * The `spec*` defaults are cross-checked against the shared `LiquidGlassDefaults.GLOW_*` constants so
@@ -40,23 +40,23 @@ internal class MiragePresetTest :
       // center / full size when bound (see bindUniforms), so a bare preset covers the node it is
       // attached to. A fixed default would pin the lens at the origin and leave the rest of the node
       // as kernel passthrough. cornerRadius / iLight keep the built-in liquid-glass values.
-      fun assertLensDefaults(params: MirageLensParams) {
-        params.lensCenter.value.shouldBe(Offset.Unspecified)
-        params.lensSize.value.shouldBe(Size.Unspecified)
-        params.cornerRadius.value.shouldBe(50f)
-        params.iLight.value.shouldBe(Offset(-1f, -1f))
+      fun assertLensDefaults(uniforms: MirageLensUniforms) {
+        uniforms.lensCenter.value.shouldBe(Offset.Unspecified)
+        uniforms.lensSize.value.shouldBe(Size.Unspecified)
+        uniforms.cornerRadius.value.shouldBe(50f)
+        uniforms.iLight.value.shouldBe(Offset(-1f, -1f))
       }
 
       test("Specular / Chromatic / Foil share the auto lens framing defaults") {
-        assertLensDefaults(MirageShaders.Specular.paramsFactory())
-        assertLensDefaults(MirageShaders.Chromatic.paramsFactory())
-        assertLensDefaults(MirageShaders.Foil.paramsFactory())
+        assertLensDefaults(MirageShaders.Specular.uniformsFactory())
+        assertLensDefaults(MirageShaders.Chromatic.uniformsFactory())
+        assertLensDefaults(MirageShaders.Foil.uniformsFactory())
       }
     }
 
     context("Specular carries the GlowTuning defaults (bit-exact liquid-glass glint)") {
       test("the 11 spec* defaults match the historical GlowTuning values") {
-        val p = MirageShaders.Specular.paramsFactory()
+        val p = MirageShaders.Specular.uniformsFactory()
         p.specStrength.value.shouldBe(LiquidGlassDefaults.GLOW_INTENSITY) // 0.7
         p.specPower.value.shouldBe(LiquidGlassDefaults.GLOW_SHARPNESS) // 10.0
         p.specRimMix.value.shouldBe(0.4f)
@@ -74,7 +74,7 @@ internal class MiragePresetTest :
     context("thin-film looks carry their #124 parameters in lockstep") {
       // (intensity, gain, kRGB, floor, washout, modulate, rimBoost).
       fun assertChromatic(
-        params: ChromaticParams,
+        uniforms: ChromaticUniforms,
         intensity: Float,
         gain: Float,
         krgb: FloatArray,
@@ -83,20 +83,20 @@ internal class MiragePresetTest :
         modulate: Float,
         rimBoost: Float,
       ) {
-        params.chromaticIntensity.value.shouldBe(intensity)
-        params.chromaticGain.value.shouldBe(gain)
-        params.chromaticKRGB.value.toList().shouldBe(krgb.toList())
-        params.chromaticFloor.value.shouldBe(floor)
-        params.chromaticWashout.value.shouldBe(washout)
-        params.chromaticModulate.value.shouldBe(modulate)
-        params.chromaticRimBoost.value.shouldBe(rimBoost)
+        uniforms.chromaticIntensity.value.shouldBe(intensity)
+        uniforms.chromaticGain.value.shouldBe(gain)
+        uniforms.chromaticKRGB.value.toList().shouldBe(krgb.toList())
+        uniforms.chromaticFloor.value.shouldBe(floor)
+        uniforms.chromaticWashout.value.shouldBe(washout)
+        uniforms.chromaticModulate.value.shouldBe(modulate)
+        uniforms.chromaticRimBoost.value.shouldBe(rimBoost)
         // Not a per-look factory argument: every look shares the specular pool framing (0.7).
-        params.chromaticPoolFrac.value.shouldBe(0.7f)
+        uniforms.chromaticPoolFrac.value.shouldBe(0.7f)
       }
 
       test("Chromatic equals the factory defaults (no regression)") {
         assertChromatic(
-          MirageShaders.Chromatic.paramsFactory(),
+          MirageShaders.Chromatic.uniformsFactory(),
           intensity = 0.6f,
           gain = 3.0f,
           krgb = floatArrayOf(1f, 1.18f, 1.42f, 0f),
@@ -109,7 +109,7 @@ internal class MiragePresetTest :
 
       test("OilSlick") {
         assertChromatic(
-          MirageShaders.OilSlick.paramsFactory(),
+          MirageShaders.OilSlick.uniformsFactory(),
           intensity = 0.6f,
           gain = 5.5f,
           krgb = floatArrayOf(1f, 1.30f, 1.72f, 0f),
@@ -122,7 +122,7 @@ internal class MiragePresetTest :
 
       test("SoapBubble") {
         assertChromatic(
-          MirageShaders.SoapBubble.paramsFactory(),
+          MirageShaders.SoapBubble.uniformsFactory(),
           intensity = 0.6f,
           gain = 1.7f,
           krgb = floatArrayOf(1f, 1.11f, 1.26f, 0f),
@@ -135,7 +135,7 @@ internal class MiragePresetTest :
 
       test("MetallicFoil") {
         assertChromatic(
-          MirageShaders.MetallicFoil.paramsFactory(),
+          MirageShaders.MetallicFoil.uniformsFactory(),
           intensity = 0.6f,
           gain = 3.6f,
           krgb = floatArrayOf(1f, 1.26f, 1.62f, 0f),
@@ -148,7 +148,7 @@ internal class MiragePresetTest :
 
       test("Pearl") {
         assertChromatic(
-          MirageShaders.Pearl.paramsFactory(),
+          MirageShaders.Pearl.uniformsFactory(),
           intensity = 0.6f,
           gain = 2.4f,
           krgb = floatArrayOf(1f, 1.07f, 1.18f, 0f),
@@ -162,7 +162,7 @@ internal class MiragePresetTest :
 
     context("Foil overlay defaults carry the recipe-era values") {
       test("the 5 foil/sparkle defaults are in lockstep") {
-        val p = MirageShaders.Foil.paramsFactory()
+        val p = MirageShaders.Foil.uniformsFactory()
         p.foilBands.value.shouldBe(5f)
         p.foilPhase.value.shouldBe(0f)
         p.chromaticGain.value.shouldBe(3.6f)

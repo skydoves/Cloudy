@@ -44,7 +44,7 @@ import kotlin.math.roundToInt
 private const val RASTER = 64
 
 /**
- * Proves the API 23-28 ColorGrade path reproduces the Duotone Colorize optic *exactly*.
+ * Proves the API 23-28 ColorGrade path reproduces the Duotone Colorize shader *exactly*.
  *
  * Below API 33 there is no `RuntimeShader`, so the Android backend reproduces the affine Duotone
  * kernel with a `ColorMatrixColorFilter`. This test derives that same matrix on desktop
@@ -59,43 +59,46 @@ private const val RASTER = 64
 internal class MirageColorGradeRasterTest :
   FunSpec({
 
-    // Build a Duotone params reset to defaults; the .apply receiver is the public DuotoneParams (its
-    // type is never named to avoid the same-package private DuotoneParams in the compiler test).
-    fun duotoneParams() = MirageShaders.Duotone.paramsFactory()
+    // Build a Duotone uniforms reset to defaults; the .apply receiver is the public DuotoneUniforms (its
+    // type is never named to avoid the same-package private DuotoneUniforms in the compiler test).
+    fun duotoneUniforms() = MirageShaders.Duotone.uniformsFactory()
       .apply { resetToDefaults(this, duotoneCompiled().schema) }
 
     test(
       "the Duotone color matrix (schema defaults) reproduces the Duotone kernel pixel-for-pixel",
     ) {
-      val params = duotoneParams()
-      val kernelPixels = renderDuotoneKernel(params)
-      val gradePixels = applyMatrix(colorGradeMatrixOf(duotoneCompiled(), params), contentPixels())
+      val uniforms = duotoneUniforms()
+      val kernelPixels = renderDuotoneKernel(uniforms)
+      val gradePixels =
+        applyMatrix(colorGradeMatrixOf(duotoneCompiled(), uniforms), contentPixels())
 
       // Max per-channel abs diff over the whole raster. Both paths operate on the same sRGB-encoded
       // 0..1 values; the only slack is the final round-to-byte, so <= 1 unit is exact reproduction.
       maxAbsDiff(kernelPixels, gradePixels).shouldBeLessThan(2)
     }
 
-    test("a per-draw params override is honored (matrix tracks the current values, not defaults)") {
-      // The fix for the ColorGrade-ignores-params bug: filter(Duotone){ shadow=Red; amount=0.5 } must
+    test(
+      "a per-draw uniforms override is honored (matrix tracks the current values, not defaults)",
+    ) {
+      // The fix for the ColorGrade-ignores-uniforms bug: filter(Duotone){ shadow=Red; amount=0.5 } must
       // change the grade. Render the kernel and the matrix with the SAME override and compare.
-      val params = duotoneParams().apply {
+      val uniforms = duotoneUniforms().apply {
         shadow(Color.Red)
         highlight(Color.Green)
         amount(0.5f)
       }
-      val kernelPixels = renderDuotoneKernel(params)
-      val matrix = colorGradeMatrixOf(duotoneCompiled(), params)
+      val kernelPixels = renderDuotoneKernel(uniforms)
+      val matrix = colorGradeMatrixOf(duotoneCompiled(), uniforms)
       maxAbsDiff(kernelPixels, applyMatrix(matrix, contentPixels())).shouldBeLessThan(2)
 
       // And it must differ from the default grade — proving the override actually took effect.
       val defaultGrade =
-        applyMatrix(colorGradeMatrixOf(duotoneCompiled(), duotoneParams()), contentPixels())
+        applyMatrix(colorGradeMatrixOf(duotoneCompiled(), duotoneUniforms()), contentPixels())
       meanAbsDiff(applyMatrix(matrix, contentPixels()), defaultGrade).shouldBeGreaterThan(1.0)
     }
 
-    test("a non-Colorize optic is not reproducible (stays a no-op below API 33)") {
-      // A Composite lens optic is not affine, so the ColorGrade path must decline it, which is what
+    test("a non-Colorize shader is not reproducible (stays a no-op below API 33)") {
+      // A Composite lens shader is not affine, so the ColorGrade path must decline it, which is what
       // makes it a no-op / fallback below API 33.
       isColorGradeReproducible(
         MirageProgramCache.obtain(MirageShaders.Chromatic, Dialect.Sksl).shouldNotBeNull().compiled,
@@ -105,7 +108,7 @@ internal class MirageColorGradeRasterTest :
 
     test("the matrix actually changes the content (not an accidental identity)") {
       val graded =
-        applyMatrix(colorGradeMatrixOf(duotoneCompiled(), duotoneParams()), contentPixels())
+        applyMatrix(colorGradeMatrixOf(duotoneCompiled(), duotoneUniforms()), contentPixels())
       meanAbsDiff(graded, contentPixels()).shouldBeGreaterThan(1.0)
     }
   })
@@ -129,23 +132,23 @@ private fun contentShader(): Shader = RuntimeEffect.makeForShader(
 private fun contentPixels(): ByteArray = rasterize(contentShader())
 
 /**
- * Rasterizes the compiled Duotone SKSL over the content binding [params]'s current handle values
+ * Rasterizes the compiled Duotone SKSL over the content binding [uniforms]'s current handle values
  * exactly as the node does — the reference the per-draw ColorGrade matrix must match.
  */
 @OptIn(ExperimentalMirage::class)
-private fun renderDuotoneKernel(params: MirageParams): ByteArray {
+private fun renderDuotoneKernel(uniforms: ShaderUniforms): ByteArray {
   val compiled = duotoneCompiled()
   val builder = RuntimeShaderBuilder(RuntimeEffect.makeForShader(compiled.source))
   val entries = compiled.schema.entries
-  for (handle in params.handles) {
+  for (handle in uniforms.handles) {
     val name = entries[handle.slot].name
     when (handle) {
-      is UColor -> {
+      is UniformColor -> {
         val c = handle.value
         builder.uniform(name, c.red, c.green, c.blue, c.alpha)
       }
 
-      is UFloat -> builder.uniform(name, handle.value)
+      is UniformFloat -> builder.uniform(name, handle.value)
 
       else -> error("unexpected Duotone handle: $handle")
     }

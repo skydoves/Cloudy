@@ -21,7 +21,7 @@ import androidx.compose.ui.Modifier
  * Skiko implementation of the pipeline-based [Modifier.mirage] — shared across iOS, macOS, Desktop, and
  * Wasm. Attaches a content-source `EffectNode` that orchestrates the pipeline. Skia is always present, so
  * every stage's program compiles and the pipeline always renders — the [MirageFallback] therefore never
- * triggers here. The node reads its params blocks in the draw phase, so a pipeline never forces recomposition.
+ * triggers here. The node reads its uniforms blocks in the draw phase, so a pipeline never forces recomposition.
  */
 @ExperimentalMirage
 public actual fun Modifier.mirage(

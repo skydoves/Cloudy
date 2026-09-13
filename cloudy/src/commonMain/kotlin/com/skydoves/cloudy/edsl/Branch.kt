@@ -36,7 +36,7 @@ import com.skydoves.cloudy.ExperimentalMirage
  * defined value on the false path.
  */
 @ExperimentalMirage
-public fun <T : ShaderValue> branch(condition: UBool, ifTrue: () -> T): BranchBuilder<T> =
+public fun <T : ShaderValue> branch(condition: Bool, ifTrue: () -> T): BranchBuilder<T> =
   BranchBuilder(condition.e, ifTrue)
 
 /** The half-open [branch]; only [Else] turns it into the arms' value type. */
@@ -129,7 +129,7 @@ public class WhenScope<T : ShaderValue> internal constructor() {
     private set
 
   /** Records a `<cond> then { value }` case; first true case wins in declaration order. Traced eagerly. */
-  public infix fun UBool.then(value: () -> T) {
+  public infix fun Bool.then(value: () -> T) {
     cases += e to traceArm(value)
   }
 

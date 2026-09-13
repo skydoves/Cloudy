@@ -32,7 +32,7 @@ import androidx.compose.ui.graphics.asComposeColorFilter
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.toArgb
-import com.skydoves.cloudy.MirageParams
+import com.skydoves.cloudy.ShaderUniforms
 import android.graphics.RenderEffect as AndroidRenderEffect
 
 /**
@@ -81,10 +81,10 @@ internal sealed interface AndroidBackend {
  * Compiles [compiled] into the backend program for the running band.
  *
  * - [MirageBackendBand.Agsl] : a [RuntimeShader] from the AGSL source.
- * - [MirageBackendBand.Gles] : a translated GLSL ES [GlProgram]; `null` for optics this band can't
+ * - [MirageBackendBand.Gles] : a translated GLSL ES [GlProgram]; `null` for shaders this band can't
  *   reproduce (raw / time-driven / Generate), which then no-op.
  * - [MirageBackendBand.ColorGrade] : a [android.graphics.ColorMatrix] for a reproducible Colorize;
- *   `null` for any other optic, which then no-ops.
+ *   `null` for any other shader, which then no-ops.
  *
  * A source that fails to compile on 33+ throws from the `RuntimeShader` constructor (surfaced, not
  * swallowed).
@@ -94,20 +94,20 @@ internal actual fun createBackendProgram(compiled: CompiledProgram): MirageBacke
     MirageBackendBand.Agsl ->
       MirageBackendProgram(AndroidBackend.Agsl(RuntimeShader(compiled.source)))
 
-    // API 23-28: only an affine Colorize (Duotone) is reproducible as a color matrix; any other optic
+    // API 23-28: only an affine Colorize (Duotone) is reproducible as a color matrix; any other shader
     // (lens Composite / Generate) is unsupported and stays a no-op, so the node draws the fallback. The
-    // matrix is seeded from schema defaults and rebuilt each draw from the current params (see the sink).
+    // matrix is seeded from schema defaults and rebuilt each draw from the current uniforms (see the sink).
     MirageBackendBand.ColorGrade ->
       if (isColorGradeReproducible(compiled)) {
-        // Seed with identity (no grade). The chain rebuilds the matrix from the draw's params in bind()
+        // Seed with identity (no grade). The chain rebuilds the matrix from the draw's uniforms in bind()
         // before filterApplication() reads it, so this seed only guards a stray pre-bind read.
         MirageBackendProgram(AndroidBackend.ColorGrade(IDENTITY_COLOR_MATRIX))
       } else {
         null
       }
 
-    // API 29-32: translate the AGSL to GLSL ES and build a GL program, for content-filtering optics
-    // only. Declined (-> null -> no-op): a raw optic (untranslatable), a time-driven optic (animation
+    // API 29-32: translate the AGSL to GLSL ES and build a GL program, for content-filtering shaders
+    // only. Declined (-> null -> no-op): a raw shader (untranslatable), a time-driven shader (animation
     // is out of scope for this band), and a Generate overlay (overlays use a ShaderBrush, not the FBO
     // filter path). The backdrop node runs the result via an async capture, so a self-lit node still
     // no-ops on this band (self-lit has no content-version cache key — see the backdrop path in EffectNode).
@@ -125,7 +125,7 @@ internal actual fun MirageBackendProgram.uniformSink(): UniformSink = when (val 
   is AndroidBackend.Agsl -> AndroidUniformSink(b.shader)
 
   // ColorGrade captures this draw's shadow/highlight/amount and rebuilds its matrix, so a per-draw
-  // params override is honored (not just the schema default).
+  // uniforms override is honored (not just the schema default).
   is AndroidBackend.ColorGrade -> ColorGradeSink(b)
 
   // GLES binds through prepareGlesBlit (fresh per-draw list), not this generic sink.
@@ -179,8 +179,8 @@ internal actual fun MirageBackendProgram.filterApplication(): FilterApplication 
  */
 internal actual fun MirageBackendProgram.prepareGlesBlit(
   cached: CachedProgram,
-  params: MirageParams,
-  paramsBlock: (MirageParams.() -> Unit)?,
+  uniforms: ShaderUniforms,
+  uniformsBlock: (ShaderUniforms.() -> Unit)?,
   width: Float,
   height: Float,
   density: Float,
@@ -188,14 +188,14 @@ internal actual fun MirageBackendProgram.prepareGlesBlit(
 ): (suspend (ImageBitmap) -> ImageBitmap)? {
   val gles = backend as? AndroidBackend.Gles ?: return null
   val (sink, writes) = gles.program.uniformSink()
-  bindUniformsInto(sink, cached, params, paramsBlock, width, height, density, time)
+  bindUniformsInto(sink, cached, uniforms, uniformsBlock, width, height, density, time)
   return { input -> gles.program.render(input.asAndroidBitmap(), writes)?.asImageBitmap() ?: input }
 }
 
 internal actual fun MirageBackendProgram.asShaderBrush(): ShaderBrush = when (val b = backend) {
   is AndroidBackend.Agsl -> ShaderBrush(b.shader)
 
-  // Overlays (Generate optics) only ever build an Agsl program: a Generate kernel is not translatable
+  // Overlays (Generate shaders) only ever build an Agsl program: a Generate kernel is not translatable
   // to a ColorGrade and is a no-op on Gles, so neither leaf reaches an overlay brush.
   is AndroidBackend.Gles, is AndroidBackend.ColorGrade ->
     error("only the Agsl backend supports an overlay ShaderBrush")
@@ -254,9 +254,9 @@ private val IDENTITY_COLOR_MATRIX = floatArrayOf(
 )
 
 /**
- * Captures the Duotone params (shadow / highlight / amount) the binder walks each draw and rebuilds the
+ * Captures the Duotone uniforms (shadow / highlight / amount) the binder walks each draw and rebuilds the
  * [AndroidBackend.ColorGrade] matrix from them, so a per-draw override reaches the grade. Every non-
- * Duotone write is ignored (a reproducible ColorGrade optic has only these three). Rebuilds on each
+ * Duotone write is ignored (a reproducible ColorGrade shader has only these three). Rebuilds on each
  * relevant write (idempotent, 20 floats) so ordering within the walk does not matter.
  */
 private class ColorGradeSink(private val leaf: AndroidBackend.ColorGrade) : UniformSink {

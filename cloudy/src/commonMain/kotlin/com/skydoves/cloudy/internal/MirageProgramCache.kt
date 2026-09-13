@@ -106,7 +106,7 @@ internal object MirageProgramCache {
 /**
  * True when at least one of [stages]'s programs renders **on a self-lit content node** under [dialect]
  * — i.e. the pipeline produces some output there. False when every stage is unsupported (e.g. a lens
- * optic on Android below API 33, or any optic on the API 29-32 GLES band, which is backdrop-only), which
+ * shader on Android below API 33, or any shader on the API 29-32 GLES band, which is backdrop-only), which
  * is when a [com.skydoves.cloudy.MirageFallback.Content] should stand in.
  *
  * A [FilterApplication.Blit] stage (the async GLES path) does **not** count as rendering here: only the

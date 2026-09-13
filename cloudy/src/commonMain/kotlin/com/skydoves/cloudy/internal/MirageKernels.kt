@@ -17,14 +17,14 @@ package com.skydoves.cloudy.internal
 
 /*
  * Kernel bodies the [MirageCompiler] splices onto the [MiragePreamble] and generated uniform
- * declarations. Each body is paired with its [MirageParams] subclass and registered as an
+ * declarations. Each body is paired with its [ShaderUniforms] subclass and registered as an
  * [MirageShader][com.skydoves.cloudy.MirageShader] in [MirageShaders][com.skydoves.cloudy.MirageShaders].
  *
- * ## Uniforms are declared by the paired params, not inline
+ * ## Uniforms are declared by the paired uniforms, not inline
  * A Composite / Generate body names its uniforms (`lensCenter`, `iLight`, `spec*`, `chromatic*`,
  * `foil*`, …) but does **not** declare them: the compiler emits one declaration per schema entry from
- * the paired params, so an inline `uniform ...;` would collide and fail to compile. The property names
- * of the params subclass therefore *are* the uniform identifiers, and they match the identifiers these
+ * the paired uniforms, so an inline `uniform ...;` would collide and fail to compile. The property names
+ * of the uniforms subclass therefore *are* the uniform identifiers, and they match the identifiers these
  * bodies read. The one non-uniform rename applied here is `iTime` -> the standard `mirageTime` uniform,
  * so the codegen clock drives the foil shimmer.
  *
@@ -36,7 +36,7 @@ package com.skydoves.cloudy.internal
  * (never the content sampler), maps luminance onto a shadow -> highlight gradient, and cross-fades by
  * `amount`. The compiler wraps this `kernel(...)` with
  * `half4 main(float2 xy){ return kernel(xy, content.eval(xy)); }`. `shadow` / `highlight` / `amount`
- * are supplied by the paired MirageParams (uniformColor / uniform).
+ * are supplied by the paired ShaderUniforms (uniformColor / uniform).
  */
 internal const val DUOTONE_KERNEL_AGSL: String = """
 half4 kernel(float2 p, half4 src) {
@@ -60,7 +60,7 @@ half4 kernel(float2 p, half4 src) {
  * helpers, and its 11 `spec*` terms.
  *
  * The `spec*` / lens / `iLight` uniforms are NOT declared here: they are the property names of the
- * paired `SpecularParams`, so the compiler emits their declarations from that schema. Declaring them
+ * paired `SpecularUniforms`, so the compiler emits their declarations from that schema. Declaring them
  * inline as well would be a duplicate-uniform compile error.
  */
 internal const val SPECULAR_KERNEL_AGSL: String = """
@@ -336,7 +336,7 @@ half4 main(float2 xy) {
 
 /**
  * AGSL Composite `main` body for the chromatic shader - parameterized thin-film iridescence. The 7
- * `chromatic*` / lens / `iLight` uniforms are declared by the paired `ChromaticParams` schema, so they
+ * `chromatic*` / lens / `iLight` uniforms are declared by the paired `ChromaticUniforms` schema, so they
  * are NOT declared inline (a duplicate would fail to compile); the `CHROMA_*` consts stay in the body
  * since they are shader-private, not uniforms.
  */
@@ -386,7 +386,7 @@ half4 main(float2 xy) {
     float3 cN     = normalize(float3(cDir * n_cos, n_sin + 1.0e-3));
     float3 cL     = normalize(float3(cLightVec, 0.55));
 
-    // --- thin-film Newton's rings (per-look params are uniforms, no mode step-mask) ---
+    // --- thin-film Newton's rings (per-look uniforms are uniforms, no mode step-mask) ---
     float cosT     = clamp(dot(cN, cL), 0.0, 1.0);
     float thick    = 1.0 - n_cos;
     float ringTerm = thick / max(1.0 - 0.6 * cosT, 1.0e-2);      // grazing-angle blow-up guard
@@ -471,7 +471,7 @@ half4 main(float2 xy) {
     float3 cN     = normalize(float3(cDir * n_cos, n_sin + 1.0e-3));
     float3 cL     = normalize(float3(cLightVec, 0.55));
 
-    // --- thin-film Newton's rings (per-look params are uniforms, no mode step-mask) ---
+    // --- thin-film Newton's rings (per-look uniforms are uniforms, no mode step-mask) ---
     float cosT     = clamp(dot(cN, cL), 0.0, 1.0);
     float thick    = 1.0 - n_cos;
     float ringTerm = thick / max(1.0 - 0.6 * cosT, 1.0e-2);      // grazing-angle blow-up guard
@@ -511,7 +511,7 @@ half4 main(float2 xy) {
 
 /**
  * AGSL Generate `main` body for the foil overlay shader. Content-free overlay: it never samples
- * content. The 5 foil/sparkle + lens + `iLight` uniforms come from the paired `FoilParams` schema (not
+ * content. The 5 foil/sparkle + lens + `iLight` uniforms come from the paired `FoilUniforms` schema (not
  * declared inline). It reads the standard `mirageTime` uniform so the codegen clock drives the
  * animated shimmer.
  */

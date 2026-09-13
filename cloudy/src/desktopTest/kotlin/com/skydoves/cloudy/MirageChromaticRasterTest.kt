@@ -71,7 +71,7 @@ internal class MirageChromaticRasterTest :
       meanAbsDiff(oil, pearl).shouldBeGreaterThan(1.0)
     }
 
-    // Regression for the origin-pinned lens default. MirageLensParams used to default lensCenter to
+    // Regression for the origin-pinned lens default. MirageLensUniforms used to default lensCenter to
     // Offset.Zero with a fixed 350x350 lensSize, so a bare `filter(Chromatic)` on any node larger than
     // the lens graded only the origin quadrant and passed the rest through — on a backdrop card the
     // rainbow showed only in the corner, reading as "chromatic draws behind the content". These renders
@@ -180,24 +180,24 @@ private const val RIDGE_MIN_RATIO = 1.30
 
 /**
  * Renders [shader]'s compiled program over a fixed gradient content into an ARGB byte buffer. Resets
- * the params to the schema defaults (as the node does each draw), overrides only the lens framing to
+ * the uniforms to the schema defaults (as the node does each draw), overrides only the lens framing to
  * cover the whole raster, then binds every uniform through the same [com.skydoves.cloudy.internal.
  * UniformSink] path the node uses.
  */
 @OptIn(ExperimentalMirage::class)
-private fun renderChromatic(shader: CompositeShader<ChromaticParams>): ByteArray {
+private fun renderChromatic(shader: CompositeShader<ChromaticUniforms>): ByteArray {
   val cached = MirageProgramCache.obtain(shader, Dialect.Sksl).shouldNotBeNull()
-  val params = shader.paramsFactory()
+  val uniforms = shader.uniformsFactory()
 
   // Reset to this shader's declared defaults (mirrors the node's per-draw resetToDefaults), then frame
   // the lens over the whole raster so no pixel takes the sdf early-out.
-  applySchemaDefaults(params, cached)
-  params.lensCenter(Offset(RASTER / 2f, RASTER / 2f))
-  params.lensSize(Size(RASTER.toFloat(), RASTER.toFloat()))
-  params.cornerRadius(0f)
+  applySchemaDefaults(uniforms, cached)
+  uniforms.lensCenter(Offset(RASTER / 2f, RASTER / 2f))
+  uniforms.lensSize(Size(RASTER.toFloat(), RASTER.toFloat()))
+  uniforms.cornerRadius(0f)
 
   val builder = RuntimeShaderBuilder(RuntimeEffect.makeForShader(cached.compiled.source))
-  bindUniforms(builder, params, cached)
+  bindUniforms(builder, uniforms, cached)
   builder.child("content", contentShader())
 
   return rasterize(builder.makeShader())
@@ -211,16 +211,16 @@ private fun renderChromatic(shader: CompositeShader<ChromaticParams>): ByteArray
  */
 @OptIn(ExperimentalMirage::class)
 private fun renderThroughLibraryBinder(
-  shader: CompositeShader<ChromaticParams>,
+  shader: CompositeShader<ChromaticUniforms>,
   size: Int,
-  frame: (ChromaticParams.() -> Unit)? = null,
+  frame: (ChromaticUniforms.() -> Unit)? = null,
 ): ByteArray {
   val cached = MirageProgramCache.obtain(shader, Dialect.Sksl).shouldNotBeNull()
-  val params = shader.paramsFactory()
+  val uniforms = shader.uniformsFactory()
   bindLibraryUniforms(
     cached = cached,
-    params = params,
-    paramsBlock = frame?.let { block -> { (this as ChromaticParams).block() } },
+    uniforms = uniforms,
+    uniformsBlock = frame?.let { block -> { (this as ChromaticUniforms).block() } },
     width = size.toFloat(),
     height = size.toFloat(),
     density = 1f,
@@ -244,29 +244,29 @@ private fun renderThroughLibraryBinder(
  */
 @OptIn(ExperimentalMirage::class)
 private fun renderRidgeProbe(
-  shader: CompositeShader<ChromaticParams>,
+  shader: CompositeShader<ChromaticUniforms>,
   size: Int,
   corner: Float,
   intensity: Float,
   oldBoxBevel: Boolean = false,
 ): ByteArray {
   val cached = MirageProgramCache.obtain(shader, Dialect.Sksl).shouldNotBeNull()
-  val params = shader.paramsFactory()
+  val uniforms = shader.uniformsFactory()
 
-  applySchemaDefaults(params, cached)
-  params.lensCenter(Offset(size / 2f, size / 2f))
-  params.lensSize(Size(size.toFloat(), size.toFloat()))
-  params.cornerRadius(corner)
-  params.iLight(Offset(0f, -1f))
-  for (handle in params.handles) {
+  applySchemaDefaults(uniforms, cached)
+  uniforms.lensCenter(Offset(size / 2f, size / 2f))
+  uniforms.lensSize(Size(size.toFloat(), size.toFloat()))
+  uniforms.cornerRadius(corner)
+  uniforms.iLight(Offset(0f, -1f))
+  for (handle in uniforms.handles) {
     val name = cached.compiled.schema.entries[handle.slot].name
-    if (handle is UFloat && name == "chromaticIntensity") handle.value = intensity
-    if (handle is UFloat && name == "chromaticModulate") handle.value = 0f
+    if (handle is UniformFloat && name == "chromaticIntensity") handle.value = intensity
+    if (handle is UniformFloat && name == "chromaticModulate") handle.value = 0f
   }
 
   val source = if (oldBoxBevel) toOldBoxBevel(cached.compiled.source) else cached.compiled.source
   val builder = RuntimeShaderBuilder(RuntimeEffect.makeForShader(source))
-  bindUniformsAt(builder, params, cached, size)
+  bindUniformsAt(builder, uniforms, cached, size)
   builder.child("content", contentShaderAt(size))
   return rasterize(builder.makeShader(), size)
 }
@@ -435,15 +435,15 @@ private fun meanAbsDiff(a: ByteArray, b: ByteArray): Double {
  * handled; that is the whole schema for these shaders.
  */
 @OptIn(ExperimentalMirage::class)
-private fun applySchemaDefaults(params: MirageParams, cached: CachedProgram) {
+private fun applySchemaDefaults(uniforms: ShaderUniforms, cached: CachedProgram) {
   val entries = cached.compiled.schema.entries
-  for (handle in params.handles) {
+  for (handle in uniforms.handles) {
     val default = entries[handle.slot].default
     when (handle) {
-      is UFloat -> handle.value = default as Float
-      is UOffset -> handle.value = default as Offset
-      is USize -> handle.value = default as Size
-      is UVec4 -> handle.value = (default as FloatArray).copyOf()
+      is UniformFloat -> handle.value = default as Float
+      is UniformOffset -> handle.value = default as Offset
+      is UniformSize -> handle.value = default as Size
+      is UniformVec4 -> handle.value = (default as FloatArray).copyOf()
       else -> error("unexpected handle type in chromatic schema: $handle")
     }
   }
@@ -453,15 +453,15 @@ private fun applySchemaDefaults(params: MirageParams, cached: CachedProgram) {
 @OptIn(ExperimentalMirage::class)
 private fun bindUniforms(
   builder: RuntimeShaderBuilder,
-  params: MirageParams,
+  uniforms: ShaderUniforms,
   cached: CachedProgram,
-) = bindUniformsAt(builder, params, cached, RASTER)
+) = bindUniformsAt(builder, uniforms, cached, RASTER)
 
 /** [bindUniforms] with an explicit raster [size] for the resolution uniform. */
 @OptIn(ExperimentalMirage::class)
 private fun bindUniformsAt(
   builder: RuntimeShaderBuilder,
-  params: MirageParams,
+  uniforms: ShaderUniforms,
   cached: CachedProgram,
   size: Int,
 ) {
@@ -477,13 +477,13 @@ private fun bindUniformsAt(
   if (compiled.usesDensity) builder.uniform("mirageDensity", 1f)
 
   val entries = compiled.schema.entries
-  for (handle in params.handles) {
+  for (handle in uniforms.handles) {
     val name = entries[handle.slot].name
     when (handle) {
-      is UFloat -> builder.uniform(name, handle.value)
-      is UOffset -> builder.uniform(name, handle.value.x, handle.value.y)
-      is USize -> builder.uniform(name, handle.value.width, handle.value.height)
-      is UVec4 -> builder.uniform(name, handle.value)
+      is UniformFloat -> builder.uniform(name, handle.value)
+      is UniformOffset -> builder.uniform(name, handle.value.x, handle.value.y)
+      is UniformSize -> builder.uniform(name, handle.value.width, handle.value.height)
+      is UniformVec4 -> builder.uniform(name, handle.value)
       else -> error("unexpected handle type in chromatic schema: $handle")
     }
   }

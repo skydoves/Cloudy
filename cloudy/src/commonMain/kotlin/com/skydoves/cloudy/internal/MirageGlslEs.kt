@@ -57,7 +57,7 @@ internal object MirageGlslEs {
       "}\n"
 
   /**
-   * Translates [agslSource] (the compiler's assembled AGSL for a non-raw content-filtering optic) to a
+   * Translates [agslSource] (the compiler's assembled AGSL for a non-raw content-filtering shader) to a
    * GLSL ES 3.0 fragment shader. Only Colorize / Composite reach here — a Generate overlay is declined
    * for the GLES band (it has no content sampler and composites via a ShaderBrush, not the FBO path) —
    * so the content sampler is always emitted.

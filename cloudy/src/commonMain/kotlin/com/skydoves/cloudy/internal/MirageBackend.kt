@@ -20,7 +20,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.RenderEffect
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.TileMode
-import com.skydoves.cloudy.MirageParams
+import com.skydoves.cloudy.ShaderUniforms
 import kotlin.jvm.JvmInline
 import androidx.compose.ui.graphics.ColorFilter as ComposeColorFilter
 
@@ -47,7 +47,7 @@ internal expect fun createBackendProgram(compiled: CompiledProgram): MirageBacke
  * identifier (the schema entry name), so writes stay name-keyed rather than positional — the backend
  * decides how to resolve it (Android/skiko both key uniforms by name).
  *
- * There is deliberately **no** `vec3` for a raw `float3` value even though [UVec3] exists: no handle
+ * There is deliberately **no** `vec3` for a raw `float3` value even though [UniformVec3] exists: no handle
  * uses a float3 preset and both backends already expose float2/float3/float4 through
  * [floatArray] (skiko `uniform(name, FloatArray)`, Android `setFloatUniform(name, FloatArray)`), so a
  * separate arity method would be dead surface. A float3 handle binds through [floatArray] with a
@@ -88,7 +88,7 @@ internal expect fun MirageBackendProgram.uniformSink(): UniformSink
  *   it as the layer draws. The only shape skiko and Android API 33+ AGSL ever use.
  * - [ColorFilter] : the backend is a per-pixel [ComposeColorFilter] set on the stage's layer (applied
  *   in the layer paint on API 23+, so it needs no `RenderEffect`, which is API 31+). Used by the
- *   Android ColorGrade band to reproduce a Colorize optic as an affine grade.
+ *   Android ColorGrade band to reproduce a Colorize shader as an affine grade.
  * - [Blit] : the backend reads the stage's recorded pixels as an [ImageBitmap], transforms them off
  *   the layer render-effect path, and returns the result. Used by the Android GLES band, whose FBO
  *   round-trip cannot be a `RenderEffect`. The readback itself is not synchronous in draw (Compose's
@@ -127,8 +127,8 @@ internal expect fun MirageBackendProgram.filterApplication(): FilterApplication
  */
 internal expect fun MirageBackendProgram.prepareGlesBlit(
   cached: CachedProgram,
-  params: MirageParams,
-  paramsBlock: (MirageParams.() -> Unit)?,
+  uniforms: ShaderUniforms,
+  uniformsBlock: (ShaderUniforms.() -> Unit)?,
   width: Float,
   height: Float,
   density: Float,

@@ -68,7 +68,7 @@ internal object MirageEffect : Effect {
         context = node.graphicsContext(),
         applicable = applicable,
         bind = { stage, cached ->
-          bindUniforms(cached, stage.params, stage.paramsBlock, width, height, density, time)
+          bindUniforms(cached, stage.uniforms, stage.uniformsBlock, width, height, density, time)
         },
         recordSource = recordSource,
       )
@@ -78,7 +78,7 @@ internal object MirageEffect : Effect {
     // it via a ShaderBrush under the stage's blend mode.
     for (stage in overlays) {
       val cached = MirageProgramCache.obtain(stage.shader, dialect) ?: continue
-      bindUniforms(cached, stage.params, stage.paramsBlock, width, height, density, time)
+      bindUniforms(cached, stage.uniforms, stage.uniformsBlock, width, height, density, time)
       drawRect(brush = cached.backend.asShaderBrush(), blendMode = stage.blendMode)
     }
   }

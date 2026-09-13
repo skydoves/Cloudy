@@ -55,10 +55,10 @@ public sealed interface MirageClock {
 
 /**
  * Stage declaration scope for [Modifier.mirage]. The block runs once (when the node attaches) to fix
- * the ordered stage list; each stage's `params` block re-runs every draw.
+ * the ordered stage list; each stage's `uniforms` block re-runs every draw.
  *
  * This scope *declares* the shaders of a pipeline; it does not write uniforms — a stage's uniforms are
- * bound each draw from its `params` block against the shader's [MirageParams].
+ * bound each draw from its `uniforms` block against the shader's [ShaderUniforms].
  */
 @ExperimentalMirage
 public interface MirageScope {
@@ -68,10 +68,10 @@ public interface MirageScope {
    * they are added: `content -> f1 -> f2 -> … -> screen`.
    *
    * @param shader the filter shader to run.
-   * @param params optional per-draw uniform block, run against a params instance the node mints once
+   * @param uniforms optional per-draw uniform block, run against a uniform-state instance the node mints once
    *   and reuses (no per-draw allocation). `null` leaves every uniform at its declared default.
    */
-  public fun <P : MirageParams> filter(shader: FilterShader<P>, params: (P.() -> Unit)? = null)
+  public fun <P : ShaderUniforms> filter(shader: FilterShader<P>, uniforms: (P.() -> Unit)? = null)
 
   /**
    * Declares an overlay stage (a [GeneratorShader]) drawn over the content without sampling it. Overlay
@@ -79,12 +79,12 @@ public interface MirageScope {
    *
    * @param shader the generator shader to run.
    * @param blendMode how the overlay composites over the content. Default: [BlendMode.SrcOver].
-   * @param params optional per-draw uniform block; see [filter].
+   * @param uniforms optional per-draw uniform block; see [filter].
    */
-  public fun <P : MirageParams> overlay(
+  public fun <P : ShaderUniforms> overlay(
     shader: GeneratorShader<P>,
     blendMode: BlendMode = BlendMode.SrcOver,
-    params: (P.() -> Unit)? = null,
+    uniforms: (P.() -> Unit)? = null,
   )
 }
 
@@ -116,7 +116,7 @@ public sealed interface MirageFallback {
  *
  * Non-composable and `Modifier.Node`-based: [pipeline] is evaluated **once** to fix the ordered stage
  * list (which, together with [clock] and [enabled], forms the node's equality key), while each stage's
- * `params` block is re-evaluated **per draw**. Reading snapshot state inside a `params` block
+ * `uniforms` block is re-evaluated **per draw**. Reading snapshot state inside a `uniforms` block
  * therefore invalidates only the draw — recomposition is never required. Hoisting the whole modifier
  * into a top-level `val` / `remember` is unnecessary for correctness (the node reconciles on the key),
  * though still cheap.
@@ -189,7 +189,7 @@ internal fun Modifier.mirageOrFallback(
  *
  * This is a distinct overload from the content [mirage] above: `mirage { … }` filters the content,
  * `mirage(sky = …) { … }` filters the backdrop. Otherwise it behaves identically — [pipeline] is evaluated
- * once to fix the stages, each stage's `params` block is re-evaluated per draw (no recomposition), and
+ * once to fix the stages, each stage's `uniforms` block is re-evaluated per draw (no recomposition), and
  * programs are shared through the same process-wide cache.
  *
  * @param sky the backdrop state holder captured by a `Modifier.sky` ancestor; the source of the pixels

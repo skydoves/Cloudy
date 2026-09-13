@@ -27,7 +27,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 /**
- * A compiled + linked GLES 3.0 program for one mirage optic, run on [GlEnv]'s GL thread. Holds the GL
+ * A compiled + linked GLES 3.0 program for one mirage shader, run on [GlEnv]'s GL thread. Holds the GL
  * program id, the fullscreen-quad VBO, and the content texture; created lazily on first render (the GL
  * thread is the only place GL objects may be made) and reused across frames.
  *
@@ -59,7 +59,7 @@ internal class GlProgram(private val fragmentSource: String) {
   }
 
   /**
-   * Renders [content] through this optic at [content]'s size and returns the result bitmap (via
+   * Renders [content] through this shader at [content]'s size and returns the result bitmap (via
    * [GlEnv]), or `null` on GL failure. [writes] are the uniform closures recorded by the paired
    * [uniformSink], replayed on the GL thread.
    */
@@ -185,7 +185,7 @@ internal class GlProgram(private val fragmentSource: String) {
  * them on the GL thread (where uniform locations resolve and `glUniform*` is legal). Keys by name like
  * the AGSL/skiko sinks. A `layout(color)` uniform arrives as sRGB float4 (the translator dropped the
  * color layout), matching how skiko converts colors by hand. A texture child other than `content` is
- * unsupported on GLES (no built-in optic declares one), so it is dropped.
+ * unsupported on GLES (no built-in shader declares one), so it is dropped.
  */
 private class GlRecordingSink(private val out: MutableList<(Int) -> Unit>) : UniformSink {
 

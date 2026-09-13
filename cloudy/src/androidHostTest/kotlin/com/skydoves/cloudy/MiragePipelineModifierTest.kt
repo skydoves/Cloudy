@@ -43,21 +43,21 @@ import org.robolectric.RobolectricTestRunner
 internal class MiragePipelineModifierTest {
 
   /** A trivial colorize filter and a trivial generator overlay, enough to populate a pipeline. */
-  private val tintFilter: ColorizeShader<MirageParams> = MirageShader.colorize(
+  private val tintFilter: ColorizeShader<ShaderUniforms> = MirageShader.colorize(
     name = "test-tint",
-    paramsFactory = { EmptyParams() },
+    uniformsFactory = { EmptyUniforms() },
     agsl = "half4 kernel(float2 p, half4 src) { return src; }",
     sksl = "half4 kernel(float2 p, half4 src) { return src; }",
   )
 
-  private val glowOverlay: GeneratorShader<MirageParams> = MirageShader.generate(
+  private val glowOverlay: GeneratorShader<ShaderUniforms> = MirageShader.generate(
     name = "test-glow",
-    paramsFactory = { EmptyParams() },
+    uniformsFactory = { EmptyUniforms() },
     agsl = "half4 main(float2 xy) { return half4(1.0); }",
     sksl = "half4 main(float2 xy) { return half4(1.0); }",
   )
 
-  private class EmptyParams : MirageParams()
+  private class EmptyUniforms : ShaderUniforms()
 
   @Test
   fun `mirage attaches a EffectElement`() {
@@ -91,15 +91,15 @@ internal class MiragePipelineModifierTest {
   }
 
   @Test
-  fun `each stage mints its own params instance`() {
+  fun `each stage mints its own uniforms instance`() {
     val stages = MiragePipelineBuilder().apply {
       filter(tintFilter)
       filter(tintFilter)
     }.stages
     assertNotEquals(
-      "Two filter stages of the same shader must not share one params instance",
-      (stages[0] as Stage.ProgramFilter).params,
-      (stages[1] as Stage.ProgramFilter).params,
+      "Two filter stages of the same shader must not share one uniforms instance",
+      (stages[0] as Stage.ProgramFilter).uniforms,
+      (stages[1] as Stage.ProgramFilter).uniforms,
     )
   }
 
@@ -138,7 +138,7 @@ internal class MiragePipelineModifierTest {
   @Test
   fun `backdrop elements with the same sky and pipeline and shared block are equal`() {
     val sky = Sky()
-    val block: MirageParams.() -> Unit = { }
+    val block: ShaderUniforms.() -> Unit = { }
     val a = backdropElementOf(Modifier.mirage(sky = sky) { filter(tintFilter, block) })
     val b = backdropElementOf(Modifier.mirage(sky = sky) { filter(tintFilter, block) })
     assertEquals(a, b)
@@ -148,14 +148,14 @@ internal class MiragePipelineModifierTest {
   @Test
   fun `backdrop elements with different sky instances are unequal`() {
     // Sky is part of the reconciliation key: a different backdrop must re-create the node's plumbing.
-    val block: MirageParams.() -> Unit = { }
+    val block: ShaderUniforms.() -> Unit = { }
     val a = backdropElementOf(Modifier.mirage(sky = Sky()) { filter(tintFilter, block) })
     val b = backdropElementOf(Modifier.mirage(sky = Sky()) { filter(tintFilter, block) })
     assertNotEquals(a, b)
   }
 
   @Test
-  fun `re-creating the params block makes an otherwise-identical backdrop element unequal`() {
+  fun `re-creating the uniforms block makes an otherwise-identical backdrop element unequal`() {
     // Two distinct lambda instances (as a recomposition produces) over the same sky + shader: unequal,
     // so Compose runs update() and the node adopts the fresh block (no frozen uniforms).
     val sky = Sky()
@@ -165,15 +165,15 @@ internal class MiragePipelineModifierTest {
   }
 
   @Test
-  fun `a shared params block keeps its identity through the backdrop pipeline`() {
+  fun `a shared uniforms block keeps its identity through the backdrop pipeline`() {
     // The pipeline captures the exact block instance the caller passed (=== preserved), so an unchanged
     // block reconciles equal rather than forcing a needless update.
     val sky = Sky()
-    val block: MirageParams.() -> Unit = { }
+    val block: ShaderUniforms.() -> Unit = { }
     val stages = MiragePipelineBuilder().apply { filter(tintFilter, block) }.stages
     assertTrue(
       "the pipeline must keep the caller's exact block instance",
-      (stages[0] as Stage.ProgramFilter).paramsBlock === block,
+      (stages[0] as Stage.ProgramFilter).uniformsBlock === block,
     )
   }
 

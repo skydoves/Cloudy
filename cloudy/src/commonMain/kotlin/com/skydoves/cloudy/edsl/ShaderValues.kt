@@ -21,16 +21,16 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import com.skydoves.cloudy.ExperimentalMirage
-import com.skydoves.cloudy.UFloatArray
-import com.skydoves.cloudy.UTexture
+import com.skydoves.cloudy.UniformFloatArray
+import com.skydoves.cloudy.UniformTexture
 
 /**
  * The typed values a mirage kernel body works with — a `float2` position, a `half4` color, etc. Public
  * (behind `@ExperimentalMirage`, so out of the committed ABI dump) because the body lambda handed to
  * [com.skydoves.cloudy.MirageShader.colorize] / `composite` / `generate` operates on them directly.
  *
- * Each is an interface, not a class, for one reason: a [com.skydoves.cloudy.MirageParams] uniform
- * handle (`UFloat`, `UColor`, ...) implements the matching value interface, so a handle *is* an
+ * Each is an interface, not a class, for one reason: a [com.skydoves.cloudy.ShaderUniforms] uniform
+ * handle (`UniformFloat`, `UniformColor`, ...) implements the matching value interface, so a handle *is* an
  * expression the body can use bare — `mix(shadow.rgb, highlight.rgb, g)` with no `.lift()` step. It is
  * **not** `sealed`: a handle lives in a different package (`com.skydoves.cloudy`), and Kotlin's sealed
  * rule confines implementors to the declaring package. The backing node is carried through [e]; every
@@ -56,7 +56,7 @@ public interface ShaderValue {
  * own [ShaderType]. Lets a generic consumer ([branch]/[When]) hand back a `VarRef(_temp)` as a value of
  * the type the arms produced without knowing which leaf it is; the returned leaf implements the arms'
  * common interface `T`, so the consumer's `as T` cast holds. [ShaderType.Bool] has no value leaf (a
- * [UBool] is only ever built by a comparison), so it is not a valid branch-arm result type.
+ * [Bool] is only ever built by a comparison), so it is not a valid branch-arm result type.
  */
 internal fun wrapNode(type: ShaderType, node: Expression): ShaderValue = when (type) {
   ShaderType.Float1 -> Float1(node)
@@ -141,12 +141,12 @@ public interface Half4 : ShaderValue {
 
 /** A boolean value — the result of a comparison, consumed only by [guard] / [If]. */
 @ExperimentalMirage
-public interface UBool : ShaderValue {
+public interface Bool : ShaderValue {
   override val e: Expression
 
   @ExperimentalMirage
   public companion object {
-    internal operator fun invoke(e: Expression): UBool = UBoolNode(e)
+    internal operator fun invoke(e: Expression): Bool = BoolNode(e)
   }
 }
 
@@ -159,26 +159,26 @@ internal class Float4Node(override val e: Expression) : Float4
 internal class Half1Node(override val e: Expression) : Half1
 internal class Half3Node(override val e: Expression) : Half3
 internal class Half4Node(override val e: Expression) : Half4
-internal class UBoolNode(override val e: Expression) : UBool
+internal class BoolNode(override val e: Expression) : Bool
 
 /**
  * The comparisons Foil/Specular's guards need (`sdf > SMOOTH_EDGE_PX`, `pixel.a <= 0.0`). The names
  * reuse GLSL's vector relational builtins (`greaterThan`/`lessThanEqual`/...), but note the semantics
- * differ: our infix compares two **scalars** and yields a [UBool], where GLSL's builtins compare vector
+ * differ: our infix compares two **scalars** and yields a [Bool], where GLSL's builtins compare vector
  * components element-wise and yield a `bvec` — same spelling, scalar meaning.
  */
 @ExperimentalMirage
-public infix fun Float1.greaterThan(o: Float1): UBool = UBool(Comparison(">", e, o.e))
+public infix fun Float1.greaterThan(o: Float1): Bool = Bool(Comparison(">", e, o.e))
 
 @ExperimentalMirage
-public infix fun Float1.greaterThan(o: Float): UBool = UBool(Comparison(">", e, Literal(o)))
+public infix fun Float1.greaterThan(o: Float): Bool = Bool(Comparison(">", e, Literal(o)))
 
 @ExperimentalMirage
-public infix fun Half1.lessThanEqual(o: Float): UBool = UBool(Comparison("<=", e, Literal(o)))
+public infix fun Half1.lessThanEqual(o: Float): Bool = Bool(Comparison("<=", e, Literal(o)))
 
 /** `&&` — Specular's highlight gate (`edge > 0.0 && specStrength > 0.0`). */
 @ExperimentalMirage
-public infix fun UBool.and(o: UBool): UBool = UBool(Comparison("&&", e, o.e))
+public infix fun Bool.and(o: Bool): Bool = Bool(Comparison("&&", e, o.e))
 
 @ExperimentalMirage
 public operator fun Float1.plus(o: Float1): Float1 = Float1(Binary("+", e, o.e, ShaderType.Float1))
@@ -421,11 +421,11 @@ public fun half4(scalar: Float): Half4 =
 
 /** `cond ? ifTrue : ifFalse` — Kotlin has no ternary to overload, so this is the DSL spelling of one. */
 @ExperimentalMirage
-public fun select(condition: UBool, ifTrue: Float1, ifFalse: Float1): Float1 =
+public fun select(condition: Bool, ifTrue: Float1, ifFalse: Float1): Float1 =
   Float1(Select(condition.e, ifTrue.e, ifFalse.e, ShaderType.Float1))
 
 @ExperimentalMirage
-public infix fun Float1.greaterThanEqual(o: Float): UBool = UBool(Comparison(">=", e, Literal(o)))
+public infix fun Float1.greaterThanEqual(o: Float): Bool = Bool(Comparison(">=", e, Literal(o)))
 
 /**
  * `p.x >= 0.0 ? 1.0 : -1.0` — the sign-select the superellipse bevel direction needs on each axis.
@@ -696,7 +696,7 @@ public fun mix(a: Half4, b: Color, t: Float1): Half4 = mix(a, color(b), t)
  * [SampleTexture].
  */
 @ExperimentalMirage
-public fun UTexture.eval(coord: Float2): Half4 =
+public fun UniformTexture.eval(coord: Float2): Half4 =
   Half4(SampleTexture(UniformRef(slot, ShaderType.Half4), coord.e))
 
 /**
@@ -705,10 +705,10 @@ public fun UTexture.eval(coord: Float2): Half4 =
  * ES2-restricted profile always accepts. Pair with [unroll] to walk all elements (its trace-time `Int`
  * index makes every subscript constant). A *dynamic* subscript ([loop]'s [Float1] index) is deliberately
  * unsupported: ES2 constant-index-expression rules make it dialect-dependent, so a kernel that needs one
- * stays a raw-string kernel. Bounds are checked against the declared [UFloatArray.size] at trace time.
+ * stays a raw-string kernel. Bounds are checked against the declared [UniformFloatArray.size] at trace time.
  */
 @ExperimentalMirage
-public operator fun UFloatArray.get(index: Int): Float1 {
+public operator fun UniformFloatArray.get(index: Int): Float1 {
   require(index in 0 until size) { "index $index out of bounds for float[$size]" }
   return Float1(UniformIndexRef(slot, index))
 }

@@ -52,7 +52,7 @@ import androidx.compose.ui.graphics.Color as ComposeColor
 
 /**
  * On-device validation of the GLES pipeline (translator + [GlProgram] + GlEnv roundtrip) on the API
- * 29-32 band. Runs real optics through the GL program and checks the output:
+ * 29-32 band. Runs real shaders through the GL program and checks the output:
  *
  * - **Duotone (Colorize)** must match the affine `ColorMatrix` reference (the affine-grade path, proven
  *   exact on desktop) within a modest tolerance — this catches translation, Y-flip, and sampler bugs, since a
@@ -70,14 +70,14 @@ public class GlProgramMatchTest {
     val compiled = MirageCompiler.compile(MirageShaders.Duotone, Dialect.GlslEs)
     val program = GlProgram(MirageGlslEs.translate(compiled.source))
 
-    // Bind the optic's schema defaults through the recording sink, exactly as the node's binder does.
+    // Bind the shader's schema defaults through the recording sink, exactly as the node's binder does.
     val (sink, writes) = program.uniformSink()
     bindSchemaDefaults(sink, compiled)
     val glOut = runBlocking { program.render(content, writes) }
     assertNotNull("GL render returned null on the GLES band", glOut)
 
-    val params = defaultParams(compiled)
-    val matrix = colorGradeMatrixOf(compiled, params)
+    val uniforms = defaultUniforms(compiled)
+    val matrix = colorGradeMatrixOf(compiled, uniforms)
     val reference = applyMatrix(matrix, content)
 
     // Tolerance covers GL bilinear sampling at texel centers + sRGB round-trip on SwiftShader. The
@@ -108,7 +108,7 @@ public class GlProgramMatchTest {
   }
 
   /**
-   * The lens kernel translated to GLSL ES ([GlProgram], the 29-32 band) must match the same optic run
+   * The lens kernel translated to GLSL ES ([GlProgram], the 29-32 band) must match the same shader run
    * natively as an AGSL [RuntimeShader] (the 33+ band) — proving the translator, not just that "the GL
    * program did *something*". A vendor GPU on 33+ runs both in one process, so this is the
    * cross-check the emulator's SwiftShader can't give.
@@ -124,18 +124,18 @@ public class GlProgramMatchTest {
    */
   @Test
   public fun chromaticGlMatchesAgslReference() {
-    assertLensOpticMatches(MirageShaders.Chromatic)
+    assertLensShaderMatches(MirageShaders.Chromatic)
   }
 
   @Test
   public fun specularGlMatchesAgslReference() {
-    assertLensOpticMatches(MirageShaders.Specular)
+    assertLensShaderMatches(MirageShaders.Specular)
   }
 }
 
-// Measured on a vendor GPU: the lens optics stay well under 1.0 (Chromatic ~0.017, Specular ~0.20)
+// Measured on a vendor GPU: the lens shaders stay well under 1.0 (Chromatic ~0.017, Specular ~0.20)
 // against the 33+ AGSL reference, so the GLSL-ES translation is pixel-tight. 1.0 leaves headroom over
-// the worst optic while still catching a real regression (a Y-flip or coordinate bug blows the MAD up
+// the worst shader while still catching a real regression (a Y-flip or coordinate bug blows the MAD up
 // by orders of magnitude).
 private const val GL_AGSL_MATCH_TOL = 1.0
 
@@ -143,16 +143,16 @@ private const val GL_AGSL_MATCH_TOL = 1.0
 private const val LENS_FRAME = 64f
 
 /**
- * Renders [optic] through both backends at 64x64 and asserts the GLES output matches the AGSL reference.
+ * Renders [shader] through both backends at 64x64 and asserts the GLES output matches the AGSL reference.
  * The MAD is always in the failure message so a passing-or-failing device run still reports the number.
  */
 @OptIn(ExperimentalMirage::class)
-private fun assertLensOpticMatches(optic: MirageShader<*>) {
+private fun assertLensShaderMatches(shader: MirageShader<*>) {
   val content = gradientContent(64, 64)
 
   // GLES path: translate AGSL -> GLSL ES, bind schema defaults through the recording sink, override the
   // lens frame, render offscreen through GlEnv's FBO. Same setup the node's binder uses.
-  val compiled = MirageCompiler.compile(optic, Dialect.GlslEs)
+  val compiled = MirageCompiler.compile(shader, Dialect.GlslEs)
   val glProgram = GlProgram(MirageGlslEs.translate(compiled.source))
   val (glSink, glWrites) = glProgram.uniformSink()
   bindSchemaDefaults(glSink, compiled)
@@ -160,9 +160,9 @@ private fun assertLensOpticMatches(optic: MirageShader<*>) {
   val glOut = runBlocking { glProgram.render(content, glWrites) }
   assertNotNull("GLES render returned null for ${compiled.category}", glOut)
 
-  // AGSL path: the same optic compiled to AGSL, driven by an identical schema-default bind directly on
+  // AGSL path: the same shader compiled to AGSL, driven by an identical schema-default bind directly on
   // the RuntimeShader (no shared sink — set each uniform ourselves so the two paths stay symmetric).
-  val agsl = MirageCompiler.compile(optic, Dialect.Agsl)
+  val agsl = MirageCompiler.compile(shader, Dialect.Agsl)
   val shader = RuntimeShader(agsl.source)
   bindAgslDefaults(shader, agsl)
   frameLensAgsl(shader)
@@ -172,7 +172,7 @@ private fun assertLensOpticMatches(optic: MirageShader<*>) {
   // Always report the MAD so a passing run still surfaces the number (asserts print only on failure).
   Log.i("GlProgramMatch", "MAD ${compiled.category}=$mad (TOL=$GL_AGSL_MATCH_TOL)")
   assertTrue(
-    "GLES vs AGSL diverged for the lens optic: MAD=$mad (TOL=$GL_AGSL_MATCH_TOL).",
+    "GLES vs AGSL diverged for the lens shader: MAD=$mad (TOL=$GL_AGSL_MATCH_TOL).",
     mad < GL_AGSL_MATCH_TOL,
   )
 }
@@ -242,12 +242,12 @@ private fun renderAgslToBitmap(shader: RuntimeShader, content: Bitmap): Bitmap {
   }
 }
 
-/** A params instance reset to [compiled]'s schema defaults — what colorGradeMatrixOf reads per draw. */
+/** A uniforms instance reset to [compiled]'s schema defaults — what colorGradeMatrixOf reads per draw. */
 @OptIn(ExperimentalMirage::class)
-private fun defaultParams(compiled: CompiledProgram): MirageParams {
-  val params = MirageShaders.Duotone.paramsFactory()
-  resetToDefaults(params, compiled.schema)
-  return params
+private fun defaultUniforms(compiled: CompiledProgram): ShaderUniforms {
+  val uniforms = MirageShaders.Duotone.uniformsFactory()
+  resetToDefaults(uniforms, compiled.schema)
+  return uniforms
 }
 
 private fun gradientContent(w: Int, h: Int): Bitmap {
@@ -274,7 +274,7 @@ private fun bindSchemaDefaults(sink: UniformSink, compiled: CompiledProgram) {
       is Size -> sink.float2(entry.name, d.width, d.height)
       is FloatArray -> sink.floatArray(entry.name, d)
       is Int -> sink.int(entry.name, d)
-      else -> {} // textures / null: unused by these optics
+      else -> {} // textures / null: unused by these shaders
     }
   }
 }
@@ -283,7 +283,7 @@ private fun bindSchemaDefaults(sink: UniformSink, compiled: CompiledProgram) {
  * Binds each schema slot's declared default directly onto the AGSL [shader] — the symmetric twin of
  * [bindSchemaDefaults], but set on the RuntimeShader ourselves so the GLES and AGSL paths never share a
  * sink (a shared sink's own conversions could mask a real translation divergence). A `layout(color)`
- * uniform uses `setColorUniform` (color-space aware, the native path); the lens optics declare none.
+ * uniform uses `setColorUniform` (color-space aware, the native path); the lens shaders declare none.
  */
 @OptIn(ExperimentalMirage::class)
 private fun bindAgslDefaults(shader: RuntimeShader, compiled: CompiledProgram) {
@@ -307,7 +307,7 @@ private fun bindAgslDefaults(shader: RuntimeShader, compiled: CompiledProgram) {
 
       d is Int -> shader.setIntUniform(entry.name, d)
 
-      else -> {} // textures / null: unused by these optics
+      else -> {} // textures / null: unused by these shaders
     }
   }
 }
